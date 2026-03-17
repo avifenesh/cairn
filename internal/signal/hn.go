@@ -1,0 +1,210 @@
+package signal
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+)
+
+// HNPoller fetches top stories from Hacker News via the Firebase API.
+// Filters by keywords and minimum score.
+type HNPoller struct {
+	keywords []string
+	minScore int
+	baseURL  string
+	client   *http.Client
+}
+
+// HNConfig holds configuration for the Hacker News poller.
+type HNConfig struct {
+	Keywords []string // Keywords to filter stories by (case-insensitive, match title)
+	MinScore int      // Minimum score threshold (0 = no filter)
+}
+
+const hnBaseURL = "https://hacker-news.firebaseio.com/v0"
+
+// NewHNPoller creates a Hacker News poller. Keywords are optional - if empty, all
+// top stories above minScore are included.
+func NewHNPoller(cfg HNConfig) *HNPoller {
+	// Normalize keywords to lowercase.
+	kw := make([]string, len(cfg.Keywords))
+	for i, k := range cfg.Keywords {
+		kw[i] = strings.ToLower(strings.TrimSpace(k))
+	}
+	return &HNPoller{
+		keywords: kw,
+		minScore: cfg.MinScore,
+		baseURL:  hnBaseURL,
+		client: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
+}
+
+func (h *HNPoller) Source() string { return SourceHN }
+
+func (h *HNPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, error) {
+	// Fetch top story IDs.
+	ids, err := h.fetchStoryIDs(ctx, "topstories")
+	if err != nil {
+		return nil, fmt.Errorf("hn: fetch top stories: %w", err)
+	}
+
+	// Limit to first maxHNStories to avoid excessive API calls.
+	const maxHNStories = 50
+	if len(ids) > maxHNStories {
+		ids = ids[:maxHNStories]
+	}
+
+	// Fetch items concurrently with bounded parallelism.
+	const concurrency = 10
+	type result struct {
+		story *hnItem
+		err   error
+	}
+	results := make([]result, len(ids))
+
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, concurrency)
+	cancelled := false
+	for i, id := range ids {
+		if cancelled {
+			break
+		}
+		// Acquire semaphore before spawning goroutine so context cancellation
+		// doesn't leave goroutines blocked on a full channel.
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			cancelled = true
+			continue
+		}
+		wg.Add(1)
+		go func(idx, storyID int) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			s, e := h.fetchItem(ctx, storyID)
+			results[idx] = result{story: s, err: e}
+		}(i, id)
+	}
+	wg.Wait()
+
+	var events []*RawEvent
+	for _, r := range results {
+		if r.err != nil || r.story == nil {
+			continue
+		}
+		story := r.story
+
+		storyTime := time.Unix(story.Time, 0)
+		if storyTime.Before(since) {
+			continue
+		}
+		if h.minScore > 0 && story.Score < h.minScore {
+			continue
+		}
+		if len(h.keywords) > 0 && !h.matchesKeywords(story) {
+			continue
+		}
+
+		url := story.URL
+		if url == "" {
+			url = fmt.Sprintf("https://news.ycombinator.com/item?id=%d", story.ID)
+		}
+
+		events = append(events, &RawEvent{
+			Source:   SourceHN,
+			SourceID: fmt.Sprintf("story:%d", story.ID),
+			Kind:     KindStory,
+			Title:    story.Title,
+			URL:      url,
+			Actor:    story.By,
+			GroupKey: SourceHN,
+			Metadata: map[string]any{
+				"score":       story.Score,
+				"descendants": story.Descendants,
+				"hnURL":       fmt.Sprintf("https://news.ycombinator.com/item?id=%d", story.ID),
+			},
+			OccurredAt: storyTime,
+		})
+	}
+
+	return events, nil
+}
+
+type hnItem struct {
+	ID          int    `json:"id"`
+	Type        string `json:"type"`
+	Title       string `json:"title"`
+	URL         string `json:"url"`
+	By          string `json:"by"`
+	Score       int    `json:"score"`
+	Time        int64  `json:"time"`
+	Descendants int    `json:"descendants"`
+}
+
+func (h *HNPoller) fetchStoryIDs(ctx context.Context, endpoint string) ([]int, error) {
+	url := fmt.Sprintf("%s/%s.json", h.baseURL, endpoint)
+	body, err := h.doGet(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+
+	var ids []int
+	if err := json.Unmarshal(body, &ids); err != nil {
+		return nil, fmt.Errorf("hn: parse story ids: %w", err)
+	}
+	return ids, nil
+}
+
+func (h *HNPoller) fetchItem(ctx context.Context, id int) (*hnItem, error) {
+	url := fmt.Sprintf("%s/item/%d.json", h.baseURL, id)
+	body, err := h.doGet(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+
+	var item hnItem
+	if err := json.Unmarshal(body, &item); err != nil {
+		return nil, fmt.Errorf("hn: parse item %d: %w", id, err)
+	}
+	return &item, nil
+}
+
+func (h *HNPoller) doGet(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("hn: request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("hn: status %d", resp.StatusCode)
+	}
+
+	return io.ReadAll(io.LimitReader(resp.Body, 5<<20)) // 5 MB
+}
+
+func (h *HNPoller) matchesKeywords(story *hnItem) bool {
+	title := strings.ToLower(story.Title)
+	url := strings.ToLower(story.URL)
+	for _, kw := range h.keywords {
+		if kw == "" {
+			continue
+		}
+		if strings.Contains(title, kw) || strings.Contains(url, kw) {
+			return true
+		}
+	}
+	return false
+}

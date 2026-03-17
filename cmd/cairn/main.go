@@ -17,6 +17,7 @@ import (
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/server"
+	signalplane "github.com/avifenesh/cairn/internal/signal"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 	"github.com/avifenesh/cairn/internal/tool/builtin"
@@ -114,6 +115,32 @@ func runServe(logger *slog.Logger) {
 	if provider != nil {
 		reactAgent = agent.NewReActAgent("cairn", logger)
 	}
+
+	// Initialize signal plane (source polling).
+	eventStore := signalplane.NewEventStore(database.DB)
+	sourceState := signalplane.NewSourceState(database.DB)
+	scheduler := signalplane.NewScheduler(eventStore, sourceState, bus, logger)
+
+	pollInterval := time.Duration(cfg.PollInterval) * time.Second
+
+	if cfg.GHToken != "" {
+		scheduler.Register(signalplane.NewGitHubPoller(signalplane.GitHubConfig{
+			Token: cfg.GHToken,
+			Orgs:  cfg.GHOrgs,
+		}), pollInterval)
+		logger.Info("signal: github poller registered", "orgs", cfg.GHOrgs)
+	}
+
+	if len(cfg.HNKeywords) > 0 || cfg.HNMinScore > 0 {
+		scheduler.Register(signalplane.NewHNPoller(signalplane.HNConfig{
+			Keywords: cfg.HNKeywords,
+			MinScore: cfg.HNMinScore,
+		}), pollInterval)
+		logger.Info("signal: hn poller registered", "keywords", cfg.HNKeywords, "minScore", cfg.HNMinScore)
+	}
+
+	scheduler.Start()
+	defer scheduler.Close()
 
 	// Create and start the server.
 	srv := server.New(server.ServerConfig{

@@ -36,13 +36,20 @@ type Config struct {
 	FrontendOrigin string
 
 	// Feature flags
-	CodingEnabled bool
+	CodingEnabled   bool
 	IdleModeEnabled bool
 
+	// Signal plane
+	GHToken      string   // GitHub personal access token
+	GHOrgs       []string // GitHub orgs to track
+	HNKeywords   []string // HN keyword filter
+	HNMinScore   int      // HN minimum score filter
+	PollInterval int      // Poll interval in seconds (default 300 = 5min)
+
 	// Paths
-	SoulPath   string
-	SkillDirs  []string
-	DataDir    string
+	SoulPath  string
+	SkillDirs []string
+	DataDir   string
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -100,6 +107,11 @@ func Load() (*Config, error) {
 		FrontendOrigin:   envStr("FRONTEND_ORIGIN", ""),
 		CodingEnabled:    envBool("CODING_ENABLED", false),
 		IdleModeEnabled:  envBool("IDLE_MODE_ENABLED", false),
+		GHToken:          envStr("GH_TOKEN", envStr("GITHUB_TOKEN", "")),
+		GHOrgs:           envSlice("GH_ORGS", nil),
+		HNKeywords:       envSlice("HN_KEYWORDS", nil),
+		HNMinScore:       envInt("HN_MIN_SCORE", 0),
+		PollInterval:     envInt("POLL_INTERVAL", 300),
 		SoulPath:         envStr("SOUL_PATH", "./SOUL.md"),
 		SkillDirs:        envSlice("SKILL_DIRS", []string{"./.pub/skills"}),
 		DataDir:          envStr("DATA_DIR", "./data"),

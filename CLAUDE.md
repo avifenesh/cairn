@@ -19,7 +19,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 4 | Agent Core - ReAct loop, sessions, modes (talk/work/coding) | Done | `internal/agent/` |
 | 5 | Task Engine - priority queue, worktree isolation, leases | Done | `internal/task/` |
 | 6 | Memory System - semantic + episodic + procedural, RAG, Soul | Done | `internal/memory/` |
-| 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Not started | — |
+| 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | In progress (store, scheduler, GH+HN pollers) | `internal/signal/` |
 | 8 | Skill System - SKILL.md parser, discovery, hot-reload, injection | Done | `internal/skill/` |
 | 9 | Server & Protocols - HTTP, SSE, REST API, auth, static files | Done | `internal/server/` |
 | 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.11 + Phase 6, 103 tests) | `frontend/` |
@@ -81,6 +81,7 @@ internal/
   agent/                      ReAct loop, session store, modes (talk/work/coding), system prompt builder
   server/                     HTTP server, REST routes, SSE broadcaster, auth, static files
   skill/                      SKILL.md parser, discovery, hot-reload, prompt injection
+  signal/                     Signal plane: event store, scheduler, GitHub + HN pollers
 frontend/                     SvelteKit 5 app (Svelte 5 runes, Tailwind v4, shadcn-svelte)
   src/routes/                 today, chat, ops, memory, agents, skills, soul, settings
   src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav)
@@ -128,6 +129,13 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 - `DATABASE_PATH` (./data/cairn.db)
 - `WRITE_API_TOKEN`, `READ_API_TOKEN` - API auth tokens
 - `FRONTEND_ORIGIN` - CORS origin
+
+**Signal plane:**
+- `GH_TOKEN` / `GITHUB_TOKEN` - GitHub API token for polling
+- `GH_ORGS` - comma-separated org names to track
+- `HN_KEYWORDS` - comma-separated HN keyword filter
+- `HN_MIN_SCORE` (0) - minimum HN story score
+- `POLL_INTERVAL` (300) - poll interval in seconds
 
 **Feature flags:**
 - `CODING_ENABLED` (false), `IDLE_MODE_ENABLED` (false)
@@ -183,7 +191,7 @@ Full design specs live in `docs/design/`:
 - Commit frequently with meaningful messages - logical changes separated.
 - For non-trivial tasks, go into plan mode unless instructed not to.
 - Report script/tool failures before manual fallback. Never silently work around broken tooling - report error, diagnose, fix.
-- Address ALL review comments before merging - even minor ones. Disagree = respond in the review, don't ignore.
+- Address ALL review comments before merging - every single one, no exceptions. There are no ignorable issues. Fix them all. Disagree = respond in the review explaining why, but still fix or improve.
 
 ### Pre-Push Checklist (MANDATORY)
 

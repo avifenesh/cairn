@@ -72,6 +72,9 @@
 					}
 					break;
 				}
+				case 'x':
+					keyboardNav.toggleSelection();
+					break;
 				case 's':
 					triggerPoll().catch(() => {});
 					break;

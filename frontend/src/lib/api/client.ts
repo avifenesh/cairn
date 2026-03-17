@@ -221,3 +221,12 @@ export const getStatus = () => get<Record<string, unknown>>('/v1/status');
 
 // Poll
 export const triggerPoll = () => post<{ ok: boolean }>('/v1/poll/run');
+
+// Auth (WebAuthn)
+export const authLoginStart = () => post<{ challenge: string }>('/v1/auth/login/start');
+export const authLoginComplete = (credential: unknown) =>
+	post<{ ok: boolean }>('/v1/auth/login/complete', credential);
+export const authRegisterStart = () => post<{ challenge: string }>('/v1/auth/register/start');
+export const authRegisterComplete = (credential: unknown) =>
+	post<{ ok: boolean }>('/v1/auth/register/complete', credential);
+export const authLogout = () => post<{ ok: boolean }>('/v1/auth/logout');

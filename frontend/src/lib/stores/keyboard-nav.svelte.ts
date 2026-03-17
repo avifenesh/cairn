@@ -3,6 +3,7 @@
 
 let focusedIndex = $state(-1);
 let itemCount = $state(0);
+let selectionToggleCallback: ((index: number) => void) | null = null;
 
 export const keyboardNav = {
 	get focusedIndex() { return focusedIndex; },
@@ -22,8 +23,19 @@ export const keyboardNav = {
 		focusedIndex = focusedIndex > 0 ? focusedIndex - 1 : itemCount - 1;
 	},
 
+	toggleSelection() {
+		if (focusedIndex >= 0 && selectionToggleCallback) {
+			selectionToggleCallback(focusedIndex);
+		}
+	},
+
+	setSelectionCallback(cb: ((index: number) => void) | null) {
+		selectionToggleCallback = cb;
+	},
+
 	reset() {
 		focusedIndex = -1;
 		itemCount = 0;
+		selectionToggleCallback = null;
 	},
 };

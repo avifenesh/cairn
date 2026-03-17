@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { keyboardNav } from './keyboard-nav.svelte';
 
 describe('keyboardNav', () => {
@@ -55,5 +55,37 @@ describe('keyboardNav', () => {
 		keyboardNav.moveDown();
 		keyboardNav.reset();
 		expect(keyboardNav.focusedIndex).toBe(-1);
+	});
+
+	it('toggleSelection calls callback with focused index', () => {
+		const cb = vi.fn();
+		keyboardNav.setItemCount(3);
+		keyboardNav.setSelectionCallback(cb);
+		keyboardNav.moveDown(); // index 0
+		keyboardNav.toggleSelection();
+		expect(cb).toHaveBeenCalledWith(0);
+	});
+
+	it('toggleSelection is no-op without callback', () => {
+		keyboardNav.setItemCount(3);
+		keyboardNav.moveDown();
+		keyboardNav.toggleSelection(); // should not throw
+	});
+
+	it('toggleSelection is no-op when no item focused', () => {
+		const cb = vi.fn();
+		keyboardNav.setSelectionCallback(cb);
+		keyboardNav.toggleSelection();
+		expect(cb).not.toHaveBeenCalled();
+	});
+
+	it('reset clears selection callback', () => {
+		const cb = vi.fn();
+		keyboardNav.setSelectionCallback(cb);
+		keyboardNav.reset();
+		keyboardNav.setItemCount(3);
+		keyboardNav.moveDown();
+		keyboardNav.toggleSelection();
+		expect(cb).not.toHaveBeenCalled();
 	});
 });

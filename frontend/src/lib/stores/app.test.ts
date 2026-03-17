@@ -70,6 +70,10 @@ describe('appStore', () => {
 	});
 
 	describe('auto-mood', () => {
+		beforeEach(() => {
+			vi.useFakeTimers();
+		});
+
 		it('applyAutoMood selects dawn for 6-10', () => {
 			vi.setSystemTime(new Date('2026-03-17T07:00:00'));
 			appStore.applyAutoMood();

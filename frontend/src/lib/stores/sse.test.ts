@@ -112,6 +112,7 @@ describe('sseStore', () => {
 
 	afterEach(() => {
 		sseStore.disconnect();
+		vi.restoreAllMocks();
 		vi.useRealTimers();
 	});
 

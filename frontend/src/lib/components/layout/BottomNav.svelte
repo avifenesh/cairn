@@ -62,6 +62,7 @@
 			class="absolute bottom-full left-0 right-0 border-t border-border-subtle bg-[var(--bg-1)] p-2 shadow-lg"
 			role="menu"
 			aria-label="More navigation"
+			onkeydown={(e) => e.key === 'Escape' && (moreOpen = false)}
 		>
 			{#each moreItems as item}
 				<a

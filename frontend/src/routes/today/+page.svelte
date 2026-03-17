@@ -51,16 +51,17 @@
 	ontouchstart={ptr.handleTouchStart}
 	ontouchmove={ptr.handleTouchMove}
 	ontouchend={ptr.handleTouchEnd}
+	ontouchcancel={ptr.handleTouchCancel}
 >
 	<!-- Pull-to-refresh indicator -->
-	{#if ptr.state.distance > 0}
+	{#if ptr.state.distance > 0 || ptr.state.refreshing}
 		<div
 			class="flex items-center justify-center transition-all duration-[var(--dur-fast)]"
-			style="height: {ptr.state.distance}px"
+			style="height: {ptr.state.refreshing ? 40 : ptr.state.distance}px"
 		>
 			<Loader2
-				class="h-5 w-5 text-[var(--pub-accent)] {ptr.state.triggered ? 'animate-spin' : ''}"
-				style="opacity: {Math.min(1, ptr.state.distance / 60)}"
+				class="h-5 w-5 text-[var(--pub-accent)] {ptr.state.triggered || ptr.state.refreshing ? 'animate-spin' : ''}"
+				style="opacity: {ptr.state.refreshing ? 1 : Math.min(1, ptr.state.distance / 60)}"
 			/>
 		</div>
 	{/if}

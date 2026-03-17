@@ -22,7 +22,7 @@
 	}
 
 	const translateStyle = $derived(
-		swipe.state.swiping ? `transform: translateX(${swipe.state.offsetX}px); opacity: ${1 - Math.abs(swipe.state.offsetX) / VISUAL_RANGE}` : '',
+		swipe.state.swiping ? `transform: translateX(${swipe.state.offsetX}px); opacity: ${Math.max(0, 1 - Math.abs(swipe.state.offsetX) / VISUAL_RANGE)}` : '',
 	);
 </script>
 
@@ -37,6 +37,7 @@
 	ontouchstart={swipe.handleTouchStart}
 	ontouchmove={swipe.handleTouchMove}
 	ontouchend={swipe.handleTouchEnd}
+	ontouchcancel={swipe.handleTouchCancel}
 >
 	<span
 		class="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full"

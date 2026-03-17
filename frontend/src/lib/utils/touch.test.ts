@@ -83,6 +83,43 @@ describe('createPullToRefresh', () => {
 		expect(ptr.state.pulling).toBe(false);
 		expect(ptr.state.distance).toBe(0);
 	});
+
+	it('ignores horizontal gesture', () => {
+		const onRefresh = vi.fn(() => Promise.resolve());
+		const ptr = createPullToRefresh(onRefresh);
+
+		ptr.handleTouchStart(mockTouchEvent(0, 0));
+		ptr.handleTouchMove(mockTouchEvent(50, 2)); // horizontal dominates
+		expect(ptr.state.pulling).toBe(false);
+	});
+
+	it('touchcancel resets state', () => {
+		const onRefresh = vi.fn(() => Promise.resolve());
+		const ptr = createPullToRefresh(onRefresh);
+
+		ptr.handleTouchStart(mockTouchEvent(0, 0));
+		ptr.handleTouchMove(mockTouchEvent(0, 100));
+		ptr.handleTouchCancel();
+		expect(ptr.state.pulling).toBe(false);
+		expect(ptr.state.distance).toBe(0);
+	});
+
+	it('keeps refreshing state during async refresh', async () => {
+		let resolveRefresh: () => void;
+		const refreshPromise = new Promise<void>((r) => { resolveRefresh = r; });
+		const onRefresh = vi.fn(() => refreshPromise);
+		const ptr = createPullToRefresh(onRefresh);
+
+		ptr.handleTouchStart(mockTouchEvent(0, 0));
+		ptr.handleTouchMove(mockTouchEvent(0, 200));
+		ptr.handleTouchEnd();
+		expect(ptr.state.refreshing).toBe(true);
+		expect(ptr.state.triggered).toBe(true);
+
+		resolveRefresh!();
+		await refreshPromise;
+		expect(ptr.state.refreshing).toBe(false);
+	});
 });
 
 describe('createSwipeToDismiss', () => {
@@ -136,6 +173,18 @@ describe('createSwipeToDismiss', () => {
 		swipe.handleTouchStart(mockTouchEvent(100, 100));
 		swipe.handleTouchMove(mockTouchEvent(180, 100));
 		swipe.handleTouchEnd();
+		expect(swipe.state.swiping).toBe(false);
+		expect(swipe.state.offsetX).toBe(0);
+	});
+
+	it('touchcancel resets state without dismissing', () => {
+		const onDismiss = vi.fn();
+		const swipe = createSwipeToDismiss(onDismiss);
+
+		swipe.handleTouchStart(mockTouchEvent(100, 100));
+		swipe.handleTouchMove(mockTouchEvent(250, 100));
+		swipe.handleTouchCancel();
+		expect(onDismiss).not.toHaveBeenCalled();
 		expect(swipe.state.swiping).toBe(false);
 		expect(swipe.state.offsetX).toBe(0);
 	});

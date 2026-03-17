@@ -6,6 +6,7 @@ export interface PullToRefreshState {
 	pulling: boolean;
 	distance: number;
 	triggered: boolean;
+	refreshing: boolean;
 }
 
 const PULL_THRESHOLD = 80;
@@ -19,26 +20,47 @@ export function createPullToRefresh(
 	handleTouchStart: (e: TouchEvent) => void;
 	handleTouchMove: (e: TouchEvent) => void;
 	handleTouchEnd: () => void;
+	handleTouchCancel: () => void;
 	state: PullToRefreshState;
 	reset: () => void;
 } {
-	let state = $state<PullToRefreshState>({ pulling: false, distance: 0, triggered: false });
+	let state = $state<PullToRefreshState>({ pulling: false, distance: 0, triggered: false, refreshing: false });
 	let startY = 0;
-	let refreshing = false;
+	let startX = 0;
+	let directionLocked = false;
+	let isVertical = false;
 
 	function handleTouchStart(e: TouchEvent) {
-		if (refreshing) return;
+		if (state.refreshing) return;
 		const el = e.currentTarget as HTMLElement;
 		if (el.scrollTop > 0) return;
 		startY = e.touches[0].clientY;
+		startX = e.touches[0].clientX;
 		state.pulling = true;
 		state.distance = 0;
 		state.triggered = false;
+		directionLocked = false;
+		isVertical = false;
 	}
 
 	function handleTouchMove(e: TouchEvent) {
-		if (!state.pulling || refreshing) return;
+		if (!state.pulling || state.refreshing) return;
 		const dy = e.touches[0].clientY - startY;
+		const dx = e.touches[0].clientX - startX;
+
+		// Lock direction on first significant movement - ignore horizontal gestures
+		if (!directionLocked && (Math.abs(dx) > DIRECTION_LOCK_THRESHOLD || Math.abs(dy) > DIRECTION_LOCK_THRESHOLD)) {
+			directionLocked = true;
+			isVertical = Math.abs(dy) > Math.abs(dx);
+			if (!isVertical) {
+				state.pulling = false;
+				state.distance = 0;
+				return;
+			}
+		}
+
+		if (!isVertical && directionLocked) return;
+
 		if (dy < 0) {
 			state.distance = 0;
 			return;
@@ -49,13 +71,14 @@ export function createPullToRefresh(
 
 	function handleTouchEnd() {
 		if (!state.pulling) return;
-		if (state.triggered && !refreshing) {
-			refreshing = true;
-			state.triggered = false;
+		if (state.triggered && !state.refreshing) {
+			state.refreshing = true;
+			// Keep triggered true during refresh so spinner stays visible
 			onRefresh().finally(() => {
-				refreshing = false;
+				state.refreshing = false;
 				state.pulling = false;
 				state.distance = 0;
+				state.triggered = false;
 			});
 		} else {
 			state.pulling = false;
@@ -64,14 +87,21 @@ export function createPullToRefresh(
 		}
 	}
 
+	function handleTouchCancel() {
+		if (state.refreshing) return;
+		state.pulling = false;
+		state.distance = 0;
+		state.triggered = false;
+	}
+
 	function reset() {
 		state.pulling = false;
 		state.distance = 0;
 		state.triggered = false;
-		refreshing = false;
+		state.refreshing = false;
 	}
 
-	return { handleTouchStart, handleTouchMove, handleTouchEnd, state, reset };
+	return { handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel, state, reset };
 }
 
 export interface SwipeState {
@@ -88,6 +118,7 @@ export function createSwipeToDismiss(
 	handleTouchStart: (e: TouchEvent) => void;
 	handleTouchMove: (e: TouchEvent) => void;
 	handleTouchEnd: () => void;
+	handleTouchCancel: () => void;
 	state: SwipeState;
 	reset: () => void;
 } {
@@ -129,6 +160,12 @@ export function createSwipeToDismiss(
 		state.dismissed = false;
 	}
 
+	function handleTouchCancel() {
+		state.swiping = false;
+		state.offsetX = 0;
+		state.dismissed = false;
+	}
+
 	function reset() {
 		state.swiping = false;
 		state.offsetX = 0;
@@ -136,5 +173,5 @@ export function createSwipeToDismiss(
 		locked = false;
 	}
 
-	return { handleTouchStart, handleTouchMove, handleTouchEnd, state, reset };
+	return { handleTouchStart, handleTouchMove, handleTouchEnd, handleTouchCancel, state, reset };
 }

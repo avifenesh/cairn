@@ -20,13 +20,10 @@
 		{ value: 'night', label: 'Night', color: '#818CF8' },
 	];
 
-	let autoMood = $state(localStorage.getItem('pub_auto_mood') === 'true');
 	let toastDuration = $state(Number(localStorage.getItem('pub_toast_duration')) || 5);
 
 	function toggleAutoMood() {
-		autoMood = !autoMood;
-		localStorage.setItem('pub_auto_mood', String(autoMood));
-		if (autoMood) appStore.applyAutoMood();
+		appStore.setAutoMood(!appStore.autoMoodEnabled);
 	}
 
 	function setToastDuration(seconds: number) {
@@ -95,7 +92,7 @@
 		<label class="mt-3 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
 			<input
 				type="checkbox"
-				checked={autoMood}
+				checked={appStore.autoMoodEnabled}
 				onchange={toggleAutoMood}
 				class="h-4 w-4 rounded accent-[var(--pub-accent)]"
 			/>

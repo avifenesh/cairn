@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Search } from '@lucide/svelte';
+	import { onDestroy } from 'svelte';
 
 	let { value = $bindable(''), onsearch }: { value: string; onsearch: () => void } = $props();
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -8,6 +9,10 @@
 		if (debounceTimer) clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(onsearch, 300);
 	}
+
+	onDestroy(() => {
+		if (debounceTimer) clearTimeout(debounceTimer);
+	});
 </script>
 
 <div class="relative flex-1">

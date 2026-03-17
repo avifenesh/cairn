@@ -45,17 +45,20 @@
 		await markAllRead().catch(() => {});
 	}
 
+	const MAX_FEED_ITEMS = 200;
 	let loadingMore = $state(false);
+	let loadMoreError = $state<string | null>(null);
 	async function loadMore() {
-		if (loadingMore || !feedStore.hasMore) return;
+		if (loadingMore || !feedStore.hasMore || feedStore.items.length >= MAX_FEED_ITEMS) return;
 		const lastItem = feedStore.items.at(-1);
 		if (!lastItem) return;
 		loadingMore = true;
+		loadMoreError = null;
 		try {
 			const res = await getFeed({ limit: 20, before: lastItem.createdAt });
 			feedStore.appendItems(res.items, res.hasMore);
-		} catch {
-			// handled
+		} catch (e) {
+			loadMoreError = e instanceof Error ? e.message : 'Failed to load more';
 		} finally {
 			loadingMore = false;
 		}
@@ -158,7 +161,10 @@
 				<FeedItemComponent {item} />
 			{/each}
 		</div>
-		{#if feedStore.hasMore}
+		{#if loadMoreError}
+			<p class="mt-2 text-center text-xs text-[var(--color-error)]">{loadMoreError}</p>
+		{/if}
+		{#if feedStore.hasMore && feedStore.items.length < MAX_FEED_ITEMS}
 			<button
 				class="mt-4 w-full rounded-lg border border-border-subtle bg-[var(--bg-2)] py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-3)] transition-colors disabled:opacity-50"
 				onclick={loadMore}

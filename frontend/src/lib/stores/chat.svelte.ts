@@ -41,7 +41,9 @@ export const chatStore = {
 		try {
 			if (id) localStorage.setItem('pub_current_session', id);
 			else localStorage.removeItem('pub_current_session');
-		} catch {}
+		} catch (err) {
+			console.warn('[chat] localStorage unavailable:', err);
+		}
 	},
 	setMessages(m: ChatMessage[]) { messages = m; },
 	setMode(m: ChatMode) { mode = m; },

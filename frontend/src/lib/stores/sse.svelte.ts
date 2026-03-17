@@ -87,11 +87,14 @@ export const sseStore = {
 		});
 
 		// Helper: track event ID + safe parse in one step
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		function handle(name: string, source: EventSource, fn: (data: Record<string, any>) => void) {
 			source.addEventListener(name, (e) => {
 				if (e.lastEventId) lastEventId = e.lastEventId;
-				const data = safeParse(name, e.data) as Record<string, any> | null;
-				if (data) fn(data);
+				const parsed = safeParse(name, e.data);
+				if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+					fn(parsed as Record<string, any>);
+				}
 			});
 		}
 

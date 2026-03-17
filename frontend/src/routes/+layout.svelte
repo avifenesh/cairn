@@ -31,17 +31,20 @@
 		}
 	});
 
-	onMount(() => {
-		appStore.initTheme();
-		sseStore.connect();
-
-		// Auto-mood: check hourly, apply if enabled
-		const autoMoodEnabled = localStorage.getItem('pub_auto_mood') === 'true';
-		let moodInterval: ReturnType<typeof setInterval> | undefined;
-		if (autoMoodEnabled) {
+	// Auto-mood: reactive to Settings toggle, hourly check
+	let moodInterval: ReturnType<typeof setInterval> | undefined;
+	$effect(() => {
+		if (moodInterval) clearInterval(moodInterval);
+		if (appStore.autoMoodEnabled) {
 			appStore.applyAutoMood();
 			moodInterval = setInterval(() => appStore.applyAutoMood(), 60 * 60 * 1000);
 		}
+		return () => { if (moodInterval) clearInterval(moodInterval); };
+	});
+
+	onMount(() => {
+		appStore.initTheme();
+		sseStore.connect();
 
 		function handleKeydown(e: KeyboardEvent) {
 			if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -137,7 +140,6 @@
 		return () => {
 			sseStore.disconnect();
 			document.removeEventListener('keydown', handleKeydown);
-			if (moodInterval) clearInterval(moodInterval);
 		};
 	});
 </script>

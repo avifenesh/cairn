@@ -22,7 +22,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Not started | — |
 | 8 | Plugin & Skill System - lifecycle hooks, SKILL.md, ClawHub-compatible | Not started | — |
 | 9 | Server & Protocols - HTTP, SSE, MCP, A2A, ACP, auth | Not started | — |
-| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.10, 65 tests) | `frontend/` |
+| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.11, 80 tests) | `frontend/` |
 | 11 | Channel Adapters - web, Telegram, Slack, CLI, API, voice | Not started | — |
 
 Frontend scaffold is up with passing test suite across stores, utils, and API client.

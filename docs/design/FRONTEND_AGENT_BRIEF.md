@@ -263,10 +263,15 @@ The Go backend embeds `frontend/dist/` via `embed.FS` and serves it at `/`.
 
 ### Phase 5: Testing
 1. Set up vitest with jsdom environment + Svelte compiler
-2. Unit tests for stores: chat (streaming lifecycle, tool calls, reasoning), feed (dedup, unread), tasks (upsert, optimistic approvals), memory (resolve, proposed count)
-3. Unit tests for utilities: markdown (rendering, XSS sanitization), time (relative formatting)
+2. Unit tests for stores: chat (streaming lifecycle, tool calls, reasoning), feed (dedup, unread), tasks (upsert, optimistic approvals), memory (resolve, proposed count), offline-queue (cap, expiry, drain), keyboard-nav (movement, selection)
+3. Unit tests for utilities: markdown (rendering, XSS sanitization), time (relative formatting), touch (pull-to-refresh, swipe-to-dismiss)
 4. API client tests: ApiError, fetch behavior, credentials
 5. Test script: `pnpm test` (vitest run), `pnpm test:watch` (vitest)
+6. 80 tests across 10 test files
+
+## Completion Status
+
+All frontend phases (1-5) and all subphases (10.1-10.11) are complete. 80 tests passing, build clean. Only 10.12 (Go embed) remains, which depends on the Go HTTP server (Phase 4a).
 
 ## Reference Files
 

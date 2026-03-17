@@ -3,15 +3,27 @@
 	import { relativeTime } from '$lib/utils/time';
 	import { markRead } from '$lib/api/client';
 	import { feedStore } from '$lib/stores/feed.svelte';
+	import { createSwipeToDismiss, SWIPE_THRESHOLD } from '$lib/utils/touch.svelte';
 
 	let { item }: { item: FeedItem } = $props();
 
-	async function handleClick() {
-		if (!item.isRead) {
-			feedStore.markItemRead(item.id);
-			await markRead(item.id).catch(() => {});
-		}
+	const VISUAL_RANGE = SWIPE_THRESHOLD * 1.5;
+
+	function markItemRead() {
+		if (item.isRead) return;
+		feedStore.markItemRead(item.id);
+		markRead(item.id).catch(() => {});
 	}
+
+	const swipe = createSwipeToDismiss(markItemRead);
+
+	function handleClick() {
+		markItemRead();
+	}
+
+	const translateStyle = $derived(
+		swipe.state.swiping ? `transform: translateX(${swipe.state.offsetX}px); opacity: ${Math.max(0, 1 - Math.abs(swipe.state.offsetX) / VISUAL_RANGE)}` : '',
+	);
 </script>
 
 <a
@@ -20,7 +32,12 @@
 	rel="noopener"
 	class="flex items-start gap-3 rounded-lg border border-border-subtle bg-[var(--bg-1)] p-3 transition-colors duration-[var(--dur-fast)] hover:bg-[var(--bg-2)]"
 	class:opacity-60={item.isRead}
+	style={translateStyle}
 	onclick={handleClick}
+	ontouchstart={swipe.handleTouchStart}
+	ontouchmove={swipe.handleTouchMove}
+	ontouchend={swipe.handleTouchEnd}
+	ontouchcancel={swipe.handleTouchCancel}
 >
 	<span
 		class="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full"

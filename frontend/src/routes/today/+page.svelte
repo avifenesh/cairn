@@ -4,20 +4,29 @@
 	import { feedStore } from '$lib/stores/feed.svelte';
 	import FeedItemComponent from '$lib/components/feed/FeedItem.svelte';
 	import type { DashboardResponse } from '$lib/types';
-	import { Activity, Eye, Zap, TrendingUp, RefreshCw, CheckCheck } from '@lucide/svelte';
+	import { Activity, Eye, Zap, TrendingUp, RefreshCw, CheckCheck, Loader2 } from '@lucide/svelte';
+	import { createPullToRefresh } from '$lib/utils/touch.svelte';
 
 	let dashboard = $state<DashboardResponse | null>(null);
 	let error = $state<string | null>(null);
 
+	async function loadDashboard() {
+		dashboard = await getDashboard({ limit: 20 });
+		if (dashboard) {
+			feedStore.setItems(dashboard.feed, dashboard.feed.length >= 20);
+		}
+	}
+
 	onMount(async () => {
 		try {
-			dashboard = await getDashboard({ limit: 20 });
-			if (dashboard) {
-				feedStore.setItems(dashboard.feed, dashboard.feed.length >= 20);
-			}
+			await loadDashboard();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load dashboard';
 		}
+	});
+
+	const ptr = createPullToRefresh(async () => {
+		await loadDashboard().catch(() => {});
 	});
 
 	const greeting = $derived(() => {
@@ -37,7 +46,26 @@
 	}
 </script>
 
-<div class="mx-auto max-w-4xl p-6">
+<div
+	class="mx-auto max-w-4xl p-6 overflow-y-auto h-full"
+	ontouchstart={ptr.handleTouchStart}
+	ontouchmove={ptr.handleTouchMove}
+	ontouchend={ptr.handleTouchEnd}
+	ontouchcancel={ptr.handleTouchCancel}
+>
+	<!-- Pull-to-refresh indicator -->
+	{#if ptr.state.distance > 0 || ptr.state.refreshing}
+		<div
+			class="flex items-center justify-center transition-all duration-[var(--dur-fast)]"
+			style="height: {ptr.state.refreshing ? 40 : ptr.state.distance}px"
+		>
+			<Loader2
+				class="h-5 w-5 text-[var(--pub-accent)] {ptr.state.triggered || ptr.state.refreshing ? 'animate-spin' : ''}"
+				style="opacity: {ptr.state.refreshing ? 1 : Math.min(1, ptr.state.distance / 60)}"
+			/>
+		</div>
+	{/if}
+
 	<h1 class="mb-6 text-2xl font-semibold text-[var(--text-primary)]">
 		{greeting()}, Avi
 	</h1>

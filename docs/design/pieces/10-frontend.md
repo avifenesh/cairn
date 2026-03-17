@@ -204,5 +204,9 @@ src/
 | 10.8 | Feed, Agents, Skills, Soul, Settings views | 10.2, 10.3 |
 | 10.9 | Command palette (Cmd+K) | 10.3 |
 | 10.10 | Unit tests (vitest): stores, utilities, API client | 10.2-10.9 |
-| 10.11 | Mobile optimization + PWA | 10.3-10.9 |
+| 10.11 | Mobile: pull-to-refresh, swipe-to-dismiss | 10.3-10.9 |
 | 10.12 | Embed in Go binary (embed.FS) | 10.1, backend |
+
+## Status
+
+All subphases 10.1-10.11 complete. 80 tests passing. 10.12 (Go embed) depends on backend server (Phase 4a).

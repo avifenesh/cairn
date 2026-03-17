@@ -20,7 +20,7 @@
 		{ value: 'night', label: 'Night', color: '#818CF8' },
 	];
 
-	let toastDuration = $state(Number(localStorage.getItem('pub_toast_duration')) || 5);
+	let toastDuration = $state((() => { try { return Number(localStorage.getItem('pub_toast_duration')) || 5; } catch { return 5; } })());
 
 	function toggleAutoMood() {
 		appStore.setAutoMood(!appStore.autoMoodEnabled);
@@ -28,7 +28,7 @@
 
 	function setToastDuration(seconds: number) {
 		toastDuration = seconds;
-		localStorage.setItem('pub_toast_duration', String(seconds));
+		try { localStorage.setItem('pub_toast_duration', String(seconds)); } catch {}
 	}
 </script>
 

@@ -277,7 +277,7 @@ All frontend phases (1-5), subphases (10.1-10.11), and Phase 6 hardening (10/10 
 
 | # | Item | Priority |
 |---|------|----------|
-| 6.1 | Component tests — ChatPanel, CommandPalette, FeedItem with @testing-library/svelte | high |
+| 6.1 | Component tests — ErrorBoundary, FeedItem, ApprovalCard, ToolCallChip with @testing-library/svelte | high |
 | 6.2 | Error boundaries — shared error boundary component, replace bare catch {} blocks | high |
 | 6.3 | Consistent loading states — shared SkeletonList component across all views | medium |
 | 6.4 | Feed pagination — infinite scroll or "Load more" using cursor-based before param | medium |

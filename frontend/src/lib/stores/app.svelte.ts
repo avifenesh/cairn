@@ -17,7 +17,11 @@ function getToastDuration(): number {
 	catch { return 5000; }
 }
 
-let autoMoodEnabled = $state(localStorage.getItem('pub_auto_mood') === 'true');
+function safeGetItem(key: string): string | null {
+	try { return localStorage.getItem(key); } catch { return null; }
+}
+
+let autoMoodEnabled = $state(safeGetItem('pub_auto_mood') === 'true');
 
 let sseConnected = $state(false);
 let clientId = $state<string | null>(null);

@@ -55,7 +55,8 @@
 		loadingMore = true;
 		loadMoreError = null;
 		try {
-			const res = await getFeed({ limit: 20, before: lastItem.createdAt });
+			const remaining = MAX_FEED_ITEMS - feedStore.items.length;
+			const res = await getFeed({ limit: Math.min(20, remaining), before: lastItem.createdAt });
 			feedStore.appendItems(res.items, res.hasMore);
 		} catch (e) {
 			loadMoreError = e instanceof Error ? e.message : 'Failed to load more';

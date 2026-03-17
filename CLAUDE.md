@@ -19,7 +19,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 4 | Agent Core - ReAct loop, sessions, modes (talk/work/coding) | Done | `internal/agent/` |
 | 5 | Task Engine - priority queue, worktree isolation, leases | Done | `internal/task/` |
 | 6 | Memory System - semantic + episodic + procedural, RAG, Soul | Done | `internal/memory/` |
-| 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | In progress (store, scheduler, GH+HN pollers) | `internal/signal/` |
+| 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Done | `internal/signal/` |
 | 8 | Skill System - SKILL.md parser, discovery, hot-reload, injection | Done | `internal/skill/` |
 | 9 | Server & Protocols - HTTP, SSE, REST API, auth, static files | Done | `internal/server/` |
 | 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.11 + Phase 6, 103 tests) | `frontend/` |
@@ -33,7 +33,7 @@ Frontend complete (10.1-10.11 + Phase 6 hardening). 103 tests across 14 files. N
 Phase 1: Foundation (event bus + LLM + SQLite)                [DONE]
 Phase 2: Core Systems (tools | tasks | memory) in parallel    [DONE]
 Phase 3: Agent Core (ReAct loop wires all together)           [DONE]
-Phase 4: Server + Skills (4a+4c done, 4b signal plane pending) [IN PROGRESS]
+Phase 4: Server + Skills + Signal Plane (4a+4b+4c)             [DONE]
 Phase 5: Integration, always-on loop, open-source release
 ```
 
@@ -136,6 +136,10 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 - `HN_KEYWORDS` - comma-separated HN keyword filter
 - `HN_MIN_SCORE` (0) - minimum HN story score
 - `POLL_INTERVAL` (300) - poll interval in seconds
+- `REDDIT_SUBS` - comma-separated subreddit names
+- `NPM_PACKAGES` - comma-separated npm packages to track
+- `CRATES_PACKAGES` - comma-separated crates to track
+- `WEBHOOK_SECRETS` - JSON map of name->secret (e.g. '{"github":"abc"}')
 
 **Feature flags:**
 - `CODING_ENABLED` (false), `IDLE_MODE_ENABLED` (false)

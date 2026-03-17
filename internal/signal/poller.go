@@ -9,8 +9,12 @@ import (
 
 // Source name constants.
 const (
-	SourceGitHub = "github"
-	SourceHN     = "hn"
+	SourceGitHub  = "github"
+	SourceHN      = "hn"
+	SourceReddit  = "reddit"
+	SourceNPM     = "npm"
+	SourceCrates  = "crates"
+	SourceWebhook = "webhook"
 )
 
 // Event kind constants.
@@ -25,6 +29,9 @@ const (
 	KindFork       = "fork"
 	KindStar       = "star"
 	KindStory      = "story"
+	KindPost       = "post"
+	KindPackage    = "package"
+	KindWebhook    = "webhook"
 )
 
 // Poller fetches new events from an external source.

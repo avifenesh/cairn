@@ -139,8 +139,36 @@ func runServe(logger *slog.Logger) {
 		logger.Info("signal: hn poller registered", "keywords", cfg.HNKeywords, "minScore", cfg.HNMinScore)
 	}
 
+	if len(cfg.RedditSubs) > 0 {
+		scheduler.Register(signalplane.NewRedditPoller(signalplane.RedditConfig{
+			Subreddits: cfg.RedditSubs,
+		}), pollInterval)
+		logger.Info("signal: reddit poller registered", "subreddits", cfg.RedditSubs)
+	}
+
+	if len(cfg.NPMPackages) > 0 {
+		scheduler.Register(signalplane.NewNPMPoller(signalplane.NPMConfig{
+			Packages: cfg.NPMPackages,
+		}), 15*time.Minute) // npm/crates poll less frequently
+		logger.Info("signal: npm poller registered", "packages", cfg.NPMPackages)
+	}
+
+	if len(cfg.CratesPackages) > 0 {
+		scheduler.Register(signalplane.NewCratesPoller(signalplane.CratesConfig{
+			Crates: cfg.CratesPackages,
+		}), 15*time.Minute)
+		logger.Info("signal: crates poller registered", "crates", cfg.CratesPackages)
+	}
+
 	scheduler.Start()
 	defer scheduler.Close()
+
+	// Initialize webhook handler.
+	var webhookHandler *signalplane.WebhookHandler
+	if len(cfg.WebhookSecrets) > 0 {
+		webhookHandler = signalplane.NewWebhookHandler(eventStore, cfg.WebhookSecrets)
+		logger.Info("signal: webhook handler ready", "webhooks", len(cfg.WebhookSecrets))
+	}
 
 	// Create and start the server.
 	srv := server.New(server.ServerConfig{
@@ -154,6 +182,7 @@ func runServe(logger *slog.Logger) {
 		Bus:      bus,
 		Config:   cfg,
 		Logger:   logger,
+		Webhooks: webhookHandler,
 	})
 
 	// Graceful shutdown on SIGINT/SIGTERM.

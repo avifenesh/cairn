@@ -60,6 +60,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /v1/soul", s.handleGetSoul)
 	s.mux.HandleFunc("PUT /v1/soul", s.handlePutSoul)
 
+	// Webhooks (optional, wired when WEBHOOK_SECRETS is configured).
+	if s.webhooks != nil {
+		s.mux.Handle("POST /v1/webhooks/{name}", s.webhooks)
+	}
+
 	// System.
 	s.mux.HandleFunc("GET /v1/status", s.handleStatus)
 	s.mux.HandleFunc("GET /v1/costs", s.handleCosts)

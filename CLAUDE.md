@@ -114,7 +114,7 @@ npm test            # Vitest (52 tests)
 
 ## Design Docs
 
-Full design specs live in `~/research/pub-go-design/`:
+Full design specs live in `docs/design/`:
 - `VISION.md` - architecture, differentiators, success criteria
 - `PHASES.md` - implementation phases with dependency graph
 - `FRONTEND_AGENT_BRIEF.md` - frontend spec, API contract, SSE events, views
@@ -137,7 +137,7 @@ Full design specs live in `~/research/pub-go-design/`:
 
 ### Plan Adherence
 
-- The design docs in `~/research/pub-go-design/` are the source of truth. Every implementation must match them.
+- The design docs in `docs/design/` are the source of truth. Every implementation must match them.
 - Before committing any piece, audit it against the corresponding `pieces/*.md` spec. Check every task checkbox - if the spec says implement it, implement it. If you deliberately skip something, document why.
 - After any agent (subagent, background task, or autonomous work) completes, verify its output against the plan before accepting. Agents drift. Catch it before it merges.
 - The phase dependency graph in `PHASES.md` is strict. Don't start Phase N+1 work until Phase N deliverables are verified.

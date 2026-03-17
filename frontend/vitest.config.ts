@@ -4,6 +4,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
 	plugins: [svelte()],
 	resolve: {
+		conditions: ['browser'],
 		alias: {
 			$lib: new URL('./src/lib', import.meta.url).pathname,
 			'$app/navigation': new URL('./src/test/mocks/navigation.ts', import.meta.url).pathname,

@@ -215,7 +215,7 @@ All subphases 10.1-10.11 complete. 84 tests passing. 10.12 (Go embed) depends on
 
 | # | Item | Status |
 |---|------|--------|
-| 6.1 | Component tests (ChatPanel, CommandPalette, FeedItem) | Not started |
+| 6.1 | Component tests (ErrorBoundary, FeedItem, ApprovalCard, ToolCallChip) | Done |
 | 6.2 | Error boundaries (shared component, replace bare catches) | Done |
 | 6.3 | Consistent loading (shared SkeletonList) | Done |
 | 6.4 | Feed pagination (infinite scroll / load more) | Done |

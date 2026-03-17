@@ -22,7 +22,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Not started | — |
 | 8 | Plugin & Skill System - lifecycle hooks, SKILL.md, ClawHub-compatible | Not started | — |
 | 9 | Server & Protocols - HTTP, SSE, MCP, A2A, ACP, auth | Not started | — |
-| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | In progress | `frontend/` |
+| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.10, 65 tests) | `frontend/` |
 | 11 | Channel Adapters - web, Telegram, Slack, CLI, API, voice | Not started | — |
 
 Frontend scaffold is up with passing test suite across stores, utils, and API client.
@@ -80,9 +80,10 @@ internal/
   memory/                     Memory store, RAG search + MMR, embedder interface, Soul loader
 frontend/                     SvelteKit 5 app (Svelte 5 runes, Tailwind v4, shadcn-svelte)
   src/routes/                 today, chat, ops, memory, agents, skills, soul, settings
-  src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse)
-  src/lib/components/         chat/, layout/, shared/
-  src/lib/api/client.ts       Typed REST client
+  src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav)
+  src/lib/components/         chat/, feed/, layout/, memory/, tasks/, shared/
+  src/lib/api/client.ts       Typed REST client (mock fallback via pub_use_mocks localStorage)
+  src/lib/utils/              markdown (marked+DOMPurify), time (relative), tts (playback)
 docs/design/                  Architecture specs (VISION, PHASES, pieces/01-11)
 ```
 

@@ -68,7 +68,7 @@ Key design decisions:
 ## Current Structure
 
 ```
-cmd/cairn/main.go             CLI entry point (cairn chat "message")
+cmd/cairn/main.go             CLI entry point (cairn chat | cairn serve)
 internal/
   config/config.go            Env-based config, provider auto-detection (GLM/OpenAI)
   db/                         SQLite open + WAL pragmas, embedded migrations
@@ -97,7 +97,8 @@ docs/design/                  Architecture specs (VISION, PHASES, pieces/01-11)
 go vet ./...                    # Lint - run before every commit
 go test -race ./...             # Tests with race detector
 go build -o cairn ./cmd/cairn   # Build binary
-./cairn chat "hello"            # Smoke test
+./cairn chat "hello"            # CLI chat (ReAct agent)
+./cairn serve                   # HTTP server on :8787
 
 # Frontend (from frontend/)
 pnpm dev                        # Dev server

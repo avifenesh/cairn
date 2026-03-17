@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getDashboard } from '$lib/api/client';
+	import { getDashboard, triggerPoll, markAllRead } from '$lib/api/client';
 	import { feedStore } from '$lib/stores/feed.svelte';
-	import { relativeTime } from '$lib/utils/time';
+	import FeedItemComponent from '$lib/components/feed/FeedItem.svelte';
 	import type { DashboardResponse } from '$lib/types';
-	import { Activity, Eye, Zap, TrendingUp } from '@lucide/svelte';
+	import { Activity, Eye, Zap, TrendingUp, RefreshCw, CheckCheck } from '@lucide/svelte';
 
 	let dashboard = $state<DashboardResponse | null>(null);
 	let error = $state<string | null>(null);
@@ -26,6 +26,15 @@
 		if (hour < 18) return 'Good afternoon';
 		return 'Good evening';
 	});
+
+	async function handleSync() {
+		await triggerPoll().catch(() => {});
+	}
+
+	async function handleMarkAllRead() {
+		feedStore.markAllItemsRead();
+		await markAllRead().catch(() => {});
+	}
 </script>
 
 <div class="mx-auto max-w-4xl p-6">
@@ -80,28 +89,29 @@
 			</div>
 		</div>
 
+		<!-- Quick actions -->
+		<div class="mb-6 flex gap-2">
+			<button
+				class="flex items-center gap-1.5 rounded-md border border-border-subtle bg-[var(--bg-2)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-3)] transition-colors"
+				onclick={handleSync}
+			>
+				<RefreshCw class="h-3.5 w-3.5" /> Sync now
+			</button>
+			{#if feedStore.unreadCount > 0}
+				<button
+					class="flex items-center gap-1.5 rounded-md border border-border-subtle bg-[var(--bg-2)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-3)] transition-colors"
+					onclick={handleMarkAllRead}
+				>
+					<CheckCheck class="h-3.5 w-3.5" /> Mark all read
+				</button>
+			{/if}
+		</div>
+
 		<!-- Recent activity -->
 		<h2 class="mb-4 text-lg font-medium text-[var(--text-primary)]">Recent Activity</h2>
 		<div class="flex flex-col gap-2">
 			{#each feedStore.items.slice(0, 20) as item (item.id)}
-				<a
-					href={item.url ?? '#'}
-					target={item.url ? '_blank' : undefined}
-					rel="noopener"
-					class="flex items-start gap-3 rounded-lg border border-border-subtle bg-[var(--bg-1)] p-3 transition-colors duration-[var(--dur-fast)] hover:bg-[var(--bg-2)]"
-					class:opacity-60={item.isRead}
-				>
-					<span
-						class="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full"
-						style="background: var(--src-{item.source}, var(--text-tertiary))"
-					></span>
-					<div class="min-w-0 flex-1">
-						<p class="truncate text-sm text-[var(--text-primary)]">{item.title}</p>
-						<p class="mt-0.5 text-xs text-[var(--text-tertiary)]">
-							{item.source} &middot; {relativeTime(item.createdAt)}
-						</p>
-					</div>
-				</a>
+				<FeedItemComponent {item} />
 			{/each}
 		</div>
 	{/if}

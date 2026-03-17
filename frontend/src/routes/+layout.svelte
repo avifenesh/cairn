@@ -5,9 +5,11 @@
 	import BottomNav from '$lib/components/layout/BottomNav.svelte';
 	import StatusBar from '$lib/components/layout/StatusBar.svelte';
 	import ContextPanel from '$lib/components/layout/ContextPanel.svelte';
+	import CommandPalette from '$lib/components/layout/CommandPalette.svelte';
 	import { appStore } from '$lib/stores/app.svelte';
 	import { sseStore } from '$lib/stores/sse.svelte';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 
 	let { children } = $props();
 
@@ -26,9 +28,21 @@
 			if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 			if ((e.target as HTMLElement)?.isContentEditable) return;
 
+			const viewKeys: Record<string, string> = {
+				'1': '/today', '2': '/ops', '3': '/chat', '4': '/memory',
+				'5': '/agents', '6': '/skills', '7': '/soul', '8': '/settings',
+			};
+
+			if (viewKeys[e.key]) {
+				goto(viewKeys[e.key]);
+				return;
+			}
+
 			switch (e.key) {
 				case 't':
 					appStore.toggleTheme();
+					break;
+				case '?':
 					break;
 				case 'Escape':
 					appStore.closeCommandPalette();
@@ -61,6 +75,8 @@
 	<StatusBar />
 	<BottomNav />
 </div>
+
+<CommandPalette />
 
 {#if appStore.notifications.length > 0}
 	<div class="fixed right-4 top-[calc(var(--header-h)+8px)] z-50 flex flex-col gap-2">

@@ -159,6 +159,8 @@ export const getMemories = (params?: { status?: string; category?: string }) => 
 export const searchMemories = (query: string, limit = 10) =>
 	get<{ items: Memory[] }>(`/v1/memories/search?q=${encodeURIComponent(query)}&limit=${limit}`);
 
+export const createMemory = (content: string, category: string) =>
+	post<Memory>('/v1/memories', { content, category });
 export const acceptMemory = (id: string) => post<{ ok: boolean }>(`/v1/memories/${id}/accept`);
 export const rejectMemory = (id: string) => post<{ ok: boolean }>(`/v1/memories/${id}/reject`);
 

@@ -34,9 +34,10 @@ type Server struct {
 	tools      *tool.Registry
 	llm        llm.Provider
 	bus        *eventbus.Bus
-	config     *config.Config
-	logger     *slog.Logger
+	config      *config.Config
+	logger      *slog.Logger
 	rateLimiter *rateLimiter
+	webhooks    http.Handler
 }
 
 // ServerConfig carries all dependencies needed to construct a Server.
@@ -51,6 +52,7 @@ type ServerConfig struct {
 	Bus      *eventbus.Bus
 	Config   *config.Config
 	Logger   *slog.Logger
+	Webhooks http.Handler // optional: POST /v1/webhooks/{name}
 }
 
 // New creates a fully wired Server with all routes and middleware registered.
@@ -74,6 +76,7 @@ func New(cfg ServerConfig) *Server {
 		config:   cfg.Config,
 		logger:   cfg.Logger,
 		rateLimiter: newRateLimiter(),
+		webhooks:    cfg.Webhooks,
 	}
 
 	// Create SSE broadcaster.

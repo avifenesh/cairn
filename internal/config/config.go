@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -40,11 +41,16 @@ type Config struct {
 	IdleModeEnabled bool
 
 	// Signal plane
-	GHToken      string   // GitHub personal access token
-	GHOrgs       []string // GitHub orgs to track
-	HNKeywords   []string // HN keyword filter
-	HNMinScore   int      // HN minimum score filter
-	PollInterval int      // Poll interval in seconds (default 300 = 5min)
+	GHToken        string            // GitHub personal access token
+	GHOrgs         []string          // GitHub orgs to track
+	HNKeywords     []string          // HN keyword filter
+	HNMinScore     int               // HN minimum score filter
+	PollInterval   int               // Poll interval in seconds (default 300 = 5min)
+	RedditSubs     []string          // Subreddits to monitor
+	NPMPackages    []string          // npm packages to track
+	CratesPackages []string          // crates.io crates to track
+	WebhookSecrets map[string]string // webhook name -> HMAC secret
+	DigestEnabled  bool              // Enable periodic digest generation
 
 	// Paths
 	SoulPath  string
@@ -112,6 +118,11 @@ func Load() (*Config, error) {
 		HNKeywords:       envSlice("HN_KEYWORDS", nil),
 		HNMinScore:       envInt("HN_MIN_SCORE", 0),
 		PollInterval:     envInt("POLL_INTERVAL", 300),
+		RedditSubs:       envSlice("REDDIT_SUBS", nil),
+		NPMPackages:      envSlice("NPM_PACKAGES", nil),
+		CratesPackages:   envSlice("CRATES_PACKAGES", nil),
+		WebhookSecrets:   envMap("WEBHOOK_SECRETS"),
+		DigestEnabled:    envBool("DIGEST_ENABLED", false),
 		SoulPath:         envStr("SOUL_PATH", "./SOUL.md"),
 		SkillDirs:        envSlice("SKILL_DIRS", []string{"./.pub/skills"}),
 		DataDir:          envStr("DATA_DIR", "./data"),
@@ -174,4 +185,18 @@ func envSlice(key string, fallback []string) []string {
 		return strings.Split(v, ",")
 	}
 	return fallback
+}
+
+// envMap parses JSON from an env var into map[string]string.
+// Example: WEBHOOK_SECRETS='{"github":"abc123","stripe":"xyz789"}'
+func envMap(key string) map[string]string {
+	v := os.Getenv(key)
+	if v == "" {
+		return nil
+	}
+	var m map[string]string
+	if err := json.Unmarshal([]byte(v), &m); err != nil {
+		return nil
+	}
+	return m
 }

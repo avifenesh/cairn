@@ -9,19 +9,21 @@ Not a chatbot. Not a coding assistant. Not a notification hub. All three, unifie
 
 Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend (Svelte 5 runes, Tailwind v4, static adapter embedded via `embed.FS`).
 
-## The Nine Pieces
+## Modules (update status before starting any piece)
 
 | # | Piece | Status | Package |
 |---|-------|--------|---------|
 | 1 | Event Bus - typed async pub/sub backbone | Done | `internal/eventbus/` |
 | 2 | LLM Client - multi-provider streaming, retry/fallback/budget | Done | `internal/llm/` |
-| 3 | Tool System - type-safe tools, registry, mode filtering, permissions | Not started | — |
+| 3 | Tool System - type-safe tools, registry, mode filtering, permissions | Done | `internal/tool/` |
 | 4 | Agent Core - ReAct loop, sessions, modes (talk/work/coding) | Not started | — |
-| 5 | Task Engine - priority queue, worktree isolation, leases | Not started | — |
-| 6 | Memory System - semantic + episodic + procedural, RAG, Soul | Not started | — |
+| 5 | Task Engine - priority queue, worktree isolation, leases | Done | `internal/task/` |
+| 6 | Memory System - semantic + episodic + procedural, RAG, Soul | Done | `internal/memory/` |
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Not started | — |
 | 8 | Plugin & Skill System - lifecycle hooks, SKILL.md, ClawHub-compatible | Not started | — |
 | 9 | Server & Protocols - HTTP, SSE, MCP, A2A, ACP, auth | Not started | — |
+| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | In progress | `frontend/` |
+| 11 | Channel Adapters - web, Telegram, Slack, CLI, API, voice | Not started | — |
 
 Frontend scaffold is up with passing test suite across stores, utils, and API client.
 
@@ -29,8 +31,8 @@ Frontend scaffold is up with passing test suite across stores, utils, and API cl
 
 ```
 Phase 1: Foundation (event bus + LLM + SQLite)                [DONE]
-Phase 2: Core Systems (tools | tasks | memory) in parallel    [NEXT]
-Phase 3: Agent Core (ReAct loop wires all together)
+Phase 2: Core Systems (tools | tasks | memory) in parallel    [DONE]
+Phase 3: Agent Core (ReAct loop wires all together)           [NEXT]
 Phase 4: Server + Signal Plane + Plugins in parallel
 Phase 5: Integration, always-on loop, open-source release
 ```
@@ -66,27 +68,22 @@ Key design decisions:
 ## Current Structure
 
 ```
-cmd/cairn/main.go           CLI entry point (cairn chat "message")
+cmd/cairn/main.go             CLI entry point (cairn chat "message")
 internal/
-  config/config.go          Env-based config, provider auto-detection (GLM/OpenAI)
-  db/db.go                  SQLite open + WAL pragmas
-  db/migrate.go             Embedded SQL migrations
-  db/migrations/001_init.sql  Tables: events, tasks, approvals, sessions, messages, memories, source_state
-  eventbus/bus.go           Typed pub/sub (generics), sync + async delivery, backpressure
-  eventbus/events.go        Event types: feed, LLM, task, memory, system
-  llm/types.go              Request, Message, ContentBlock variants, Event variants, Provider interface
-  llm/registry.go           Multi-provider registry, resolve, fallback, retry wrapper
-  llm/openai.go             OpenAI-compatible provider
-  llm/glm.go                GLM (ZhipuAI) provider
-  llm/sse.go                SSE stream parser
-  llm/budget.go             Token budget tracker
-  llm/retry.go              Retry with exponential backoff + fallback
-frontend/                   SvelteKit 5 app
-  src/routes/               today, chat, ops, memory, agents, skills, soul, settings
-  src/lib/stores/           Svelte 5 rune stores (app, chat, feed, memory, tasks, sse)
-  src/lib/components/       chat/, feed/, layout/, memory/, tasks/
-  src/lib/api/client.ts     Typed REST client
-  src/lib/types.ts          Domain types matching Go API contract
+  config/config.go            Env-based config, provider auto-detection (GLM/OpenAI)
+  db/                         SQLite open + WAL pragmas, embedded migrations
+  eventbus/                   Typed pub/sub (generics), sync + async + stream delivery
+  llm/                        Provider interface, GLM + OpenAI providers, SSE parser, retry, budget
+  tool/                       Tool interface, Define[P] generics, registry, permission engine
+  tool/builtin/               Built-in tools: readFile, writeFile, editFile, shell, gitRun, etc.
+  task/                       Task store, priority queue, worktree manager, lease claiming, reaper
+  memory/                     Memory store, RAG search + MMR, embedder interface, Soul loader
+frontend/                     SvelteKit 5 app (Svelte 5 runes, Tailwind v4, shadcn-svelte)
+  src/routes/                 today, chat, ops, memory, agents, skills, soul, settings
+  src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse)
+  src/lib/components/         chat/, layout/, shared/
+  src/lib/api/client.ts       Typed REST client
+docs/design/                  Architecture specs (VISION, PHASES, pieces/01-11)
 ```
 
 ## Commands
@@ -123,7 +120,7 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 
 **Server:**
 - `PORT` (8787), `HOST` (0.0.0.0)
-- `DATABASE_PATH` (./data/pub.db)
+- `DATABASE_PATH` (./data/cairn.db)
 - `WRITE_API_TOKEN`, `READ_API_TOKEN` - API auth tokens
 - `FRONTEND_ORIGIN` - CORS origin
 
@@ -143,7 +140,7 @@ Full design specs live in `docs/design/`:
 
 <critical-rules>
 
-## Rules
+## Rules (non-negotiable - violations are bugs)
 
 ### Communication
 

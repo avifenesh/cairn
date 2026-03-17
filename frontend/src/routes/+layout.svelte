@@ -19,6 +19,18 @@
 
 	let { children } = $props();
 
+	// Derive item count from active view so j/k/o/r/a/d shortcuts work
+	$effect(() => {
+		const path = page.url.pathname;
+		if (path === '/' || path === '/today') {
+			keyboardNav.setItemCount(feedStore.items.length);
+		} else if (path === '/ops') {
+			keyboardNav.setItemCount(taskStore.pendingApprovals.length);
+		} else {
+			keyboardNav.setItemCount(0);
+		}
+	});
+
 	onMount(() => {
 		appStore.initTheme();
 		sseStore.connect();

@@ -41,8 +41,9 @@ export const offlineQueue = {
 			try {
 				await action.fn();
 				succeeded++;
-			} catch {
+			} catch (err) {
 				failed++;
+				console.warn('[offline-queue] Action %s failed:', action.id, err);
 			}
 		}
 		draining = false;

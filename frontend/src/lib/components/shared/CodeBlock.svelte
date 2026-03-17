@@ -12,8 +12,9 @@
 </script>
 
 <div class="group relative">
+	<pre class="overflow-x-auto rounded-md bg-[var(--bg-3)] p-3 text-sm"><code class="font-mono text-[var(--text-primary)]">{code}</code></pre>
 	<button
-		class="absolute right-2 top-2 rounded-md bg-[var(--bg-3)] p-1.5 text-[var(--text-tertiary)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--text-primary)]"
+		class="absolute right-2 top-2 rounded-md bg-[var(--bg-4)] p-1.5 text-[var(--text-tertiary)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--text-primary)]"
 		onclick={handleCopy}
 		aria-label="Copy code"
 	>

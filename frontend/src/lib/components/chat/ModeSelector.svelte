@@ -16,6 +16,7 @@
 	];
 
 	let customModes = $state<CustomMode[]>(loadCustomModes());
+	let activeCustomMode = $state<string | null>(null);
 	let showAdd = $state(false);
 	let newName = $state('');
 	let newDesc = $state('');
@@ -30,7 +31,22 @@
 	}
 
 	function saveCustomModes() {
-		localStorage.setItem('pub_custom_modes', JSON.stringify(customModes));
+		try {
+			localStorage.setItem('pub_custom_modes', JSON.stringify(customModes));
+		} catch {
+			// storage full or unavailable
+		}
+	}
+
+	function selectBuiltin(mode: ChatMode) {
+		chatStore.setMode(mode);
+		activeCustomMode = null;
+	}
+
+	function selectCustom(mode: CustomMode) {
+		// Custom modes use 'talk' as the backend mode, prompt injection is client-side
+		chatStore.setMode('talk');
+		activeCustomMode = mode.name;
 	}
 
 	function addMode() {
@@ -47,7 +63,16 @@
 	function removeMode(name: string) {
 		customModes = customModes.filter((m) => m.name !== name);
 		saveCustomModes();
-		if (chatStore.mode === name) chatStore.setMode('talk');
+		if (activeCustomMode === name) {
+			activeCustomMode = null;
+			chatStore.setMode('talk');
+		}
+	}
+
+	// Expose active custom mode's prompt injection for ChatPanel to use
+	export function getActivePromptInjection(): string | null {
+		if (!activeCustomMode) return null;
+		return customModes.find((m) => m.name === activeCustomMode)?.promptInjection ?? null;
 	}
 </script>
 
@@ -55,10 +80,10 @@
 	{#each builtinModes as m}
 		<button
 			class="rounded-md px-2.5 py-1 text-xs transition-colors duration-[var(--dur-fast)]
-				{chatStore.mode === m.value
+				{chatStore.mode === m.value && !activeCustomMode
 				? 'bg-[var(--accent-dim)] text-[var(--pub-accent)]'
 				: 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
-			onclick={() => chatStore.setMode(m.value)}
+			onclick={() => selectBuiltin(m.value)}
 		>
 			{m.label}
 		</button>
@@ -66,10 +91,10 @@
 	{#each customModes as m}
 		<button
 			class="group flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-colors duration-[var(--dur-fast)]
-				{chatStore.mode === m.name
+				{activeCustomMode === m.name
 				? 'bg-[var(--accent-dim)] text-[var(--pub-accent)]'
 				: 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
-			onclick={() => chatStore.setMode(m.name as ChatMode)}
+			onclick={() => selectCustom(m)}
 		>
 			{m.name}
 			<span

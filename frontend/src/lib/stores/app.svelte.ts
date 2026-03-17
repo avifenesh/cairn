@@ -12,6 +12,17 @@ interface Notification {
 	timestamp: number;
 }
 
+function getToastDuration(): number {
+	try { return (Number(localStorage.getItem('pub_toast_duration')) || 5) * 1000; }
+	catch { return 5000; }
+}
+
+function safeGetItem(key: string): string | null {
+	try { return localStorage.getItem(key); } catch { return null; }
+}
+
+let autoMoodEnabled = $state(safeGetItem('pub_auto_mood') === 'true');
+
 let sseConnected = $state(false);
 let clientId = $state<string | null>(null);
 let theme = $state<Theme>((localStorage.getItem('pub_theme') as Theme) || 'dark');
@@ -38,6 +49,7 @@ export const appStore = {
 	get pollStatuses() { return pollStatuses; },
 	get agentProgresses() { return agentProgresses; },
 	get sidebarCollapsed() { return sidebarCollapsed; },
+	get autoMoodEnabled() { return autoMoodEnabled; },
 	get helpModalOpen() { return helpModalOpen; },
 	get contextPanelOpen() { return contextPanelOpen; },
 	get budgetTodayUsd() { return budgetTodayUsd; },
@@ -93,9 +105,10 @@ export const appStore = {
 	addNotification(type: string, message: string) {
 		const id = crypto.randomUUID();
 		notifications = [...notifications, { id, type, message, timestamp: Date.now() }];
+		const duration = getToastDuration();
 		setTimeout(() => {
 			notifications = notifications.filter((n) => n.id !== id);
-		}, 5000);
+		}, duration);
 	},
 
 	dismissNotification(id: string) {
@@ -116,7 +129,12 @@ export const appStore = {
 		if (mood !== 'default') document.documentElement.setAttribute('data-mood', mood);
 	},
 
-	// Plan: auto-mood time-based (dawn 6-10, default 10-18, ocean 18-22, night 22-6)
+	setAutoMood(enabled: boolean) {
+		autoMoodEnabled = enabled;
+		try { localStorage.setItem('pub_auto_mood', String(enabled)); } catch {}
+		if (enabled) appStore.applyAutoMood();
+	},
+
 	applyAutoMood() {
 		const hour = new Date().getHours();
 		let autoMood: Mood;

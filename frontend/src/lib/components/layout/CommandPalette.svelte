@@ -112,16 +112,18 @@
 
 {#if appStore.commandPaletteOpen}
 	<!-- Backdrop -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div
-		class="fixed inset-0 z-50 bg-black/50"
+	<button
+		class="fixed inset-0 z-50 bg-black/50 cursor-default border-0 p-0"
 		onclick={close}
 		onkeydown={(e) => e.key === 'Escape' && close()}
+		tabindex="-1"
+		aria-label="Close command palette"
 	>
-		<!-- Panel -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			class="mx-auto mt-[20vh] w-full max-w-lg rounded-xl border border-border-subtle bg-[var(--bg-1)] shadow-lg"
+			role="dialog"
+			aria-modal="true"
+			aria-label="Command palette"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={handleKeydown}
 		>
@@ -161,5 +163,5 @@
 				{/if}
 			</div>
 		</div>
-	</div>
+	</button>
 {/if}

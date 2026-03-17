@@ -31,6 +31,17 @@
 		}
 	});
 
+	// Auto-mood: reactive to Settings toggle, hourly check
+	let moodInterval: ReturnType<typeof setInterval> | undefined;
+	$effect(() => {
+		if (moodInterval) clearInterval(moodInterval);
+		if (appStore.autoMoodEnabled) {
+			appStore.applyAutoMood();
+			moodInterval = setInterval(() => appStore.applyAutoMood(), 60 * 60 * 1000);
+		}
+		return () => { if (moodInterval) clearInterval(moodInterval); };
+	});
+
 	onMount(() => {
 		appStore.initTheme();
 		sseStore.connect();

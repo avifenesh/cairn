@@ -21,16 +21,16 @@ func NewEventStore(db *sql.DB) *EventStore {
 }
 
 // Ingest stores a batch of raw events, skipping duplicates via the
-// UNIQUE(source, source_item_id) constraint. Returns the count of
-// newly inserted events.
-func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) (int, error) {
+// UNIQUE(source, source_item_id) constraint. Returns the slice of
+// newly inserted events (deduped out events are excluded).
+func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEvent, error) {
 	if len(events) == 0 {
-		return 0, nil
+		return nil, nil
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, fmt.Errorf("signal: begin tx: %w", err)
+		return nil, fmt.Errorf("signal: begin tx: %w", err)
 	}
 	defer tx.Rollback()
 
@@ -39,11 +39,11 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) (int, error
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(source, source_item_id) DO NOTHING`)
 	if err != nil {
-		return 0, fmt.Errorf("signal: prepare insert: %w", err)
+		return nil, fmt.Errorf("signal: prepare insert: %w", err)
 	}
 	defer stmt.Close()
 
-	inserted := 0
+	var inserted []*RawEvent
 	for _, ev := range events {
 		id := generateEventID()
 		meta, _ := json.Marshal(ev.Metadata)
@@ -62,12 +62,13 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) (int, error
 		if err != nil {
 			return inserted, fmt.Errorf("signal: insert event: %w", err)
 		}
-		n, _ := res.RowsAffected()
-		inserted += int(n)
+		if n, _ := res.RowsAffected(); n > 0 {
+			inserted = append(inserted, ev)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("signal: commit: %w", err)
+		return nil, fmt.Errorf("signal: commit: %w", err)
 	}
 	return inserted, nil
 }
@@ -180,19 +181,31 @@ func scanEvent(rows *sql.Rows) (*StoredEvent, error) {
 	}
 
 	if metaStr != "" {
-		json.Unmarshal([]byte(metaStr), &ev.Metadata)
+		if err := json.Unmarshal([]byte(metaStr), &ev.Metadata); err != nil {
+			return nil, fmt.Errorf("signal: parse metadata: %w", err)
+		}
 	}
 	if ev.Metadata == nil {
 		ev.Metadata = map[string]any{}
 	}
 
-	ev.CreatedAt, _ = time.Parse(time.RFC3339Nano, createdStr)
+	var parseErr error
+	ev.CreatedAt, parseErr = time.Parse(time.RFC3339Nano, createdStr)
+	if parseErr != nil {
+		return nil, fmt.Errorf("signal: parse created_at %q: %w", createdStr, parseErr)
+	}
 	if readStr.Valid {
-		t, _ := time.Parse(time.RFC3339Nano, readStr.String)
+		t, err := time.Parse(time.RFC3339Nano, readStr.String)
+		if err != nil {
+			return nil, fmt.Errorf("signal: parse read_at: %w", err)
+		}
 		ev.ReadAt = &t
 	}
 	if archivedStr.Valid {
-		t, _ := time.Parse(time.RFC3339Nano, archivedStr.String)
+		t, err := time.Parse(time.RFC3339Nano, archivedStr.String)
+		if err != nil {
+			return nil, fmt.Errorf("signal: parse archived_at: %w", err)
+		}
 		ev.ArchivedAt = &t
 	}
 
@@ -201,6 +214,8 @@ func scanEvent(rows *sql.Rows) (*StoredEvent, error) {
 
 func generateEventID() string {
 	b := make([]byte, 12)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return fmt.Sprintf("ev_%x", b)
 }

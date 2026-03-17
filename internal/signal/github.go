@@ -248,7 +248,9 @@ func ghEventToFields(e ghOrgEvent) (kind, title, url string) {
 		} `json:"release"`
 		Ref string `json:"ref"`
 	}
-	json.Unmarshal(e.Payload, &payload)
+	if err := json.Unmarshal(e.Payload, &payload); err != nil {
+		return "", "", ""
+	}
 
 	switch e.Type {
 	case "PullRequestEvent":

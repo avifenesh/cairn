@@ -3,6 +3,7 @@ package signal
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -43,8 +44,8 @@ func TestEventStore_IngestAndList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ingest: %v", err)
 	}
-	if inserted != 3 {
-		t.Errorf("inserted = %d, want 3", inserted)
+	if len(inserted) != 3 {
+		t.Errorf("inserted = %d, want 3", len(inserted))
 	}
 
 	// List all.
@@ -78,8 +79,8 @@ func TestEventStore_Dedup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first ingest: %v", err)
 	}
-	if n1 != 1 {
-		t.Errorf("first insert = %d, want 1", n1)
+	if len(n1) != 1 {
+		t.Errorf("first insert = %d, want 1", len(n1))
 	}
 
 	// Insert same event again - should be deduped.
@@ -87,8 +88,8 @@ func TestEventStore_Dedup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second ingest: %v", err)
 	}
-	if n2 != 0 {
-		t.Errorf("dedup insert = %d, want 0", n2)
+	if len(n2) != 0 {
+		t.Errorf("dedup insert = %d, want 0", len(n2))
 	}
 
 	// Verify only one row exists.
@@ -376,16 +377,23 @@ func TestScheduler_BusEvents(t *testing.T) {
 		{Source: "test", SourceID: "bus:1", Kind: "test", Title: "Bus Event", URL: "https://example.com", OccurredAt: time.Now().UTC()},
 	}}, 5*time.Minute)
 
+	// First poll - should publish 1 event.
 	scheduler.PollNow(context.Background())
-
-	// Give async subscription a moment.
 	time.Sleep(50 * time.Millisecond)
 
 	if len(received) != 1 {
-		t.Errorf("bus events = %d, want 1", len(received))
+		t.Fatalf("bus events after first poll = %d, want 1", len(received))
 	}
-	if len(received) > 0 && received[0].Title != "Bus Event" {
+	if received[0].Title != "Bus Event" {
 		t.Errorf("title = %q, want %q", received[0].Title, "Bus Event")
+	}
+
+	// Second poll with same data - should NOT publish (dedup).
+	scheduler.PollNow(context.Background())
+	time.Sleep(50 * time.Millisecond)
+
+	if len(received) != 1 {
+		t.Errorf("bus events after second poll = %d, want 1 (dedup should prevent re-publish)", len(received))
 	}
 }
 
@@ -414,9 +422,8 @@ func TestScheduler_StartAndClose(t *testing.T) {
 
 // --- HN poller tests (with fake HTTP server) ---
 
-func TestHNPoller_KeywordFilter(t *testing.T) {
-	// Fake HN API server.
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func newHNTestServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v0/topstories.json":
 			w.Write([]byte("[1, 2, 3]"))
@@ -430,23 +437,50 @@ func TestHNPoller_KeywordFilter(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	}))
+}
+
+func TestHNPoller_Poll(t *testing.T) {
+	srv := newHNTestServer()
 	defer srv.Close()
 
 	poller := NewHNPoller(HNConfig{
 		Keywords: []string{"go", "rust"},
 		MinScore: 50,
 	})
-	// Override base URL for testing.
-	poller.client = srv.Client()
-	origBaseURL := hnBaseURL
+	poller.baseURL = srv.URL + "/v0"
 
-	// We need to override the base URL. Since it's a const, we'll use a different approach:
-	// Replace the poller's doGet to prepend our test server URL.
-	origDoGet := poller.doGet
-	_ = origDoGet
-	_ = origBaseURL
+	events, err := poller.Poll(context.Background(), time.Now().Add(-1*time.Hour))
+	if err != nil {
+		t.Fatalf("poll: %v", err)
+	}
 
-	// Instead, let's test the keyword matching directly.
+	// Should match "Go 1.25 released" and "Rust async explained" (keyword match).
+	// "Python is slow" should be filtered out (no keyword match).
+	if len(events) != 2 {
+		t.Fatalf("events = %d, want 2", len(events))
+	}
+
+	titles := map[string]bool{}
+	for _, ev := range events {
+		titles[ev.Title] = true
+		if ev.Source != SourceHN {
+			t.Errorf("source = %q, want %q", ev.Source, SourceHN)
+		}
+		if ev.Kind != KindStory {
+			t.Errorf("kind = %q, want %q", ev.Kind, KindStory)
+		}
+	}
+	if !titles["Go 1.25 released"] {
+		t.Error("missing 'Go 1.25 released'")
+	}
+	if !titles["Rust async explained"] {
+		t.Error("missing 'Rust async explained'")
+	}
+}
+
+func TestHNPoller_KeywordMatching(t *testing.T) {
+	poller := NewHNPoller(HNConfig{Keywords: []string{"go", "rust"}, MinScore: 50})
+
 	if !poller.matchesKeywords(&hnItem{Title: "Go 1.25 released"}) {
 		t.Error("expected 'Go 1.25 released' to match keyword 'go'")
 	}
@@ -456,25 +490,26 @@ func TestHNPoller_KeywordFilter(t *testing.T) {
 	if !poller.matchesKeywords(&hnItem{Title: "Rust async explained"}) {
 		t.Error("expected 'Rust async explained' to match keyword 'rust'")
 	}
-	if !poller.matchesKeywords(&hnItem{Title: "Something about go modules", URL: "https://go.dev"}) {
+	if !poller.matchesKeywords(&hnItem{Title: "Something", URL: "https://go.dev"}) {
 		t.Error("expected URL match for 'go'")
 	}
 }
 
-func TestHNPoller_NoKeywordsSkipsFilter(t *testing.T) {
-	poller := NewHNPoller(HNConfig{MinScore: 100})
+func TestHNPoller_MinScoreOnly(t *testing.T) {
+	srv := newHNTestServer()
+	defer srv.Close()
 
-	// When no keywords are configured, matchesKeywords returns false.
-	// But the Poll method skips the keyword check entirely (len(keywords) == 0).
-	// Verify the poller source.
-	if poller.Source() != "hn" {
-		t.Errorf("source = %q, want %q", poller.Source(), "hn")
+	poller := NewHNPoller(HNConfig{MinScore: 150})
+	poller.baseURL = srv.URL + "/v0"
+
+	events, err := poller.Poll(context.Background(), time.Now().Add(-1*time.Hour))
+	if err != nil {
+		t.Fatalf("poll: %v", err)
 	}
-	if poller.minScore != 100 {
-		t.Errorf("minScore = %d, want 100", poller.minScore)
-	}
-	if len(poller.keywords) != 0 {
-		t.Errorf("keywords = %v, want empty", poller.keywords)
+
+	// No keywords - all stories above score 150 pass: Go (200) and Rust (150).
+	if len(events) != 2 {
+		t.Errorf("events = %d, want 2 (score >= 150)", len(events))
 	}
 }
 
@@ -522,13 +557,13 @@ func TestGitHubPoller_SubjectTypeToKind(t *testing.T) {
 }
 
 func TestGitHubPoller_FetchNotifications(t *testing.T) {
+	// The GitHub poller hardcodes api.github.com URLs internally,
+	// so we test the doGet + JSON parsing via a mock server.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify auth header.
 		if auth := r.Header.Get("Authorization"); auth != "Bearer test-token" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `[{
 			"id": "1",
@@ -542,24 +577,25 @@ func TestGitHubPoller_FetchNotifications(t *testing.T) {
 	defer srv.Close()
 
 	poller := NewGitHubPoller(GitHubConfig{Token: "test-token"})
-	poller.client = srv.Client()
 
-	// Override the URL by intercepting the request.
-	// We need to test with the real fetchNotifications. Instead, test the
-	// server mock pattern by making doGet work with our test server.
-	ctx := context.Background()
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
-	req.Header.Set("Authorization", "Bearer test-token")
-	req.Header.Set("Accept", "application/vnd.github+json")
-
-	resp, err := poller.client.Do(req)
+	// Test doGet directly against mock server.
+	body, err := poller.doGet(context.Background(), srv.URL)
 	if err != nil {
-		t.Fatalf("request: %v", err)
+		t.Fatalf("doGet: %v", err)
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	var notifs []ghNotification
+	if err := json.Unmarshal(body, &notifs); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(notifs) != 1 {
+		t.Fatalf("notifs = %d, want 1", len(notifs))
+	}
+	if notifs[0].Subject.Title != "Fix memory leak" {
+		t.Errorf("title = %q, want %q", notifs[0].Subject.Title, "Fix memory leak")
+	}
+	if notifs[0].Subject.Type != "PullRequest" {
+		t.Errorf("type = %q, want %q", notifs[0].Subject.Type, "PullRequest")
 	}
 }
 

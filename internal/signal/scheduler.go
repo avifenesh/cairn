@@ -159,7 +159,7 @@ func (s *Scheduler) pollOnce(ctx context.Context, idx int) {
 		return
 	}
 
-	inserted, err := s.store.Ingest(ctx, events)
+	newEvents, err := s.store.Ingest(ctx, events)
 	if err != nil {
 		s.logger.Error("signal: ingest failed", "source", source, "error", err)
 		return
@@ -167,12 +167,12 @@ func (s *Scheduler) pollOnce(ctx context.Context, idx int) {
 
 	s.state.SetLastPoll(ctx, source, time.Now().UTC())
 
-	if inserted > 0 {
-		s.logger.Info("signal: ingested events", "source", source, "new", inserted, "total", len(events))
+	if len(newEvents) > 0 {
+		s.logger.Info("signal: ingested events", "source", source, "new", len(newEvents), "total", len(events))
 
-		// Publish bus events for each new event so SSE clients get notified.
+		// Publish bus events only for newly inserted events.
 		if s.bus != nil {
-			for _, ev := range events {
+			for _, ev := range newEvents {
 				eventbus.Publish(s.bus, eventbus.EventIngested{
 					EventMeta:  eventbus.NewMeta(source),
 					SourceType: ev.Source,

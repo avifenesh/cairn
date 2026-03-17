@@ -41,7 +41,7 @@ func (s *SourceState) GetLastPoll(ctx context.Context, source string) (time.Time
 
 	var data stateData
 	if err := json.Unmarshal([]byte(valueStr), &data); err != nil {
-		return time.Time{}, nil
+		return time.Time{}, fmt.Errorf("signal: parse poll state %q: %w", source, err)
 	}
 	return data.LastPoll, nil
 }
@@ -74,7 +74,7 @@ func (s *SourceState) GetCursor(ctx context.Context, source string) (string, err
 
 	var data stateData
 	if err := json.Unmarshal([]byte(valueStr), &data); err != nil {
-		return "", nil
+		return "", fmt.Errorf("signal: parse cursor state %q: %w", source, err)
 	}
 	return data.Cursor, nil
 }

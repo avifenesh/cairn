@@ -16,6 +16,7 @@ import (
 type HNPoller struct {
 	keywords []string
 	minScore int
+	baseURL  string
 	client   *http.Client
 }
 
@@ -38,6 +39,7 @@ func NewHNPoller(cfg HNConfig) *HNPoller {
 	return &HNPoller{
 		keywords: kw,
 		minScore: cfg.MinScore,
+		baseURL:  hnBaseURL,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -136,7 +138,7 @@ type hnItem struct {
 }
 
 func (h *HNPoller) fetchStoryIDs(ctx context.Context, endpoint string) ([]int, error) {
-	url := fmt.Sprintf("%s/%s.json", hnBaseURL, endpoint)
+	url := fmt.Sprintf("%s/%s.json", h.baseURL, endpoint)
 	body, err := h.doGet(ctx, url)
 	if err != nil {
 		return nil, err
@@ -150,7 +152,7 @@ func (h *HNPoller) fetchStoryIDs(ctx context.Context, endpoint string) ([]int, e
 }
 
 func (h *HNPoller) fetchItem(ctx context.Context, id int) (*hnItem, error) {
-	url := fmt.Sprintf("%s/item/%d.json", hnBaseURL, id)
+	url := fmt.Sprintf("%s/item/%d.json", h.baseURL, id)
 	body, err := h.doGet(ctx, url)
 	if err != nil {
 		return nil, err

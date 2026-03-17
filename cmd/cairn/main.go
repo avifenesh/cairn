@@ -121,8 +121,9 @@ func runServe(logger *slog.Logger) {
 	sourceState := signalplane.NewSourceState(database.DB)
 	scheduler := signalplane.NewScheduler(eventStore, sourceState, bus, logger)
 
+	pollInterval := time.Duration(cfg.PollInterval) * time.Second
+
 	if cfg.GHToken != "" {
-		pollInterval := time.Duration(cfg.PollInterval) * time.Second
 		scheduler.Register(signalplane.NewGitHubPoller(signalplane.GitHubConfig{
 			Token: cfg.GHToken,
 			Orgs:  cfg.GHOrgs,
@@ -131,11 +132,10 @@ func runServe(logger *slog.Logger) {
 	}
 
 	if len(cfg.HNKeywords) > 0 || cfg.HNMinScore > 0 {
-		hnInterval := time.Duration(cfg.PollInterval) * time.Second
 		scheduler.Register(signalplane.NewHNPoller(signalplane.HNConfig{
 			Keywords: cfg.HNKeywords,
 			MinScore: cfg.HNMinScore,
-		}), hnInterval)
+		}), pollInterval)
 		logger.Info("signal: hn poller registered", "keywords", cfg.HNKeywords, "minScore", cfg.HNMinScore)
 	}
 

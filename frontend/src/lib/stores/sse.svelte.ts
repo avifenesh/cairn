@@ -5,6 +5,7 @@ import { feedStore } from './feed.svelte';
 import { chatStore } from './chat.svelte';
 import { taskStore } from './tasks.svelte';
 import { appStore } from './app.svelte';
+import { offlineQueue } from './offline-queue.svelte';
 
 let eventSource: EventSource | null = $state(null);
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -51,6 +52,15 @@ export const sseStore = {
 		source.onopen = () => {
 			attempt = 0;
 			appStore.setSSEConnected(true);
+			// Drain offline queue on reconnect
+			offlineQueue.drain().then(({ succeeded, failed }) => {
+				if (succeeded > 0) {
+					appStore.addNotification('queue', `Synced ${succeeded} queued action${succeeded > 1 ? 's' : ''}`);
+				}
+				if (failed > 0) {
+					appStore.addNotification('error', `${failed} queued action${failed > 1 ? 's' : ''} failed`);
+				}
+			});
 		};
 
 		source.onerror = () => {

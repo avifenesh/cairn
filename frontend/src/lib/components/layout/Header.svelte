@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { appStore } from '$lib/stores/app.svelte';
+	import { sseStore } from '$lib/stores/sse.svelte';
 	import { Circle, Search, Sun, Moon, Menu, DollarSign } from '@lucide/svelte';
 
 	function handleKeyboardShortcut() {
@@ -10,6 +11,18 @@
 		appStore.budgetTodayUsd != null && appStore.budgetDailyLimitUsd
 			? Math.min(100, Math.round((appStore.budgetTodayUsd / appStore.budgetDailyLimitUsd) * 100))
 			: null,
+	);
+
+	// Plan: green/yellow/red health dot
+	const healthColor = $derived(
+		appStore.sseConnected ? 'text-[var(--color-success)]'
+		: sseStore.reconnecting ? 'text-[var(--color-warning)]'
+		: 'text-[var(--color-error)]',
+	);
+	const healthLabel = $derived(
+		appStore.sseConnected ? 'Live'
+		: sseStore.reconnecting ? 'Reconnecting'
+		: 'Offline',
 	);
 </script>
 
@@ -26,13 +39,9 @@
 		</button>
 		<span class="text-sm font-semibold tracking-tight text-[var(--text-primary)]">Pub</span>
 		<span class="flex items-center gap-1.5 text-xs">
-			<Circle
-				class="h-2 w-2 fill-current {appStore.sseConnected
-					? 'text-[var(--color-success)]'
-					: 'text-[var(--color-error)]'}"
-			/>
+			<Circle class="h-2 w-2 fill-current {healthColor}" />
 			<span class="text-[var(--text-tertiary)] hidden sm:inline">
-				{appStore.sseConnected ? 'Live' : 'Offline'}
+				{healthLabel}
 			</span>
 		</span>
 	</div>

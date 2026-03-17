@@ -110,4 +110,15 @@ export const appStore = {
 		if (density !== 'comfortable') document.documentElement.setAttribute('data-density', density);
 		if (mood !== 'default') document.documentElement.setAttribute('data-mood', mood);
 	},
+
+	// Plan: auto-mood time-based (dawn 6-10, default 10-18, ocean 18-22, night 22-6)
+	applyAutoMood() {
+		const hour = new Date().getHours();
+		let autoMood: Mood;
+		if (hour >= 6 && hour < 10) autoMood = 'dawn';
+		else if (hour >= 10 && hour < 18) autoMood = 'default';
+		else if (hour >= 18 && hour < 22) autoMood = 'ocean';
+		else autoMood = 'night';
+		appStore.setMood(autoMood);
+	},
 };

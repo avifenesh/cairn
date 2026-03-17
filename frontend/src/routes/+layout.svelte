@@ -8,8 +8,13 @@
 	import CommandPalette from '$lib/components/layout/CommandPalette.svelte';
 	import { appStore } from '$lib/stores/app.svelte';
 	import { sseStore } from '$lib/stores/sse.svelte';
+	import { feedStore } from '$lib/stores/feed.svelte';
+	import { taskStore } from '$lib/stores/tasks.svelte';
+	import { keyboardNav } from '$lib/stores/keyboard-nav.svelte';
+	import { markRead, triggerPoll, approve, deny } from '$lib/api/client';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
 	let { children } = $props();
 
@@ -38,7 +43,59 @@
 				return;
 			}
 
+			const path = page.url.pathname;
+
 			switch (e.key) {
+				case 'j':
+					keyboardNav.moveDown();
+					break;
+				case 'k':
+					keyboardNav.moveUp();
+					break;
+				case 'o': {
+					// Open focused item URL
+					if (path === '/today' || path === '/') {
+						const item = feedStore.items[keyboardNav.focusedIndex];
+						if (item?.url) window.open(item.url, '_blank');
+					}
+					break;
+				}
+				case 'r': {
+					// Mark focused feed item read
+					if (path === '/today' || path === '/') {
+						const item = feedStore.items[keyboardNav.focusedIndex];
+						if (item && !item.isRead) {
+							feedStore.markItemRead(item.id);
+							markRead(item.id).catch(() => {});
+						}
+					}
+					break;
+				}
+				case 's':
+					triggerPoll().catch(() => {});
+					break;
+				case 'a': {
+					// Approve focused approval in ops view
+					if (path === '/ops') {
+						const appr = taskStore.pendingApprovals[keyboardNav.focusedIndex];
+						if (appr) {
+							taskStore.resolveApproval(appr.id, 'approved');
+							approve(appr.id).catch(() => {});
+						}
+					}
+					break;
+				}
+				case 'd': {
+					// Deny focused approval in ops view
+					if (path === '/ops') {
+						const appr = taskStore.pendingApprovals[keyboardNav.focusedIndex];
+						if (appr) {
+							taskStore.resolveApproval(appr.id, 'denied');
+							deny(appr.id).catch(() => {});
+						}
+					}
+					break;
+				}
 				case 't':
 					appStore.toggleTheme();
 					break;

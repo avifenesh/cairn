@@ -204,6 +204,30 @@
   --font-mono: 'JetBrains Mono', 'Cascadia Code', 'SF Mono', 'Fira Code', monospace;
 }
 
+/* ============================================
+   Density
+   Plan: comfortable (default), balanced, dense
+   ============================================ */
+[data-density="balanced"] {
+  font-size: 13px;
+  --header-h: 48px;
+  --sidebar-w: 220px;
+  --bottom-nav-h: 48px;
+}
+
+[data-density="dense"] {
+  font-size: 12px;
+  --header-h: 40px;
+  --sidebar-w: 200px;
+  --bottom-nav-h: 44px;
+}
+
+/* Focused item highlight for j/k keyboard navigation */
+[data-focused="true"] {
+  outline: 2px solid var(--pub-accent);
+  outline-offset: -2px;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

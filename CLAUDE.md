@@ -20,8 +20,8 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 5 | Task Engine - priority queue, worktree isolation, leases | Done | `internal/task/` |
 | 6 | Memory System - semantic + episodic + procedural, RAG, Soul | Done | `internal/memory/` |
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Not started | — |
-| 8 | Plugin & Skill System - lifecycle hooks, SKILL.md, ClawHub-compatible | Not started | — |
-| 9 | Server & Protocols - HTTP, SSE, MCP, A2A, ACP, auth | Not started | — |
+| 8 | Skill System - SKILL.md parser, discovery, hot-reload, injection | Done | `internal/skill/` |
+| 9 | Server & Protocols - HTTP, SSE, REST API, auth, static files | Done | `internal/server/` |
 | 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.11, 84 tests) | `frontend/` |
 | 11 | Channel Adapters - web, Telegram, Slack, CLI, API, voice | Not started | — |
 
@@ -33,7 +33,7 @@ Frontend complete (10.1-10.11). 84 tests. Only 10.12 (Go embed) remains - depend
 Phase 1: Foundation (event bus + LLM + SQLite)                [DONE]
 Phase 2: Core Systems (tools | tasks | memory) in parallel    [DONE]
 Phase 3: Agent Core (ReAct loop wires all together)           [DONE]
-Phase 4: Server + Signal Plane + Plugins in parallel          [NEXT]
+Phase 4: Server + Skills (4a+4c done, 4b signal plane pending) [IN PROGRESS]
 Phase 5: Integration, always-on loop, open-source release
 ```
 
@@ -79,6 +79,8 @@ internal/
   task/                       Task store, priority queue, worktree manager, lease claiming, reaper
   memory/                     Memory store, RAG search + MMR, embedder interface, Soul loader
   agent/                      ReAct loop, session store, modes (talk/work/coding), system prompt builder
+  server/                     HTTP server, REST routes, SSE broadcaster, auth, static files
+  skill/                      SKILL.md parser, discovery, hot-reload, prompt injection
 frontend/                     SvelteKit 5 app (Svelte 5 runes, Tailwind v4, shadcn-svelte)
   src/routes/                 today, chat, ops, memory, agents, skills, soul, settings
   src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav)

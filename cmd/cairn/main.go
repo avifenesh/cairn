@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
 	"github.com/avifenesh/cairn/internal/config"
@@ -15,6 +16,8 @@ import (
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
+	"github.com/avifenesh/cairn/internal/server"
+	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 	"github.com/avifenesh/cairn/internal/tool/builtin"
 )
@@ -23,14 +26,132 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
 
-	if len(os.Args) > 1 && os.Args[1] == "chat" {
-		runChat(logger)
-		return
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "chat":
+			runChat(logger)
+			return
+		case "serve":
+			runServe(logger)
+			return
+		}
 	}
 
 	fmt.Println("cairn: personal agent OS")
 	fmt.Println("Usage: cairn chat \"your message here\"")
 	fmt.Println("       cairn chat --mode coding \"your message\"")
+	fmt.Println("       cairn serve               # start HTTP server")
+}
+
+// runServe starts the HTTP server with all subsystems initialized.
+func runServe(logger *slog.Logger) {
+	// Load config.
+	cfg := config.LoadOptional()
+
+	// Initialize event bus.
+	bus := eventbus.New(eventbus.WithLogger(logger))
+	defer bus.Close()
+
+	// Initialize database.
+	database, err := db.Open(cfg.DatabasePath)
+	if err != nil {
+		logger.Error("database required for serve mode", "error", err)
+		os.Exit(1)
+	}
+	defer database.Close()
+	if err := database.Migrate(); err != nil {
+		logger.Error("migration failed", "error", err)
+		os.Exit(1)
+	}
+
+	// Initialize LLM provider (optional for serve — some endpoints work without it).
+	var provider llm.Provider
+	if cfg.LLMAPIKey != "" {
+		registry := llm.NewRegistry(logger)
+		if err := registry.RegisterFromConfig(llm.ProviderConfig{
+			Type:    cfg.LLMProvider,
+			APIKey:  cfg.LLMAPIKey,
+			BaseURL: cfg.LLMBaseURL,
+			Model:   cfg.LLMModel,
+		}); err != nil {
+			logger.Error("failed to register LLM provider", "error", err)
+			os.Exit(1)
+		}
+
+		if cfg.LLMFallbackModel != "" {
+			registry.SetFallback(cfg.LLMModel, cfg.LLMFallbackModel)
+		}
+
+		var resolveErr error
+		provider, _, resolveErr = registry.WithRetryAndFallback(cfg.LLMModel, llm.DefaultRetryConfig())
+		if resolveErr != nil {
+			logger.Warn("LLM provider not available, agent endpoints disabled", "error", resolveErr)
+		} else {
+			logger.Info("llm provider ready", "provider", cfg.LLMProvider, "model", cfg.LLMModel)
+		}
+	}
+
+	// Initialize tool registry.
+	toolRegistry := tool.NewRegistry()
+	toolRegistry.Register(builtin.All()...)
+
+	// Initialize memory service.
+	memStore := memory.NewStore(database)
+	memService := memory.NewService(memStore, memory.NoopEmbedder{}, bus)
+	soul := memory.NewSoul(cfg.SoulPath)
+	soul.Load() // ignore error if SOUL.md doesn't exist yet
+
+	// Initialize session store.
+	sessionStore := agent.NewSessionStore(database)
+
+	// Initialize task engine.
+	taskStore := task.NewStore(database)
+	taskEngine := task.NewEngine(taskStore, bus, nil)
+	defer taskEngine.Close()
+
+	// Create the ReAct agent.
+	var reactAgent agent.Agent
+	if provider != nil {
+		reactAgent = agent.NewReActAgent("cairn", logger)
+	}
+
+	// Create and start the server.
+	srv := server.New(server.ServerConfig{
+		Agent:    reactAgent,
+		Sessions: sessionStore,
+		Tasks:    taskEngine,
+		Memories: memService,
+		Soul:     soul,
+		Tools:    toolRegistry,
+		LLM:      provider,
+		Bus:      bus,
+		Config:   cfg,
+		Logger:   logger,
+	})
+
+	// Graceful shutdown on SIGINT/SIGTERM.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigCh
+		logger.Info("received signal, shutting down", "signal", sig)
+		cancel()
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			logger.Error("shutdown error", "error", err)
+		}
+	}()
+
+	_ = ctx // shutdown handled via signal
+	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	if err := srv.Start(addr); err != nil {
+		logger.Error("server error", "error", err)
+		os.Exit(1)
+	}
 }
 
 // runChat implements the Phase 1 deliverable: `cairn chat "hello"` streams GLM response.

@@ -38,6 +38,9 @@ var shell = tool.Define("pub.shell",
 		}
 
 		// Determine working directory.
+		if ctx.WorkDir == "" {
+			return &tool.ToolResult{Error: "work directory not set - cannot execute shell commands without a working directory"}, nil
+		}
 		workDir := ctx.WorkDir
 		if p.WorkDir != "" {
 			resolved, err := safePath(ctx.WorkDir, p.WorkDir)

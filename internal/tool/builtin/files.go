@@ -26,6 +26,10 @@ var readFile = tool.Define("pub.readFile",
 			return nil, err
 		}
 
+		if action := ctx.Permissions.Evaluate("pub.readFile", absPath); action == tool.Deny {
+			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: read %s", p.Path)}, nil
+		}
+
 		data, err := os.ReadFile(absPath)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to read file: %v", err)}, nil
@@ -65,6 +69,10 @@ var writeFile = tool.Define("pub.writeFile",
 			return nil, err
 		}
 
+		if action := ctx.Permissions.Evaluate("pub.writeFile", absPath); action == tool.Deny {
+			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: write %s", p.Path)}, nil
+		}
+
 		dir := filepath.Dir(absPath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to create directory: %v", err)}, nil
@@ -99,6 +107,10 @@ var editFile = tool.Define("pub.editFile",
 		absPath, err := safePath(ctx.WorkDir, p.Path)
 		if err != nil {
 			return nil, err
+		}
+
+		if action := ctx.Permissions.Evaluate("pub.editFile", absPath); action == tool.Deny {
+			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: edit %s", p.Path)}, nil
 		}
 
 		data, err := os.ReadFile(absPath)
@@ -147,6 +159,10 @@ var deleteFile = tool.Define("pub.deleteFile",
 		absPath, err := safePath(ctx.WorkDir, p.Path)
 		if err != nil {
 			return nil, err
+		}
+
+		if action := ctx.Permissions.Evaluate("pub.deleteFile", absPath); action == tool.Deny {
+			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: delete %s", p.Path)}, nil
 		}
 
 		if err := os.Remove(absPath); err != nil {
@@ -297,14 +313,19 @@ var searchFiles = tool.Define("pub.searchFiles",
 )
 
 // safePath resolves a relative path against the work directory and ensures the
-// result does not escape the work directory (path traversal protection).
+// result does not escape the work directory. Resolves symlinks to prevent
+// symlink-based directory escape attacks.
 func safePath(workDir, rel string) (string, error) {
 	if workDir == "" {
 		return "", fmt.Errorf("work directory not set")
 	}
 
-	// Make workDir absolute.
+	// Make workDir absolute and resolve symlinks.
 	absWork, err := filepath.Abs(workDir)
+	if err != nil {
+		return "", fmt.Errorf("invalid work directory: %w", err)
+	}
+	realWork, err := filepath.EvalSymlinks(absWork)
 	if err != nil {
 		return "", fmt.Errorf("invalid work directory: %w", err)
 	}
@@ -313,12 +334,19 @@ func safePath(workDir, rel string) (string, error) {
 	if filepath.IsAbs(rel) {
 		target = filepath.Clean(rel)
 	} else {
-		target = filepath.Clean(filepath.Join(absWork, rel))
+		target = filepath.Clean(filepath.Join(realWork, rel))
 	}
 
+	// Resolve symlinks on the target if it exists, to prevent symlink escapes.
+	if resolved, err := filepath.EvalSymlinks(target); err == nil {
+		target = resolved
+	}
+	// If target doesn't exist yet (write/create), check the parent.
+	// This handles creating new files - the parent must be within workDir.
+
 	// Ensure the resolved path is within the work directory.
-	if !strings.HasPrefix(target, absWork+string(filepath.Separator)) && target != absWork {
-		return "", fmt.Errorf("path traversal denied: %s is outside work directory %s", rel, absWork)
+	if !strings.HasPrefix(target, realWork+string(filepath.Separator)) && target != realWork {
+		return "", fmt.Errorf("path traversal denied: %s resolves outside work directory %s", rel, realWork)
 	}
 
 	return target, nil

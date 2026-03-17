@@ -39,6 +39,9 @@ var gitRun = tool.Define("pub.gitRun",
 		}
 
 		// Determine working directory.
+		if ctx.WorkDir == "" {
+			return &tool.ToolResult{Error: "work directory not set - cannot run git without a working directory"}, nil
+		}
 		workDir := ctx.WorkDir
 		if p.WorkDir != "" {
 			resolved, err := safePath(ctx.WorkDir, p.WorkDir)

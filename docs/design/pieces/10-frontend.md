@@ -216,12 +216,12 @@ All subphases 10.1-10.11 complete. 84 tests passing. 10.12 (Go embed) depends on
 | # | Item | Status |
 |---|------|--------|
 | 6.1 | Component tests (ChatPanel, CommandPalette, FeedItem) | Not started |
-| 6.2 | Error boundaries (shared component, replace bare catches) | Not started |
-| 6.3 | Consistent loading (shared SkeletonList) | Not started |
-| 6.4 | Feed pagination (infinite scroll / load more) | Not started |
-| 6.5 | Session persistence (localStorage + restore) | Not started |
-| 6.6 | Accessibility (semantic elements, tab order, a11y fixes) | Not started |
-| 6.7 | Auto-mood timer (setInterval + Settings toggle) | Not started |
-| 6.8 | Settings notification preferences | Not started |
-| 6.9 | Debounced memory search (300ms) | Not started |
-| 6.10 | Type-safe SSE parsing (try/catch all handlers) | Not started |
+| 6.2 | Error boundaries (shared component, replace bare catches) | Done |
+| 6.3 | Consistent loading (shared SkeletonList) | Done |
+| 6.4 | Feed pagination (infinite scroll / load more) | Done |
+| 6.5 | Session persistence (localStorage + restore) | Done |
+| 6.6 | Accessibility (semantic elements, tab order, a11y fixes) | Done |
+| 6.7 | Auto-mood timer (setInterval + Settings toggle) | Done |
+| 6.8 | Settings notification preferences | Done |
+| 6.9 | Debounced memory search (300ms) | Done |
+| 6.10 | Type-safe SSE parsing (try/catch all handlers) | Done |

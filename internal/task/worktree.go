@@ -114,8 +114,8 @@ func parseWorktreeList(data []byte, baseDir string) []WorktreeInfo {
 		if line == "" {
 			// End of a worktree entry.
 			absPath, _ := filepath.Abs(current.Path)
-		absBase, _ := filepath.Abs(baseDir)
-		if current.Path != "" && strings.HasPrefix(absPath, absBase+string(filepath.Separator)) {
+			absBase, _ := filepath.Abs(baseDir)
+			if current.Path != "" && strings.HasPrefix(absPath, absBase+string(filepath.Separator)) {
 				// Extract taskID from path.
 				current.TaskID = filepath.Base(current.Path)
 				results = append(results, current)

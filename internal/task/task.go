@@ -50,6 +50,7 @@ type Task struct {
 	SessionID   string
 	Type        TaskType
 	Status      TaskStatus
+	Description string
 	Priority    Priority
 	Mode        string // "talk", "work", "coding"
 	Input       json.RawMessage

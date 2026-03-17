@@ -74,7 +74,7 @@ func (s *Store) Create(ctx context.Context, t *Task) error {
 		t.ID,
 		string(t.Type),
 		string(t.Status),
-		"", // description stored in metadata or input
+		t.Description,
 		inputStr,
 		nullStr(string(t.Output)),
 		nullStr(t.Error),
@@ -95,7 +95,7 @@ func (s *Store) Create(ctx context.Context, t *Task) error {
 // Get retrieves a task by ID.
 func (s *Store) Get(ctx context.Context, id string) (*Task, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, type, status, input, output, error, priority,
+		SELECT id, type, status, description, input, output, error, priority,
 			created_at, started_at, completed_at, lease_owner, lease_expires_at, metadata
 		FROM tasks WHERE id = ?`, id)
 	return scanTask(row)
@@ -103,7 +103,7 @@ func (s *Store) Get(ctx context.Context, id string) (*Task, error) {
 
 // List retrieves tasks matching the given filters.
 func (s *Store) List(ctx context.Context, opts ListOpts) ([]*Task, error) {
-	query := `SELECT id, type, status, input, output, error, priority,
+	query := `SELECT id, type, status, description, input, output, error, priority,
 		created_at, started_at, completed_at, lease_owner, lease_expires_at, metadata
 		FROM tasks WHERE 1=1`
 	var args []any
@@ -225,7 +225,7 @@ func (s *Store) Claim(ctx context.Context, taskType TaskType, owner string, leas
 			ORDER BY priority ASC, created_at ASC
 			LIMIT 1
 		)
-		RETURNING id, type, status, input, output, error, priority,
+		RETURNING id, type, status, description, input, output, error, priority,
 			created_at, started_at, completed_at, lease_owner, lease_expires_at, metadata`,
 		owner, expiry, string(taskType),
 	)
@@ -262,7 +262,7 @@ func (s *Store) Heartbeat(ctx context.Context, id string, leaseDuration time.Dur
 func (s *Store) FindExpiredLeases(ctx context.Context) ([]*Task, error) {
 	now := isoTime(time.Now())
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, type, status, input, output, error, priority,
+		SELECT id, type, status, description, input, output, error, priority,
 			created_at, started_at, completed_at, lease_owner, lease_expires_at, metadata
 		FROM tasks
 		WHERE status IN ('claimed', 'running')
@@ -293,6 +293,7 @@ type scannable interface {
 func scanTask(row scannable) (*Task, error) {
 	var (
 		id, typ, status       string
+		description           string
 		input, metadata       string
 		output, taskErr       sql.NullString
 		priority              int
@@ -303,7 +304,7 @@ func scanTask(row scannable) (*Task, error) {
 	)
 
 	err := row.Scan(
-		&id, &typ, &status, &input, &output, &taskErr, &priority,
+		&id, &typ, &status, &description, &input, &output, &taskErr, &priority,
 		&createdAt, &startedAt, &completedAt, &leaseOwner, &leaseExpiresAt, &metadata,
 	)
 	if err != nil {
@@ -311,10 +312,11 @@ func scanTask(row scannable) (*Task, error) {
 	}
 
 	t := &Task{
-		ID:        id,
-		Type:      TaskType(typ),
-		Status:    TaskStatus(status),
-		Priority:  Priority(priority),
+		ID:          id,
+		Type:        TaskType(typ),
+		Status:      TaskStatus(status),
+		Description: description,
+		Priority:    Priority(priority),
 		Input:     json.RawMessage(input),
 		CreatedAt: parseTime(createdAt),
 	}

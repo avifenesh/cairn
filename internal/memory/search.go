@@ -55,9 +55,8 @@ func Search(ctx context.Context, store *Store, embedder Embedder, query string, 
 	if err != nil {
 		return nil, err
 	}
-	queryVec := queryEmbeddings[0]
-	if queryVec == nil {
-		// Embedder returned nil despite Dimensions() > 0 — fall back to keyword.
+	if len(queryEmbeddings) == 0 || queryEmbeddings[0] == nil {
+		// Embedder returned empty/nil — fall back to keyword only.
 		results := make([]SearchResult, len(keywordMatches))
 		for i, m := range keywordMatches {
 			results[i] = SearchResult{Memory: m, Score: 1.0 - float64(i)*0.05}
@@ -70,6 +69,8 @@ func Search(ctx context.Context, store *Store, embedder Embedder, query string, 
 		}
 		return results, nil
 	}
+
+	queryVec := queryEmbeddings[0]
 
 	// Step 3: vector search over all accepted memories with embeddings.
 	vectorMemories, err := store.AllAcceptedWithEmbeddings(ctx)

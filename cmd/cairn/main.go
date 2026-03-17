@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	crypto_rand "crypto/rand"
 	"fmt"
 	"log/slog"
 	"os"
@@ -133,9 +132,7 @@ func runChat(logger *slog.Logger) {
 	}
 
 	// Create or load session.
-	sessionID := newSessionID()
 	session := &agent.Session{
-		ID:    sessionID,
 		Mode:  mode,
 		State: map[string]any{"workDir": "."},
 	}
@@ -146,7 +143,7 @@ func runChat(logger *slog.Logger) {
 	// Build invocation context.
 	invCtx := &agent.InvocationContext{
 		Context:     ctx,
-		SessionID:   sessionID,
+		SessionID:   session.ID,
 		UserMessage: message,
 		Mode:        mode,
 		Session:     session,
@@ -189,15 +186,10 @@ func runChat(logger *slog.Logger) {
 
 		// Persist event to session.
 		if sessionStore != nil && ev.Event.Author != "user" {
-			sessionStore.AppendEvent(ctx, sessionID, ev.Event)
+			sessionStore.AppendEvent(ctx, session.ID, ev.Event)
 		}
 	}
 
 	fmt.Println() // Final newline
 }
 
-func newSessionID() string {
-	b := make([]byte, 16)
-	crypto_rand.Read(b)
-	return fmt.Sprintf("%x", b)
-}

@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -310,6 +309,3 @@ func TestReActAgent_ModeFiltering(t *testing.T) {
 		t.Errorf("expected 1 tool in coding mode, got %d", len(codingTools))
 	}
 }
-
-// Ensure json import is used.
-var _ = json.Marshal

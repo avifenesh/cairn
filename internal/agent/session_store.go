@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/avifenesh/cairn/internal/db"
@@ -132,9 +133,9 @@ func (s *SessionStore) AppendEvent(ctx context.Context, sessionID string, ev *Ev
 	content, toolCalls, toolResults := serializeParts(ev.Parts)
 
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO messages (id, session_id, role, content, mode, tool_calls, tool_results, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		ev.ID, sessionID, role, content, "",
+		INSERT INTO messages (id, session_id, role, content, tool_calls, tool_results, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		ev.ID, sessionID, role, content,
 		nullJSON(toolCalls), nullJSON(toolResults),
 		isoTime(ev.Timestamp),
 	)
@@ -155,8 +156,14 @@ func (s *SessionStore) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("session store: delete begin: %w", err)
 	}
-	tx.Exec("DELETE FROM messages WHERE session_id = ?", id)
-	tx.Exec("DELETE FROM sessions WHERE id = ?", id)
+	if _, err := tx.Exec("DELETE FROM messages WHERE session_id = ?", id); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("session store: delete messages for %s: %w", id, err)
+	}
+	if _, err := tx.Exec("DELETE FROM sessions WHERE id = ?", id); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("session store: delete session %s: %w", id, err)
+	}
 	return tx.Commit()
 }
 
@@ -197,7 +204,9 @@ func (s *SessionStore) loadEvents(ctx context.Context, sessionID string) ([]*Eve
 		}
 		if toolCalls.Valid && toolCalls.String != "" {
 			var tcs []ToolPart
-			if json.Unmarshal([]byte(toolCalls.String), &tcs) == nil {
+			if err := json.Unmarshal([]byte(toolCalls.String), &tcs); err != nil {
+				slog.Warn("session store: failed to unmarshal tool_calls", "event", id, "error", err)
+			} else {
 				for _, tc := range tcs {
 					ev.Parts = append(ev.Parts, tc)
 				}
@@ -205,7 +214,9 @@ func (s *SessionStore) loadEvents(ctx context.Context, sessionID string) ([]*Eve
 		}
 		if toolResults.Valid && toolResults.String != "" {
 			var trs []ToolPart
-			if json.Unmarshal([]byte(toolResults.String), &trs) == nil {
+			if err := json.Unmarshal([]byte(toolResults.String), &trs); err != nil {
+				slog.Warn("session store: failed to unmarshal tool_results", "event", id, "error", err)
+			} else {
 				for _, tr := range trs {
 					ev.Parts = append(ev.Parts, tr)
 				}
@@ -247,10 +258,18 @@ func serializeParts(parts []Part) (content string, toolCalls, toolResults []byte
 	}
 
 	if len(calls) > 0 {
-		toolCalls, _ = json.Marshal(calls)
+		var err error
+		toolCalls, err = json.Marshal(calls)
+		if err != nil {
+			slog.Warn("session store: failed to marshal tool calls", "error", err)
+		}
 	}
 	if len(results) > 0 {
-		toolResults, _ = json.Marshal(results)
+		var err error
+		toolResults, err = json.Marshal(results)
+		if err != nil {
+			slog.Warn("session store: failed to marshal tool results", "error", err)
+		}
 	}
 	return
 }

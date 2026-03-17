@@ -164,31 +164,3 @@ func eventToMessage(ev *Event) *llm.Message {
 
 	return &llm.Message{Role: role, Content: blocks}
 }
-
-// toolResultEvents extracts tool results from events for LLM context.
-func toolResultMessages(events []*Event) []llm.Message {
-	var msgs []llm.Message
-	for _, ev := range events {
-		for _, part := range ev.Parts {
-			if tp, ok := part.(ToolPart); ok && (tp.Status == ToolCompleted || tp.Status == ToolFailed) {
-				content := tp.Output
-				isErr := false
-				if tp.Status == ToolFailed {
-					content = tp.Error
-					isErr = true
-				}
-				msgs = append(msgs, llm.Message{
-					Role: llm.RoleTool,
-					Content: []llm.ContentBlock{
-						llm.ToolResultBlock{
-							ToolUseID: tp.CallID,
-							Content:   content,
-							IsError:   isErr,
-						},
-					},
-				})
-			}
-		}
-	}
-	return msgs
-}

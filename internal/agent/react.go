@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -329,12 +328,4 @@ func emit(ctx context.Context, ch chan<- RunEvent, ev RunEvent) {
 	case ch <- ev:
 	case <-ctx.Done():
 	}
-}
-
-// marshalInput safely marshals tool call input for logging.
-func marshalInput(input json.RawMessage) string {
-	if input == nil {
-		return "{}"
-	}
-	return string(input)
 }

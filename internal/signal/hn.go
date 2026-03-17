@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -43,7 +44,7 @@ func NewHNPoller(cfg HNConfig) *HNPoller {
 	}
 }
 
-func (h *HNPoller) Source() string { return "hn" }
+func (h *HNPoller) Source() string { return SourceHN }
 
 func (h *HNPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, error) {
 	// Fetch top story IDs.
@@ -52,30 +53,48 @@ func (h *HNPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, erro
 		return nil, fmt.Errorf("hn: fetch top stories: %w", err)
 	}
 
-	// Limit to first 50 to avoid excessive API calls.
-	if len(ids) > 50 {
-		ids = ids[:50]
+	// Limit to first maxHNStories to avoid excessive API calls.
+	const maxHNStories = 50
+	if len(ids) > maxHNStories {
+		ids = ids[:maxHNStories]
 	}
 
-	var events []*RawEvent
-	for _, id := range ids {
-		story, err := h.fetchItem(ctx, id)
-		if err != nil {
-			continue // skip individual failures
-		}
+	// Fetch items concurrently with bounded parallelism.
+	const concurrency = 10
+	type result struct {
+		story *hnItem
+		err   error
+	}
+	results := make([]result, len(ids))
 
-		// Filter: must be after since.
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, concurrency)
+	for i, id := range ids {
+		wg.Add(1)
+		go func(idx, storyID int) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			s, e := h.fetchItem(ctx, storyID)
+			results[idx] = result{story: s, err: e}
+		}(i, id)
+	}
+	wg.Wait()
+
+	var events []*RawEvent
+	for _, r := range results {
+		if r.err != nil || r.story == nil {
+			continue
+		}
+		story := r.story
+
 		storyTime := time.Unix(story.Time, 0)
 		if storyTime.Before(since) {
 			continue
 		}
-
-		// Filter: minimum score.
 		if h.minScore > 0 && story.Score < h.minScore {
 			continue
 		}
-
-		// Filter: keyword match (if keywords configured).
 		if len(h.keywords) > 0 && !h.matchesKeywords(story) {
 			continue
 		}
@@ -86,14 +105,13 @@ func (h *HNPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, erro
 		}
 
 		events = append(events, &RawEvent{
-			Source:   "hn",
+			Source:   SourceHN,
 			SourceID: fmt.Sprintf("story:%d", story.ID),
-			Kind:     "story",
+			Kind:     KindStory,
 			Title:    story.Title,
-			Body:     "", // HN stories don't have body in API
 			URL:      url,
 			Actor:    story.By,
-			GroupKey: "hn",
+			GroupKey: SourceHN,
 			Metadata: map[string]any{
 				"score":       story.Score,
 				"descendants": story.Descendants,
@@ -161,7 +179,7 @@ func (h *HNPoller) doGet(ctx context.Context, url string) ([]byte, error) {
 		return nil, fmt.Errorf("hn: status %d", resp.StatusCode)
 	}
 
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, 5<<20)) // 5 MB
 }
 
 func (h *HNPoller) matchesKeywords(story *hnItem) bool {

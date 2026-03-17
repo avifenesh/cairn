@@ -34,7 +34,7 @@ func NewGitHubPoller(cfg GitHubConfig) *GitHubPoller {
 	}
 }
 
-func (g *GitHubPoller) Source() string { return "github" }
+func (g *GitHubPoller) Source() string { return SourceGitHub }
 
 func (g *GitHubPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, error) {
 	if g.token == "" {
@@ -100,7 +100,7 @@ func (g *GitHubPoller) fetchNotifications(ctx context.Context, since time.Time) 
 		htmlURL := ghAPIToHTML(n.Subject.URL, n.Repository.FullName)
 
 		events = append(events, &RawEvent{
-			Source:     "github",
+			Source:     SourceGitHub,
 			SourceID:   fmt.Sprintf("notif:%s", n.ID),
 			Kind:       kind,
 			Title:      n.Subject.Title,
@@ -154,7 +154,7 @@ func (g *GitHubPoller) fetchOrgEvents(ctx context.Context, org string, since tim
 		}
 
 		events = append(events, &RawEvent{
-			Source:     "github",
+			Source:     SourceGitHub,
 			SourceID:   fmt.Sprintf("orgevent:%s", e.ID),
 			Kind:       kind,
 			Title:      title,
@@ -192,21 +192,21 @@ func (g *GitHubPoller) doGet(ctx context.Context, url string) ([]byte, error) {
 		return nil, fmt.Errorf("github: status %d: %s", resp.StatusCode, string(body))
 	}
 
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, 5<<20)) // 5 MB
 }
 
 func ghSubjectTypeToKind(subjectType string) string {
 	switch subjectType {
 	case "PullRequest":
-		return "pr"
+		return KindPR
 	case "Issue":
-		return "issue"
+		return KindIssue
 	case "Release":
-		return "release"
+		return KindRelease
 	case "Discussion":
-		return "discussion"
+		return KindDiscussion
 	case "Commit":
-		return "commit"
+		return KindCommit
 	default:
 		return strings.ToLower(subjectType)
 	}
@@ -224,7 +224,6 @@ func ghAPIToHTML(apiURL, repoFullName string) string {
 	// Convert API URL to HTML URL.
 	html := strings.Replace(apiURL, "https://api.github.com/repos/", "https://github.com/", 1)
 	html = strings.Replace(html, "/pulls/", "/pull/", 1)
-	html = strings.Replace(html, "/issues/", "/issues/", 1) // same path
 	html = strings.Replace(html, "/releases/", "/releases/tag/", 1)
 	return html
 }
@@ -254,19 +253,19 @@ func ghEventToFields(e ghOrgEvent) (kind, title, url string) {
 	switch e.Type {
 	case "PullRequestEvent":
 		if payload.PullRequest != nil {
-			return "pr",
+			return KindPR,
 				fmt.Sprintf("[%s] %s PR #%d: %s", payload.Action, e.Repo.Name, payload.PullRequest.Number, payload.PullRequest.Title),
 				fmt.Sprintf("%s/pull/%d", repoURL, payload.PullRequest.Number)
 		}
-		return "pr", fmt.Sprintf("[%s] %s PR", payload.Action, e.Repo.Name), repoURL
+		return KindPR, fmt.Sprintf("[%s] %s PR", payload.Action, e.Repo.Name), repoURL
 
 	case "IssuesEvent":
 		if payload.Issue != nil {
-			return "issue",
+			return KindIssue,
 				fmt.Sprintf("[%s] %s #%d: %s", payload.Action, e.Repo.Name, payload.Issue.Number, payload.Issue.Title),
 				fmt.Sprintf("%s/issues/%d", repoURL, payload.Issue.Number)
 		}
-		return "issue", fmt.Sprintf("[%s] %s issue", payload.Action, e.Repo.Name), repoURL
+		return KindIssue, fmt.Sprintf("[%s] %s issue", payload.Action, e.Repo.Name), repoURL
 
 	case "ReleaseEvent":
 		if payload.Release != nil {
@@ -274,11 +273,11 @@ func ghEventToFields(e ghOrgEvent) (kind, title, url string) {
 			if name == "" {
 				name = payload.Release.TagName
 			}
-			return "release",
+			return KindRelease,
 				fmt.Sprintf("%s released %s", e.Repo.Name, name),
 				fmt.Sprintf("%s/releases/tag/%s", repoURL, payload.Release.TagName)
 		}
-		return "release", fmt.Sprintf("%s new release", e.Repo.Name), repoURL
+		return KindRelease, fmt.Sprintf("%s new release", e.Repo.Name), repoURL
 
 	case "PushEvent":
 		ref := payload.Ref
@@ -286,22 +285,22 @@ func ghEventToFields(e ghOrgEvent) (kind, title, url string) {
 		if idx := strings.LastIndex(ref, "/"); idx >= 0 {
 			branch = ref[idx+1:]
 		}
-		return "push",
+		return KindPush,
 			fmt.Sprintf("%s pushed to %s", e.Repo.Name, branch),
 			fmt.Sprintf("%s/tree/%s", repoURL, branch)
 
 	case "CreateEvent":
-		return "branch",
+		return KindBranch,
 			fmt.Sprintf("%s created %s", e.Repo.Name, payload.Ref),
 			repoURL
 
 	case "ForkEvent":
-		return "fork",
+		return KindFork,
 			fmt.Sprintf("%s forked by %s", e.Repo.Name, e.Actor.Login),
 			repoURL
 
 	case "WatchEvent":
-		return "star",
+		return KindStar,
 			fmt.Sprintf("%s starred by %s", e.Repo.Name, e.Actor.Login),
 			repoURL
 

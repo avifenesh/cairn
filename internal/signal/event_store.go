@@ -72,13 +72,8 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) (int, error
 	return inserted, nil
 }
 
-// List returns events matching the filter, ordered by created_at DESC.
-func (s *EventStore) List(ctx context.Context, f EventFilter) ([]*StoredEvent, error) {
-	limit := f.Limit
-	if limit <= 0 {
-		limit = 50
-	}
-
+// buildWhere constructs a WHERE clause and args from an EventFilter.
+func buildWhere(f EventFilter) (string, []any) {
 	var clauses []string
 	var args []any
 
@@ -98,11 +93,20 @@ func (s *EventStore) List(ctx context.Context, f EventFilter) ([]*StoredEvent, e
 		args = append(args, f.Before)
 	}
 
-	where := ""
-	if len(clauses) > 0 {
-		where = "WHERE " + strings.Join(clauses, " AND ")
+	if len(clauses) == 0 {
+		return "", args
+	}
+	return "WHERE " + strings.Join(clauses, " AND "), args
+}
+
+// List returns events matching the filter, ordered by created_at DESC.
+func (s *EventStore) List(ctx context.Context, f EventFilter) ([]*StoredEvent, error) {
+	limit := f.Limit
+	if limit <= 0 {
+		limit = 50
 	}
 
+	where, args := buildWhere(f)
 	query := fmt.Sprintf(`SELECT id, source, source_item_id, kind, title, body, url, actor,
 		COALESCE(group_key, ''), COALESCE(metadata, '{}'), created_at, read_at, archived_at
 		FROM events %s ORDER BY created_at DESC LIMIT ?`, where)
@@ -127,26 +131,7 @@ func (s *EventStore) List(ctx context.Context, f EventFilter) ([]*StoredEvent, e
 
 // Count returns the total number of events matching the filter.
 func (s *EventStore) Count(ctx context.Context, f EventFilter) (int, error) {
-	var clauses []string
-	var args []any
-
-	if f.Source != "" {
-		clauses = append(clauses, "source = ?")
-		args = append(args, f.Source)
-	}
-	if f.Kind != "" {
-		clauses = append(clauses, "kind = ?")
-		args = append(args, f.Kind)
-	}
-	if f.UnreadOnly {
-		clauses = append(clauses, "read_at IS NULL")
-	}
-
-	where := ""
-	if len(clauses) > 0 {
-		where = "WHERE " + strings.Join(clauses, " AND ")
-	}
-
+	where, args := buildWhere(f)
 	var count int
 	err := s.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM events %s", where), args...).Scan(&count)
 	return count, err

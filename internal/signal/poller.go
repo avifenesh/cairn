@@ -7,6 +7,26 @@ import (
 	"time"
 )
 
+// Source name constants.
+const (
+	SourceGitHub = "github"
+	SourceHN     = "hn"
+)
+
+// Event kind constants.
+const (
+	KindPR         = "pr"
+	KindIssue      = "issue"
+	KindRelease    = "release"
+	KindDiscussion = "discussion"
+	KindCommit     = "commit"
+	KindPush       = "push"
+	KindBranch     = "branch"
+	KindFork       = "fork"
+	KindStar       = "star"
+	KindStory      = "story"
+)
+
 // Poller fetches new events from an external source.
 type Poller interface {
 	// Source returns the unique source identifier (e.g. "github", "hn").

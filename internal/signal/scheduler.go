@@ -11,14 +11,15 @@ import (
 )
 
 // Scheduler runs pollers at their configured intervals, ingests results,
-// and publishes bus events for new items. Pollers execute sequentially
-// within each tick to avoid thundering herd on startup.
+// and publishes bus events for new items. Register all pollers before
+// calling Start - registering after Start is not supported.
 type Scheduler struct {
 	store   *EventStore
 	state   *SourceState
 	bus     *eventbus.Bus
 	logger  *slog.Logger
 	pollers []pollerEntry
+	started atomic.Bool
 	done    chan struct{}
 	stopped atomic.Bool
 	wg      sync.WaitGroup
@@ -51,7 +52,12 @@ func NewScheduler(store *EventStore, state *SourceState, bus *eventbus.Bus, logg
 }
 
 // Register adds a poller with a custom interval. Use 0 for default (5min).
+// Must be called before Start.
 func (s *Scheduler) Register(p Poller, interval time.Duration) {
+	if s.started.Load() {
+		s.logger.Error("signal: cannot register poller after Start", "source", p.Source())
+		return
+	}
 	if interval <= 0 {
 		interval = defaultInterval
 	}
@@ -62,8 +68,9 @@ func (s *Scheduler) Register(p Poller, interval time.Duration) {
 }
 
 // Start begins polling in background goroutines. Each poller gets its own
-// goroutine with its own ticker.
+// goroutine with its own ticker. No more pollers may be registered after Start.
 func (s *Scheduler) Start() {
+	s.started.Store(true)
 	for i := range s.pollers {
 		s.wg.Add(1)
 		go s.runPoller(i)

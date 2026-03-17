@@ -1,7 +1,12 @@
 # Binaries (root level only)
-/pub-server
-/pub-go
+/cairn
+/cairn-server
 *.exe
+
+# Frontend
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/dist/
 
 # Data
 data/

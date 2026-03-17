@@ -1,0 +1,214 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Pub uses data-theme="light" on <html>, dark is default */
+@custom-variant dark (&:is([data-theme="dark"] *, :not([data-theme="light"]) *));
+
+/* ============================================
+   Pub Design Tokens — Dark (default)
+   Source: /home/ubuntu/pub/design-tokens.json
+   ============================================ */
+:root {
+  /* Depth layers */
+  --bg-0: #0B0A0D;
+  --bg-1: #110F14;
+  --bg-2: #17151A;
+  --bg-3: #1E1B22;
+  --bg-4: #262330;
+
+  /* Text */
+  --text-primary: #F0ECF0;
+  --text-secondary: #A098A5;
+  --text-tertiary: #9A96A0;
+
+  /* Accent (pink-rose) */
+  --pub-accent: #E87B9A;
+  --accent-dim: rgba(232, 123, 154, 0.12);
+  --accent-glow: rgba(232, 123, 154, 0.25);
+
+  /* Source colors */
+  --src-github: #A78BFA;
+  --src-reddit: #FB923C;
+  --src-x: #38BDF8;
+  --src-gmail: #F87171;
+  --src-npm: #FB7185;
+  --src-crates: #FBBF24;
+  --src-hackernews: #FF6600;
+  --src-stackoverflow: #F48024;
+  --src-producthunt: #DA552F;
+  --src-agent: #34D399;
+
+  /* Status */
+  --color-success: #34D399;
+  --color-warning: #FBBF24;
+  --color-error: #F87171;
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Radius */
+  --radius: 8px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.55);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 120ms;
+  --dur-normal: 200ms;
+  --dur-slow: 350ms;
+
+  /* Layout */
+  --sidebar-w: 240px;
+  --header-h: 56px;
+  --toolbar-h: 48px;
+  --touch-target-min: 44px;
+  --bottom-nav-h: 56px;
+
+  /* shadcn semantic mappings (dark) */
+  --background: var(--bg-0);
+  --foreground: var(--text-primary);
+  --card: var(--bg-1);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-2);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--pub-accent);
+  --primary-foreground: #0B0A0D;
+  --secondary: var(--bg-3);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-2);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--bg-3);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--color-error);
+  --border: var(--border-default);
+  --input: var(--border-strong);
+  --ring: var(--pub-accent);
+  --sidebar: var(--bg-1);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--pub-accent);
+  --sidebar-primary-foreground: #0B0A0D;
+  --sidebar-accent: var(--bg-3);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border-subtle);
+  --sidebar-ring: var(--pub-accent);
+}
+
+/* ============================================
+   Light Theme Override
+   ============================================ */
+[data-theme="light"] {
+  --bg-0: #FAFAFA;
+  --bg-1: #FFFFFF;
+  --bg-2: #F3F4F6;
+  --bg-3: #E5E7EB;
+  --bg-4: #D1D5DB;
+
+  --text-primary: #1A1523;
+  --text-secondary: #5E5468;
+  --text-tertiary: #706A6E;
+
+  --pub-accent: #C2506E;
+  --accent-dim: rgba(194, 80, 110, 0.08);
+  --accent-glow: rgba(194, 80, 110, 0.15);
+
+  --src-github: #6D28D9;
+  --src-reddit: #C2410C;
+  --src-x: #0284C7;
+  --src-gmail: #DC2626;
+  --src-npm: #BE123C;
+  --src-crates: #92400E;
+  --src-hackernews: #C2410C;
+  --src-stackoverflow: #C44800;
+  --src-producthunt: #A13D1F;
+  --src-agent: #047857;
+
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.10);
+  --border-strong: rgba(0, 0, 0, 0.16);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.18);
+
+  --primary-foreground: #FFFFFF;
+  --sidebar-primary-foreground: #FFFFFF;
+}
+
+/* ============================================
+   Mood Packs
+   ============================================ */
+[data-mood="dawn"] {
+  --pub-accent: #F59E0B;
+  --accent-dim: rgba(245, 158, 11, 0.12);
+  --accent-glow: rgba(245, 158, 11, 0.25);
+}
+[data-mood="ocean"] {
+  --pub-accent: #06B6D4;
+  --accent-dim: rgba(6, 182, 212, 0.12);
+  --accent-glow: rgba(6, 182, 212, 0.25);
+}
+[data-mood="night"] {
+  --pub-accent: #818CF8;
+  --accent-dim: rgba(129, 140, 248, 0.12);
+  --accent-glow: rgba(129, 140, 248, 0.25);
+}
+
+/* ============================================
+   Tailwind v4 @theme — register custom tokens
+   ============================================ */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Pub-specific tokens */
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'SF Mono', 'Fira Code', monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}

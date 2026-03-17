@@ -1,0 +1,98 @@
+// Global application state
+
+export type View = 'today' | 'ops' | 'chat' | 'memory' | 'agents' | 'skills' | 'soul' | 'settings';
+export type Theme = 'dark' | 'light';
+export type Density = 'comfortable' | 'balanced' | 'dense';
+export type Mood = 'default' | 'dawn' | 'ocean' | 'night';
+
+interface Notification {
+	id: string;
+	type: string;
+	message: string;
+	timestamp: number;
+}
+
+let sseConnected = $state(false);
+let clientId = $state<string | null>(null);
+let theme = $state<Theme>((localStorage.getItem('pub_theme') as Theme) || 'dark');
+let density = $state<Density>((localStorage.getItem('pub_density') as Density) || 'comfortable');
+let mood = $state<Mood>((localStorage.getItem('pub_mood') as Mood) || 'default');
+let commandPaletteOpen = $state(false);
+let notifications = $state<Notification[]>([]);
+let pollStatuses = $state<Record<string, { newCount: number; at: number }>>({});
+let agentProgresses = $state<Record<string, string>>({});
+let sidebarCollapsed = $state(false);
+
+export const appStore = {
+	get sseConnected() { return sseConnected; },
+	get clientId() { return clientId; },
+	get theme() { return theme; },
+	get density() { return density; },
+	get mood() { return mood; },
+	get commandPaletteOpen() { return commandPaletteOpen; },
+	get notifications() { return notifications; },
+	get pollStatuses() { return pollStatuses; },
+	get agentProgresses() { return agentProgresses; },
+	get sidebarCollapsed() { return sidebarCollapsed; },
+
+	setSSEConnected(v: boolean) { sseConnected = v; },
+	setClientId(id: string) { clientId = id; },
+
+	setTheme(t: Theme) {
+		theme = t;
+		localStorage.setItem('pub_theme', t);
+		document.documentElement.setAttribute('data-theme', t);
+	},
+
+	setDensity(d: Density) {
+		density = d;
+		localStorage.setItem('pub_density', d);
+		document.documentElement.setAttribute('data-density', d);
+	},
+
+	setMood(m: Mood) {
+		mood = m;
+		localStorage.setItem('pub_mood', m);
+		if (m === 'default') {
+			document.documentElement.removeAttribute('data-mood');
+		} else {
+			document.documentElement.setAttribute('data-mood', m);
+		}
+	},
+
+	toggleTheme() {
+		appStore.setTheme(theme === 'dark' ? 'light' : 'dark');
+	},
+
+	toggleCommandPalette() { commandPaletteOpen = !commandPaletteOpen; },
+	openCommandPalette() { commandPaletteOpen = true; },
+	closeCommandPalette() { commandPaletteOpen = false; },
+
+	toggleSidebar() { sidebarCollapsed = !sidebarCollapsed; },
+
+	addNotification(type: string, message: string) {
+		const id = crypto.randomUUID();
+		notifications = [...notifications, { id, type, message, timestamp: Date.now() }];
+		setTimeout(() => {
+			notifications = notifications.filter((n) => n.id !== id);
+		}, 5000);
+	},
+
+	dismissNotification(id: string) {
+		notifications = notifications.filter((n) => n.id !== id);
+	},
+
+	setPollStatus(source: string, newCount: number) {
+		pollStatuses = { ...pollStatuses, [source]: { newCount, at: Date.now() } };
+	},
+
+	setAgentProgress(agentId: string, message: string) {
+		agentProgresses = { ...agentProgresses, [agentId]: message };
+	},
+
+	initTheme() {
+		document.documentElement.setAttribute('data-theme', theme);
+		if (density !== 'comfortable') document.documentElement.setAttribute('data-density', density);
+		if (mood !== 'default') document.documentElement.setAttribute('data-mood', mood);
+	},
+};

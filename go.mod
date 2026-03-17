@@ -1,4 +1,4 @@
-module github.com/avifenesh/pub-go
+module github.com/avifenesh/cairn
 
 go 1.25.0
 

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/avifenesh/pub-go/internal/config"
-	"github.com/avifenesh/pub-go/internal/db"
-	"github.com/avifenesh/pub-go/internal/eventbus"
-	"github.com/avifenesh/pub-go/internal/llm"
+	"github.com/avifenesh/cairn/internal/config"
+	"github.com/avifenesh/cairn/internal/db"
+	"github.com/avifenesh/cairn/internal/eventbus"
+	"github.com/avifenesh/cairn/internal/llm"
 )
 
 func main() {
@@ -24,14 +24,14 @@ func main() {
 		return
 	}
 
-	fmt.Println("pub-go: personal agent OS")
-	fmt.Println("Usage: pub-go chat \"your message here\"")
+	fmt.Println("cairn: personal agent OS")
+	fmt.Println("Usage: cairn chat \"your message here\"")
 }
 
-// runChat implements the Phase 1 deliverable: `pub-go chat "hello"` streams GLM response.
+// runChat implements the Phase 1 deliverable: `cairn chat "hello"` streams GLM response.
 func runChat(logger *slog.Logger) {
 	if len(os.Args) < 3 {
-		fmt.Fprintln(os.Stderr, "Usage: pub-go chat \"your message\"")
+		fmt.Fprintln(os.Stderr, "Usage: cairn chat \"your message\"")
 		os.Exit(1)
 	}
 	message := strings.Join(os.Args[2:], " ")

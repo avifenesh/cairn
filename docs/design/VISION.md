@@ -96,7 +96,7 @@ The v1 prototype proved the concept. v2 should be open because:
          │                              │
     ┌────┘                              └────┐
     ▼                                        ▼
-  Web UI (vanilla JS → later Preact)     External Agents
+  Web UI (SvelteKit 5, embed.FS)         External Agents
   Static files served by Go              via A2A/MCP/ACP
 ```
 

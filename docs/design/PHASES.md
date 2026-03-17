@@ -181,10 +181,10 @@ Phase 1: Foundation (Event Bus + LLM Client + SQLite)
 |----------|-------------|--------|
 | 5.1 | API compatibility layer — ensure Go server matches Node API contract | Phase 4a |
 | 5.2 | Frontend migration — test web client against Go backend | Phase 4a |
-| 5.3 | Always-on agent loop (idle mode, proactive behavior) | Phase 3, 4b, 6 (memory) |
+| 5.3 | Always-on agent loop (idle mode, proactive behavior) | Phase 3, 4b, Piece 6 (memory) |
 | 5.4 | Session migration — import SQLite data from v1 | Phase 3.3 |
-| 5.5 | Episodic memory: session journaler | Phase 3, 6 |
-| 5.6 | Reflection engine (pattern detection → memories + soul patches) | Phase 6.7 |
+| 5.5 | Episodic memory: session journaler | Phase 3, Piece 6 |
+| 5.6 | Reflection engine (pattern detection → memories + soul patches) | Piece 6 (subphase 6.7) |
 | 5.7 | Performance testing (30-day soak test) | All |
 | 5.8 | Documentation (README, CONTRIBUTING, architecture guide) | All |
 | 5.9 | CI/CD (GitHub Actions: build, test, release binaries) | All |

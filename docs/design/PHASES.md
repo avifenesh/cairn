@@ -1,4 +1,4 @@
-# Pub v2 — Implementation Phases
+# Cairn — Implementation Phases
 
 > Five phases from foundation to production. Each phase produces a working increment.
 
@@ -44,9 +44,9 @@ Phase 1: Foundation (Event Bus + LLM Client + SQLite)
 | 1.2 | Piece 2 (2.1-2.3) | LLM types + SSE parser + GLM provider | ✅ Independent |
 | 1.3 | SQLite setup | Database connection, migrations, base tables | ✅ Independent |
 | 1.4 | Piece 2 (2.5-2.6) | Retry/fallback + budget tracker | Needs 1.2 |
-| 1.5 | Integration test | CLI binary: `pub-go chat "hello"` streams GLM response | Needs 1.1-1.4 |
+| 1.5 | Integration test | CLI binary: `cairn chat "hello"` streams GLM response | Needs 1.1-1.4 |
 
-**Deliverable:** `pub-go chat "hello"` → streams GLM-5 Turbo response to stdout.
+**Deliverable:** `cairn chat "hello"` → streams GLM-5 Turbo response to stdout.
 
 ---
 
@@ -115,7 +115,7 @@ Phase 1: Foundation (Event Bus + LLM Client + SQLite)
 | 3.7 | Piece 4 (4.7) | Checkpoint/resume | 3.2, 3.3 |
 | 3.8 | Integration test | Full loop: user → LLM → tool → LLM → response | All |
 
-**Deliverable:** `pub-go chat "read package.json and tell me the version"` → agent reads file via tool, responds.
+**Deliverable:** `cairn chat "read package.json and tell me the version"` → agent reads file via tool, responds.
 
 ---
 
@@ -190,7 +190,7 @@ Phase 1: Foundation (Event Bus + LLM Client + SQLite)
 | 5.9 | CI/CD (GitHub Actions: build, test, release binaries) | All |
 | 5.10 | Open-source release (LICENSE, cleanup, public repo) | All |
 
-**Deliverable:** Single Go binary replaces Node.js backend. `curl -L pub.dev/install | sh`.
+**Deliverable:** Single Go binary replaces Node.js backend. `curl -L github.com/avifenesh/cairn/releases | sh`.
 
 ---
 
@@ -286,7 +286,7 @@ func main() {
 
 | Phase | "Done" means |
 |-------|-------------|
-| 1 | `pub-go chat "hello"` streams response from GLM-5 Turbo |
+| 1 | `cairn chat "hello"` streams response from GLM-5 Turbo |
 | 2 | Tools execute in worktrees. Tasks queue and lease. Memories RAG-search. |
 | 3 | Full ReAct loop: user → tools → response. Sessions persist. Modes work. |
 | 4 | HTTP API serves frontend. SSE streams. Polls GitHub/Gmail. Skills load. |

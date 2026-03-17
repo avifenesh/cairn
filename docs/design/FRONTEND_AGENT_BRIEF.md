@@ -1,13 +1,13 @@
-# Frontend Agent Brief — Pub v2
+# Frontend Agent Brief — Cairn
 
 > Everything a frontend developer needs to build the Svelte 5 dashboard from scratch.
 > Read this file first. No other context required to start.
 
 ## What You're Building
 
-A **Svelte 5 + SvelteKit** dashboard for Pub — a personal agent operating system. The dashboard replaces a 13k-line vanilla JS monolith (`app.js`) with a modern component architecture. It will be embedded in a Go binary via `embed.FS`.
+A **Svelte 5 + SvelteKit** dashboard for Cairn — a personal agent operating system. The dashboard replaces a 13k-line vanilla JS monolith (`app.js`) with a modern component architecture. It will be embedded in a Go binary via `embed.FS`.
 
-**Location:** `/home/ubuntu/pub-go/frontend/`
+**Location:** `/home/ubuntu/cairn/frontend/`
 
 ## Stack
 
@@ -227,7 +227,7 @@ Users can define custom modes with: name, description, promptInjection (custom s
 ## Build Output
 
 ```bash
-cd /home/ubuntu/pub-go/frontend
+cd /home/ubuntu/cairn/frontend
 npm run build   # or pnpm build
 # Output: dist/ directory (static files)
 ```

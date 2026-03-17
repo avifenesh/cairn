@@ -10,9 +10,12 @@ The LLM client is the mouth and ears of the agent. It sends structured messages 
 
 ```go
 // Provider-agnostic streaming interface
-type Client interface {
-    Stream(ctx context.Context, req *Request) iter.Seq2[Event, error]
-    EstimateCost(model string, inputTokens, outputTokens int) float64
+// NOTE: Implementation uses channel-based streaming (<-chan Event, error)
+// instead of iter.Seq2 - channels are more practical for concurrent SSE fan-out.
+type Provider interface {
+    ID() string
+    Stream(ctx context.Context, req *Request) (<-chan Event, error)
+    Models() []ModelInfo
 }
 
 type Request struct {
@@ -50,21 +53,22 @@ type ReasoningBlock struct { Text string }
 ## Provider Abstraction
 
 ```go
-// Each provider implements this
-type Provider interface {
-    ID() string
-    Stream(ctx context.Context, req *Request) iter.Seq2[Event, error]
-    Models() []ModelInfo
-}
+// Each provider implements this (see above)
 
-// Registry
+// Registry — implemented in registry.go
 type Registry struct {
     providers map[string]Provider
-    fallbacks map[string]string // model → fallback model
+    models    map[string]string  // modelID → providerID
+    fallbacks map[string]string  // model → fallback model
 }
 
-func (r *Registry) Get(providerID string) (Provider, bool)
-func (r *Registry) Resolve(modelID string) (Provider, string) // provider + normalized model
+func NewRegistry(logger *slog.Logger) *Registry
+func (r *Registry) Register(p Provider)
+func (r *Registry) Provider(id string) (Provider, bool)
+func (r *Registry) Resolve(modelID string) (Provider, string, error)
+func (r *Registry) SetFallback(modelID, fallbackModelID string)
+func (r *Registry) WithRetryAndFallback(modelID string, config RetryConfig) (Provider, string, error)
+func (r *Registry) RegisterFromConfig(cfg ProviderConfig) error
 ```
 
 ## Providers to Support (Phase 1)
@@ -116,7 +120,7 @@ func (b *Budget) MidStreamCheck(model string, estOutputChars int) bool
 | 2.1 | Types & interfaces | Message, Event, Request, Provider | Nothing |
 | 2.2 | SSE parser | Parse `data: {json}\n\n` streams into Event iterator | 2.1 |
 | 2.3 | GLM provider | Z.ai streaming with reasoning_content + network_error handling | 2.1, 2.2 |
-| 2.4 | OpenAI-compatible provider | Via go-openai SDK | 2.1 |
+| 2.4 | OpenAI-compatible provider | Raw HTTP + SSE (same approach as GLM, no SDK dep) | 2.1 |
 | 2.5 | Retry + fallback wrapper | Wraps any Provider with retry/backoff/fallback chain | 2.1 |
 | 2.6 | Budget tracker | Daily/weekly spend tracking with mid-stream abort | 2.1 |
 | 2.7 | Provider registry | Multi-provider resolution, config-driven | 2.1, 2.3, 2.4 |
@@ -125,49 +129,49 @@ func (b *Budget) MidStreamCheck(model string, estOutputChars int) bool
 ## Tasks
 
 ### 2.1 Types & interfaces
-- [ ] Define Message, ContentBlock variants, Role enum
-- [ ] Define Event variants (TextDelta, ReasoningDelta, ToolCall, MessageEnd, StreamError)
-- [ ] Define Request struct with all LLM parameters
-- [ ] Define Provider interface and Registry
+- [x] Define Message, ContentBlock variants, Role enum
+- [x] Define Event variants (TextDelta, ReasoningDelta, ToolCall, MessageEnd, StreamError)
+- [x] Define Request struct with all LLM parameters
+- [x] Define Provider interface and Registry
 
 ### 2.2 SSE parser
-- [ ] Implement `ParseSSEStream(reader io.Reader) iter.Seq2[string, error]` — yields `data:` lines
-- [ ] Handle `[DONE]` sentinel
-- [ ] Handle connection drops with context cancellation
+- [x] Implement `ParseSSEStream(reader io.Reader) iter.Seq2[string, error]` — yields `data:` lines
+- [x] Handle `[DONE]` sentinel
+- [x] Handle connection drops with context cancellation
 
 ### 2.3 GLM provider
-- [ ] Implement `glm.Provider` with Z.ai endpoint
-- [ ] Handle `reasoning_content` field → ReasoningDelta events
-- [ ] Handle `network_error` finish_reason → auto-retry
-- [ ] Handle `thinking` parameter (enabled by default)
-- [ ] Tool call assembly from streamed fragments
-- [ ] Auth: `id.secret` Bearer token
+- [x] Implement `glm.Provider` with Z.ai endpoint
+- [x] Handle `reasoning_content` field → ReasoningDelta events
+- [x] Handle `network_error` finish_reason → auto-retry
+- [x] Handle `thinking` parameter (enabled by default)
+- [x] Tool call assembly from streamed fragments
+- [x] Auth: `id.secret` Bearer token
 
 ### 2.4 OpenAI-compatible provider
-- [ ] Wrap go-openai SDK with Provider interface
-- [ ] Map OpenAI streaming events to our Event types
-- [ ] Support custom base URL (for Ollama, local models)
+- [x] Raw HTTP + SSE provider for OpenAI-compatible APIs (no SDK dependency)
+- [x] Map OpenAI streaming events to our Event types
+- [x] Support custom base URL (for Ollama, local models)
 
 ### 2.5 Retry + fallback wrapper
-- [ ] `WithRetry(provider Provider, config RetryConfig) Provider`
-- [ ] Exponential backoff with jitter
-- [ ] Fallback to secondary model on persistent failure
-- [ ] Log retry attempts
+- [x] `WithRetry(provider Provider, config RetryConfig) Provider`
+- [x] Exponential backoff with jitter
+- [x] Fallback to secondary model on persistent failure
+- [x] Log retry attempts
 
 ### 2.6 Budget tracker
-- [ ] Implement Budget struct with thread-safe spend tracking
-- [ ] Cost-per-million lookup table by model
-- [ ] Mid-stream budget check (abort if over limit)
-- [ ] Daily/weekly reset logic
+- [x] Implement Budget struct with thread-safe spend tracking
+- [x] Cost-per-million lookup table by model
+- [x] Mid-stream budget check (abort if over limit)
+- [x] Daily/weekly reset logic
 
 ### 2.7 Provider registry
-- [ ] Config-driven provider initialization
-- [ ] Model → provider resolution
-- [ ] Hot-reload support (re-read config without restart)
+- [x] Config-driven provider initialization
+- [x] Model → provider resolution
+- [x] Hot-reload support (re-read config without restart)
 
 ### 2.8 Tests
-- [ ] Mock SSE server that streams events with delays
-- [ ] Test retry behavior on 429/500
-- [ ] Test fallback chain activation
-- [ ] Test budget enforcement mid-stream
-- [ ] Test tool call assembly from fragmented chunks
+- [x] Mock SSE server that streams events with delays
+- [x] Test retry behavior on 429/500
+- [x] Test fallback chain activation
+- [x] Test budget enforcement mid-stream
+- [x] Test tool call assembly from fragmented chunks

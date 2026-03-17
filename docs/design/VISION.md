@@ -1,11 +1,11 @@
-# Pub v2 — Vision & Architecture
+# Cairn — Vision & Architecture
 
 > An open-source, self-hosted, always-on personal agent OS written in Go.
 > Models propose, humans dispose. No irreversible side effects without explicit approval.
 
 ## The End Goal
 
-Pub v2 is a **personal agent operating system** — not a chatbot, not a coding assistant, not a notification hub. It's all three, unified under a single runtime that:
+Cairn is a **personal agent operating system** — not a chatbot, not a coding assistant, not a notification hub. It's all three, unified under a single runtime that:
 
 1. **Watches your world** — aggregates signals from every source that matters (GitHub, email, calendar, feeds, webhooks, agent channels) and filters noise from signal
 2. **Acts on your behalf** — writes code, triages email, plans trips, creates documents, manages tasks — with appropriate autonomy boundaries
@@ -15,18 +15,18 @@ Pub v2 is a **personal agent operating system** — not a chatbot, not a coding 
 
 The differentiator from everything that exists today:
 
-| Existing | Pub v2 |
+| Existing | Cairn |
 |----------|--------|
 | Coding agents (Claude Code, Cursor, OpenCode) | Coding is ONE capability, not the whole product |
 | Notification hubs (Novu, ntfy) | Notifications are signals that feed decision-making, not endpoints |
 | OpenClaw (318k⭐, 22 channels, 13.7k skills) | Go single-binary vs TS monorepo. Simpler. Faster. Self-contained. Same skill format. |
 | Agent frameworks (ADK, Eino, LangChain) | Not a framework — a complete system you deploy and live with |
 
-### How Pub v2 Relates to OpenClaw
+### How Cairn Relates to OpenClaw
 
 OpenClaw is the current gold standard. We study it, respect it, and differentiate:
 
-| OpenClaw | Pub v2 |
+| OpenClaw | Cairn |
 |----------|--------|
 | TypeScript monorepo, Node.js runtime | Go single binary, zero dependencies |
 | 75 extensions, complex plugin system | Lean core, same SKILL.md format, ClawHub-compatible |
@@ -38,11 +38,11 @@ OpenClaw is the current gold standard. We study it, respect it, and differentiat
 | No native worktree isolation for coding | Git worktree per coding task (first-class) |
 | Security audit tool built-in | Permission engine with wildcard rules + approval gates |
 
-**The thesis:** OpenClaw proved the "always-on personal agent" category works. Pub v2 takes the same vision but builds it in Go for: performance, simplicity, single-binary deployment, and proper coding task isolation. Skills are compatible. The ecosystem is shared.
+**The thesis:** OpenClaw proved the "always-on personal agent" category works. Cairn takes the same vision but builds it in Go for: performance, simplicity, single-binary deployment, and proper coding task isolation. Skills are compatible. The ecosystem is shared.
 
 ## Why Go
 
-- **Single binary** — `scp pub /usr/local/bin/ && systemctl start pub`. No npm, no node_modules, no Python venvs
+- **Single binary** — `scp cairn /usr/local/bin/ && systemctl start pub`. No npm, no node_modules, no Python venvs
 - **True concurrency** — goroutines for parallel LLM streams, tool execution, polling, SSE. No single-threaded event loop bottleneck
 - **Predictable memory** — no GC pauses during critical streaming paths. No heap growth over 24/7 uptime
 - **Fast compilation** — iterate quickly, deploy in seconds
@@ -52,7 +52,7 @@ OpenClaw is the current gold standard. We study it, respect it, and differentiat
 
 ## Why Open Source
 
-Pub v1 proved the concept. v2 should be open because:
+The v1 prototype proved the concept. v2 should be open because:
 - The "personal agent OS" category doesn't have a definitive open-source solution
 - OpenClaw is the closest but it's TypeScript, focused on coding, not truly "always-on personal"
 - Open source enables a skill ecosystem (like OpenClaw's ClawHub with 13,700+ skills)
@@ -63,7 +63,7 @@ Pub v1 proved the concept. v2 should be open because:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Pub v2 Binary                         │
+│                    Cairn Binary                         │
 │                                                         │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐ │
 │  │  Signal   │  │  Agent   │  │  Action  │  │ Memory │ │
@@ -100,7 +100,7 @@ Pub v1 proved the concept. v2 should be open because:
   Static files served by Go              via A2A/MCP/ACP
 ```
 
-## The Nine Pieces
+## The Modules
 
 Each piece is a self-contained module with clear interfaces. See individual design docs for details.
 
@@ -139,7 +139,7 @@ A2A for agent-to-agent delegation. MCP for tool discovery and execution. ACP for
 Every interaction is an append-only event stream. Sessions can be branched ("what if I tried this instead?"), compacted (summarize old turns), and replayed (debug what happened). No mutable state means no state corruption.
 
 ### 7. Single Binary Deployment (vs npm install hell)
-`curl -L https://pub.dev/install | sh` → one binary, runs on Linux/macOS/WSL. No Node, no Python, no Docker required. SQLite is embedded. Whisper.cpp sidecar optional.
+`curl -L https://github.com/avifenesh/cairn/releases | sh` → one binary, runs on Linux/macOS/WSL. No Node, no Python, no Docker required. SQLite is embedded. Whisper.cpp sidecar optional.
 
 ## Edge Cases & Challenges
 

@@ -23,7 +23,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 8 | Plugin & Skill System - lifecycle hooks, SKILL.md, ClawHub-compatible | Not started | — |
 | 9 | Server & Protocols - HTTP, SSE, MCP, A2A, ACP, auth | Not started | — |
 
-Frontend scaffold is up with 52 tests across stores, utils, and API client.
+Frontend scaffold is up with passing test suite across stores, utils, and API client.
 
 ## Phases
 
@@ -53,13 +53,13 @@ Key design decisions:
 - SQLite: WAL mode, single writer, foreign keys ON, MMAP 256MB
 - Frontend uses Svelte 5 runes (`.svelte.ts` stores), `tailwind-variants` for component styling
 
-## What Makes Cairn Different
+## Planned Differentiators (not yet implemented unless marked Done above)
 
-1. **Worktree isolation** - every coding task gets its own git worktree. No branch conflicts.
-2. **Permission engine** - wildcard rules scoped per agent mode, per tool, per file pattern, per approval policy.
-3. **Always-on with proactive behavior** - Soul (behavioral identity), episodic + semantic + procedural memory. Doesn't wait to be spoken to.
-4. **Skill ecosystem compatibility** - OpenClaw SKILL.md format. ClawHub skills work unmodified.
-5. **Multi-protocol** - A2A, MCP, ACP first-class. Not afterthoughts.
+1. **Worktree isolation** - every coding task gets its own git worktree.
+2. **Permission engine** - wildcard rules scoped per agent mode, per tool, per file pattern.
+3. **Always-on with proactive behavior** - Soul, episodic + semantic + procedural memory.
+4. **Skill ecosystem compatibility** - OpenClaw SKILL.md format.
+5. **Multi-protocol** - A2A, MCP, ACP first-class.
 6. **Event-sourced sessions** - append-only, branchable, compactable, replayable.
 7. **Single binary** - `scp cairn server:/usr/local/bin/`. No Node, no Python, no Docker.
 
@@ -92,25 +92,46 @@ frontend/                   SvelteKit 5 app
 ## Commands
 
 ```bash
-# Backend
-go build -o cairn ./cmd/cairn
-go test ./...
-./cairn chat "hello"
+# Backend (from repo root)
+go vet ./...                    # Lint - run before every commit
+go test -race ./...             # Tests with race detector
+go build -o cairn ./cmd/cairn   # Build binary
+./cairn chat "hello"            # Smoke test
 
 # Frontend (from frontend/)
-npm run dev         # Dev server
-npm run build       # Static build to dist/
-npm run check       # Svelte + TypeScript check
-npm test            # Vitest (52 tests)
+pnpm dev                        # Dev server
+pnpm build                      # Static build to dist/
+pnpm check                      # Svelte + TypeScript check
+pnpm test                       # Vitest
+
+# Full validation (no CI pipeline yet - run manually before merge)
+go vet ./... && go test -race ./... && cd frontend && pnpm check && pnpm test
 ```
+
+Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend).
 
 ## Env Vars
 
-- `LLM_API_KEY` / `GLM_API_KEY` / `OPENAI_API_KEY` - required
-- `LLM_PROVIDER` - "glm" or "openai" (auto-detected from key var)
-- `LLM_MODEL`, `LLM_BASE_URL`, `LLM_FALLBACK_MODEL` - overrides
-- `PORT` (8787), `HOST` (0.0.0.0), `DATABASE_PATH` (./data/pub.db)
-- `SOUL_PATH` (./SOUL.md), `SKILL_DIRS` (./.pub/skills)
+**Required (one of):**
+- `LLM_API_KEY` / `GLM_API_KEY` / `OPENAI_API_KEY`
+
+**LLM config:**
+- `LLM_PROVIDER` - "glm" or "openai" (auto-detected from key var name)
+- `LLM_MODEL` - model ID (default: glm-5-turbo or gpt-4o depending on provider)
+- `LLM_BASE_URL` - API endpoint (default: provider-specific)
+- `LLM_FALLBACK_MODEL` - fallback on persistent failure
+
+**Server:**
+- `PORT` (8787), `HOST` (0.0.0.0)
+- `DATABASE_PATH` (./data/pub.db)
+- `WRITE_API_TOKEN`, `READ_API_TOKEN` - API auth tokens
+- `FRONTEND_ORIGIN` - CORS origin
+
+**Feature flags:**
+- `CODING_ENABLED` (false), `IDLE_MODE_ENABLED` (false)
+
+**Paths:**
+- `SOUL_PATH` (./SOUL.md), `SKILL_DIRS` (./.pub/skills), `DATA_DIR` (./data)
 
 ## Design Docs
 
@@ -156,10 +177,24 @@ Full design specs live in `docs/design/`:
 ### Workflow
 
 - Create PRs for non-trivial changes. No direct pushes to main.
+- Branch naming: `feat/<piece>-<description>`, `fix/<description>`, `refactor/<description>`.
 - Commit frequently with meaningful messages - logical changes separated.
 - For non-trivial tasks, go into plan mode unless instructed not to.
 - Report script/tool failures before manual fallback. Never silently work around broken tooling - report error, diagnose, fix.
 - Address ALL review comments before merging - even minor ones. Disagree = respond in the review, don't ignore.
+
+### Pre-Push Checklist (MANDATORY)
+
+Before pushing any branch, run these in order. Do not skip steps.
+
+1. **`/deslop`** - Clean AI artifacts: ghost code, debug statements, console.logs, stale comments.
+2. **`/simplify`** - Review changed code for reuse, quality, efficiency. Fix issues found.
+3. **`/sync-docs`** - Update documentation to match code changes (CLAUDE.md, design docs, comments).
+4. **`/drift-detect`** - Compare implementation against `docs/design/` specs. Flag and fix drift.
+5. **`/orchestrate-review`** - Multi-pass code review (quality, security, performance, test coverage).
+6. **`/enhance`** - Run ONLY when skills, memory, hooks, or agent prompts are involved. Analyze and fix all HIGH/MEDIUM issues.
+
+If any step finds issues, fix them before proceeding to the next step. The push happens only after all steps pass clean.
 
 ### Problem Solving
 

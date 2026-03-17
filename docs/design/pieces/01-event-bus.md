@@ -50,29 +50,29 @@ func PublishStream[E any](bus *Bus) chan<- E    // returns write-only channel fo
 ## Tasks
 
 ### 1.1 Core bus implementation
-- [ ] Define `Bus` struct with `sync.RWMutex` + subscriber map
-- [ ] Implement `Subscribe[E]` with reflect.Type routing
-- [ ] Implement `Publish[E]` synchronous delivery
-- [ ] Implement `PublishAsync[E]` with buffered channel + worker goroutine
-- [ ] Implement unsubscribe via returned closure
-- [ ] Handle panic recovery in subscriber callbacks
+- [x] Define `Bus` struct with `sync.RWMutex` + subscriber map
+- [x] Implement `Subscribe[E]` with reflect.Type routing
+- [x] Implement `Publish[E]` synchronous delivery
+- [x] Implement `PublishAsync[E]` with buffered channel + worker goroutine
+- [x] Implement unsubscribe via returned closure
+- [x] Handle panic recovery in subscriber callbacks
 
 ### 1.2 Event type definitions
-- [ ] Define all event structs per category (see table above)
-- [ ] Ensure every event has `ID string`, `Timestamp time.Time`, `Source string`
-- [ ] Add JSON serialization tags for SSE emission
+- [x] Define all event structs per category (see table above)
+- [x] Ensure every event has `ID string`, `Timestamp time.Time`, `Source string`
+- [x] Add JSON serialization tags for SSE emission
 
 ### 1.3 Stream channels
-- [ ] `PublishStream[E]` returns write channel, bus distributes to all `E` subscribers
-- [ ] Used for LLM streaming deltas → SSE broadcast
+- [x] `PublishStream[E]` returns write channel, bus distributes to all `E` subscribers
+- [x] Used for LLM streaming deltas → SSE broadcast
 
 ### 1.4 Bus middleware
-- [ ] `WithLogger(logger)` — log all events at debug level
-- [ ] `WithMetrics(counter)` — count events by type
-- [ ] `WithFilter(predicate)` — drop events matching condition
+- [x] `WithLogger(logger)` — log all events at debug level
+- [ ] `WithMetrics(counter)` — count events by type (deferred - no consumer yet)
+- [ ] `WithFilter(predicate)` — drop events matching condition (deferred - no consumer yet)
 
 ### 1.5 Tests
-- [ ] Concurrent publish/subscribe with `-race`
-- [ ] Unsubscribe during active publishing
-- [ ] Backpressure behavior when queue full
-- [ ] Type safety — wrong type subscriber never called
+- [x] Concurrent publish/subscribe with `-race`
+- [x] Unsubscribe during active publishing
+- [x] Backpressure behavior when queue full
+- [x] Type safety — wrong type subscriber never called

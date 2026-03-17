@@ -36,6 +36,7 @@ export const chatStore = {
 	setMessages(m: ChatMessage[]) { messages = m; },
 	setMode(m: ChatMode) { mode = m; },
 	setLoading(v: boolean) { loading = v; },
+	clearStreaming() { streamingMessages = new Map(); },
 
 	startStreaming(taskId: string) {
 		const updated = new Map(streamingMessages);

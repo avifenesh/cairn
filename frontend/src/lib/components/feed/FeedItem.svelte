@@ -3,24 +3,26 @@
 	import { relativeTime } from '$lib/utils/time';
 	import { markRead } from '$lib/api/client';
 	import { feedStore } from '$lib/stores/feed.svelte';
-	import { createSwipeToDismiss } from '$lib/utils/touch';
+	import { createSwipeToDismiss, SWIPE_THRESHOLD } from '$lib/utils/touch';
 
 	let { item }: { item: FeedItem } = $props();
 
-	const swipe = createSwipeToDismiss(() => {
+	const VISUAL_RANGE = SWIPE_THRESHOLD * 1.5;
+
+	function markItemRead() {
+		if (item.isRead) return;
 		feedStore.markItemRead(item.id);
 		markRead(item.id).catch(() => {});
-	});
+	}
 
-	async function handleClick() {
-		if (!item.isRead) {
-			feedStore.markItemRead(item.id);
-			await markRead(item.id).catch(() => {});
-		}
+	const swipe = createSwipeToDismiss(markItemRead);
+
+	function handleClick() {
+		markItemRead();
 	}
 
 	const translateStyle = $derived(
-		swipe.state.swiping ? `transform: translateX(${swipe.state.offsetX}px); opacity: ${1 - Math.abs(swipe.state.offsetX) / 150}` : '',
+		swipe.state.swiping ? `transform: translateX(${swipe.state.offsetX}px); opacity: ${1 - Math.abs(swipe.state.offsetX) / VISUAL_RANGE}` : '',
 	);
 </script>
 

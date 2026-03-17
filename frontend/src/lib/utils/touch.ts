@@ -8,6 +8,9 @@ export interface PullToRefreshState {
 }
 
 const PULL_THRESHOLD = 80;
+const PULL_DAMPING = 0.5;
+const PULL_MAX_DISTANCE = 120;
+const DIRECTION_LOCK_THRESHOLD = 5;
 
 export function createPullToRefresh(
 	onRefresh: () => Promise<void>,
@@ -39,7 +42,7 @@ export function createPullToRefresh(
 			state.distance = 0;
 			return;
 		}
-		state.distance = Math.min(dy * 0.5, 120);
+		state.distance = Math.min(dy * PULL_DAMPING, PULL_MAX_DISTANCE);
 		state.triggered = state.distance >= PULL_THRESHOLD;
 	}
 
@@ -76,7 +79,8 @@ export interface SwipeState {
 	dismissed: boolean;
 }
 
-const SWIPE_THRESHOLD = 100;
+export const SWIPE_THRESHOLD = 100;
+const SWIPE_VISUAL_RANGE = 150;
 
 export function createSwipeToDismiss(
 	onDismiss: () => void,
@@ -105,7 +109,7 @@ export function createSwipeToDismiss(
 		const dy = e.touches[0].clientY - startY;
 
 		// Lock direction on first significant movement
-		if (!locked && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+		if (!locked && (Math.abs(dx) > DIRECTION_LOCK_THRESHOLD || Math.abs(dy) > DIRECTION_LOCK_THRESHOLD)) {
 			locked = true;
 			// If vertical movement dominates, don't swipe
 			if (Math.abs(dy) > Math.abs(dx)) return;
@@ -126,5 +130,12 @@ export function createSwipeToDismiss(
 		state.dismissed = false;
 	}
 
-	return { handleTouchStart, handleTouchMove, handleTouchEnd, state };
+	function reset() {
+		state.swiping = false;
+		state.offsetX = 0;
+		state.dismissed = false;
+		locked = false;
+	}
+
+	return { handleTouchStart, handleTouchMove, handleTouchEnd, state, reset };
 }

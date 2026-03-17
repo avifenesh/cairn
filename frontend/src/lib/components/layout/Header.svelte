@@ -1,10 +1,16 @@
 <script lang="ts">
 	import { appStore } from '$lib/stores/app.svelte';
-	import { Circle, Search, Sun, Moon, Menu } from '@lucide/svelte';
+	import { Circle, Search, Sun, Moon, Menu, DollarSign } from '@lucide/svelte';
 
 	function handleKeyboardShortcut() {
 		appStore.openCommandPalette();
 	}
+
+	const budgetPct = $derived(
+		appStore.budgetTodayUsd != null && appStore.budgetDailyLimitUsd
+			? Math.min(100, Math.round((appStore.budgetTodayUsd / appStore.budgetDailyLimitUsd) * 100))
+			: null,
+	);
 </script>
 
 <header
@@ -42,6 +48,13 @@
 				⌘K
 			</kbd>
 		</button>
+
+		{#if budgetPct != null}
+			<span class="hidden sm:flex items-center gap-1 rounded-md border border-border-subtle bg-[var(--bg-2)] px-2 py-1 text-[10px] text-[var(--text-tertiary)]">
+				<DollarSign class="h-3 w-3" />
+				<span class="{budgetPct > 80 ? 'text-[var(--color-warning)]' : ''} {budgetPct > 95 ? 'text-[var(--color-error)]' : ''}">{budgetPct}%</span>
+			</span>
+		{/if}
 
 		<button
 			class="rounded p-1.5 hover:bg-[var(--bg-3)] transition-colors duration-[var(--dur-fast)]"

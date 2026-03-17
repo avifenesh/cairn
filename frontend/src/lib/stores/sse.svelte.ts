@@ -1,4 +1,5 @@
 // SSE connection store — auto-reconnect with exponential backoff
+// Plan 10.2: Last-Event-ID reconnection replay, backoff base 5s max 60s + jitter
 
 import { feedStore } from './feed.svelte';
 import { chatStore } from './chat.svelte';
@@ -8,6 +9,7 @@ import { appStore } from './app.svelte';
 let eventSource: EventSource | null = $state(null);
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let attempt = $state(0);
+let lastEventId: string | null = null;
 
 const BASE_DELAY = 5000;
 const MAX_DELAY = 60000;
@@ -20,7 +22,11 @@ function backoffDelay(): number {
 function getStreamUrl(): string {
 	const token = localStorage.getItem('pub_api_token');
 	const base = '/v1/stream';
-	return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+	const params = new URLSearchParams();
+	if (token) params.set('token', token);
+	if (lastEventId) params.set('lastEventId', lastEventId);
+	const qs = params.toString();
+	return qs ? `${base}?${qs}` : base;
 }
 
 export const sseStore = {
@@ -56,8 +62,14 @@ export const sseStore = {
 			reconnectTimer = setTimeout(() => sseStore.connect(), delay);
 		};
 
+		// Track Last-Event-ID for reconnection replay
+		source.addEventListener('message', (e) => {
+			if (e.lastEventId) lastEventId = e.lastEventId;
+		});
+
 		// Ready
 		source.addEventListener('ready', (e) => {
+			if (e.lastEventId) lastEventId = e.lastEventId;
 			const data = JSON.parse(e.data);
 			appStore.setClientId(data.clientId);
 		});
@@ -107,14 +119,45 @@ export const sseStore = {
 
 		// Memory
 		source.addEventListener('memory_proposed', (e) => {
+			if (e.lastEventId) lastEventId = e.lastEventId;
 			const data = JSON.parse(e.data);
 			appStore.addNotification('memory', `New memory proposed: ${data.memory?.content?.slice(0, 50)}...`);
 		});
 
+		source.addEventListener('memory_accepted', (e) => {
+			if (e.lastEventId) lastEventId = e.lastEventId;
+		});
+
+		// Soul
+		source.addEventListener('soul_updated', (e) => {
+			if (e.lastEventId) lastEventId = e.lastEventId;
+			const data = JSON.parse(e.data);
+			appStore.addNotification('soul', `SOUL.md updated (${data.sha?.slice(0, 7)})`);
+		});
+
+		// Digest
+		source.addEventListener('digest_ready', (e) => {
+			if (e.lastEventId) lastEventId = e.lastEventId;
+			appStore.addNotification('digest', 'New digest available');
+		});
+
+		// Coding sessions
+		source.addEventListener('coding_session_event', (e) => {
+			if (e.lastEventId) lastEventId = e.lastEventId;
+		});
+
 		// Agent
 		source.addEventListener('agent_progress', (e) => {
+			if (e.lastEventId) lastEventId = e.lastEventId;
 			const data = JSON.parse(e.data);
 			appStore.setAgentProgress(data.agentId, data.message);
+		});
+
+		// Skills
+		source.addEventListener('skill_activated', (e) => {
+			if (e.lastEventId) lastEventId = e.lastEventId;
+			const data = JSON.parse(e.data);
+			appStore.addNotification('skill', `Skill activated: ${data.skillName}`);
 		});
 	},
 

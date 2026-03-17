@@ -4,6 +4,7 @@
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import BottomNav from '$lib/components/layout/BottomNav.svelte';
 	import StatusBar from '$lib/components/layout/StatusBar.svelte';
+	import ContextPanel from '$lib/components/layout/ContextPanel.svelte';
 	import { appStore } from '$lib/stores/app.svelte';
 	import { sseStore } from '$lib/stores/sse.svelte';
 	import { onMount } from 'svelte';
@@ -51,6 +52,10 @@
 		<main class="flex-1 overflow-y-auto pb-[var(--bottom-nav-h)] md:pb-0">
 			{@render children()}
 		</main>
+		<ContextPanel
+			open={appStore.contextPanelOpen}
+			onclose={() => appStore.closeContextPanel()}
+		/>
 	</div>
 
 	<StatusBar />

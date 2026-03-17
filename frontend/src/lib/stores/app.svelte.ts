@@ -18,10 +18,13 @@ let theme = $state<Theme>((localStorage.getItem('pub_theme') as Theme) || 'dark'
 let density = $state<Density>((localStorage.getItem('pub_density') as Density) || 'comfortable');
 let mood = $state<Mood>((localStorage.getItem('pub_mood') as Mood) || 'default');
 let commandPaletteOpen = $state(false);
+let contextPanelOpen = $state(true);
 let notifications = $state<Notification[]>([]);
 let pollStatuses = $state<Record<string, { newCount: number; at: number }>>({});
 let agentProgresses = $state<Record<string, string>>({});
 let sidebarCollapsed = $state(false);
+let budgetTodayUsd = $state<number | null>(null);
+let budgetDailyLimitUsd = $state<number | null>(null);
 
 export const appStore = {
 	get sseConnected() { return sseConnected; },
@@ -34,6 +37,9 @@ export const appStore = {
 	get pollStatuses() { return pollStatuses; },
 	get agentProgresses() { return agentProgresses; },
 	get sidebarCollapsed() { return sidebarCollapsed; },
+	get contextPanelOpen() { return contextPanelOpen; },
+	get budgetTodayUsd() { return budgetTodayUsd; },
+	get budgetDailyLimitUsd() { return budgetDailyLimitUsd; },
 
 	setSSEConnected(v: boolean) { sseConnected = v; },
 	setClientId(id: string) { clientId = id; },
@@ -69,6 +75,15 @@ export const appStore = {
 	closeCommandPalette() { commandPaletteOpen = false; },
 
 	toggleSidebar() { sidebarCollapsed = !sidebarCollapsed; },
+
+	toggleContextPanel() { contextPanelOpen = !contextPanelOpen; },
+	closeContextPanel() { contextPanelOpen = false; },
+	openContextPanel() { contextPanelOpen = true; },
+
+	setBudget(todayUsd: number, dailyLimitUsd: number) {
+		budgetTodayUsd = todayUsd;
+		budgetDailyLimitUsd = dailyLimitUsd;
+	},
 
 	addNotification(type: string, message: string) {
 		const id = crypto.randomUUID();

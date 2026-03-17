@@ -1,0 +1,71 @@
+<script lang="ts">
+	import { uploadVoice } from '$lib/api/client';
+	import { chatStore } from '$lib/stores/chat.svelte';
+	import { Mic, MicOff, Loader2 } from '@lucide/svelte';
+
+	let recording = $state(false);
+	let processing = $state(false);
+	let mediaRecorder: MediaRecorder | null = null;
+	let chunks: Blob[] = [];
+
+	async function toggleRecording() {
+		if (recording) {
+			stopRecording();
+			return;
+		}
+
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			mediaRecorder = new MediaRecorder(stream);
+			chunks = [];
+
+			mediaRecorder.ondataavailable = (e) => {
+				if (e.data.size > 0) chunks.push(e.data);
+			};
+
+			mediaRecorder.onstop = async () => {
+				stream.getTracks().forEach((t) => t.stop());
+				const blob = new Blob(chunks, { type: 'audio/webm' });
+				processing = true;
+				try {
+					const res = await uploadVoice(blob, chatStore.mode, chatStore.currentSessionId ?? undefined);
+					chatStore.addUserMessage(res.transcript);
+					chatStore.startStreaming(res.taskId);
+				} catch {
+					// handled
+				} finally {
+					processing = false;
+				}
+			};
+
+			mediaRecorder.start();
+			recording = true;
+		} catch {
+			// mic permission denied
+		}
+	}
+
+	function stopRecording() {
+		if (mediaRecorder && mediaRecorder.state === 'recording') {
+			mediaRecorder.stop();
+		}
+		recording = false;
+	}
+</script>
+
+<button
+	class="rounded-lg p-2 transition-colors {recording
+		? 'bg-[var(--color-error)]/10 text-[var(--color-error)]'
+		: 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
+	onclick={toggleRecording}
+	disabled={processing}
+	aria-label={recording ? 'Stop recording' : 'Voice input'}
+>
+	{#if processing}
+		<Loader2 class="h-5 w-5 animate-spin" />
+	{:else if recording}
+		<MicOff class="h-5 w-5" />
+	{:else}
+		<Mic class="h-5 w-5" />
+	{/if}
+</button>

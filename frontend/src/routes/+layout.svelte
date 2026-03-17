@@ -6,6 +6,7 @@
 	import StatusBar from '$lib/components/layout/StatusBar.svelte';
 	import ContextPanel from '$lib/components/layout/ContextPanel.svelte';
 	import CommandPalette from '$lib/components/layout/CommandPalette.svelte';
+	import HelpModal from '$lib/components/layout/HelpModal.svelte';
 	import { appStore } from '$lib/stores/app.svelte';
 	import { sseStore } from '$lib/stores/sse.svelte';
 	import { feedStore } from '$lib/stores/feed.svelte';
@@ -100,9 +101,11 @@
 					appStore.toggleTheme();
 					break;
 				case '?':
+					appStore.toggleHelpModal();
 					break;
 				case 'Escape':
 					appStore.closeCommandPalette();
+					appStore.closeHelpModal();
 					break;
 			}
 		}
@@ -134,6 +137,7 @@
 </div>
 
 <CommandPalette />
+<HelpModal open={appStore.helpModalOpen} onclose={() => appStore.closeHelpModal()} />
 
 {#if appStore.notifications.length > 0}
 	<div class="fixed right-4 top-[calc(var(--header-h)+8px)] z-50 flex flex-col gap-2">

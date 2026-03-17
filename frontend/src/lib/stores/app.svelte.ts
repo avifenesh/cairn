@@ -18,6 +18,7 @@ let theme = $state<Theme>((localStorage.getItem('pub_theme') as Theme) || 'dark'
 let density = $state<Density>((localStorage.getItem('pub_density') as Density) || 'comfortable');
 let mood = $state<Mood>((localStorage.getItem('pub_mood') as Mood) || 'default');
 let commandPaletteOpen = $state(false);
+let helpModalOpen = $state(false);
 let contextPanelOpen = $state(true);
 let notifications = $state<Notification[]>([]);
 let pollStatuses = $state<Record<string, { newCount: number; at: number }>>({});
@@ -37,6 +38,7 @@ export const appStore = {
 	get pollStatuses() { return pollStatuses; },
 	get agentProgresses() { return agentProgresses; },
 	get sidebarCollapsed() { return sidebarCollapsed; },
+	get helpModalOpen() { return helpModalOpen; },
 	get contextPanelOpen() { return contextPanelOpen; },
 	get budgetTodayUsd() { return budgetTodayUsd; },
 	get budgetDailyLimitUsd() { return budgetDailyLimitUsd; },
@@ -73,6 +75,9 @@ export const appStore = {
 	toggleCommandPalette() { commandPaletteOpen = !commandPaletteOpen; },
 	openCommandPalette() { commandPaletteOpen = true; },
 	closeCommandPalette() { commandPaletteOpen = false; },
+
+	toggleHelpModal() { helpModalOpen = !helpModalOpen; },
+	closeHelpModal() { helpModalOpen = false; },
 
 	toggleSidebar() { sidebarCollapsed = !sidebarCollapsed; },
 

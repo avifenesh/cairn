@@ -91,7 +91,7 @@ func (c *CratesPoller) checkCrate(ctx context.Context, crate string, since time.
 
 	updated, err := time.Parse(time.RFC3339, info.Crate.Updated)
 	if err != nil {
-		return nil, nil
+		return nil, fmt.Errorf("crates: parse time for %s: %w", crate, err)
 	}
 	if updated.Before(since) {
 		return nil, nil

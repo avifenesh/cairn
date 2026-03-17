@@ -75,8 +75,8 @@ func (d *DigestRunner) Generate(ctx context.Context) (*Digest, error) {
 	var digestGroups []DigestGroup
 	for key, titles := range groups {
 		sample := titles[0]
-		if len(sample) > 100 {
-			sample = sample[:100] + "..."
+		if r := []rune(sample); len(r) > 100 {
+			sample = string(r[:100]) + "..."
 		}
 		digestGroups = append(digestGroups, DigestGroup{
 			Key:    key,
@@ -122,17 +122,18 @@ func (d *DigestRunner) buildPrompt(events []*StoredEvent, groups map[string][]st
 	var b strings.Builder
 	b.WriteString("Summarize these notifications concisely. Group by source. Highlight the most important items. Use bullet points for highlights.\n\n")
 
+	const maxTitlesPerSource = 15
 	for source, titles := range groups {
 		fmt.Fprintf(&b, "## %s (%d events)\n", source, len(titles))
-		limit := 15
+		limit := maxTitlesPerSource
 		if len(titles) < limit {
 			limit = len(titles)
 		}
 		for _, t := range titles[:limit] {
 			fmt.Fprintf(&b, "- %s\n", t)
 		}
-		if len(titles) > 15 {
-			fmt.Fprintf(&b, "- ... and %d more\n", len(titles)-15)
+		if len(titles) > maxTitlesPerSource {
+			fmt.Fprintf(&b, "- ... and %d more\n", len(titles)-maxTitlesPerSource)
 		}
 		b.WriteString("\n")
 	}

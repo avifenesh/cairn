@@ -62,6 +62,7 @@ func (n *NPMPoller) checkPackage(ctx context.Context, pkg string, since time.Tim
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "cairn/1.0 (signal poller)")
 
 	resp, err := n.client.Do(req)
 	if err != nil {
@@ -95,7 +96,7 @@ func (n *NPMPoller) checkPackage(ctx context.Context, pkg string, since time.Tim
 	}
 	published, err := time.Parse(time.RFC3339, publishedStr)
 	if err != nil {
-		return nil, nil
+		return nil, fmt.Errorf("npm: parse time for %s@%s: %w", pkg, latest, err)
 	}
 	if published.Before(since) {
 		return nil, nil

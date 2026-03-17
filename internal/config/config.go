@@ -196,6 +196,7 @@ func envMap(key string) map[string]string {
 	}
 	var m map[string]string
 	if err := json.Unmarshal([]byte(v), &m); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: %s contains invalid JSON, ignoring: %v\n", key, err)
 		return nil
 	}
 	return m

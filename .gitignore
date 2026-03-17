@@ -1,0 +1,21 @@
+# Binaries (root level only)
+/pub-server
+/pub-go
+*.exe
+
+# Data
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Test
+coverage.out

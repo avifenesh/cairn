@@ -138,6 +138,21 @@ func PublishAsync[E any](bus *Bus, event E) {
 	bus.asyncQueue <- asyncItem{eventType: t, event: val}
 }
 
+// PublishStream returns a write-only channel. Events sent to it are
+// distributed to all subscribers of type E. Close the channel when done.
+// Used for high-throughput event streams (e.g. LLM deltas → SSE broadcast).
+func PublishStream[E any](bus *Bus) chan<- E {
+	ch := make(chan E, 64)
+
+	go func() {
+		for event := range ch {
+			Publish(bus, event)
+		}
+	}()
+
+	return ch
+}
+
 // Close shuts down the async worker, draining remaining items.
 func (b *Bus) Close() {
 	select {

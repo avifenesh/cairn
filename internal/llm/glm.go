@@ -83,6 +83,7 @@ type glmRequest struct {
 	Temperature *float64         `json:"temperature,omitempty"`
 	Stop        []string         `json:"stop,omitempty"`
 	Tools       []glmToolDef     `json:"tools,omitempty"`
+	Thinking    *bool            `json:"thinking,omitempty"`
 }
 
 type glmMessage struct {
@@ -193,12 +194,14 @@ func (p *GLMProvider) buildRequestBody(req *Request) ([]byte, error) {
 		temp = &t
 	}
 
+	thinking := true
 	glmReq := glmRequest{
 		Model:       model,
 		Stream:      true,
 		MaxTokens:   maxTokens,
 		Temperature: temp,
 		Stop:        req.Stop,
+		Thinking:    &thinking, // Enable reasoning by default for GLM-5 Turbo
 	}
 
 	// Build messages.

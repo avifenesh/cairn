@@ -247,3 +247,37 @@ func TestPanicRecovery(t *testing.T) {
 		t.Fatal("handler after panic was not called — panic recovery failed")
 	}
 }
+
+func TestPublishStream(t *testing.T) {
+	bus := New()
+	defer bus.Close()
+
+	received := make(chan TextDelta, 10)
+	Subscribe(bus, func(e TextDelta) {
+		received <- e
+	})
+
+	// Get a write channel for TextDelta events.
+	stream := PublishStream[TextDelta](bus)
+
+	// Send 3 events through the stream channel.
+	for i := 0; i < 3; i++ {
+		stream <- TextDelta{
+			EventMeta: NewMeta("stream-test"),
+			Text:      "chunk",
+		}
+	}
+	close(stream) // done writing
+
+	// Collect — should receive 3 events.
+	timeout := time.After(2 * time.Second)
+	count := 0
+	for count < 3 {
+		select {
+		case <-received:
+			count++
+		case <-timeout:
+			t.Fatalf("timed out, only received %d/3 events", count)
+		}
+	}
+}

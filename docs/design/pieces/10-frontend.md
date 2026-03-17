@@ -209,4 +209,4 @@ src/
 
 ## Status
 
-All subphases 10.1-10.11 complete. 80 tests passing. 10.12 (Go embed) depends on backend server (Phase 4a).
+All subphases 10.1-10.11 complete. 84 tests passing. 10.12 (Go embed) depends on backend server (Phase 4a).

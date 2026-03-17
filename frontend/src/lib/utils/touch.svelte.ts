@@ -1,5 +1,6 @@
 // Touch gesture utilities for mobile: pull-to-refresh, swipe-to-dismiss
 // Plan 10.11: pull-to-refresh (mobile touch gesture), swipe-to-dismiss (feed cards)
+// Uses $state for Svelte 5 reactivity so components can derive from state properties.
 
 export interface PullToRefreshState {
 	pulling: boolean;
@@ -21,7 +22,7 @@ export function createPullToRefresh(
 	state: PullToRefreshState;
 	reset: () => void;
 } {
-	const state: PullToRefreshState = { pulling: false, distance: 0, triggered: false };
+	let state = $state<PullToRefreshState>({ pulling: false, distance: 0, triggered: false });
 	let startY = 0;
 	let refreshing = false;
 
@@ -80,7 +81,6 @@ export interface SwipeState {
 }
 
 export const SWIPE_THRESHOLD = 100;
-const SWIPE_VISUAL_RANGE = 150;
 
 export function createSwipeToDismiss(
 	onDismiss: () => void,
@@ -89,8 +89,9 @@ export function createSwipeToDismiss(
 	handleTouchMove: (e: TouchEvent) => void;
 	handleTouchEnd: () => void;
 	state: SwipeState;
+	reset: () => void;
 } {
-	const state: SwipeState = { swiping: false, offsetX: 0, dismissed: false };
+	let state = $state<SwipeState>({ swiping: false, offsetX: 0, dismissed: false });
 	let startX = 0;
 	let startY = 0;
 	let locked = false;
@@ -108,10 +109,8 @@ export function createSwipeToDismiss(
 		const dx = e.touches[0].clientX - startX;
 		const dy = e.touches[0].clientY - startY;
 
-		// Lock direction on first significant movement
 		if (!locked && (Math.abs(dx) > DIRECTION_LOCK_THRESHOLD || Math.abs(dy) > DIRECTION_LOCK_THRESHOLD)) {
 			locked = true;
-			// If vertical movement dominates, don't swipe
 			if (Math.abs(dy) > Math.abs(dx)) return;
 			state.swiping = true;
 		}

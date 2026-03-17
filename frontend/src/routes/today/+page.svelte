@@ -5,7 +5,7 @@
 	import FeedItemComponent from '$lib/components/feed/FeedItem.svelte';
 	import type { DashboardResponse } from '$lib/types';
 	import { Activity, Eye, Zap, TrendingUp, RefreshCw, CheckCheck, Loader2 } from '@lucide/svelte';
-	import { createPullToRefresh } from '$lib/utils/touch';
+	import { createPullToRefresh } from '$lib/utils/touch.svelte';
 
 	let dashboard = $state<DashboardResponse | null>(null);
 	let error = $state<string | null>(null);

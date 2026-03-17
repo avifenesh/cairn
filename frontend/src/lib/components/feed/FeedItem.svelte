@@ -3,7 +3,7 @@
 	import { relativeTime } from '$lib/utils/time';
 	import { markRead } from '$lib/api/client';
 	import { feedStore } from '$lib/stores/feed.svelte';
-	import { createSwipeToDismiss, SWIPE_THRESHOLD } from '$lib/utils/touch';
+	import { createSwipeToDismiss, SWIPE_THRESHOLD } from '$lib/utils/touch.svelte';
 
 	let { item }: { item: FeedItem } = $props();
 

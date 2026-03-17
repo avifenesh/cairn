@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createPullToRefresh, createSwipeToDismiss } from './touch';
+import { createPullToRefresh, createSwipeToDismiss } from './touch.svelte';
 
 function mockTouchEvent(clientX: number, clientY: number): TouchEvent {
 	return {

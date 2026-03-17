@@ -3,8 +3,14 @@
 	import { relativeTime } from '$lib/utils/time';
 	import { markRead } from '$lib/api/client';
 	import { feedStore } from '$lib/stores/feed.svelte';
+	import { createSwipeToDismiss } from '$lib/utils/touch';
 
 	let { item }: { item: FeedItem } = $props();
+
+	const swipe = createSwipeToDismiss(() => {
+		feedStore.markItemRead(item.id);
+		markRead(item.id).catch(() => {});
+	});
 
 	async function handleClick() {
 		if (!item.isRead) {
@@ -12,6 +18,10 @@
 			await markRead(item.id).catch(() => {});
 		}
 	}
+
+	const translateStyle = $derived(
+		swipe.state.swiping ? `transform: translateX(${swipe.state.offsetX}px); opacity: ${1 - Math.abs(swipe.state.offsetX) / 150}` : '',
+	);
 </script>
 
 <a
@@ -20,7 +30,11 @@
 	rel="noopener"
 	class="flex items-start gap-3 rounded-lg border border-border-subtle bg-[var(--bg-1)] p-3 transition-colors duration-[var(--dur-fast)] hover:bg-[var(--bg-2)]"
 	class:opacity-60={item.isRead}
+	style={translateStyle}
 	onclick={handleClick}
+	ontouchstart={swipe.handleTouchStart}
+	ontouchmove={swipe.handleTouchMove}
+	ontouchend={swipe.handleTouchEnd}
 >
 	<span
 		class="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full"

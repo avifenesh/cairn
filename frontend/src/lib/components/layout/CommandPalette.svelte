@@ -20,7 +20,7 @@
 
 	let query = $state('');
 	let selectedIndex = $state(0);
-	let inputEl: HTMLInputElement;
+	let inputEl = $state<HTMLInputElement | null>(null);
 
 	interface CommandItem {
 		id: string;
@@ -111,19 +111,17 @@
 </script>
 
 {#if appStore.commandPaletteOpen}
-	<!-- Backdrop -->
-	<button
-		class="fixed inset-0 z-50 bg-black/50 cursor-default border-0 p-0"
+	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+	<div
+		class="fixed inset-0 z-50 bg-black/50"
 		onclick={close}
-		onkeydown={(e) => e.key === 'Escape' && close()}
-		tabindex="-1"
-		aria-label="Close command palette"
 	>
 		<div
 			class="mx-auto mt-[20vh] w-full max-w-lg rounded-xl border border-border-subtle bg-[var(--bg-1)] shadow-lg"
 			role="dialog"
 			aria-modal="true"
 			aria-label="Command palette"
+			tabindex="-1"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={handleKeydown}
 		>
@@ -143,13 +141,14 @@
 			</div>
 
 			<!-- Results -->
-			<div class="max-h-72 overflow-y-auto p-2">
+			<div class="max-h-72 overflow-y-auto p-2" role="menu" aria-label="Commands">
 				{#each filtered() as item, i (item.id)}
 					<button
 						class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-[var(--dur-fast)]
 							{i === selectedIndex
 							? 'bg-[var(--accent-dim)] text-[var(--pub-accent)]'
 							: 'text-[var(--text-secondary)] hover:bg-[var(--bg-2)]'}"
+						role="menuitem"
 						onclick={() => item.action()}
 						onmouseenter={() => (selectedIndex = i)}
 					>
@@ -163,5 +162,5 @@
 				{/if}
 			</div>
 		</div>
-	</button>
+	</div>
 {/if}

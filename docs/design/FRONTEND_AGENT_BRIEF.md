@@ -267,11 +267,11 @@ The Go backend embeds `frontend/dist/` via `embed.FS` and serves it at `/`.
 3. Unit tests for utilities: markdown (rendering, XSS sanitization), time (relative formatting), touch (pull-to-refresh, swipe-to-dismiss)
 4. API client tests: ApiError, fetch behavior, credentials
 5. Test script: `pnpm test` (vitest run), `pnpm test:watch` (vitest)
-6. 103 tests across 14 test files (stores, utils, API, components)
+6. 159 tests across 19 test files (stores, utils, API, components)
 
 ## Completion Status
 
-All frontend phases (1-5), subphases (10.1-10.11), and Phase 6 hardening (10/10 items) are complete. 103 tests passing, build clean. Only 10.12 (Go embed) remains, which depends on the Go HTTP server (Phase 4a).
+All frontend phases (1-5), subphases (10.1-10.11), and Phase 6 hardening (10/10 items) are complete. 159 tests passing, build clean. Only 10.12 (Go embed) remains, which depends on the Go HTTP server (Phase 4a).
 
 ### Phase 6: Hardening (approved improvements, independent of backend)
 

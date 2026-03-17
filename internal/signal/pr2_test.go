@@ -319,11 +319,13 @@ func TestDigestRunner_WithEventsNoLLM(t *testing.T) {
 	defer database.Close()
 
 	store := NewEventStore(database.DB)
-	store.Ingest(context.Background(), []*RawEvent{
+	if _, err := store.Ingest(context.Background(), []*RawEvent{
 		{Source: "github", SourceID: "d:1", Kind: "pr", Title: "Fix bug", OccurredAt: time.Now().UTC()},
 		{Source: "github", SourceID: "d:2", Kind: "pr", Title: "Add feature", OccurredAt: time.Now().UTC()},
 		{Source: "hn", SourceID: "d:3", Kind: "story", Title: "Go 2.0", OccurredAt: time.Now().UTC()},
-	})
+	}); err != nil {
+		t.Fatalf("ingest: %v", err)
+	}
 
 	// No LLM provider - should return basic summary.
 	runner := NewDigestRunner(store, nil, "")

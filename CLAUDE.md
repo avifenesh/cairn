@@ -140,7 +140,6 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 - `NPM_PACKAGES` - comma-separated npm packages to track
 - `CRATES_PACKAGES` - comma-separated crates to track
 - `WEBHOOK_SECRETS` - JSON map of name->secret (e.g. '{"github":"abc"}')
-- `DIGEST_ENABLED` (false) - enable periodic digest generation
 
 **Feature flags:**
 - `CODING_ENABLED` (false), `IDLE_MODE_ENABLED` (false)

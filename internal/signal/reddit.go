@@ -35,12 +35,17 @@ func (r *RedditPoller) Source() string { return SourceReddit }
 
 func (r *RedditPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, error) {
 	var all []*RawEvent
+	var lastErr error
 	for _, sub := range r.subreddits {
 		posts, err := r.fetchSubreddit(ctx, sub, since)
 		if err != nil {
+			lastErr = err
 			continue
 		}
 		all = append(all, posts...)
+	}
+	if len(all) == 0 && lastErr != nil {
+		return nil, lastErr
 	}
 	return all, nil
 }

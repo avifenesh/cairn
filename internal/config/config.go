@@ -50,7 +50,6 @@ type Config struct {
 	NPMPackages    []string          // npm packages to track
 	CratesPackages []string          // crates.io crates to track
 	WebhookSecrets map[string]string // webhook name -> HMAC secret
-	DigestEnabled  bool              // Enable periodic digest generation
 
 	// Paths
 	SoulPath  string
@@ -122,7 +121,6 @@ func Load() (*Config, error) {
 		NPMPackages:      envSlice("NPM_PACKAGES", nil),
 		CratesPackages:   envSlice("CRATES_PACKAGES", nil),
 		WebhookSecrets:   envMap("WEBHOOK_SECRETS"),
-		DigestEnabled:    envBool("DIGEST_ENABLED", false),
 		SoulPath:         envStr("SOUL_PATH", "./SOUL.md"),
 		SkillDirs:        envSlice("SKILL_DIRS", []string{"./.pub/skills"}),
 		DataDir:          envStr("DATA_DIR", "./data"),

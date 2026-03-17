@@ -1,13 +1,11 @@
 package signal
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -21,7 +19,7 @@ type WebhookHandler struct {
 }
 
 // NewWebhookHandler creates a webhook handler. secrets maps webhook names to
-// their HMAC-SHA256 secrets. Webhooks without a configured secret are rejected.
+// their HMAC-SHA256 secrets. Every webhook must have a non-empty secret.
 func NewWebhookHandler(store *EventStore, secrets map[string]string) *WebhookHandler {
 	return &WebhookHandler{
 		store:   store,
@@ -44,23 +42,23 @@ func (wh *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	secret, ok := wh.secrets[name]
-	if !ok {
+	if !ok || secret == "" {
 		http.Error(w, "unknown webhook", http.StatusNotFound)
 		return
 	}
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // 1 MB
+	// Use MaxBytesReader for proper 413 on oversized bodies.
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
+	body, err := readAll(r.Body)
 	if err != nil {
-		http.Error(w, "read error", http.StatusBadRequest)
+		http.Error(w, "payload too large", http.StatusRequestEntityTooLarge)
 		return
 	}
 
-	// Verify signature.
-	if secret != "" {
-		if !wh.verifySignature(r, body, secret) {
-			http.Error(w, "invalid signature", http.StatusUnauthorized)
-			return
-		}
+	// Verify signature - always required (secret is never empty here).
+	if !wh.verifySignature(r, body, secret) {
+		http.Error(w, "invalid signature", http.StatusUnauthorized)
+		return
 	}
 
 	// Parse webhook payload.
@@ -70,14 +68,31 @@ func (wh *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ingest event.
-	if _, err := wh.store.Ingest(context.Background(), []*RawEvent{ev}); err != nil {
+	// Ingest event using request context for cancellation propagation.
+	if _, err := wh.store.Ingest(r.Context(), []*RawEvent{ev}); err != nil {
 		http.Error(w, "ingest error", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"ok":true}`))
+}
+
+// readAll reads from r, returning error on any failure including MaxBytesReader limits.
+func readAll(r interface{ Read([]byte) (int, error) }) ([]byte, error) {
+	var buf []byte
+	tmp := make([]byte, 4096)
+	for {
+		n, err := r.Read(tmp)
+		buf = append(buf, tmp[:n]...)
+		if err != nil {
+			if err.Error() == "http: request body too large" {
+				return nil, err
+			}
+			break
+		}
+	}
+	return buf, nil
 }
 
 // verifySignature checks the webhook signature against the configured secret.
@@ -109,6 +124,7 @@ func verifyHMACSHA256(body []byte, secret, expectedHex string) bool {
 }
 
 // parsePayload extracts a RawEvent from the webhook request.
+// Uses delivery ID headers for stable dedup when available.
 func (wh *WebhookHandler) parsePayload(name string, r *http.Request, body []byte) (*RawEvent, error) {
 	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
@@ -123,9 +139,12 @@ func (wh *WebhookHandler) parsePayload(name string, r *http.Request, body []byte
 	url := stringFromMap(payload, "url", "html_url", "link")
 	actor := stringFromMap(payload, "sender.login", "actor", "user", "from")
 
+	// Build stable source ID from delivery headers for dedup on retries.
+	sourceID := deliveryID(name, r)
+
 	return &RawEvent{
 		Source:     SourceWebhook,
-		SourceID:   fmt.Sprintf("wh:%s:%d", name, time.Now().UnixNano()),
+		SourceID:   sourceID,
 		Kind:       KindWebhook,
 		Title:      title,
 		URL:        url,
@@ -134,6 +153,28 @@ func (wh *WebhookHandler) parsePayload(name string, r *http.Request, body []byte
 		Metadata:   payload,
 		OccurredAt: time.Now().UTC(),
 	}, nil
+}
+
+// deliveryID extracts a stable delivery identifier from webhook headers.
+// Falls back to timestamp-based ID if no delivery header is present.
+func deliveryID(name string, r *http.Request) string {
+	// GitHub: X-GitHub-Delivery
+	if id := r.Header.Get("X-GitHub-Delivery"); id != "" {
+		return fmt.Sprintf("wh:%s:%s", name, id)
+	}
+	// Stripe: Stripe-Event-Id
+	if id := r.Header.Get("Stripe-Event-Id"); id != "" {
+		return fmt.Sprintf("wh:%s:%s", name, id)
+	}
+	// Generic: X-Request-Id / X-Delivery-Id
+	if id := r.Header.Get("X-Request-Id"); id != "" {
+		return fmt.Sprintf("wh:%s:%s", name, id)
+	}
+	if id := r.Header.Get("X-Delivery-Id"); id != "" {
+		return fmt.Sprintf("wh:%s:%s", name, id)
+	}
+	// Fallback: timestamp-based (not ideal for dedup).
+	return fmt.Sprintf("wh:%s:%d", name, time.Now().UnixNano())
 }
 
 // stringFromMap tries multiple keys and returns the first non-empty string value found.

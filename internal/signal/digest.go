@@ -3,6 +3,7 @@ package signal
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -71,9 +72,16 @@ func (d *DigestRunner) Generate(ctx context.Context) (*Digest, error) {
 		}
 	}
 
-	// Build digest groups.
+	// Build digest groups in stable order.
+	sortedKeys := make([]string, 0, len(groups))
+	for key := range groups {
+		sortedKeys = append(sortedKeys, key)
+	}
+	sort.Strings(sortedKeys)
+
 	var digestGroups []DigestGroup
-	for key, titles := range groups {
+	for _, key := range sortedKeys {
+		titles := groups[key]
 		sample := titles[0]
 		if r := []rune(sample); len(r) > 100 {
 			sample = string(r[:100]) + "..."
@@ -123,7 +131,13 @@ func (d *DigestRunner) buildPrompt(events []*StoredEvent, groups map[string][]st
 	b.WriteString("Summarize these notifications concisely. Group by source. Highlight the most important items. Use bullet points for highlights.\n\n")
 
 	const maxTitlesPerSource = 15
-	for source, titles := range groups {
+	keys := make([]string, 0, len(groups))
+	for k := range groups {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, source := range keys {
+		titles := groups[source]
 		fmt.Fprintf(&b, "## %s (%d events)\n", source, len(titles))
 		limit := maxTitlesPerSource
 		if len(titles) < limit {

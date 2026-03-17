@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -34,14 +35,20 @@ func (n *NPMPoller) Source() string { return SourceNPM }
 
 func (n *NPMPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, error) {
 	var all []*RawEvent
+	var lastErr error
 	for _, pkg := range n.packages {
 		ev, err := n.checkPackage(ctx, pkg, since)
 		if err != nil {
+			lastErr = err
 			continue
 		}
 		if ev != nil {
 			all = append(all, ev)
 		}
+	}
+	// Return error only if all packages failed.
+	if len(all) == 0 && lastErr != nil {
+		return nil, lastErr
 	}
 	return all, nil
 }
@@ -55,7 +62,7 @@ type npmPackageInfo struct {
 }
 
 func (n *NPMPoller) checkPackage(ctx context.Context, pkg string, since time.Time) (*RawEvent, error) {
-	url := fmt.Sprintf("https://registry.npmjs.org/%s", pkg)
+	url := "https://registry.npmjs.org/" + url.PathEscape(pkg)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

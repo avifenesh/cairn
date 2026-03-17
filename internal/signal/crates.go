@@ -34,14 +34,19 @@ func (c *CratesPoller) Source() string { return SourceCrates }
 
 func (c *CratesPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, error) {
 	var all []*RawEvent
+	var lastErr error
 	for _, crate := range c.crates {
 		ev, err := c.checkCrate(ctx, crate, since)
 		if err != nil {
+			lastErr = err
 			continue
 		}
 		if ev != nil {
 			all = append(all, ev)
 		}
+	}
+	if len(all) == 0 && lastErr != nil {
+		return nil, lastErr
 	}
 	return all, nil
 }

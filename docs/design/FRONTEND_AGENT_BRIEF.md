@@ -273,6 +273,21 @@ The Go backend embeds `frontend/dist/` via `embed.FS` and serves it at `/`.
 
 All frontend phases (1-5) and all subphases (10.1-10.11) are complete. 84 tests passing, build clean. Only 10.12 (Go embed) remains, which depends on the Go HTTP server (Phase 4a).
 
+### Phase 6: Hardening (approved improvements, independent of backend)
+
+| # | Item | Priority |
+|---|------|----------|
+| 6.1 | Component tests — ChatPanel, CommandPalette, FeedItem with @testing-library/svelte | high |
+| 6.2 | Error boundaries — shared error boundary component, replace bare catch {} blocks | high |
+| 6.3 | Consistent loading states — shared SkeletonList component across all views | medium |
+| 6.4 | Feed pagination — infinite scroll or "Load more" using cursor-based before param | medium |
+| 6.5 | Session persistence — persist current session ID in localStorage, restore on reload | medium |
+| 6.6 | Accessibility — fix interactive span/div elements, manage tab order, remove a11y ignores | high |
+| 6.7 | Auto-mood timer — setInterval in layout, toggle in Settings | low |
+| 6.8 | Settings notifications — notification preferences (types, duration) | low |
+| 6.9 | Debounced memory search — 300ms debounce on MemorySearch oninput | medium |
+| 6.10 | Type-safe SSE parsing — try/catch around JSON.parse in every SSE handler | high |
+
 ## Reference Files
 
 | File | Purpose |

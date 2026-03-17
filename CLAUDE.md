@@ -22,10 +22,10 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Not started | — |
 | 8 | Skill System - SKILL.md parser, discovery, hot-reload, injection | Done | `internal/skill/` |
 | 9 | Server & Protocols - HTTP, SSE, REST API, auth, static files | Done | `internal/server/` |
-| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.11, 84 tests) | `frontend/` |
+| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.11 + Phase 6, 103 tests) | `frontend/` |
 | 11 | Channel Adapters - web, Telegram, Slack, CLI, API, voice | Not started | — |
 
-Frontend complete (10.1-10.11). 84 tests. Only 10.12 (Go embed) remains - depends on Phase 4a server.
+Frontend complete (10.1-10.11 + Phase 6 hardening). 103 tests across 14 files. Only 10.12 (Go embed) remains - depends on Phase 4a server.
 
 ## Phases
 

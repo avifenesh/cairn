@@ -9,10 +9,14 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/avifenesh/cairn/internal/agent"
 	"github.com/avifenesh/cairn/internal/config"
 	"github.com/avifenesh/cairn/internal/db"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
+	"github.com/avifenesh/cairn/internal/memory"
+	"github.com/avifenesh/cairn/internal/tool"
+	"github.com/avifenesh/cairn/internal/tool/builtin"
 )
 
 func main() {
@@ -26,6 +30,7 @@ func main() {
 
 	fmt.Println("cairn: personal agent OS")
 	fmt.Println("Usage: cairn chat \"your message here\"")
+	fmt.Println("       cairn chat --mode coding \"your message\"")
 }
 
 // runChat implements the Phase 1 deliverable: `cairn chat "hello"` streams GLM response.
@@ -34,7 +39,16 @@ func runChat(logger *slog.Logger) {
 		fmt.Fprintln(os.Stderr, "Usage: cairn chat \"your message\"")
 		os.Exit(1)
 	}
-	message := strings.Join(os.Args[2:], " ")
+	// Build message from args, filtering out flags.
+	var msgParts []string
+	for i := 2; i < len(os.Args); i++ {
+		if os.Args[i] == "--mode" && i+1 < len(os.Args) {
+			i++ // skip flag value
+			continue
+		}
+		msgParts = append(msgParts, os.Args[i])
+	}
+	message := strings.Join(msgParts, " ")
 
 	// Load config
 	cfg := config.LoadOptional()
@@ -84,15 +98,30 @@ func runChat(logger *slog.Logger) {
 
 	logger.Info("llm provider ready", "provider", cfg.LLMProvider, "model", cfg.LLMModel)
 
-	// Wire up event bus to log LLM events
-	eventbus.Subscribe(bus, func(e eventbus.StreamStarted) {
-		logger.Debug("stream started", "model", e.Model)
-	})
-	eventbus.Subscribe(bus, func(e eventbus.StreamEnded) {
-		logger.Debug("stream ended", "tokens_in", e.InputTokens, "tokens_out", e.OutputTokens)
-	})
+	// Initialize tool registry with built-in tools.
+	toolRegistry := tool.NewRegistry()
+	toolRegistry.Register(builtin.All()...)
 
-	// Create context with cancellation on SIGINT
+	// Initialize memory service (keyword-only for now, no embeddings).
+	var memService *memory.Service
+	var soul *memory.Soul
+	if database != nil {
+		memStore := memory.NewStore(database)
+		memService = memory.NewService(memStore, memory.NoopEmbedder{}, bus)
+		soul = memory.NewSoul(cfg.SoulPath)
+		soul.Load() // ignore error if SOUL.md doesn't exist yet
+	}
+
+	// Initialize session store.
+	var sessionStore *agent.SessionStore
+	if database != nil {
+		sessionStore = agent.NewSessionStore(database)
+	}
+
+	// Create the ReAct agent.
+	reactAgent := agent.NewReActAgent("cairn", logger)
+
+	// Create context with cancellation on SIGINT.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -103,58 +132,88 @@ func runChat(logger *slog.Logger) {
 		cancel()
 	}()
 
-	// Build request
-	req := &llm.Request{
-		Model:     cfg.LLMModel,
-		System:    "You are Cairn, a personal agent operating system. Be concise and helpful.",
-		MaxTokens: 4096,
-		Messages: []llm.Message{
-			{
-				Role:    llm.RoleUser,
-				Content: []llm.ContentBlock{llm.TextBlock{Text: message}},
-			},
-		},
-	}
-
-	// Stream response
-	eventCh, err := provider.Stream(ctx, req)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error starting stream: %v\n", err)
-		os.Exit(1)
-	}
-
-	var totalIn, totalOut int
-	for event := range eventCh {
-		switch e := event.(type) {
-		case llm.TextDelta:
-			fmt.Print(e.Text)
-		case llm.ReasoningDelta:
-			// Show reasoning in dim color
-			fmt.Fprintf(os.Stderr, "\033[2m%s\033[0m", e.Text)
-		case llm.ToolCallDelta:
-			logger.Debug("tool call", "name", e.Name)
-		case llm.MessageEnd:
-			totalIn = e.InputTokens
-			totalOut = e.OutputTokens
-			if e.FinishReason == "network_error" {
-				fmt.Fprintln(os.Stderr, "\n[network error — retry not yet implemented in chat mode]")
-			}
-		case llm.StreamError:
-			fmt.Fprintf(os.Stderr, "\nStream error: %v\n", e.Err)
-			os.Exit(1)
+	// Determine mode from --mode flag or default to talk.
+	mode := tool.ModeTalk
+	for i, arg := range os.Args {
+		if arg == "--mode" && i+1 < len(os.Args) {
+			mode = tool.Mode(os.Args[i+1])
 		}
 	}
 
-	fmt.Println() // Final newline
-	if totalIn > 0 || totalOut > 0 {
-		logger.Info("usage", "input_tokens", totalIn, "output_tokens", totalOut)
+	// Create or load session.
+	session := &agent.Session{
+		Mode:  mode,
+		State: map[string]any{"workDir": "."},
+	}
+	if sessionStore != nil {
+		if err := sessionStore.Create(ctx, session); err != nil {
+			logger.Warn("failed to create session", "error", err)
+		}
+	}
+	if session.ID == "" {
+		session.ID = "ephemeral" // no DB, generate a placeholder
 	}
 
-	// Publish stream ended event
-	eventbus.Publish(bus, eventbus.StreamEnded{
-		EventMeta:    eventbus.NewMeta("llm"),
-		InputTokens:  totalIn,
-		OutputTokens: totalOut,
-		FinishReason: "stop",
-	})
+	// Build invocation context.
+	invCtx := &agent.InvocationContext{
+		Context:     ctx,
+		SessionID:   session.ID,
+		UserMessage: message,
+		Mode:        mode,
+		Session:     session,
+		Tools:       toolRegistry,
+		LLM:         provider,
+		Memory:      memService,
+		Soul:        soul,
+		Bus:         bus,
+		Config: &agent.AgentConfig{
+			Model: cfg.LLMModel,
+		},
+	}
+
+	// Run the agent, accumulate full text for persistence.
+	var fullText strings.Builder
+	for ev := range reactAgent.Run(invCtx) {
+		if ev.Err != nil {
+			fmt.Fprintf(os.Stderr, "\nError: %v\n", ev.Err)
+			os.Exit(1)
+		}
+		if ev.Event == nil {
+			continue
+		}
+
+		for _, part := range ev.Event.Parts {
+			switch p := part.(type) {
+			case agent.TextPart:
+				if ev.Event.Author != "user" {
+					fmt.Print(p.Text)
+					fullText.WriteString(p.Text)
+				}
+			case agent.ReasoningPart:
+				fmt.Fprintf(os.Stderr, "\033[2m%s\033[0m", p.Text)
+			case agent.ToolPart:
+				if p.Status == agent.ToolRunning {
+					fmt.Fprintf(os.Stderr, "\033[33m[%s]\033[0m ", p.ToolName)
+				} else if p.Status == agent.ToolFailed {
+					fmt.Fprintf(os.Stderr, "\033[31m[%s failed: %s]\033[0m\n", p.ToolName, p.Error)
+				}
+			}
+		}
+
+		// Collect events for batch persistence (don't persist streaming deltas individually).
+	}
+
+	fmt.Println() // Final newline
+
+	// Persist the full conversation as two consolidated events (user + assistant).
+	if sessionStore != nil {
+		userEv := &agent.Event{Author: "user", Parts: []agent.Part{agent.TextPart{Text: message}}}
+		sessionStore.AppendEvent(ctx, session.ID, userEv)
+
+		if fullText.Len() > 0 {
+			assistantEv := &agent.Event{Author: invCtx.Config.Model, Parts: []agent.Part{agent.TextPart{Text: fullText.String()}}}
+			sessionStore.AppendEvent(ctx, session.ID, assistantEv)
+		}
+	}
 }
+

@@ -39,7 +39,16 @@ func runChat(logger *slog.Logger) {
 		fmt.Fprintln(os.Stderr, "Usage: cairn chat \"your message\"")
 		os.Exit(1)
 	}
-	message := strings.Join(os.Args[2:], " ")
+	// Build message from args, filtering out flags.
+	var msgParts []string
+	for i := 2; i < len(os.Args); i++ {
+		if os.Args[i] == "--mode" && i+1 < len(os.Args) {
+			i++ // skip flag value
+			continue
+		}
+		msgParts = append(msgParts, os.Args[i])
+	}
+	message := strings.Join(msgParts, " ")
 
 	// Load config
 	cfg := config.LoadOptional()
@@ -137,7 +146,9 @@ func runChat(logger *slog.Logger) {
 		State: map[string]any{"workDir": "."},
 	}
 	if sessionStore != nil {
-		sessionStore.Create(ctx, session)
+		if err := sessionStore.Create(ctx, session); err != nil {
+			logger.Warn("failed to create session", "error", err)
+		}
 	}
 
 	// Build invocation context.
@@ -184,8 +195,8 @@ func runChat(logger *slog.Logger) {
 			}
 		}
 
-		// Persist event to session.
-		if sessionStore != nil && ev.Event.Author != "user" {
+		// Persist event to session (including user messages for full history).
+		if sessionStore != nil {
 			sessionStore.AppendEvent(ctx, session.ID, ev.Event)
 		}
 	}

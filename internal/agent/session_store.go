@@ -144,8 +144,10 @@ func (s *SessionStore) AppendEvent(ctx context.Context, sessionID string, ev *Ev
 	}
 
 	// Update session timestamp.
-	s.db.ExecContext(ctx, `UPDATE sessions SET updated_at = ? WHERE id = ?`,
-		isoTime(time.Now()), sessionID)
+	if _, err := s.db.ExecContext(ctx, `UPDATE sessions SET updated_at = ? WHERE id = ?`,
+		isoTime(time.Now()), sessionID); err != nil {
+		slog.Warn("session store: failed to update session timestamp", "session", sessionID, "error", err)
+	}
 
 	return nil
 }

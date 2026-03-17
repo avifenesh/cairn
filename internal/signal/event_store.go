@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+// timeFormat is a fixed-width ISO-8601 format with milliseconds for consistent
+// SQLite TEXT column ordering. Variable-length RFC3339Nano breaks lexicographic sort.
+const timeFormat = "2006-01-02T15:04:05.000Z"
+
 // EventStore persists and queries signal events in SQLite.
 type EventStore struct {
 	db *sql.DB
@@ -58,7 +62,7 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 
 		res, err := stmt.ExecContext(ctx, id, ev.Source, ev.SourceID, ev.Kind,
 			ev.Title, ev.Body, ev.URL, ev.Actor, ev.GroupKey,
-			string(meta), createdAt.UTC().Format(time.RFC3339Nano))
+			string(meta), createdAt.UTC().Format(timeFormat))
 		if err != nil {
 			return inserted, fmt.Errorf("signal: insert event: %w", err)
 		}
@@ -140,14 +144,14 @@ func (s *EventStore) Count(ctx context.Context, f EventFilter) (int, error) {
 
 // MarkRead marks an event as read.
 func (s *EventStore) MarkRead(ctx context.Context, id string) error {
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := time.Now().UTC().Format(timeFormat)
 	_, err := s.db.ExecContext(ctx, "UPDATE events SET read_at = ? WHERE id = ? AND read_at IS NULL", now, id)
 	return err
 }
 
 // MarkAllRead marks all unread events as read.
 func (s *EventStore) MarkAllRead(ctx context.Context) (int, error) {
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := time.Now().UTC().Format(timeFormat)
 	res, err := s.db.ExecContext(ctx, "UPDATE events SET read_at = ? WHERE read_at IS NULL", now)
 	if err != nil {
 		return 0, err
@@ -158,7 +162,7 @@ func (s *EventStore) MarkAllRead(ctx context.Context) (int, error) {
 
 // Delete removes events older than the given duration.
 func (s *EventStore) Delete(ctx context.Context, olderThan time.Duration) (int, error) {
-	cutoff := time.Now().UTC().Add(-olderThan).Format(time.RFC3339Nano)
+	cutoff := time.Now().UTC().Add(-olderThan).Format(timeFormat)
 	res, err := s.db.ExecContext(ctx, "DELETE FROM events WHERE created_at < ?", cutoff)
 	if err != nil {
 		return 0, err
@@ -190,19 +194,19 @@ func scanEvent(rows *sql.Rows) (*StoredEvent, error) {
 	}
 
 	var parseErr error
-	ev.CreatedAt, parseErr = time.Parse(time.RFC3339Nano, createdStr)
+	ev.CreatedAt, parseErr = time.Parse(timeFormat, createdStr)
 	if parseErr != nil {
 		return nil, fmt.Errorf("signal: parse created_at %q: %w", createdStr, parseErr)
 	}
 	if readStr.Valid {
-		t, err := time.Parse(time.RFC3339Nano, readStr.String)
+		t, err := time.Parse(timeFormat, readStr.String)
 		if err != nil {
 			return nil, fmt.Errorf("signal: parse read_at: %w", err)
 		}
 		ev.ReadAt = &t
 	}
 	if archivedStr.Valid {
-		t, err := time.Parse(time.RFC3339Nano, archivedStr.String)
+		t, err := time.Parse(timeFormat, archivedStr.String)
 		if err != nil {
 			return nil, fmt.Errorf("signal: parse archived_at: %w", err)
 		}

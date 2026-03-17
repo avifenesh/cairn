@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -54,7 +55,7 @@ func (g *GitHubPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, 
 	for _, org := range g.orgs {
 		orgEvents, err := g.fetchOrgEvents(ctx, org, since)
 		if err != nil {
-			// Log but don't fail the whole poll for one org.
+			g.logErr(org, err)
 			continue
 		}
 		all = append(all, orgEvents...)
@@ -193,6 +194,10 @@ func (g *GitHubPoller) doGet(ctx context.Context, url string) ([]byte, error) {
 	}
 
 	return io.ReadAll(io.LimitReader(resp.Body, 5<<20)) // 5 MB
+}
+
+func (g *GitHubPoller) logErr(org string, err error) {
+	slog.Warn("signal: github org poll failed", "org", org, "error", err)
 }
 
 func ghSubjectTypeToKind(subjectType string) string {

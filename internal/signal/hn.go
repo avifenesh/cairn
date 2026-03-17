@@ -72,10 +72,16 @@ func (h *HNPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, erro
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, concurrency)
 	for i, id := range ids {
+		// Acquire semaphore before spawning goroutine so context cancellation
+		// doesn't leave goroutines blocked on a full channel.
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			break
+		}
 		wg.Add(1)
 		go func(idx, storyID int) {
 			defer wg.Done()
-			sem <- struct{}{}
 			defer func() { <-sem }()
 			s, e := h.fetchItem(ctx, storyID)
 			results[idx] = result{story: s, err: e}

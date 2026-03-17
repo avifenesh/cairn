@@ -110,7 +110,7 @@ func Load() (*Config, error) {
 		GHToken:          envStr("GH_TOKEN", envStr("GITHUB_TOKEN", "")),
 		GHOrgs:           envSlice("GH_ORGS", nil),
 		HNKeywords:       envSlice("HN_KEYWORDS", nil),
-		HNMinScore:       envInt("HN_MIN_SCORE", 50),
+		HNMinScore:       envInt("HN_MIN_SCORE", 0),
 		PollInterval:     envInt("POLL_INTERVAL", 300),
 		SoulPath:         envStr("SOUL_PATH", "./SOUL.md"),
 		SkillDirs:        envSlice("SKILL_DIRS", []string{"./.pub/skills"}),

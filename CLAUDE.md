@@ -134,7 +134,7 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 - `GH_TOKEN` / `GITHUB_TOKEN` - GitHub API token for polling
 - `GH_ORGS` - comma-separated org names to track
 - `HN_KEYWORDS` - comma-separated HN keyword filter
-- `HN_MIN_SCORE` (50) - minimum HN story score
+- `HN_MIN_SCORE` (0) - minimum HN story score
 - `POLL_INTERVAL` (300) - poll interval in seconds
 
 **Feature flags:**
@@ -191,7 +191,7 @@ Full design specs live in `docs/design/`:
 - Commit frequently with meaningful messages - logical changes separated.
 - For non-trivial tasks, go into plan mode unless instructed not to.
 - Report script/tool failures before manual fallback. Never silently work around broken tooling - report error, diagnose, fix.
-- Address ALL review comments before merging - even minor ones. Disagree = respond in the review, don't ignore.
+- Address ALL review comments before merging - every single one, no exceptions. There are no ignorable issues. Fix them all. Disagree = respond in the review explaining why, but still fix or improve.
 
 ### Pre-Push Checklist (MANDATORY)
 

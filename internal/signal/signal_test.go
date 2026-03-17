@@ -367,9 +367,9 @@ func TestScheduler_BusEvents(t *testing.T) {
 	bus := eventbus.New()
 	defer bus.Close()
 
-	var received []eventbus.EventIngested
+	got := make(chan eventbus.EventIngested, 10)
 	eventbus.Subscribe(bus, func(e eventbus.EventIngested) {
-		received = append(received, e)
+		got <- e
 	})
 
 	scheduler := NewScheduler(store, state, bus, nil)
@@ -379,21 +379,24 @@ func TestScheduler_BusEvents(t *testing.T) {
 
 	// First poll - should publish 1 event.
 	scheduler.PollNow(context.Background())
-	time.Sleep(50 * time.Millisecond)
 
-	if len(received) != 1 {
-		t.Fatalf("bus events after first poll = %d, want 1", len(received))
-	}
-	if received[0].Title != "Bus Event" {
-		t.Errorf("title = %q, want %q", received[0].Title, "Bus Event")
+	select {
+	case ev := <-got:
+		if ev.Title != "Bus Event" {
+			t.Errorf("title = %q, want %q", ev.Title, "Bus Event")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for bus event after first poll")
 	}
 
 	// Second poll with same data - should NOT publish (dedup).
 	scheduler.PollNow(context.Background())
-	time.Sleep(50 * time.Millisecond)
 
-	if len(received) != 1 {
-		t.Errorf("bus events after second poll = %d, want 1 (dedup should prevent re-publish)", len(received))
+	select {
+	case ev := <-got:
+		t.Errorf("unexpected bus event after second poll (dedup should prevent): %+v", ev)
+	case <-time.After(100 * time.Millisecond):
+		// Good - no event published.
 	}
 }
 

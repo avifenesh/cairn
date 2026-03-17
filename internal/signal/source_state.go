@@ -50,10 +50,13 @@ func (s *SourceState) GetLastPoll(ctx context.Context, source string) (time.Time
 func (s *SourceState) SetLastPoll(ctx context.Context, source string, t time.Time) error {
 	key := "signal:" + source
 	data := stateData{LastPoll: t.UTC()}
-	value, _ := json.Marshal(data)
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	value, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("signal: marshal poll state %q: %w", source, err)
+	}
+	now := time.Now().UTC().Format(timeFormat)
 
-	_, err := s.db.ExecContext(ctx, `
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO source_state (key, value, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
 		key, string(value), now)
@@ -83,10 +86,13 @@ func (s *SourceState) GetCursor(ctx context.Context, source string) (string, err
 func (s *SourceState) SetCursorAndPoll(ctx context.Context, source, cursor string, t time.Time) error {
 	key := "signal:" + source
 	data := stateData{LastPoll: t.UTC(), Cursor: cursor}
-	value, _ := json.Marshal(data)
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	value, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("signal: marshal cursor state %q: %w", source, err)
+	}
+	now := time.Now().UTC().Format(timeFormat)
 
-	_, err := s.db.ExecContext(ctx, `
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO source_state (key, value, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
 		key, string(value), now)

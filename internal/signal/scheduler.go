@@ -20,6 +20,7 @@ type Scheduler struct {
 	logger  *slog.Logger
 	pollers []pollerEntry
 	started atomic.Bool
+	cancel  context.CancelFunc
 	done    chan struct{}
 	stopped atomic.Bool
 	wg      sync.WaitGroup
@@ -71,16 +72,21 @@ func (s *Scheduler) Register(p Poller, interval time.Duration) {
 // goroutine with its own ticker. No more pollers may be registered after Start.
 func (s *Scheduler) Start() {
 	s.started.Store(true)
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
 	for i := range s.pollers {
 		s.wg.Add(1)
-		go s.runPoller(i)
+		go s.runPoller(ctx, i)
 	}
 	s.logger.Info("signal scheduler started", "pollers", len(s.pollers))
 }
 
-// Close stops all pollers and waits for them to finish.
+// Close stops all pollers and waits for in-flight polls to finish.
 func (s *Scheduler) Close() {
 	if s.stopped.CompareAndSwap(false, true) {
+		if s.cancel != nil {
+			s.cancel()
+		}
 		close(s.done)
 	}
 	s.wg.Wait()
@@ -95,13 +101,12 @@ func (s *Scheduler) PollNow(ctx context.Context) {
 	}
 }
 
-func (s *Scheduler) runPoller(idx int) {
+func (s *Scheduler) runPoller(ctx context.Context, idx int) {
 	defer s.wg.Done()
 
 	entry := &s.pollers[idx]
 
 	// Poll immediately on startup.
-	ctx := context.Background()
 	s.pollOnce(ctx, idx)
 
 	ticker := time.NewTicker(entry.interval)
@@ -112,13 +117,14 @@ func (s *Scheduler) runPoller(idx int) {
 		case <-s.done:
 			return
 		case <-ticker.C:
+			s.pollOnce(ctx, idx)
+
+			// Reset ticker after poll completes so backoff takes effect on next tick.
 			if entry.backoff > 0 {
-				// In backoff - use backoff duration instead of normal interval.
 				ticker.Reset(entry.backoff)
 			} else {
 				ticker.Reset(entry.interval)
 			}
-			s.pollOnce(context.Background(), idx)
 		}
 	}
 }
@@ -127,13 +133,16 @@ func (s *Scheduler) pollOnce(ctx context.Context, idx int) {
 	entry := &s.pollers[idx]
 	source := entry.poller.Source()
 
+	// Capture start time before polling to avoid gaps.
+	pollStart := time.Now().UTC()
+
 	since, err := s.state.GetLastPoll(ctx, source)
 	if err != nil {
 		s.logger.Warn("signal: failed to get last poll time", "source", source, "error", err)
-		since = time.Now().UTC().Add(-24 * time.Hour) // default: last 24h
+		since = pollStart.Add(-24 * time.Hour)
 	}
 	if since.IsZero() {
-		since = time.Now().UTC().Add(-24 * time.Hour)
+		since = pollStart.Add(-24 * time.Hour)
 	}
 
 	events, err := entry.poller.Poll(ctx, since)
@@ -155,7 +164,7 @@ func (s *Scheduler) pollOnce(ctx context.Context, idx int) {
 	entry.backoff = 0
 
 	if len(events) == 0 {
-		s.state.SetLastPoll(ctx, source, time.Now().UTC())
+		s.state.SetLastPoll(ctx, source, pollStart)
 		return
 	}
 
@@ -165,7 +174,7 @@ func (s *Scheduler) pollOnce(ctx context.Context, idx int) {
 		return
 	}
 
-	s.state.SetLastPoll(ctx, source, time.Now().UTC())
+	s.state.SetLastPoll(ctx, source, pollStart)
 
 	if len(newEvents) > 0 {
 		s.logger.Info("signal: ingested events", "source", source, "new", len(newEvents), "total", len(events))

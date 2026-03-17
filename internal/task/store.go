@@ -170,24 +170,40 @@ func (s *Store) Update(ctx context.Context, t *Task) error {
 		outputStr = sql.NullString{String: string(t.Output), Valid: true}
 	}
 
-	_, err = s.db.ExecContext(ctx, `
+	// Preserve started_at: only set when transitioning to running, never overwrite.
+	startedAtExpr := "started_at" // keep existing value
+	var startedAtArg any
+	if !t.StartedAt.IsZero() {
+		startedAtExpr = "?"
+		startedAtArg = isoTime(t.StartedAt)
+	}
+
+	query := fmt.Sprintf(`
 		UPDATE tasks SET
 			status = ?, output = ?, error = ?, priority = ?,
-			started_at = ?, completed_at = ?,
+			started_at = COALESCE(started_at, %s), completed_at = ?,
 			lease_owner = ?, lease_expires_at = ?,
 			metadata = ?
-		WHERE id = ?`,
+		WHERE id = ?`, startedAtExpr)
+
+	args := []any{
 		string(t.Status),
 		outputStr,
 		nullStr(t.Error),
 		int(t.Priority),
-		nullStr(isoTime(t.UpdatedAt)),
-		nullStr(isoTime(completedTime(t))),
+	}
+	if startedAtArg != nil {
+		args = append(args, startedAtArg)
+	}
+	args = append(args,
+		nullStr(isoTime(t.CompletedAt)),
 		nullStr(t.LeaseOwner),
 		nullStr(isoTime(t.LeaseExpiry)),
 		string(metaBytes),
 		t.ID,
 	)
+
+	_, err = s.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("task store: update %s: %w", t.ID, err)
 	}
@@ -316,7 +332,10 @@ func scanTask(row scannable) (*Task, error) {
 		t.LeaseExpiry = parseTime(leaseExpiresAt.String)
 	}
 	if startedAt.Valid {
-		t.UpdatedAt = parseTime(startedAt.String)
+		t.StartedAt = parseTime(startedAt.String)
+	}
+	if completedAt.Valid {
+		t.CompletedAt = parseTime(completedAt.String)
 	}
 
 	// Unpack metadata fields.
@@ -362,13 +381,3 @@ func nullStr(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: true}
 }
 
-// completedTime returns the completion timestamp if the task is completed or failed.
-func completedTime(t *Task) time.Time {
-	if t.Status == StatusCompleted || t.Status == StatusFailed || t.Status == StatusCanceled {
-		if !t.UpdatedAt.IsZero() {
-			return t.UpdatedAt
-		}
-		return time.Now()
-	}
-	return time.Time{}
-}

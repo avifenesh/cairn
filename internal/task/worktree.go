@@ -113,7 +113,9 @@ func parseWorktreeList(data []byte, baseDir string) []WorktreeInfo {
 
 		if line == "" {
 			// End of a worktree entry.
-			if current.Path != "" && strings.HasPrefix(current.Path, baseDir) {
+			absPath, _ := filepath.Abs(current.Path)
+		absBase, _ := filepath.Abs(baseDir)
+		if current.Path != "" && strings.HasPrefix(absPath, absBase+string(filepath.Separator)) {
 				// Extract taskID from path.
 				current.TaskID = filepath.Base(current.Path)
 				results = append(results, current)
@@ -132,7 +134,9 @@ func parseWorktreeList(data []byte, baseDir string) []WorktreeInfo {
 	}
 
 	// Handle last entry if no trailing newline.
-	if current.Path != "" && strings.HasPrefix(current.Path, baseDir) {
+	absPath, _ := filepath.Abs(current.Path)
+	absBase, _ := filepath.Abs(baseDir)
+	if current.Path != "" && strings.HasPrefix(absPath, absBase+string(filepath.Separator)) {
 		current.TaskID = filepath.Base(current.Path)
 		results = append(results, current)
 	}

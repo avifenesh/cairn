@@ -62,6 +62,8 @@ type Task struct {
 	MaxRetries  int
 	CostUSD     float64
 	CreatedAt   time.Time
+	StartedAt   time.Time
+	CompletedAt time.Time
 	UpdatedAt   time.Time
 }
 

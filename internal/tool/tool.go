@@ -99,6 +99,10 @@ func (t *definedTool[P]) Execute(ctx *ToolContext, args json.RawMessage) (*ToolR
 func generateSchema[P any]() json.RawMessage {
 	var zero P
 	t := reflect.TypeOf(zero)
+	if t == nil {
+		// P is an interface type with nil zero value — return empty schema.
+		return json.RawMessage(`{"type":"object","properties":{}}`)
+	}
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}

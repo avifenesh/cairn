@@ -86,7 +86,7 @@ func Load() (*Config, error) {
 	c := &Config{
 		Port:             envInt("PORT", 8787),
 		Host:             envStr("HOST", "0.0.0.0"),
-		DatabasePath:     envStr("DATABASE_PATH", "./data/pub.db"),
+		DatabasePath:     envStr("DATABASE_PATH", "./data/cairn.db"),
 		LLMProvider:      provider,
 		LLMAPIKey:        apiKey,
 		LLMBaseURL:       baseURL,
@@ -121,7 +121,7 @@ func LoadOptional() *Config {
 		c = &Config{
 			Port:         envInt("PORT", 8787),
 			Host:         envStr("HOST", "0.0.0.0"),
-			DatabasePath: envStr("DATABASE_PATH", "./data/pub.db"),
+			DatabasePath: envStr("DATABASE_PATH", "./data/cairn.db"),
 			LLMProvider:  envStr("LLM_PROVIDER", "glm"),
 			SoulPath:     envStr("SOUL_PATH", "./SOUL.md"),
 			SkillDirs:    envSlice("SKILL_DIRS", []string{"./.pub/skills"}),

@@ -6,12 +6,30 @@
 	import StatusBar from '$lib/components/layout/StatusBar.svelte';
 	import ContextPanel from '$lib/components/layout/ContextPanel.svelte';
 	import CommandPalette from '$lib/components/layout/CommandPalette.svelte';
+	import HelpModal from '$lib/components/layout/HelpModal.svelte';
 	import { appStore } from '$lib/stores/app.svelte';
 	import { sseStore } from '$lib/stores/sse.svelte';
+	import { feedStore } from '$lib/stores/feed.svelte';
+	import { taskStore } from '$lib/stores/tasks.svelte';
+	import { keyboardNav } from '$lib/stores/keyboard-nav.svelte';
+	import { markRead, triggerPoll, approve, deny } from '$lib/api/client';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
 	let { children } = $props();
+
+	// Derive item count from active view so j/k/o/r/a/d shortcuts work
+	$effect(() => {
+		const path = page.url.pathname;
+		if (path === '/' || path === '/today') {
+			keyboardNav.setItemCount(feedStore.items.length);
+		} else if (path === '/ops') {
+			keyboardNav.setItemCount(taskStore.pendingApprovals.length);
+		} else {
+			keyboardNav.setItemCount(0);
+		}
+	});
 
 	onMount(() => {
 		appStore.initTheme();
@@ -38,14 +56,71 @@
 				return;
 			}
 
+			const path = page.url.pathname;
+
 			switch (e.key) {
+				case 'j':
+					keyboardNav.moveDown();
+					break;
+				case 'k':
+					keyboardNav.moveUp();
+					break;
+				case 'o': {
+					// Open focused item URL
+					if (path === '/today' || path === '/') {
+						const item = feedStore.items[keyboardNav.focusedIndex];
+						if (item?.url) window.open(item.url, '_blank');
+					}
+					break;
+				}
+				case 'r': {
+					// Mark focused feed item read
+					if (path === '/today' || path === '/') {
+						const item = feedStore.items[keyboardNav.focusedIndex];
+						if (item && !item.isRead) {
+							feedStore.markItemRead(item.id);
+							markRead(item.id).catch(() => {});
+						}
+					}
+					break;
+				}
+				case 'x':
+					keyboardNav.toggleSelection();
+					break;
+				case 's':
+					triggerPoll().catch(() => {});
+					break;
+				case 'a': {
+					// Approve focused approval in ops view
+					if (path === '/ops') {
+						const appr = taskStore.pendingApprovals[keyboardNav.focusedIndex];
+						if (appr) {
+							taskStore.resolveApproval(appr.id, 'approved');
+							approve(appr.id).catch(() => {});
+						}
+					}
+					break;
+				}
+				case 'd': {
+					// Deny focused approval in ops view
+					if (path === '/ops') {
+						const appr = taskStore.pendingApprovals[keyboardNav.focusedIndex];
+						if (appr) {
+							taskStore.resolveApproval(appr.id, 'denied');
+							deny(appr.id).catch(() => {});
+						}
+					}
+					break;
+				}
 				case 't':
 					appStore.toggleTheme();
 					break;
 				case '?':
+					appStore.toggleHelpModal();
 					break;
 				case 'Escape':
 					appStore.closeCommandPalette();
+					appStore.closeHelpModal();
 					break;
 			}
 		}
@@ -77,6 +152,7 @@
 </div>
 
 <CommandPalette />
+<HelpModal open={appStore.helpModalOpen} onclose={() => appStore.closeHelpModal()} />
 
 {#if appStore.notifications.length > 0}
 	<div class="fixed right-4 top-[calc(var(--header-h)+8px)] z-50 flex flex-col gap-2">

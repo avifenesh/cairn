@@ -16,7 +16,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 1 | Event Bus - typed async pub/sub backbone | Done | `internal/eventbus/` |
 | 2 | LLM Client - multi-provider streaming, retry/fallback/budget | Done | `internal/llm/` |
 | 3 | Tool System - type-safe tools, registry, mode filtering, permissions | Done | `internal/tool/` |
-| 4 | Agent Core - ReAct loop, sessions, modes (talk/work/coding) | Not started | — |
+| 4 | Agent Core - ReAct loop, sessions, modes (talk/work/coding) | Done | `internal/agent/` |
 | 5 | Task Engine - priority queue, worktree isolation, leases | Done | `internal/task/` |
 | 6 | Memory System - semantic + episodic + procedural, RAG, Soul | Done | `internal/memory/` |
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Not started | — |
@@ -32,8 +32,8 @@ Frontend scaffold is up with passing test suite across stores, utils, and API cl
 ```
 Phase 1: Foundation (event bus + LLM + SQLite)                [DONE]
 Phase 2: Core Systems (tools | tasks | memory) in parallel    [DONE]
-Phase 3: Agent Core (ReAct loop wires all together)           [NEXT]
-Phase 4: Server + Signal Plane + Plugins in parallel
+Phase 3: Agent Core (ReAct loop wires all together)           [DONE]
+Phase 4: Server + Signal Plane + Plugins in parallel          [NEXT]
 Phase 5: Integration, always-on loop, open-source release
 ```
 
@@ -78,6 +78,7 @@ internal/
   tool/builtin/               Built-in tools: readFile, writeFile, editFile, shell, gitRun, etc.
   task/                       Task store, priority queue, worktree manager, lease claiming, reaper
   memory/                     Memory store, RAG search + MMR, embedder interface, Soul loader
+  agent/                      ReAct loop, session store, modes (talk/work/coding), system prompt builder
 frontend/                     SvelteKit 5 app (Svelte 5 runes, Tailwind v4, shadcn-svelte)
   src/routes/                 today, chat, ops, memory, agents, skills, soul, settings
   src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav)

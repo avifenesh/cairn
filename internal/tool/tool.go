@@ -181,6 +181,10 @@ func generateSchema[P any]() json.RawMessage {
 		schema["required"] = required
 	}
 
-	raw, _ := json.Marshal(schema)
+	raw, err := json.Marshal(schema)
+	if err != nil {
+		// Fallback to empty object schema if marshal fails.
+		return json.RawMessage(`{"type":"object","properties":{}}`)
+	}
 	return raw
 }

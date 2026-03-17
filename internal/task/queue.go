@@ -87,15 +87,24 @@ func (q *Queue) popMatching(taskType TaskType) *Task {
 	}
 
 	// Find the highest-priority item matching the type.
+	// Heap only guarantees root is min — must scan all and compare.
+	var best *queueItem
 	for i := 0; i < q.heap.Len(); i++ {
 		item := q.heap[i]
-		if item.task.Type == taskType {
-			heap.Remove(&q.heap, item.index)
-			delete(q.byID, item.task.ID)
-			return item.task
+		if item.task.Type != taskType {
+			continue
+		}
+		if best == nil || item.task.Priority < best.task.Priority ||
+			(item.task.Priority == best.task.Priority && item.task.CreatedAt.Before(best.task.CreatedAt)) {
+			best = item
 		}
 	}
-	return nil
+	if best == nil {
+		return nil
+	}
+	heap.Remove(&q.heap, best.index)
+	delete(q.byID, best.task.ID)
+	return best.task
 }
 
 // Remove deletes a task from the queue by ID. No-op if not found.

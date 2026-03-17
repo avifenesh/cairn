@@ -71,18 +71,29 @@ func TestPermission_FirstMatchWins(t *testing.T) {
 	}
 }
 
-func TestPermission_DefaultAsk(t *testing.T) {
-	// Empty rule set.
+func TestPermission_DefaultAllow(t *testing.T) {
+	// Empty rule set = allow all (no restrictions configured).
 	ps := &PermissionSet{Rules: []PermissionRule{}}
 	action := ps.Evaluate("pub.anything", "/some/file")
-	if action != Ask {
-		t.Fatalf("expected Ask as default, got %s", action)
+	if action != Allow {
+		t.Fatalf("expected Allow for empty rules, got %s", action)
 	}
 
-	// Nil permission set.
+	// Nil permission set = allow all.
 	var nilPS *PermissionSet
 	action = nilPS.Evaluate("pub.anything", "/some/file")
+	if action != Allow {
+		t.Fatalf("expected Allow for nil PermissionSet, got %s", action)
+	}
+}
+
+func TestPermission_AskWithRules(t *testing.T) {
+	// When rules exist but none match, default is Ask (safe).
+	ps := &PermissionSet{Rules: []PermissionRule{
+		{Tool: "pub.specific", Pattern: "*", Action: Allow},
+	}}
+	action := ps.Evaluate("pub.other", "/some/file")
 	if action != Ask {
-		t.Fatalf("expected Ask for nil PermissionSet, got %s", action)
+		t.Fatalf("expected Ask when rules exist but none match, got %s", action)
 	}
 }

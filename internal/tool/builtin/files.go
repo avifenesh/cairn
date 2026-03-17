@@ -26,7 +26,7 @@ var readFile = tool.Define("pub.readFile",
 			return nil, err
 		}
 
-		if action := ctx.Permissions.Evaluate("pub.readFile", absPath); action == tool.Deny {
+		if action := ctx.Permissions.Evaluate("pub.readFile", absPath); action != tool.Allow {
 			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: read %s", p.Path)}, nil
 		}
 
@@ -69,7 +69,7 @@ var writeFile = tool.Define("pub.writeFile",
 			return nil, err
 		}
 
-		if action := ctx.Permissions.Evaluate("pub.writeFile", absPath); action == tool.Deny {
+		if action := ctx.Permissions.Evaluate("pub.writeFile", absPath); action != tool.Allow {
 			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: write %s", p.Path)}, nil
 		}
 
@@ -109,7 +109,7 @@ var editFile = tool.Define("pub.editFile",
 			return nil, err
 		}
 
-		if action := ctx.Permissions.Evaluate("pub.editFile", absPath); action == tool.Deny {
+		if action := ctx.Permissions.Evaluate("pub.editFile", absPath); action != tool.Allow {
 			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: edit %s", p.Path)}, nil
 		}
 
@@ -161,7 +161,7 @@ var deleteFile = tool.Define("pub.deleteFile",
 			return nil, err
 		}
 
-		if action := ctx.Permissions.Evaluate("pub.deleteFile", absPath); action == tool.Deny {
+		if action := ctx.Permissions.Evaluate("pub.deleteFile", absPath); action != tool.Allow {
 			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: delete %s", p.Path)}, nil
 		}
 
@@ -340,9 +340,14 @@ func safePath(workDir, rel string) (string, error) {
 	// Resolve symlinks on the target if it exists, to prevent symlink escapes.
 	if resolved, err := filepath.EvalSymlinks(target); err == nil {
 		target = resolved
+	} else {
+		// Target doesn't exist yet (write/create) — resolve the nearest existing parent
+		// to catch symlinked directories used in the path.
+		parent := filepath.Dir(target)
+		if resolvedParent, err := filepath.EvalSymlinks(parent); err == nil {
+			target = filepath.Join(resolvedParent, filepath.Base(target))
+		}
 	}
-	// If target doesn't exist yet (write/create), check the parent.
-	// This handles creating new files - the parent must be within workDir.
 
 	// Ensure the resolved path is within the work directory.
 	if !strings.HasPrefix(target, realWork+string(filepath.Separator)) && target != realWork {

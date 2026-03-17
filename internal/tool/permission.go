@@ -30,8 +30,8 @@ type PermissionSet struct {
 // Returns the action of the first matching rule. If no rule matches, returns Ask
 // as the safe default.
 func (ps *PermissionSet) Evaluate(toolName, filePath string) PermissionAction {
-	if ps == nil {
-		return Ask
+	if ps == nil || len(ps.Rules) == 0 {
+		return Allow // no rules configured = allow all (explicit rules required to restrict)
 	}
 	for _, rule := range ps.Rules {
 		if matchTool(rule.Tool, toolName) && matchPattern(rule.Pattern, filePath) {

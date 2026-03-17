@@ -46,11 +46,16 @@ func (s *SourceState) GetLastPoll(ctx context.Context, source string) (time.Time
 	return data.LastPoll, nil
 }
 
-// SetLastPoll records the last successful poll time for a source.
+// SetLastPoll records the last successful poll time for a source,
+// preserving any existing cursor/extra data.
 func (s *SourceState) SetLastPoll(ctx context.Context, source string, t time.Time) error {
 	key := "signal:" + source
-	data := stateData{LastPoll: t.UTC()}
-	value, err := json.Marshal(data)
+
+	// Read existing state to preserve cursor.
+	existing := s.readState(ctx, key)
+	existing.LastPoll = t.UTC()
+
+	value, err := json.Marshal(existing)
 	if err != nil {
 		return fmt.Errorf("signal: marshal poll state %q: %w", source, err)
 	}
@@ -61,6 +66,18 @@ func (s *SourceState) SetLastPoll(ctx context.Context, source string, t time.Tim
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
 		key, string(value), now)
 	return err
+}
+
+// readState loads existing stateData for a key, returning zero value if not found.
+func (s *SourceState) readState(ctx context.Context, key string) stateData {
+	var valueStr string
+	err := s.db.QueryRowContext(ctx, "SELECT value FROM source_state WHERE key = ?", key).Scan(&valueStr)
+	if err != nil {
+		return stateData{}
+	}
+	var data stateData
+	json.Unmarshal([]byte(valueStr), &data)
+	return data
 }
 
 // GetCursor returns the cursor (e.g. page token, since ID) for a source.

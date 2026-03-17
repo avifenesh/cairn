@@ -50,7 +50,10 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 	var inserted []*RawEvent
 	for _, ev := range events {
 		id := generateEventID()
-		meta, _ := json.Marshal(ev.Metadata)
+		meta, err := json.Marshal(ev.Metadata)
+		if err != nil {
+			return inserted, fmt.Errorf("signal: marshal metadata for %s/%s: %w", ev.Source, ev.SourceID, err)
+		}
 		if meta == nil {
 			meta = []byte("{}")
 		}
@@ -94,8 +97,9 @@ func buildWhere(f EventFilter) (string, []any) {
 		clauses = append(clauses, "read_at IS NULL")
 	}
 	if f.Before != "" {
-		clauses = append(clauses, "created_at < (SELECT created_at FROM events WHERE id = ?)")
-		args = append(args, f.Before)
+		// Stable cursor: tie-break on id for events sharing the same timestamp.
+		clauses = append(clauses, "(created_at, id) < ((SELECT created_at FROM events WHERE id = ?), ?)")
+		args = append(args, f.Before, f.Before)
 	}
 
 	if len(clauses) == 0 {
@@ -114,7 +118,7 @@ func (s *EventStore) List(ctx context.Context, f EventFilter) ([]*StoredEvent, e
 	where, args := buildWhere(f)
 	query := fmt.Sprintf(`SELECT id, source, source_item_id, kind, title, body, url, actor,
 		COALESCE(group_key, ''), COALESCE(metadata, '{}'), created_at, read_at, archived_at
-		FROM events %s ORDER BY created_at DESC LIMIT ?`, where)
+		FROM events %s ORDER BY created_at DESC, id DESC LIMIT ?`, where)
 	args = append(args, limit)
 
 	rows, err := s.db.QueryContext(ctx, query, args...)

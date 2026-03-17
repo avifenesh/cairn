@@ -164,7 +164,9 @@ func (s *Scheduler) pollOnce(ctx context.Context, idx int) {
 	entry.backoff = 0
 
 	if len(events) == 0 {
-		s.state.SetLastPoll(ctx, source, pollStart)
+		if err := s.state.SetLastPoll(ctx, source, pollStart); err != nil {
+			s.logger.Warn("signal: failed to persist poll time", "source", source, "error", err)
+		}
 		return
 	}
 
@@ -174,7 +176,9 @@ func (s *Scheduler) pollOnce(ctx context.Context, idx int) {
 		return
 	}
 
-	s.state.SetLastPoll(ctx, source, pollStart)
+	if err := s.state.SetLastPoll(ctx, source, pollStart); err != nil {
+		s.logger.Warn("signal: failed to persist poll time", "source", source, "error", err)
+	}
 
 	if len(newEvents) > 0 {
 		s.logger.Info("signal: ingested events", "source", source, "new", len(newEvents), "total", len(events))

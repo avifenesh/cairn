@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// HNPoller fetches top and new stories from Hacker News via the Firebase API.
+// HNPoller fetches top stories from Hacker News via the Firebase API.
 // Filters by keywords and minimum score.
 type HNPoller struct {
 	keywords []string
@@ -71,13 +71,18 @@ func (h *HNPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, erro
 
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, concurrency)
+	cancelled := false
 	for i, id := range ids {
+		if cancelled {
+			break
+		}
 		// Acquire semaphore before spawning goroutine so context cancellation
 		// doesn't leave goroutines blocked on a full channel.
 		select {
 		case sem <- struct{}{}:
 		case <-ctx.Done():
-			break
+			cancelled = true
+			continue
 		}
 		wg.Add(1)
 		go func(idx, storyID int) {

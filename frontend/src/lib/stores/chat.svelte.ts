@@ -2,6 +2,10 @@
 
 import type { ChatMessage, ChatSession, ChatMode, ToolCall, ReasoningStep } from '$lib/types';
 
+function restoreSessionId(): string | null {
+	try { return localStorage.getItem('pub_current_session'); } catch { return null; }
+}
+
 interface StreamingMessage {
 	taskId: string;
 	content: string;
@@ -11,7 +15,7 @@ interface StreamingMessage {
 }
 
 let sessions = $state<ChatSession[]>([]);
-let currentSessionId = $state<string | null>(null);
+let currentSessionId = $state<string | null>(restoreSessionId());
 let messages = $state<ChatMessage[]>([]);
 let streamingMessages = $state<Map<string, StreamingMessage>>(new Map());
 let mode = $state<ChatMode>('talk');
@@ -32,7 +36,13 @@ export const chatStore = {
 	},
 
 	setSessions(s: ChatSession[]) { sessions = s; },
-	setCurrentSession(id: string | null) { currentSessionId = id; },
+	setCurrentSession(id: string | null) {
+		currentSessionId = id;
+		try {
+			if (id) localStorage.setItem('pub_current_session', id);
+			else localStorage.removeItem('pub_current_session');
+		} catch {}
+	},
 	setMessages(m: ChatMessage[]) { messages = m; },
 	setMode(m: ChatMode) { mode = m; },
 	setLoading(v: boolean) { loading = v; },

@@ -35,6 +35,14 @@
 		appStore.initTheme();
 		sseStore.connect();
 
+		// Auto-mood: check hourly, apply if enabled
+		const autoMoodEnabled = localStorage.getItem('pub_auto_mood') === 'true';
+		let moodInterval: ReturnType<typeof setInterval> | undefined;
+		if (autoMoodEnabled) {
+			appStore.applyAutoMood();
+			moodInterval = setInterval(() => appStore.applyAutoMood(), 60 * 60 * 1000);
+		}
+
 		function handleKeydown(e: KeyboardEvent) {
 			if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
 				e.preventDefault();
@@ -129,6 +137,7 @@
 		return () => {
 			sseStore.disconnect();
 			document.removeEventListener('keydown', handleKeydown);
+			if (moodInterval) clearInterval(moodInterval);
 		};
 	});
 </script>

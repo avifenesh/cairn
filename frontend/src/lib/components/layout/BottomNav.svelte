@@ -55,9 +55,10 @@
 	</div>
 
 	{#if moreOpen}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
+		<nav
 			class="absolute bottom-full left-0 right-0 border-t border-border-subtle bg-[var(--bg-1)] p-2 shadow-lg"
+			role="menu"
+			aria-label="More navigation"
 			onkeydown={(e) => e.key === 'Escape' && (moreOpen = false)}
 		>
 			{#each moreItems as item}
@@ -72,7 +73,7 @@
 					{item.label}
 				</a>
 			{/each}
-		</div>
+		</nav>
 	{/if}
 </nav>
 

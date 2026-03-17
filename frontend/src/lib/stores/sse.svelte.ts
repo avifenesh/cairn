@@ -20,6 +20,15 @@ function backoffDelay(): number {
 	return delay + Math.random() * 1000; // jitter
 }
 
+function safeParse(eventName: string, data: string): unknown | null {
+	try {
+		return JSON.parse(data);
+	} catch {
+		console.warn('[sse] Failed to parse %s event data:', eventName, data);
+		return null;
+	}
+}
+
 function getStreamUrl(): string {
 	const token = localStorage.getItem('pub_api_token');
 	const base = '/v1/stream';
@@ -77,98 +86,49 @@ export const sseStore = {
 			if (e.lastEventId) lastEventId = e.lastEventId;
 		});
 
-		// Ready
-		source.addEventListener('ready', (e) => {
-			if (e.lastEventId) lastEventId = e.lastEventId;
-			const data = JSON.parse(e.data);
-			appStore.setClientId(data.clientId);
-		});
+		// Helper: track event ID + safe parse in one step
+		function handle(name: string, source: EventSource, fn: (data: Record<string, any>) => void) {
+			source.addEventListener(name, (e) => {
+				if (e.lastEventId) lastEventId = e.lastEventId;
+				const data = safeParse(name, e.data) as Record<string, any> | null;
+				if (data) fn(data);
+			});
+		}
+
+		handle('ready', source, (d) => appStore.setClientId(d.clientId));
 
 		// Feed
-		source.addEventListener('feed_update', (e) => {
-			const data = JSON.parse(e.data);
-			feedStore.addItem(data.item ?? data);
-		});
-
-		source.addEventListener('poll_completed', (e) => {
-			const data = JSON.parse(e.data);
-			appStore.setPollStatus(data.source, data.newCount);
-		});
+		handle('feed_update', source, (d) => feedStore.addItem(d.item ?? d));
+		handle('poll_completed', source, (d) => appStore.setPollStatus(d.source, d.newCount));
 
 		// Tasks & Approvals
-		source.addEventListener('task_update', (e) => {
-			const data = JSON.parse(e.data);
-			taskStore.upsertTask(data.task ?? data);
-		});
-
-		source.addEventListener('approval_required', (e) => {
-			const data = JSON.parse(e.data);
-			taskStore.addApproval(data.approval ?? data);
-		});
+		handle('task_update', source, (d) => taskStore.upsertTask(d.task ?? d));
+		handle('approval_required', source, (d) => taskStore.addApproval(d.approval ?? d));
 
 		// Chat streaming
-		source.addEventListener('assistant_delta', (e) => {
-			const data = JSON.parse(e.data);
-			chatStore.appendDelta(data.taskId, data.deltaText);
-		});
-
-		source.addEventListener('assistant_end', (e) => {
-			const data = JSON.parse(e.data);
-			chatStore.completeMessage(data.taskId, data.messageText);
-		});
-
-		source.addEventListener('assistant_reasoning', (e) => {
-			const data = JSON.parse(e.data);
-			chatStore.appendReasoning(data.taskId, data.round, data.thought);
-		});
-
-		source.addEventListener('assistant_tool_call', (e) => {
-			const data = JSON.parse(e.data);
-			chatStore.appendToolCall(data.taskId, data.toolName, data.phase, data.args, data.result);
-		});
+		handle('assistant_delta', source, (d) => chatStore.appendDelta(d.taskId, d.deltaText));
+		handle('assistant_end', source, (d) => chatStore.completeMessage(d.taskId, d.messageText));
+		handle('assistant_reasoning', source, (d) => chatStore.appendReasoning(d.taskId, d.round, d.thought));
+		handle('assistant_tool_call', source, (d) => chatStore.appendToolCall(d.taskId, d.toolName, d.phase, d.args, d.result));
 
 		// Memory
-		source.addEventListener('memory_proposed', (e) => {
-			if (e.lastEventId) lastEventId = e.lastEventId;
-			const data = JSON.parse(e.data);
-			appStore.addNotification('memory', `New memory proposed: ${data.memory?.content?.slice(0, 50)}...`);
-		});
-
-		source.addEventListener('memory_accepted', (e) => {
-			if (e.lastEventId) lastEventId = e.lastEventId;
-		});
+		handle('memory_proposed', source, (d) => appStore.addNotification('memory', `New memory proposed: ${d.memory?.content?.slice(0, 50)}...`));
+		handle('memory_accepted', source, () => {});
 
 		// Soul
-		source.addEventListener('soul_updated', (e) => {
-			if (e.lastEventId) lastEventId = e.lastEventId;
-			const data = JSON.parse(e.data);
-			appStore.addNotification('soul', `SOUL.md updated (${data.sha?.slice(0, 7)})`);
-		});
+		handle('soul_updated', source, (d) => appStore.addNotification('soul', `SOUL.md updated (${d.sha?.slice(0, 7)})`));
 
 		// Digest
-		source.addEventListener('digest_ready', (e) => {
-			if (e.lastEventId) lastEventId = e.lastEventId;
-			appStore.addNotification('digest', 'New digest available');
-		});
+		handle('digest_ready', source, () => appStore.addNotification('digest', 'New digest available'));
 
 		// Coding sessions
-		source.addEventListener('coding_session_event', (e) => {
-			if (e.lastEventId) lastEventId = e.lastEventId;
-		});
+		handle('coding_session_event', source, () => {});
 
 		// Agent
-		source.addEventListener('agent_progress', (e) => {
-			if (e.lastEventId) lastEventId = e.lastEventId;
-			const data = JSON.parse(e.data);
-			appStore.setAgentProgress(data.agentId, data.message);
-		});
+		handle('agent_progress', source, (d) => appStore.setAgentProgress(d.agentId, d.message));
 
 		// Skills
-		source.addEventListener('skill_activated', (e) => {
-			if (e.lastEventId) lastEventId = e.lastEventId;
-			const data = JSON.parse(e.data);
-			appStore.addNotification('skill', `Skill activated: ${data.skillName}`);
-		});
+		handle('skill_activated', source, (d) => appStore.addNotification('skill', `Skill activated: ${d.skillName}`));
 	},
 
 	disconnect() {

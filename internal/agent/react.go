@@ -27,14 +27,14 @@ func NewReActAgent(name string, logger *slog.Logger) *ReActAgent {
 		logger = slog.Default()
 	}
 	return &ReActAgent{
-		name:  name,
-		modes: DefaultModes(),
+		name:   name,
+		modes:  DefaultModes(),
 		logger: logger,
 	}
 }
 
 func (a *ReActAgent) Name() string        { return a.name }
-func (a *ReActAgent) Description() string  { return "ReAct agent with tool execution loop" }
+func (a *ReActAgent) Description() string { return "ReAct agent with tool execution loop" }
 
 // Run executes the ReAct loop, streaming events on the returned channel.
 // The channel is closed when the agent finishes (either by producing a final

@@ -150,6 +150,9 @@ func runChat(logger *slog.Logger) {
 			logger.Warn("failed to create session", "error", err)
 		}
 	}
+	if session.ID == "" {
+		session.ID = "ephemeral" // no DB, generate a placeholder
+	}
 
 	// Build invocation context.
 	invCtx := &agent.InvocationContext{
@@ -168,7 +171,8 @@ func runChat(logger *slog.Logger) {
 		},
 	}
 
-	// Run the agent.
+	// Run the agent, accumulate full text for persistence.
+	var fullText strings.Builder
 	for ev := range reactAgent.Run(invCtx) {
 		if ev.Err != nil {
 			fmt.Fprintf(os.Stderr, "\nError: %v\n", ev.Err)
@@ -183,6 +187,7 @@ func runChat(logger *slog.Logger) {
 			case agent.TextPart:
 				if ev.Event.Author != "user" {
 					fmt.Print(p.Text)
+					fullText.WriteString(p.Text)
 				}
 			case agent.ReasoningPart:
 				fmt.Fprintf(os.Stderr, "\033[2m%s\033[0m", p.Text)
@@ -195,12 +200,20 @@ func runChat(logger *slog.Logger) {
 			}
 		}
 
-		// Persist event to session (including user messages for full history).
-		if sessionStore != nil {
-			sessionStore.AppendEvent(ctx, session.ID, ev.Event)
-		}
+		// Collect events for batch persistence (don't persist streaming deltas individually).
 	}
 
 	fmt.Println() // Final newline
+
+	// Persist the full conversation as two consolidated events (user + assistant).
+	if sessionStore != nil {
+		userEv := &agent.Event{Author: "user", Parts: []agent.Part{agent.TextPart{Text: message}}}
+		sessionStore.AppendEvent(ctx, session.ID, userEv)
+
+		if fullText.Len() > 0 {
+			assistantEv := &agent.Event{Author: invCtx.Config.Model, Parts: []agent.Part{agent.TextPart{Text: fullText.String()}}}
+			sessionStore.AppendEvent(ctx, session.ID, assistantEv)
+		}
+	}
 }
 

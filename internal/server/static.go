@@ -25,13 +25,23 @@ func (s *Server) staticHandler() http.Handler {
 			return
 		}
 
-		// Clean the path and resolve against dist directory.
+		// Clean the path, strip leading slash, resolve against dist directory.
 		reqPath := filepath.Clean(r.URL.Path)
-		if reqPath == "/" {
-			reqPath = "/index.html"
+		if reqPath == "/" || reqPath == "." {
+			reqPath = "index.html"
+		} else {
+			reqPath = strings.TrimPrefix(reqPath, "/")
 		}
 
 		filePath := filepath.Join(distDir, reqPath)
+
+		// Path traversal protection: resolved path must be within distDir.
+		absFilePath, _ := filepath.Abs(filePath)
+		absDistDir, _ := filepath.Abs(distDir)
+		if !strings.HasPrefix(absFilePath, absDistDir+string(filepath.Separator)) && absFilePath != absDistDir {
+			writeError(w, http.StatusForbidden, "forbidden")
+			return
+		}
 
 		// Check if the file exists.
 		info, err := os.Stat(filePath)

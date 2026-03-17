@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -297,22 +298,23 @@ func (rb *replayBuffer) add(id string, data []byte) {
 
 // formatSSE builds a complete SSE message with id, event, and data lines.
 func formatSSE(id, eventType string, data []byte) []byte {
-	// id: <eventID>\nevent: <type>\ndata: <json>\n\n
-	msg := make([]byte, 0, 32+len(id)+len(eventType)+len(data))
-	msg = append(msg, "id: "...)
-	msg = append(msg, id...)
-	msg = append(msg, '\n')
-	msg = append(msg, "event: "...)
-	msg = append(msg, eventType...)
-	msg = append(msg, '\n')
-	msg = append(msg, "data: "...)
-	msg = append(msg, data...)
-	msg = append(msg, '\n', '\n')
-	return msg
+	var buf bytes.Buffer
+	buf.WriteString("id: ")
+	buf.WriteString(id)
+	buf.WriteByte('\n')
+	buf.WriteString("event: ")
+	buf.WriteString(eventType)
+	buf.WriteByte('\n')
+	buf.WriteString("data: ")
+	buf.Write(data)
+	buf.WriteString("\n\n")
+	return buf.Bytes()
 }
 
 func generateClientID() string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return fmt.Sprintf("sse-%x", b)
 }

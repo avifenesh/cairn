@@ -38,8 +38,8 @@ func runChat(logger *slog.Logger) {
 
 	// Load config
 	cfg := config.LoadOptional()
-	if cfg.GLMAPIKey == "" {
-		fmt.Fprintln(os.Stderr, "Error: GLM_API_KEY environment variable is required")
+	if cfg.LLMAPIKey == "" {
+		fmt.Fprintln(os.Stderr, "Error: LLM_API_KEY (or GLM_API_KEY / OPENAI_API_KEY) is required")
 		os.Exit(1)
 	}
 
@@ -58,8 +58,31 @@ func runChat(logger *slog.Logger) {
 		}
 	}
 
-	// Initialize LLM provider
-	provider := llm.NewGLMProvider(cfg.GLMAPIKey, cfg.GLMBaseURL, cfg.GLMModel)
+	// Initialize LLM provider registry
+	registry := llm.NewRegistry(logger)
+	if err := registry.RegisterFromConfig(llm.ProviderConfig{
+		Type:    cfg.LLMProvider,
+		APIKey:  cfg.LLMAPIKey,
+		BaseURL: cfg.LLMBaseURL,
+		Model:   cfg.LLMModel,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to register LLM provider: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Configure fallback if set.
+	if cfg.LLMFallbackModel != "" {
+		registry.SetFallback(cfg.LLMModel, cfg.LLMFallbackModel)
+	}
+
+	// Resolve provider with retry + fallback.
+	provider, _, err := registry.WithRetryAndFallback(cfg.LLMModel, llm.DefaultRetryConfig())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to resolve LLM provider: %v\n", err)
+		os.Exit(1)
+	}
+
+	logger.Info("llm provider ready", "provider", cfg.LLMProvider, "model", cfg.LLMModel)
 
 	// Wire up event bus to log LLM events
 	eventbus.Subscribe(bus, func(e eventbus.StreamStarted) {
@@ -82,8 +105,8 @@ func runChat(logger *slog.Logger) {
 
 	// Build request
 	req := &llm.Request{
-		Model:     cfg.GLMModel,
-		System:    "You are Pub, a personal agent operating system. Be concise and helpful.",
+		Model:     cfg.LLMModel,
+		System:    "You are Cairn, a personal agent operating system. Be concise and helpful.",
 		MaxTokens: 4096,
 		Messages: []llm.Message{
 			{

@@ -16,13 +16,17 @@ type Config struct {
 	// Database
 	DatabasePath string
 
-	// LLM
+	// LLM — provider-agnostic
+	LLMProvider      string // "glm", "openai"
+	LLMAPIKey        string
+	LLMBaseURL       string
+	LLMModel         string
+	LLMFallbackModel string
+
+	// Legacy GLM aliases (read if LLM_* not set)
 	GLMAPIKey  string
 	GLMBaseURL string
 	GLMModel   string
-
-	// GLM Fallback
-	GLMFallbackModel string
 
 	// Auth tokens
 	WriteAPIToken string
@@ -43,14 +47,54 @@ type Config struct {
 
 // Load reads configuration from environment variables with sensible defaults.
 func Load() (*Config, error) {
+	// Read provider-agnostic vars first, fall back to GLM-specific aliases.
+	apiKey := envStr("LLM_API_KEY", envStr("GLM_API_KEY", envStr("OPENAI_API_KEY", "")))
+	baseURL := envStr("LLM_BASE_URL", envStr("GLM_BASE_URL", envStr("OPENAI_BASE_URL", "")))
+	model := envStr("LLM_MODEL", envStr("GLM_MODEL", ""))
+	provider := envStr("LLM_PROVIDER", "")
+
+	// Auto-detect provider from env vars if not explicitly set.
+	if provider == "" {
+		switch {
+		case envStr("GLM_API_KEY", "") != "":
+			provider = "glm"
+		case envStr("OPENAI_API_KEY", "") != "":
+			provider = "openai"
+		default:
+			provider = "glm" // default
+		}
+	}
+
+	// Apply provider-specific defaults.
+	if baseURL == "" {
+		switch provider {
+		case "glm", "zhipu":
+			baseURL = "https://api.z.ai/api/coding/paas/v4"
+		case "openai":
+			baseURL = "https://api.openai.com/v1"
+		}
+	}
+	if model == "" {
+		switch provider {
+		case "glm", "zhipu":
+			model = "glm-5-turbo"
+		case "openai":
+			model = "gpt-4o"
+		}
+	}
+
 	c := &Config{
 		Port:             envInt("PORT", 8787),
 		Host:             envStr("HOST", "0.0.0.0"),
 		DatabasePath:     envStr("DATABASE_PATH", "./data/pub.db"),
-		GLMAPIKey:        envStr("GLM_API_KEY", ""),
-		GLMBaseURL:       envStr("GLM_BASE_URL", "https://api.z.ai/api/coding/paas/v4"),
-		GLMModel:         envStr("GLM_MODEL", "glm-5-turbo"),
-		GLMFallbackModel: envStr("GLM_FALLBACK_MODEL", "glm-4.7"),
+		LLMProvider:      provider,
+		LLMAPIKey:        apiKey,
+		LLMBaseURL:       baseURL,
+		LLMModel:         model,
+		LLMFallbackModel: envStr("LLM_FALLBACK_MODEL", envStr("GLM_FALLBACK_MODEL", "")),
+		GLMAPIKey:        apiKey,
+		GLMBaseURL:       baseURL,
+		GLMModel:         model,
 		WriteAPIToken:    envStr("WRITE_API_TOKEN", ""),
 		ReadAPIToken:     envStr("READ_API_TOKEN", ""),
 		FrontendOrigin:   envStr("FRONTEND_ORIGIN", ""),
@@ -61,8 +105,8 @@ func Load() (*Config, error) {
 		DataDir:          envStr("DATA_DIR", "./data"),
 	}
 
-	if c.GLMAPIKey == "" {
-		return nil, fmt.Errorf("GLM_API_KEY is required")
+	if c.LLMAPIKey == "" {
+		return nil, fmt.Errorf("LLM_API_KEY (or GLM_API_KEY / OPENAI_API_KEY) is required")
 	}
 
 	return c, nil
@@ -71,22 +115,17 @@ func Load() (*Config, error) {
 // LoadOptional is like Load but does not error on missing API keys.
 // Useful for testing or when LLM is not needed.
 func LoadOptional() *Config {
-	c, _ := Load()
-	if c == nil {
+	c, err := Load()
+	if err != nil {
+		// Return a config with whatever we could read, just no LLM key.
 		c = &Config{
-			Port:             envInt("PORT", 8787),
-			Host:             envStr("HOST", "0.0.0.0"),
-			DatabasePath:     envStr("DATABASE_PATH", "./data/pub.db"),
-			GLMAPIKey:        envStr("GLM_API_KEY", ""),
-			GLMBaseURL:       envStr("GLM_BASE_URL", "https://api.z.ai/api/coding/paas/v4"),
-			GLMModel:         envStr("GLM_MODEL", "glm-5-turbo"),
-			GLMFallbackModel: envStr("GLM_FALLBACK_MODEL", "glm-4.7"),
-			WriteAPIToken:    envStr("WRITE_API_TOKEN", ""),
-			ReadAPIToken:     envStr("READ_API_TOKEN", ""),
-			FrontendOrigin:   envStr("FRONTEND_ORIGIN", ""),
-			SoulPath:         envStr("SOUL_PATH", "./SOUL.md"),
-			SkillDirs:        envSlice("SKILL_DIRS", []string{"./.pub/skills"}),
-			DataDir:          envStr("DATA_DIR", "./data"),
+			Port:         envInt("PORT", 8787),
+			Host:         envStr("HOST", "0.0.0.0"),
+			DatabasePath: envStr("DATABASE_PATH", "./data/pub.db"),
+			LLMProvider:  envStr("LLM_PROVIDER", "glm"),
+			SoulPath:     envStr("SOUL_PATH", "./SOUL.md"),
+			SkillDirs:    envSlice("SKILL_DIRS", []string{"./.pub/skills"}),
+			DataDir:      envStr("DATA_DIR", "./data"),
 		}
 	}
 	return c

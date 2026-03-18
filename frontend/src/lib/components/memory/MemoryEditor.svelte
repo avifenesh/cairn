@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Button } from '$lib/components/ui/button';
 	import { Plus, X } from '@lucide/svelte';
 
 	let { oncreate }: { oncreate: (content: string, category: string) => void } = $props();
@@ -18,33 +19,27 @@
 </script>
 
 {#if !open}
-	<button
-		class="flex items-center gap-1.5 rounded-md border border-border-subtle bg-[var(--bg-2)] px-3 py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-3)] transition-colors"
-		onclick={() => (open = true)}
-	>
+	<Button variant="outline" size="sm" class="h-8 text-xs gap-1.5" onclick={() => (open = true)}>
 		<Plus class="h-3.5 w-3.5" /> New memory
-	</button>
+	</Button>
 {:else}
 	<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
 		<div class="mb-3 flex items-center justify-between">
 			<span class="text-sm font-medium text-[var(--text-primary)]">Create Memory</span>
-			<button
-				class="rounded p-1 hover:bg-[var(--bg-3)]"
-				onclick={() => (open = false)}
-			>
+			<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => (open = false)}>
 				<X class="h-4 w-4 text-[var(--text-tertiary)]" />
-			</button>
+			</Button>
 		</div>
 		<textarea
 			bind:value={content}
 			placeholder="What should I remember?"
 			rows="3"
-			class="mb-2 w-full resize-none rounded-lg border border-border-subtle bg-[var(--bg-2)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--pub-accent)] focus:outline-none"
+			class="mb-3 w-full resize-none rounded-lg border border-border-subtle bg-[var(--bg-0)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--cairn-accent)] focus:ring-1 focus:ring-[var(--cairn-accent)]/30 focus:outline-none transition-colors"
 		></textarea>
 		<div class="flex items-center gap-2">
 			<select
 				bind:value={category}
-				class="rounded-md border border-border-subtle bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--text-secondary)]"
+				class="rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 py-1.5 text-xs text-[var(--text-secondary)] focus:border-[var(--cairn-accent)] focus:outline-none transition-colors"
 			>
 				<option value="general">General</option>
 				<option value="preference">Preference</option>
@@ -52,13 +47,9 @@
 				<option value="person">Person</option>
 				<option value="process">Process</option>
 			</select>
-			<button
-				class="rounded-md bg-[var(--pub-accent)] px-3 py-1 text-xs font-medium text-[var(--primary-foreground)] hover:opacity-90 transition-opacity disabled:opacity-50"
-				onclick={handleCreate}
-				disabled={!content.trim()}
-			>
+			<Button size="sm" class="h-7 text-xs" onclick={handleCreate} disabled={!content.trim()}>
 				Create
-			</button>
+			</Button>
 		</div>
 	</div>
 {/if}

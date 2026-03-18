@@ -1,4 +1,4 @@
-// Typed REST API client for Pub backend
+// Typed REST API client for Cairn backend
 
 import type {
 	FeedItem,
@@ -33,7 +33,7 @@ const BASE_URL = '';
 
 function headers(): HeadersInit {
 	const h: HeadersInit = { 'Content-Type': 'application/json' };
-	const token = localStorage.getItem('pub_api_token');
+	const token = localStorage.getItem('cairn_api_token');
 	if (token) h['X-Api-Token'] = token;
 	return h;
 }
@@ -85,13 +85,27 @@ export const health = () => {
 };
 
 // Dashboard
-export const getDashboard = (params?: { limit?: number; source?: string }) => {
-	if (useMocks()) return Promise.resolve(mockDashboard);
+export const getDashboard = async (params?: { limit?: number; source?: string }): Promise<DashboardResponse> => {
+	if (useMocks()) return mockDashboard;
 	const q = new URLSearchParams();
 	if (params?.limit) q.set('limit', String(params.limit));
 	if (params?.source) q.set('source', params.source);
 	const qs = q.toString();
-	return get<DashboardResponse>(`/v1/dashboard${qs ? '?' + qs : ''}`);
+	const raw = await get<Record<string, unknown>>(`/v1/dashboard${qs ? '?' + qs : ''}`);
+	// Normalize: backend may not return all fields the frontend expects
+	return {
+		feed: (raw.feed as DashboardResponse['feed']) ?? [],
+		stats: {
+			total: (raw.stats as Record<string, unknown>)?.total as number ?? 0,
+			unread: (raw.stats as Record<string, unknown>)?.unread as number ?? 0,
+			bySource: (raw.stats as Record<string, unknown>)?.bySource as Record<string, number> ?? {},
+		},
+		poller: {
+			running: (raw.poller as Record<string, unknown>)?.running as boolean ?? false,
+			sources: (raw.poller as Record<string, unknown>)?.sources as Record<string, unknown> ?? {},
+		} as DashboardResponse['poller'],
+		readiness: (raw.readiness as DashboardResponse['readiness']) ?? { ready: true, checks: {} },
+	};
 };
 
 // Feed
@@ -121,33 +135,36 @@ export const markAllRead = () => {
 };
 
 // Tasks
-export const getTasks = (params?: { status?: string; type?: string }) => {
-	if (useMocks()) return Promise.resolve({ items: mockTasks, hasMore: false });
+export const getTasks = async (params?: { status?: string; type?: string }) => {
+	if (useMocks()) return { items: mockTasks, hasMore: false };
 	const q = new URLSearchParams();
 	if (params?.status) q.set('status', params.status);
 	if (params?.type) q.set('type', params.type);
 	const qs = q.toString();
-	return get<{ items: Task[]; hasMore: boolean }>(`/v1/tasks${qs ? '?' + qs : ''}`);
+	const raw = await get<Record<string, unknown>>(`/v1/tasks${qs ? '?' + qs : ''}`);
+	return { items: (raw.tasks ?? raw.items ?? []) as Task[], hasMore: (raw.hasMore ?? false) as boolean };
 };
 
 export const cancelTask = (id: string) => post<{ ok: boolean }>(`/v1/tasks/${id}/cancel`);
 
 // Approvals
-export const getApprovals = (params?: { status?: string }) => {
-	if (useMocks()) return Promise.resolve({ items: mockApprovals, hasMore: false });
+export const getApprovals = async (params?: { status?: string }) => {
+	if (useMocks()) return { items: mockApprovals, hasMore: false };
 	const q = new URLSearchParams();
 	if (params?.status) q.set('status', params.status);
 	const qs = q.toString();
-	return get<{ items: Approval[]; hasMore: boolean }>(`/v1/approvals${qs ? '?' + qs : ''}`);
+	const raw = await get<Record<string, unknown>>(`/v1/approvals${qs ? '?' + qs : ''}`);
+	return { items: (raw.approvals ?? raw.items ?? []) as Approval[], hasMore: (raw.hasMore ?? false) as boolean };
 };
 
 export const approve = (id: string) => post<{ ok: boolean }>(`/v1/approvals/${id}/approve`);
 export const deny = (id: string) => post<{ ok: boolean }>(`/v1/approvals/${id}/deny`);
 
 // Assistant / Chat
-export const getSessions = () => {
-	if (useMocks()) return Promise.resolve({ items: mockSessions });
-	return get<{ items: ChatSession[] }>('/v1/assistant/sessions');
+export const getSessions = async () => {
+	if (useMocks()) return { items: mockSessions };
+	const raw = await get<Record<string, unknown>>('/v1/assistant/sessions');
+	return { items: (raw.sessions ?? raw.items ?? []) as ChatSession[] };
 };
 
 export const getSessionMessages = (sessionId: string) =>
@@ -163,7 +180,7 @@ export const uploadVoice = async (audio: Blob, mode?: ChatMode, sessionId?: stri
 	if (mode) form.append('mode', mode);
 	if (sessionId) form.append('sessionId', sessionId);
 	const h: HeadersInit = {};
-	const token = localStorage.getItem('pub_api_token');
+	const token = localStorage.getItem('cairn_api_token');
 	if (token) h['X-Api-Token'] = token;
 	const res = await fetch(`${BASE_URL}/v1/assistant/voice`, {
 		method: 'POST',
@@ -176,13 +193,14 @@ export const uploadVoice = async (audio: Blob, mode?: ChatMode, sessionId?: stri
 };
 
 // Memories
-export const getMemories = (params?: { status?: string; category?: string }) => {
-	if (useMocks()) return Promise.resolve({ items: mockMemories, hasMore: false });
+export const getMemories = async (params?: { status?: string; category?: string }) => {
+	if (useMocks()) return { items: mockMemories, hasMore: false };
 	const q = new URLSearchParams();
 	if (params?.status) q.set('status', params.status);
 	if (params?.category) q.set('category', params.category);
 	const qs = q.toString();
-	return get<{ items: Memory[]; hasMore: boolean }>(`/v1/memories${qs ? '?' + qs : ''}`);
+	const raw = await get<Record<string, unknown>>(`/v1/memories${qs ? '?' + qs : ''}`);
+	return { items: (raw.memories ?? raw.items ?? []) as Memory[], hasMore: (raw.hasMore ?? false) as boolean };
 };
 
 export const searchMemories = (query: string, limit = 10) =>
@@ -194,15 +212,24 @@ export const acceptMemory = (id: string) => post<{ ok: boolean }>(`/v1/memories/
 export const rejectMemory = (id: string) => post<{ ok: boolean }>(`/v1/memories/${id}/reject`);
 
 // Fleet / Agents
-export const getFleet = () => {
-	if (useMocks()) return Promise.resolve({ agents: mockAgents, summary: { idle: 1, busy: 1 } });
-	return get<{ agents: Agent[]; summary: Record<string, number> }>('/v1/fleet');
+export const getFleet = async () => {
+	if (useMocks()) return { agents: mockAgents, summary: { idle: 1, busy: 1 } };
+	try {
+		return await get<{ agents: Agent[]; summary: Record<string, number> }>('/v1/fleet');
+	} catch {
+		return { agents: [], summary: {} };
+	}
 };
 
 // Skills
-export const getSkills = () => {
-	if (useMocks()) return Promise.resolve({ items: mockSkills, summary: { total: 3 }, currentlyActive: ['web-search'] });
-	return get<{ items: Skill[]; summary: Record<string, number>; currentlyActive?: string[] }>('/v1/skills');
+export const getSkills = async () => {
+	if (useMocks()) return { items: mockSkills, summary: { total: 3 }, currentlyActive: ['web-search'] };
+	const raw = await get<Record<string, unknown>>('/v1/skills');
+	return {
+		items: (raw.skills ?? raw.items ?? []) as Skill[],
+		summary: (raw.summary ?? {}) as Record<string, number>,
+		currentlyActive: (raw.currentlyActive ?? []) as string[],
+	};
 };
 
 // Soul

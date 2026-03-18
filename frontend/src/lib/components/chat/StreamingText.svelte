@@ -44,7 +44,7 @@
 	<div class="prose prose-sm prose-invert max-w-none text-sm text-[var(--text-primary)]">
 		{@html renderedContent}
 		{#if isStreaming}
-			<span class="inline-block h-4 w-0.5 animate-pulse bg-[var(--pub-accent)]"></span>
+			<span class="inline-block h-4 w-0.5 animate-pulse bg-[var(--cairn-accent)]"></span>
 		{/if}
 	</div>
 </div>

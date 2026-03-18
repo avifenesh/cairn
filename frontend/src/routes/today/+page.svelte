@@ -6,6 +6,8 @@
 	import type { DashboardResponse } from '$lib/types';
 	import { Activity, Eye, Zap, TrendingUp, RefreshCw, CheckCheck, Loader2 } from '@lucide/svelte';
 	import { createPullToRefresh } from '$lib/utils/touch.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	let dashboard = $state<DashboardResponse | null>(null);
 	let error = $state<string | null>(null);
@@ -68,27 +70,26 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="mx-auto max-w-4xl p-6 overflow-y-auto h-full"
+	class="mx-auto max-w-5xl p-6 overflow-y-auto h-full"
 	ontouchstart={ptr.handleTouchStart}
 	ontouchmove={ptr.handleTouchMove}
 	ontouchend={ptr.handleTouchEnd}
 	ontouchcancel={ptr.handleTouchCancel}
 >
-	<!-- Pull-to-refresh indicator -->
 	{#if ptr.state.distance > 0 || ptr.state.refreshing}
 		<div
 			class="flex items-center justify-center transition-all duration-[var(--dur-fast)]"
 			style="height: {ptr.state.refreshing ? 40 : ptr.state.distance}px"
 		>
 			<Loader2
-				class="h-5 w-5 text-[var(--pub-accent)] {ptr.state.triggered || ptr.state.refreshing ? 'animate-spin' : ''}"
+				class="h-5 w-5 text-[var(--cairn-accent)] {ptr.state.triggered || ptr.state.refreshing ? 'animate-spin' : ''}"
 				style="opacity: {ptr.state.refreshing ? 1 : Math.min(1, ptr.state.distance / 60)}"
 			/>
 		</div>
 	{/if}
 
-	<h1 class="mb-6 text-2xl font-semibold text-[var(--text-primary)]">
-		{greeting()}, Avi
+	<h1 class="mb-6 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
+		{greeting()}
 	</h1>
 
 	{#if error}
@@ -96,84 +97,91 @@
 			{error}
 		</div>
 	{:else if !dashboard}
-		<div class="grid grid-cols-2 gap-4 md:grid-cols-4">
-			{#each Array(4) as _}
-				<div class="h-24 animate-pulse rounded-lg bg-[var(--bg-2)]"></div>
+		<div class="grid grid-cols-2 gap-3 md:grid-cols-4 mb-8">
+			{#each Array(4) as _, i}
+				<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 animate-in" style="animation-delay: {i * 50}ms">
+					<Skeleton class="h-3 w-16 mb-3" />
+					<Skeleton class="h-7 w-12" />
+				</div>
 			{/each}
 		</div>
 	{:else}
 		<!-- Stats cards -->
-		<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
-				<div class="flex items-center gap-2 text-[var(--text-tertiary)]">
-					<Activity class="h-4 w-4" />
-					<span class="text-xs">Total Events</span>
+		<div class="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 card-hover animate-in" style="animation-delay: 0ms">
+				<div class="flex items-center gap-2 text-[var(--text-tertiary)] mb-2">
+					<Activity class="h-3.5 w-3.5" />
+					<span class="text-[11px] font-medium uppercase tracking-wider">Events</span>
 				</div>
-				<p class="mt-2 text-2xl font-semibold text-[var(--text-primary)]">{dashboard.stats.total}</p>
+				<p class="text-2xl font-semibold tabular-nums text-[var(--text-primary)]">{dashboard.stats.total ?? 0}</p>
 			</div>
-			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
-				<div class="flex items-center gap-2 text-[var(--text-tertiary)]">
-					<Eye class="h-4 w-4" />
-					<span class="text-xs">Unread</span>
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 card-hover animate-in" style="animation-delay: 50ms">
+				<div class="flex items-center gap-2 text-[var(--text-tertiary)] mb-2">
+					<Eye class="h-3.5 w-3.5" />
+					<span class="text-[11px] font-medium uppercase tracking-wider">Unread</span>
 				</div>
-				<p class="mt-2 text-2xl font-semibold text-[var(--pub-accent)]">{dashboard.stats.unread}</p>
+				<p class="text-2xl font-semibold tabular-nums text-[var(--cairn-accent)]">{dashboard.stats.unread ?? 0}</p>
 			</div>
-			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
-				<div class="flex items-center gap-2 text-[var(--text-tertiary)]">
-					<Zap class="h-4 w-4" />
-					<span class="text-xs">Sources</span>
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 card-hover animate-in" style="animation-delay: 100ms">
+				<div class="flex items-center gap-2 text-[var(--text-tertiary)] mb-2">
+					<Zap class="h-3.5 w-3.5" />
+					<span class="text-[11px] font-medium uppercase tracking-wider">Sources</span>
 				</div>
-				<p class="mt-2 text-2xl font-semibold text-[var(--text-primary)]">
-					{Object.keys(dashboard.stats.bySource).length}
+				<p class="text-2xl font-semibold tabular-nums text-[var(--text-primary)]">
+					{Object.keys(dashboard.stats.bySource ?? {}).length}
 				</p>
 			</div>
-			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
-				<div class="flex items-center gap-2 text-[var(--text-tertiary)]">
-					<TrendingUp class="h-4 w-4" />
-					<span class="text-xs">Poller</span>
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 card-hover animate-in" style="animation-delay: 150ms">
+				<div class="flex items-center gap-2 text-[var(--text-tertiary)] mb-2">
+					<TrendingUp class="h-3.5 w-3.5" />
+					<span class="text-[11px] font-medium uppercase tracking-wider">Status</span>
 				</div>
-				<p class="mt-2 text-sm font-medium text-[var(--text-primary)]">
-					{dashboard.poller.running ? 'Active' : 'Stopped'}
-				</p>
+				<div class="flex items-center gap-2">
+					<span class="h-2 w-2 rounded-full {dashboard.poller?.running ? 'bg-[var(--color-success)] animate-pulse-dot' : 'bg-[var(--text-tertiary)]'}"></span>
+					<p class="text-sm font-medium text-[var(--text-primary)]">
+						{dashboard.poller?.running ? 'Active' : 'Stopped'}
+					</p>
+				</div>
 			</div>
 		</div>
 
 		<!-- Quick actions -->
-		<div class="mb-6 flex gap-2">
-			<button
-				class="flex items-center gap-1.5 rounded-md border border-border-subtle bg-[var(--bg-2)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-3)] transition-colors"
-				onclick={handleSync}
-			>
-				<RefreshCw class="h-3.5 w-3.5" /> Sync now
-			</button>
+		<div class="mb-6 flex items-center gap-2">
+			<Button variant="outline" size="sm" onclick={handleSync} class="h-7 text-xs gap-1.5">
+				<RefreshCw class="h-3 w-3" /> Sync
+			</Button>
 			{#if feedStore.unreadCount > 0}
-				<button
-					class="flex items-center gap-1.5 rounded-md border border-border-subtle bg-[var(--bg-2)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-3)] transition-colors"
-					onclick={handleMarkAllRead}
-				>
-					<CheckCheck class="h-3.5 w-3.5" /> Mark all read
-				</button>
+				<Button variant="outline" size="sm" onclick={handleMarkAllRead} class="h-7 text-xs gap-1.5">
+					<CheckCheck class="h-3 w-3" /> Mark all read
+				</Button>
 			{/if}
+			<span class="flex-1"></span>
+			<span class="text-[11px] text-[var(--text-tertiary)] tabular-nums font-mono">
+				{feedStore.items.length} items
+			</span>
 		</div>
 
-		<!-- Recent activity -->
-		<h2 class="mb-4 text-lg font-medium text-[var(--text-primary)]">Recent Activity</h2>
-		<div class="flex flex-col gap-2" role="feed" aria-label="Recent activity">
-			{#each feedStore.items as item (item.id)}
-				<FeedItemComponent {item} />
+		<!-- Feed -->
+		<div class="flex flex-col gap-1" role="feed" aria-label="Recent activity">
+			{#each feedStore.items as item, i (item.id)}
+				<div class="animate-in" style="animation-delay: {Math.min(i * 30, 300)}ms">
+					<FeedItemComponent {item} />
+				</div>
 			{/each}
 		</div>
+
 		{#if loadMoreError}
-			<p class="mt-2 text-center text-xs text-[var(--color-error)]">{loadMoreError}</p>
+			<p class="mt-3 text-center text-xs text-[var(--color-error)]">{loadMoreError}</p>
 		{/if}
 		{#if feedStore.hasMore && feedStore.items.length < MAX_FEED_ITEMS}
-			<button
-				class="mt-4 w-full rounded-lg border border-border-subtle bg-[var(--bg-2)] py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-3)] transition-colors disabled:opacity-50"
+			<Button
+				variant="ghost"
+				class="mt-4 w-full text-xs text-[var(--text-tertiary)]"
 				onclick={loadMore}
 				disabled={loadingMore}
 			>
 				{loadingMore ? 'Loading...' : 'Load more'}
-			</button>
+			</Button>
 		{/if}
 	{/if}
 </div>

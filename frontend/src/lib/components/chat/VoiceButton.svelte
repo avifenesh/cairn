@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { uploadVoice } from '$lib/api/client';
 	import { chatStore } from '$lib/stores/chat.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import { Mic, MicOff, Loader2 } from '@lucide/svelte';
 
 	let recording = $state(false);
@@ -53,19 +54,19 @@
 	}
 </script>
 
-<button
-	class="rounded-lg p-2 transition-colors {recording
-		? 'bg-[var(--color-error)]/10 text-[var(--color-error)]'
-		: 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
+<Button
+	variant={recording ? 'destructive' : 'ghost'}
+	size="icon"
+	class="h-10 w-10 rounded-lg {recording ? '' : 'text-[var(--text-tertiary)]'}"
 	onclick={toggleRecording}
 	disabled={processing}
 	aria-label={recording ? 'Stop recording' : 'Voice input'}
 >
 	{#if processing}
-		<Loader2 class="h-5 w-5 animate-spin" />
+		<Loader2 class="h-4 w-4 animate-spin" />
 	{:else if recording}
-		<MicOff class="h-5 w-5" />
+		<MicOff class="h-4 w-4" />
 	{:else}
-		<Mic class="h-5 w-5" />
+		<Mic class="h-4 w-4" />
 	{/if}
-</button>
+</Button>

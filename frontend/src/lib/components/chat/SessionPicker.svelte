@@ -2,13 +2,12 @@
 	import { chatStore } from '$lib/stores/chat.svelte';
 	import { getSessionMessages } from '$lib/api/client';
 	import { relativeTime } from '$lib/utils/time';
+	import { Button } from '$lib/components/ui/button';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { MessageSquare, Plus } from '@lucide/svelte';
-
-	let open = $state(false);
 
 	async function selectSession(id: string) {
 		chatStore.setCurrentSession(id);
-		open = false;
 		try {
 			const res = await getSessionMessages(id);
 			chatStore.setMessages(res.items);
@@ -20,41 +19,33 @@
 	function newSession() {
 		chatStore.setCurrentSession(null);
 		chatStore.setMessages([]);
-		open = false;
 	}
 </script>
 
-<div class="relative">
-	<button
-		class="flex items-center gap-1.5 rounded-md border border-border-subtle bg-[var(--bg-2)] px-2.5 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-3)] transition-colors duration-[var(--dur-fast)]"
-		onclick={() => (open = !open)}
-	>
-		<MessageSquare class="h-3 w-3" />
-		{chatStore.currentSessionId ? 'Session' : 'New chat'}
-	</button>
-
-	{#if open}
-		<div class="absolute left-0 top-full z-10 mt-1 w-64 rounded-lg border border-border-subtle bg-[var(--bg-2)] p-1 shadow-lg">
-			<button
-				class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-3)]"
-				onclick={newSession}
-			>
-				<Plus class="h-3 w-3" /> New chat
-			</button>
+<DropdownMenu.Root>
+	<DropdownMenu.Trigger>
+		<Button variant="outline" size="sm" class="h-6 text-[11px] gap-1.5 px-2">
+			<MessageSquare class="h-3 w-3" />
+			{chatStore.currentSessionId ? 'Session' : 'New chat'}
+		</Button>
+	</DropdownMenu.Trigger>
+	<DropdownMenu.Content class="w-64" align="start">
+		<DropdownMenu.Item class="gap-2 text-xs" onclick={newSession}>
+			<Plus class="h-3 w-3" /> New chat
+		</DropdownMenu.Item>
+		{#if chatStore.sessions.length > 0}
+			<DropdownMenu.Separator />
 			{#each chatStore.sessions as session (session.id)}
-				<button
-					class="flex w-full items-center justify-between rounded-md px-3 py-2 text-xs hover:bg-[var(--bg-3)]
-						{chatStore.currentSessionId === session.id
-						? 'text-[var(--pub-accent)]'
-						: 'text-[var(--text-secondary)]'}"
+				<DropdownMenu.Item
+					class="justify-between text-xs {chatStore.currentSessionId === session.id ? 'text-[var(--cairn-accent)]' : ''}"
 					onclick={() => selectSession(session.id)}
 				>
 					<span class="truncate">{session.title ?? `Session ${session.id.slice(0, 6)}`}</span>
-					<span class="ml-2 flex-shrink-0 text-[10px] text-[var(--text-tertiary)]">
+					<span class="ml-2 flex-shrink-0 text-[10px] text-[var(--text-tertiary)] tabular-nums font-mono">
 						{relativeTime(session.lastMessageAt)}
 					</span>
-				</button>
+				</DropdownMenu.Item>
 			{/each}
-		</div>
-	{/if}
-</div>
+		{/if}
+	</DropdownMenu.Content>
+</DropdownMenu.Root>

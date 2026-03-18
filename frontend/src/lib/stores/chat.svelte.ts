@@ -3,7 +3,7 @@
 import type { ChatMessage, ChatSession, ChatMode, ToolCall, ReasoningStep } from '$lib/types';
 
 function restoreSessionId(): string | null {
-	try { return localStorage.getItem('pub_current_session'); } catch { return null; }
+	try { return localStorage.getItem('cairn_current_session'); } catch { return null; }
 }
 
 interface StreamingMessage {
@@ -39,8 +39,8 @@ export const chatStore = {
 	setCurrentSession(id: string | null) {
 		currentSessionId = id;
 		try {
-			if (id) localStorage.setItem('pub_current_session', id);
-			else localStorage.removeItem('pub_current_session');
+			if (id) localStorage.setItem('cairn_current_session', id);
+			else localStorage.removeItem('cairn_current_session');
 		} catch (err) {
 			console.warn('[chat] localStorage unavailable:', err);
 		}

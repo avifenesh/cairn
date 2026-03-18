@@ -235,10 +235,10 @@ describe('sseStore', () => {
 	});
 
 	it('includes auth token in URL when set', () => {
-		localStorage.setItem('pub_api_token', 'test-token');
+		localStorage.setItem('cairn_api_token', 'test-token');
 		sseStore.connect();
 		expect(mockEventSource.url).toContain('token=test-token');
-		localStorage.removeItem('pub_api_token');
+		localStorage.removeItem('cairn_api_token');
 	});
 
 	it('reports reconnecting during backoff window', () => {

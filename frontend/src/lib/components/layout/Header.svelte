@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { appStore } from '$lib/stores/app.svelte';
 	import { sseStore } from '$lib/stores/sse.svelte';
-	import { Circle, Search, Sun, Moon, Menu, DollarSign } from '@lucide/svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Separator } from '$lib/components/ui/separator';
+	import { Circle, Search, Sun, Moon, Menu, DollarSign, HelpCircle } from '@lucide/svelte';
 
 	function handleKeyboardShortcut() {
 		appStore.openCommandPalette();
@@ -13,7 +16,6 @@
 			: null,
 	);
 
-	// Plan: green/yellow/red health dot
 	const healthColor = $derived(
 		appStore.sseConnected ? 'text-[var(--color-success)]'
 		: sseStore.reconnecting ? 'text-[var(--color-warning)]'
@@ -24,57 +26,76 @@
 		: sseStore.reconnecting ? 'Reconnecting'
 		: 'Offline',
 	);
+
+	const currentView = $derived(() => {
+		const path = page.url.pathname;
+		if (path === '/' || path === '/today') return 'Today';
+		return path.slice(1).charAt(0).toUpperCase() + path.slice(2);
+	});
 </script>
 
 <header
-	class="flex h-[var(--header-h)] items-center justify-between border-b border-border-subtle bg-[var(--bg-1)] px-4"
+	class="flex h-[var(--header-h)] items-center border-b border-border-subtle bg-[var(--bg-1)] px-3 gap-3"
 >
-	<div class="flex items-center gap-3">
-		<button
-			class="md:hidden rounded p-1.5 hover:bg-[var(--bg-3)] transition-colors duration-[var(--dur-fast)]"
-			onclick={() => appStore.toggleSidebar()}
-			aria-label="Toggle menu"
-		>
-			<Menu class="h-5 w-5 text-[var(--text-secondary)]" />
-		</button>
-		<span class="text-sm font-semibold tracking-tight text-[var(--text-primary)]">Pub</span>
+	<!-- Mobile menu toggle -->
+	<button
+		class="md:hidden rounded-md p-1.5 hover:bg-[var(--bg-2)] transition-colors"
+		onclick={() => appStore.toggleSidebar()}
+		aria-label="Toggle menu"
+	>
+		<Menu class="h-4 w-4 text-[var(--text-secondary)]" />
+	</button>
+
+	<!-- Breadcrumb -->
+	<div class="flex items-center gap-2 flex-1 min-w-0">
+		<span class="text-sm font-medium text-[var(--text-primary)] truncate">{currentView()}</span>
+		<Separator orientation="vertical" class="h-4" />
 		<span class="flex items-center gap-1.5 text-xs">
-			<Circle class="h-2 w-2 fill-current {healthColor}" />
-			<span class="text-[var(--text-tertiary)] hidden sm:inline">
-				{healthLabel}
-			</span>
+			<Circle class="h-1.5 w-1.5 fill-current {healthColor} {appStore.sseConnected ? 'animate-pulse-dot' : ''}" />
+			<span class="text-[var(--text-tertiary)] hidden sm:inline">{healthLabel}</span>
 		</span>
 	</div>
 
-	<div class="flex items-center gap-2">
+	<!-- Actions -->
+	<div class="flex items-center gap-1.5">
+		<!-- Search / command palette -->
 		<button
-			class="flex items-center gap-2 rounded-md border border-border-subtle bg-[var(--bg-2)] px-3 py-1.5 text-xs text-[var(--text-tertiary)] hover:border-border-default transition-colors duration-[var(--dur-fast)]"
+			class="flex items-center gap-2 rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 py-1 text-xs text-[var(--text-tertiary)] hover:border-[var(--border-default)] hover:text-[var(--text-secondary)] transition-colors"
 			onclick={handleKeyboardShortcut}
 		>
-			<Search class="h-3.5 w-3.5" />
-			<span class="hidden sm:inline">Search...</span>
-			<kbd class="hidden sm:inline rounded border border-border-subtle bg-[var(--bg-3)] px-1 py-0.5 text-[10px]">
-				⌘K
-			</kbd>
+			<Search class="h-3 w-3" />
+			<span class="hidden sm:inline">Search</span>
+			<kbd class="hidden sm:inline ml-1 rounded border border-border-subtle bg-[var(--bg-2)] px-1 py-0.5 text-[10px] font-mono">⌘K</kbd>
 		</button>
 
 		{#if budgetPct != null}
-			<span class="hidden sm:flex items-center gap-1 rounded-md border border-border-subtle bg-[var(--bg-2)] px-2 py-1 text-[10px] text-[var(--text-tertiary)]">
+			<span class="hidden sm:flex items-center gap-1 rounded-md border border-border-subtle bg-[var(--bg-0)] px-2 py-1 text-[10px] font-mono text-[var(--text-tertiary)]
+				{budgetPct > 95 ? 'border-[var(--color-error)]/30 text-[var(--color-error)]' : budgetPct > 80 ? 'border-[var(--color-warning)]/30 text-[var(--color-warning)]' : ''}">
 				<DollarSign class="h-3 w-3" />
-				<span class="{budgetPct > 80 ? 'text-[var(--color-warning)]' : ''} {budgetPct > 95 ? 'text-[var(--color-error)]' : ''}">{budgetPct}%</span>
+				{budgetPct}%
 			</span>
 		{/if}
 
-		<button
-			class="rounded p-1.5 hover:bg-[var(--bg-3)] transition-colors duration-[var(--dur-fast)]"
+		<Button
+			variant="ghost"
+			size="icon"
+			class="h-8 w-8"
+			onclick={() => appStore.toggleHelpModal()}
+		>
+			<HelpCircle class="h-4 w-4 text-[var(--text-tertiary)]" />
+		</Button>
+
+		<Button
+			variant="ghost"
+			size="icon"
+			class="h-8 w-8"
 			onclick={() => appStore.toggleTheme()}
-			aria-label="Toggle theme"
 		>
 			{#if appStore.theme === 'dark'}
-				<Sun class="h-4 w-4 text-[var(--text-secondary)]" />
+				<Sun class="h-4 w-4 text-[var(--text-tertiary)]" />
 			{:else}
-				<Moon class="h-4 w-4 text-[var(--text-secondary)]" />
+				<Moon class="h-4 w-4 text-[var(--text-tertiary)]" />
 			{/if}
-		</button>
+		</Button>
 	</div>
 </header>

@@ -5,13 +5,16 @@
 
 ## Current State (updated 2026-03-18)
 
-337 backend tests, ~250 frontend tests, 14 packages, ~25,200 lines of Go.
-24 built-in tools. 5 bundled SKILL.md files.
+361 backend tests, ~280 frontend tests, 16 packages, ~27K lines of Go.
+27 built-in tools (GLM) / 24 (other providers). 5 bundled SKILL.md files.
 
-**Phase 6 backend COMPLETE** (PRs #21, #24, #26 — all merged).
-**Phase 6.5 COMPLETE** — PR A (#37 skill activation + session scoping), PR B (#39 skill install + validation).
-**Phase 6 frontend NEAR COMPLETE** — 13/15 items done (PRs #28-40). Remaining: 6f.3 (feed actions — low priority), 6f.9 (skill detail — needs backend to wire handleListSkills + GET /v1/skills/:name).
-Phase 7 (MCP/A2A) and Phase 8 (Channels/Intelligence) remain.
+**Phase 6 COMPLETE** — backend PRs #21, #24, #26. Frontend PRs #28-50 (15/15 done).
+**Phase 6.5 COMPLETE** — PR A (#37), PR B (#39).
+**Phase 7 MCP Server COMPLETE** — PR #42 (24 tools + resources via mcp-go).
+**Phase 7 Frontend COMPLETE** — PR #50 (MCP status, connections, external tool badges).
+**Phase 8 Channels PR1 COMPLETE** — PR #46 (framework + Telegram adapter + session continuity).
+**Z.ai MCP tools COMPLETE** — PR #49, #52 (web search, reader, zread — 5 tools for GLM).
+Phase 7 PRs 6-7 (MCP client, A2A) deferred. Phase 8 PRs 2-3 (Discord/Slack/Matrix) + Intelligence remain.
 
 ---
 
@@ -250,32 +253,40 @@ Phase 6 (DONE):
   PR 1 (Web+Memory+Feed tools)  ─── merged #21
   PR 2 (Task+Comm tools)        ─── merged #24
   PR 3 (Skill tools+bundles)    ─── merged #26
-  PR 4 (Frontend Phase 6)       ─── 13/15 done (PRs #28-40), 2 remaining
+  PR 4 (Frontend Phase 6)       ─── merged PRs #28-50 (15/15 done)
 
 Phase 6.5 (DONE):
   PR A (Skill activation)       ─── merged #37
   PR B (Skill install)          ─── merged #39
-  PR C (Plugin tools)           ─── optional, deferred
 
-Phase 7 (NEXT):
-  PR 5 (MCP Server) ──┐
-  PR 6 (MCP Client) ──┤ parallel, needs Phase 6
-  PR 7 (A2A Server) ──┘
-  PR 8 (Frontend Phase 7) ─────── needs PR5-7
+Phase 7 (MCP Server DONE, Client/A2A DEFERRED):
+  PR 5 (MCP Server)             ─── merged #42
+  PR 6 (MCP Client)             ─── deferred (Z.ai tools added directly instead)
+  PR 7 (A2A Server)             ─── deferred
+  PR 8 (Frontend Phase 7)       ─── merged #50
 
-Phase 8:
-  PR 9  (Channels+Telegram)     ─── independent
-  PR 10 (Frontend Channels)     ─── needs PR9
-  PR 11 (Intelligence)          ─── independent
-  PR 12 (Frontend Intelligence) ─── needs PR11
+Z.ai Integration (DONE):
+  PR 49 (Z.ai MCP tools)        ─── merged #49
+  PR 52 (Accept header fix)     ─── merged #52
+
+Phase 8 Channels (PR1 DONE, PR2-3 REMAINING):
+  PR 9  (Framework + Telegram)  ─── merged #46
+  PR 10 (Discord + Slack)       ─── next
+  PR 11 (Matrix + routing)      ─── after PR 10
+
+Phase 8 Intelligence (REMAINING):
+  PR 12 (Embeddings, Gmail, voice) ─── independent
+  PR 13 (Frontend Intelligence)    ─── needs PR 12
 ```
 
 ## Summary
 
 | Phase | Backend | Frontend | New capabilities |
 |-------|---------|----------|-----------------|
-| 6 | 3 PRs ✅ DONE (16 tools + 5 skills) | 13/15 items ✅ (PRs #28-40) | Web, memory, feed, tasks, skills |
-| 6.5 | 2 PRs ✅ DONE (#37, #39) | Uses Phase 6 FE | Skill activation, install, validation |
-| 7 | 3 PRs (MCP + A2A) | 1 PR (6 subphases) | External agents, external tools |
-| 8 | 2 PRs (channels + intelligence) | 2 PRs (10 subphases) | Telegram, embeddings, Gmail, voice |
-| **Total** | **8 merged + 3 remaining** | **13 done + 2 remaining** | |
+| 6 | 3 PRs ✅ DONE | 15/15 ✅ DONE | Web, memory, feed, tasks, skills |
+| 6.5 | 2 PRs ✅ DONE | — | Skill activation, install, validation |
+| 7 | 1 PR ✅ DONE (MCP server) | 1 PR ✅ DONE | MCP tool exposure, Z.ai integration |
+| 8 Channels | 1/3 PRs ✅ (Telegram) | — | Telegram adapter + session continuity |
+| 8 Intelligence | 0/2 PRs | 0/1 PR | Embeddings, Gmail, voice |
+| Z.ai | 2 PRs ✅ DONE | — | Web search, reader, zread (5 tools) |
+| **Total** | **11 merged** | **17/17 done** | **27 tools, 5 skills, MCP, Telegram** |

@@ -45,6 +45,14 @@ describe('ChatPanel', () => {
 		expect(screen.getByText('Plan a weekend trip')).toBeInTheDocument();
 	});
 
+	it('populates input when suggestion chip is clicked', async () => {
+		render(ChatPanel);
+		const chip = screen.getByText('Plan a weekend trip');
+		await fireEvent.click(chip);
+		const textarea = screen.getByPlaceholderText('Send a message...') as HTMLTextAreaElement;
+		expect(textarea.value).toBe('Plan a weekend trip');
+	});
+
 	it('has send button', () => {
 		render(ChatPanel);
 		expect(screen.getByLabelText('Send')).toBeInTheDocument();

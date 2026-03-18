@@ -144,8 +144,9 @@ var manageMemory = tool.Define("cairn.manageMemory",
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to %s memory: %v", p.Action, err)}, nil
 		}
 
+		pastTense := map[string]string{"accept": "accepted", "reject": "rejected", "delete": "deleted"}
 		return &tool.ToolResult{
-			Output: fmt.Sprintf("Memory %s: %s", p.ID, p.Action+"ed"),
+			Output: fmt.Sprintf("Memory %s: %s", p.ID, pastTense[p.Action]),
 			Metadata: map[string]any{
 				"id":     p.ID,
 				"action": p.Action,

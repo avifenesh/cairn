@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -62,7 +63,7 @@ var webSearch = tool.Define("cairn.webSearch",
 			numResults = 20
 		}
 
-		results, err := doSearXNGSearch(ctx.Cancel, p.Query, numResults)
+		results, err := doSearXNGSearch(safeCtx(ctx.Cancel), p.Query, numResults)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("web search failed: %v", err)}, nil
 		}
@@ -99,7 +100,8 @@ func doSearXNGSearch(ctx context.Context, query string, limit int) ([]searchResu
 	if err != nil {
 		return nil, fmt.Errorf("invalid SEARXNG_URL: %w", err)
 	}
-	u.Path = "/search"
+	// Preserve any base path (e.g. /searxng behind a reverse proxy).
+	u.Path = strings.TrimRight(u.Path, "/") + "/search"
 	q := u.Query()
 	q.Set("q", query)
 	q.Set("format", "json")
@@ -142,9 +144,9 @@ func doSearXNGSearch(ctx context.Context, query string, limit int) ([]searchResu
 }
 
 // webFetchParams are the parameters for cairn.webFetch.
+// Format param removed — raw content is returned as-is (Copilot review).
 type webFetchParams struct {
-	URL    string `json:"url" desc:"URL to fetch"`
-	Format string `json:"format,omitempty" desc:"Output format: text (default), or html"`
+	URL string `json:"url" desc:"URL to fetch"`
 }
 
 var webFetch = tool.Define("cairn.webFetch",
@@ -164,15 +166,23 @@ var webFetch = tool.Define("cairn.webFetch",
 			return &tool.ToolResult{Error: "only http and https URLs are supported"}, nil
 		}
 
-		content, contentType, err := doFetch(ctx.Cancel, p.URL)
+		// SSRF protection: block private/loopback/metadata IPs.
+		if err := validateHost(parsed.Hostname()); err != nil {
+			return &tool.ToolResult{Error: err.Error()}, nil
+		}
+
+		content, contentType, err := doFetch(safeCtx(ctx.Cancel), p.URL)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("fetch failed: %v", err)}, nil
 		}
 
-		// Truncate to 50K chars.
+		// Truncate to 50K chars. Only convert to []rune if content is long enough
+		// (byte length is always >= rune length, so skip conversion for short content).
 		const maxChars = 50000
-		if runes := []rune(content); len(runes) > maxChars {
-			content = string(runes[:maxChars]) + "\n\n[truncated]"
+		if len(content) > maxChars {
+			if runes := []rune(content); len(runes) > maxChars {
+				content = string(runes[:maxChars]) + "\n\n[truncated]"
+			}
 		}
 
 		return &tool.ToolResult{
@@ -222,4 +232,47 @@ func doFetch(ctx context.Context, targetURL string) (string, string, error) {
 
 	contentType := resp.Header.Get("Content-Type")
 	return string(body), contentType, nil
+}
+
+// safeCtx returns ctx if non-nil, otherwise context.Background().
+func safeCtx(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
+// validateHost blocks requests to private, loopback, and cloud metadata IPs.
+func validateHost(host string) error {
+	// Block well-known metadata endpoints.
+	if host == "169.254.169.254" || host == "metadata.google.internal" {
+		return fmt.Errorf("blocked: cloud metadata endpoint %s", host)
+	}
+
+	ip := net.ParseIP(host)
+	if ip == nil {
+		// Hostname — resolve and check each IP.
+		addrs, err := net.LookupHost(host)
+		if err != nil {
+			return nil // let HTTP client handle resolution failures
+		}
+		for _, addr := range addrs {
+			if resolved := net.ParseIP(addr); resolved != nil {
+				if isBlockedIP(resolved) {
+					return fmt.Errorf("blocked: %s resolves to private IP %s", host, addr)
+				}
+			}
+		}
+		return nil
+	}
+
+	if isBlockedIP(ip) {
+		return fmt.Errorf("blocked: private/loopback IP %s", host)
+	}
+	return nil
+}
+
+// isBlockedIP returns true for loopback, private (RFC1918), and link-local IPs.
+func isBlockedIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
 }

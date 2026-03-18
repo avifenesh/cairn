@@ -79,23 +79,38 @@ func TestCallZaiMCP_MockServer(t *testing.T) {
 		if r.Header.Get("Authorization") != "Bearer test-key" {
 			t.Errorf("expected Bearer auth, got %q", r.Header.Get("Authorization"))
 		}
-		// Verify service path is included.
 		if !strings.Contains(r.URL.Path, "/web_search_prime/mcp") {
 			t.Errorf("expected /web_search_prime/mcp in path, got %q", r.URL.Path)
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"search results here"}]}}`))
+		// Return SSE format like Z.ai does.
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Write([]byte("id:1\nevent:message\ndata:{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"search results here\"}]}}\n"))
 	}))
 	defer srv.Close()
 
 	SetZaiConfig("test-key", srv.URL)
 
-	text, err := callZaiMCP(context.Background(), "web_search_prime", "webSearchPrime", map[string]any{"query": "test"})
+	text, err := callZaiMCP(context.Background(), "web_search_prime", "web_search_prime", map[string]any{"search_query": "test"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if text != "search results here" {
 		t.Fatalf("expected 'search results here', got %q", text)
+	}
+}
+
+func TestExtractSSEData(t *testing.T) {
+	sse := "id:1\nevent:message\ndata:{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n"
+	got := extractSSEData(sse)
+	if !strings.HasPrefix(got, "{\"jsonrpc\"") {
+		t.Fatalf("expected JSON from SSE, got %q", got)
+	}
+
+	// Plain JSON passthrough.
+	plain := `{"jsonrpc":"2.0","id":1,"result":{}}`
+	got2 := extractSSEData(plain)
+	if got2 != plain {
+		t.Fatalf("expected passthrough for plain JSON, got %q", got2)
 	}
 }
 

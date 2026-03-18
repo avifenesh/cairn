@@ -104,9 +104,13 @@ func callZaiMCP(ctx context.Context, service, toolName string, args map[string]a
 		return "", fmt.Errorf("zai: HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
 
+	// Z.ai returns SSE format: "id:N\nevent:message\ndata:{json}\n"
+	// Extract the JSON from the data: line.
+	jsonData := extractSSEData(string(respBody))
+
 	var rpcResp jsonRPCResponse
-	if err := json.Unmarshal(respBody, &rpcResp); err != nil {
-		return "", fmt.Errorf("zai: parse response: %w", err)
+	if err := json.Unmarshal([]byte(jsonData), &rpcResp); err != nil {
+		return "", fmt.Errorf("zai: parse response: %w (raw: %.200s)", err, string(respBody))
 	}
 
 	if rpcResp.Error != nil {
@@ -115,6 +119,18 @@ func callZaiMCP(ctx context.Context, service, toolName string, args map[string]a
 
 	// Extract text content from MCP CallToolResult format.
 	return extractMCPText(rpcResp.Result), nil
+}
+
+// extractSSEData extracts the JSON payload from an SSE-formatted response.
+// Z.ai MCP endpoints return: "id:N\nevent:message\ndata:{json}\n"
+func extractSSEData(body string) string {
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, "data:") {
+			return strings.TrimPrefix(line, "data:")
+		}
+	}
+	// Not SSE format — return as-is (might be plain JSON).
+	return body
 }
 
 // extractMCPText extracts text from an MCP CallToolResult JSON.
@@ -158,16 +174,9 @@ var zaiWebSearch = tool.Define("cairn.webSearch",
 			return &tool.ToolResult{Error: "query is required"}, nil
 		}
 
-		args := map[string]any{"query": p.Query}
-		if p.NumResults != nil && *p.NumResults > 0 {
-			n := *p.NumResults
-			if n > 20 {
-				n = 20
-			}
-			args["count"] = n
-		}
+		args := map[string]any{"search_query": p.Query}
 
-		text, err := callZaiMCP(safeCtx(ctx.Cancel), "web_search_prime", "webSearchPrime", args)
+		text, err := callZaiMCP(safeCtx(ctx.Cancel), "web_search_prime", "web_search_prime", args)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("web search failed: %v", err)}, nil
 		}
@@ -252,7 +261,7 @@ var zaiSearchDoc = tool.Define("cairn.searchDoc",
 
 		args := map[string]any{"query": p.Query}
 		if p.Repo != "" {
-			args["repo"] = p.Repo
+			args["repo_name"] = p.Repo
 		}
 
 		text, err := callZaiMCP(safeCtx(ctx.Cancel), "zread", "search_doc", args)
@@ -283,9 +292,9 @@ var zaiRepoStructure = tool.Define("cairn.repoStructure",
 			return &tool.ToolResult{Error: "repo is required"}, nil
 		}
 
-		args := map[string]any{"repo": p.Repo}
+		args := map[string]any{"repo_name": p.Repo}
 		if p.Path != "" {
-			args["path"] = p.Path
+			args["dir_path"] = p.Path
 		}
 
 		text, err := callZaiMCP(safeCtx(ctx.Cancel), "zread", "get_repo_structure", args)
@@ -317,8 +326,8 @@ var zaiReadRepoFile = tool.Define("cairn.readRepoFile",
 		}
 
 		text, err := callZaiMCP(safeCtx(ctx.Cancel), "zread", "read_file", map[string]any{
-			"repo": p.Repo,
-			"path": p.Path,
+			"repo_name": p.Repo,
+			"file_path": p.Path,
 		})
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("read file failed: %v", err)}, nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -344,9 +345,12 @@ func (a *skillAdapter) List() []*tool.SkillItem {
 
 func skillToItem(sk *skill.Skill) *tool.SkillItem {
 	return &tool.SkillItem{
-		Name:        sk.Name,
-		Description: sk.Description,
-		Inclusion:   string(sk.Inclusion),
-		Content:     sk.Content,
+		Name:         sk.Name,
+		Description:  sk.Description,
+		Inclusion:    string(sk.Inclusion),
+		Content:      sk.Content,
+		AllowedTools: sk.AllowedTools,
+		Location:     filepath.Dir(sk.Location),
+		DisableModel: sk.DisableModel,
 	}
 }

@@ -88,11 +88,18 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 	}
 	emit(invCtx.Context, ch, RunEvent{Event: userEvent})
 
-	// Build system prompt.
+	// Build system prompt (includes skill catalog + active skills).
 	systemPrompt := BuildSystemPrompt(invCtx, modeConfig, invCtx.ContextBuilder, invCtx.JournalEntries)
 
-	// Get available tools for this mode.
-	toolDefs := invCtx.Tools.ForLLM(mode)
+	// Get available tools for this mode, filtered by active skill restrictions.
+	var allowedTools []string
+	if invCtx.Session != nil {
+		allowedTools = invCtx.Session.AllowedToolsFromSkills()
+	}
+	toolDefs := invCtx.Tools.ForLLMFiltered(mode, allowedTools)
+
+	// Track whether a skill was activated this round (triggers prompt + tool rebuild).
+	skillActivated := false
 
 	// Publish stream started event.
 	if invCtx.Bus != nil {
@@ -279,6 +286,16 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			Tasks:     invCtx.ToolTasks,
 			Status:    invCtx.ToolStatus,
 			Skills:    invCtx.ToolSkills,
+			ActivateSkill: func(name, content string, allowedTools []string) {
+				if invCtx.Session != nil {
+					invCtx.Session.ActiveSkills = append(invCtx.Session.ActiveSkills, ActiveSkill{
+						Name:         name,
+						Content:      content,
+						AllowedTools: allowedTools,
+					})
+					skillActivated = true
+				}
+			},
 		}
 
 		for _, tc := range toolCalls {
@@ -390,7 +407,16 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			)
 		}
 
-		// 6. Loop continues — LLM will see tool results.
+		// 6. If a skill was activated, rebuild prompt and tool defs for next round.
+		if skillActivated {
+			systemPrompt = BuildSystemPrompt(invCtx, modeConfig, invCtx.ContextBuilder, invCtx.JournalEntries)
+			allowedTools = invCtx.Session.AllowedToolsFromSkills()
+			toolDefs = invCtx.Tools.ForLLMFiltered(mode, allowedTools)
+			skillActivated = false
+			a.logger.Info("skill activated, rebuilt prompt and tools", "activeSkills", len(invCtx.Session.ActiveSkills))
+		}
+
+		// 7. Loop continues — LLM will see tool results.
 	}
 
 	// Max rounds exhausted — treat as abnormal termination.

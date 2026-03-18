@@ -19,6 +19,7 @@ import (
 	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/server"
 	signalplane "github.com/avifenesh/cairn/internal/signal"
+	"github.com/avifenesh/cairn/internal/skill"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 	"github.com/avifenesh/cairn/internal/tool/builtin"
@@ -211,6 +212,16 @@ func runServe(logger *slog.Logger) {
 		digestAdapt = &digestAdapter{runner: digestRunner}
 	}
 	journalAdapt := &journalAdapter{store: journalStore}
+
+	// Initialize skill service.
+	skillSvc := skill.NewService(cfg.SkillDirs, logger)
+	if err := skillSvc.Discover(); err != nil {
+		logger.Warn("skill discovery failed", "error", err)
+	} else {
+		logger.Info("skills discovered", "count", len(skillSvc.List()))
+	}
+	skillAdapt := &skillAdapter{svc: skillSvc}
+
 	taskAdapt := &taskAdapter{engine: taskEngine}
 	// Collect active poller names for status display.
 	var pollerNames []string
@@ -274,6 +285,7 @@ func runServe(logger *slog.Logger) {
 			ToolJournal:  journalAdapt,
 			ToolTasks:    taskAdapt,
 			ToolStatus:   statusAdapt,
+			ToolSkills:   skillAdapt,
 		})
 		agentLoop.Start()
 		defer agentLoop.Close()
@@ -302,6 +314,7 @@ func runServe(logger *slog.Logger) {
 		ToolJournal:    journalAdapt,
 		ToolTasks:      taskAdapt,
 		ToolStatus:     statusAdapt,
+		ToolSkills:     skillAdapt,
 	})
 
 	// Graceful shutdown on SIGINT/SIGTERM.

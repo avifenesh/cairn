@@ -38,6 +38,7 @@ type Loop struct {
 	toolJournal  tool.JournalService
 	toolTasks    tool.TaskService
 	toolStatus   tool.StatusService
+	toolSkills   tool.SkillService
 
 	cancel  context.CancelFunc
 	stopped atomic.Bool
@@ -87,6 +88,7 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		toolJournal:  deps.ToolJournal,
 		toolTasks:    deps.ToolTasks,
 		toolStatus:   deps.ToolStatus,
+		toolSkills:   deps.ToolSkills,
 	}
 }
 
@@ -111,6 +113,7 @@ type LoopDeps struct {
 	ToolJournal  tool.JournalService
 	ToolTasks    tool.TaskService
 	ToolStatus   tool.StatusService
+	ToolSkills   tool.SkillService
 }
 
 // Start begins the agent loop in a background goroutine. Safe to call only once.
@@ -221,6 +224,7 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 		ToolJournal:  l.toolJournal,
 		ToolTasks:    l.toolTasks,
 		ToolStatus:   l.toolStatus,
+		ToolSkills:   l.toolSkills,
 		Config:       &AgentConfig{Model: l.config.Model, MaxRounds: 10},
 	}
 

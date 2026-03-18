@@ -10,6 +10,7 @@ import (
 	"github.com/avifenesh/cairn/internal/agent"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/signal"
+	"github.com/avifenesh/cairn/internal/skill"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 )
@@ -317,4 +318,36 @@ func (a *statusAdapter) GetStatus(ctx context.Context) (*tool.SystemStatus, erro
 		return status, fmt.Errorf("partial status: %s", strings.Join(errs, "; "))
 	}
 	return status, nil
+}
+
+// skillAdapter bridges skill.Service to tool.SkillService.
+type skillAdapter struct {
+	svc *skill.Service
+}
+
+func (a *skillAdapter) Get(name string) *tool.SkillItem {
+	sk := a.svc.Get(name)
+	if sk == nil {
+		return nil
+	}
+	return &tool.SkillItem{
+		Name:        sk.Name,
+		Description: sk.Description,
+		Inclusion:   string(sk.Inclusion),
+		Content:     sk.Content,
+	}
+}
+
+func (a *skillAdapter) List() []*tool.SkillItem {
+	skills := a.svc.List()
+	out := make([]*tool.SkillItem, len(skills))
+	for i, sk := range skills {
+		out[i] = &tool.SkillItem{
+			Name:        sk.Name,
+			Description: sk.Description,
+			Inclusion:   string(sk.Inclusion),
+			Content:     sk.Content,
+		}
+	}
+	return out
 }

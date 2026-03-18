@@ -566,6 +566,7 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 		ToolJournal:    s.toolJournal,
 		ToolTasks:      s.toolTasks,
 		ToolStatus:     s.toolStatus,
+		ToolSkills:     s.toolSkills,
 		Config: &agent.AgentConfig{
 			Model: s.config.LLMModel,
 		},

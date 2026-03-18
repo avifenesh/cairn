@@ -18,7 +18,7 @@ A **Svelte 5 + SvelteKit** dashboard for Cairn — a personal agent operating sy
 | Components | shadcn-svelte | Copy-paste Tailwind components, accessible, Svelte 5 compatible |
 | Styling | Tailwind CSS v4 | CSS-first config, design tokens via `@theme` |
 | Icons | Lucide Svelte | Tree-shakeable, used by shadcn |
-| Fonts | Inter (UI) + JetBrains Mono (code) | Same as v1 |
+| Fonts | Geist (headings) + Inter (body) + Geist Mono (code) | Upgraded from v1 |
 | Markdown | marked + DOMPurify | Same libs as v1, proven |
 
 ## Design Tokens
@@ -33,7 +33,7 @@ The token file defines:
 - **Status**: success green, warning yellow, error red
 - **Border**: base + 3 opacity levels (subtle/default/strong)
 - **Radius**: sm(6) md(8) lg(10) xl(16) full(9999)
-- **Font stacks**: Inter sans, JetBrains Mono
+- **Font stacks**: Geist (headings), Inter (body), Geist Mono (code)
 - **Shadows**: sm/md/lg
 - **Motion**: easing (out/spring), duration (fast 120ms, normal 200ms, slow 350ms)
 - **Layout**: sidebar 240px, header 56px, toolbar 48px, touch target 44px
@@ -277,24 +277,24 @@ All frontend phases (1-5), subphases (10.1-10.12), Phase 6 hardening (10/10 item
 
 Design system rewrite: `--pub-*` → `--cairn-*`, emerald `#10B981` accent, zinc backgrounds, Geist + Geist Mono fonts. 14 shadcn-svelte components (button, card, badge, tooltip, separator, scroll-area, dialog, dropdown-menu, input, toggle, avatar, skeleton, alert, tabs). All 26 custom components and 8 pages redesigned. Tabs use underline style, buttons are softer rounded-lg, density scales root font-size. Token gate for auth, SSE integration working with GLM backend.
 
-### Next: Phase 7 Chat Improvements
+### Next: Chat Improvements (frontend-only, no backend dependency)
 
 | # | Item | Priority | Description |
 |---|------|----------|-------------|
-| 7.1 | Copy button on messages | high | Copy message content to clipboard, "Copied" feedback |
-| 7.2 | Better message styling | high | Markdown rendering polish, code block headers, proper prose styling |
-| 7.3 | Context panel wiring | high | Wire tool calls and reasoning from SSE to context panel in real-time |
-| 7.4 | Old conversation loading | high | Session picker loads message history, scroll to bottom, continue chat |
-| 7.5 | Mode-specific styling | medium | Visual distinction per mode (talk/work/coding) — accent color, icon, border |
-| 7.6 | File attachment | medium | Attach files to messages, preview, send as multipart |
-| 7.7 | Voice input/output | medium | Wire VoiceButton to backend whisper endpoint, TTS playback |
-| 7.8 | Message actions bar | medium | Hover actions: copy, remember, create task, share |
-| 7.9 | Streaming improvements | medium | Smooth token-by-token rendering, cursor animation, cancellation |
-| 7.10 | Chat empty state | low | Suggested prompts, recent sessions, quick actions |
+| C.1 | Copy button on messages | high | Copy message content to clipboard, "Copied" feedback |
+| C.2 | Better message styling | high | Markdown rendering polish, code block headers, proper prose styling |
+| C.3 | Context panel wiring | high | Wire tool calls and reasoning from SSE to context panel in real-time |
+| C.4 | Old conversation loading | high | Session picker loads message history, scroll to bottom, continue chat |
+| C.5 | Mode-specific styling | medium | Visual distinction per mode (talk/work/coding) — accent color, icon, border |
+| C.6 | File attachment | medium | Attach files to messages, preview, send as multipart |
+| C.7 | Voice input/output | medium | Wire VoiceButton to backend whisper endpoint, TTS playback |
+| C.8 | Message actions bar | medium | Hover actions: copy, remember, create task, share |
+| C.9 | Streaming improvements | medium | Smooth token-by-token rendering, cursor animation, cancellation |
+| C.10 | Chat empty state | low | Suggested prompts, recent sessions, quick actions |
 
-### Phase 6 Frontend (from PHASE6_PLAN.md — blocked on backend PRs 1-3)
+### Frontend Tool/Skill UI (from PHASE6_PLAN.md items 6f.1-6f.22 — blocked on backend PRs 1-3)
 
-Items 6f.1 through 6f.22: tool call upgrade, inline memory creation, feed actions, task creation from chat, memory batch actions, skill browser/detail, system status, budget display, new API methods, stores, SSE events, tests.
+Tool call display upgrade, inline memory creation, feed actions, task creation from chat, memory batch actions, skill browser/detail, system status, budget display, new API methods, stores, SSE events, tests.
 
 ### Phase 6: Hardening (approved improvements, independent of backend)
 

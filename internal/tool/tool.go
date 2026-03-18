@@ -79,9 +79,9 @@ type definedTool[P any] struct {
 }
 
 func (t *definedTool[P]) Name() string            { return t.name }
-func (t *definedTool[P]) Description() string      { return t.desc }
-func (t *definedTool[P]) Schema() json.RawMessage  { return t.schema }
-func (t *definedTool[P]) Modes() []Mode            { return t.modes }
+func (t *definedTool[P]) Description() string     { return t.desc }
+func (t *definedTool[P]) Schema() json.RawMessage { return t.schema }
+func (t *definedTool[P]) Modes() []Mode           { return t.modes }
 
 func (t *definedTool[P]) Execute(ctx *ToolContext, args json.RawMessage) (*ToolResult, error) {
 	var params P

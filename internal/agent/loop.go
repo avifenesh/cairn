@@ -20,24 +20,24 @@ import (
 // Loop is the always-on agent loop. It ticks periodically, checks for pending
 // tasks, decides on proactive actions, and drives the reflection cycle.
 type Loop struct {
-	agent      Agent
-	tasks      *task.Engine
-	events     *signal.EventStore
-	memories   *memory.Service
-	soul       *memory.Soul
-	tools      *tool.Registry
-	provider   llm.Provider
-	bus        *eventbus.Bus
-	journaler  *Journaler
-	reflector  *ReflectionEngine
-	logger     *slog.Logger
-	config     LoopConfig
+	agent     Agent
+	tasks     *task.Engine
+	events    *signal.EventStore
+	memories  *memory.Service
+	soul      *memory.Soul
+	tools     *tool.Registry
+	provider  llm.Provider
+	bus       *eventbus.Bus
+	journaler *Journaler
+	reflector *ReflectionEngine
+	logger    *slog.Logger
+	config    LoopConfig
 
 	cancel  context.CancelFunc
 	stopped atomic.Bool
 	wg      sync.WaitGroup
 
-	tickCount atomic.Int64
+	tickCount   atomic.Int64
 	lastReflect time.Time
 }
 

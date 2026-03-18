@@ -405,4 +405,3 @@ func runChat(logger *slog.Logger) {
 		}
 	}
 }
-

@@ -23,17 +23,17 @@ import (
 // Server is the main HTTP server for Cairn, wiring together all API routes,
 // SSE broadcasting, middleware, and static file serving.
 type Server struct {
-	mux        *http.ServeMux
-	httpServer *http.Server
-	sse        *SSEBroadcaster
-	agent      agent.Agent
-	sessions   *agent.SessionStore
-	tasks      *task.Engine
-	memories   *memory.Service
-	soul       *memory.Soul
-	tools      *tool.Registry
-	llm        llm.Provider
-	bus        *eventbus.Bus
+	mux         *http.ServeMux
+	httpServer  *http.Server
+	sse         *SSEBroadcaster
+	agent       agent.Agent
+	sessions    *agent.SessionStore
+	tasks       *task.Engine
+	memories    *memory.Service
+	soul        *memory.Soul
+	tools       *tool.Registry
+	llm         llm.Provider
+	bus         *eventbus.Bus
 	config      *config.Config
 	logger      *slog.Logger
 	rateLimiter *rateLimiter
@@ -64,17 +64,17 @@ func New(cfg ServerConfig) *Server {
 	mux := http.NewServeMux()
 
 	s := &Server{
-		mux:      mux,
-		agent:    cfg.Agent,
-		sessions: cfg.Sessions,
-		tasks:    cfg.Tasks,
-		memories: cfg.Memories,
-		soul:     cfg.Soul,
-		tools:    cfg.Tools,
-		llm:      cfg.LLM,
-		bus:      cfg.Bus,
-		config:   cfg.Config,
-		logger:   cfg.Logger,
+		mux:         mux,
+		agent:       cfg.Agent,
+		sessions:    cfg.Sessions,
+		tasks:       cfg.Tasks,
+		memories:    cfg.Memories,
+		soul:        cfg.Soul,
+		tools:       cfg.Tools,
+		llm:         cfg.LLM,
+		bus:         cfg.Bus,
+		config:      cfg.Config,
+		logger:      cfg.Logger,
 		rateLimiter: newRateLimiter(),
 		webhooks:    cfg.Webhooks,
 	}

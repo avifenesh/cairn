@@ -150,14 +150,14 @@ func defaultCosts() map[string]ModelCost {
 		"glm-4.7":     {Per1MInput: 0, Per1MOutput: 0},
 
 		// OpenAI
-		"gpt-4o":      {Per1MInput: 2.50, Per1MOutput: 10.00},
-		"gpt-4o-mini": {Per1MInput: 0.15, Per1MOutput: 0.60},
-		"gpt-4-turbo": {Per1MInput: 10.00, Per1MOutput: 30.00},
+		"gpt-4o":        {Per1MInput: 2.50, Per1MOutput: 10.00},
+		"gpt-4o-mini":   {Per1MInput: 0.15, Per1MOutput: 0.60},
+		"gpt-4-turbo":   {Per1MInput: 10.00, Per1MOutput: 30.00},
 		"gpt-3.5-turbo": {Per1MInput: 0.50, Per1MOutput: 1.50},
 
 		// Anthropic (for future)
-		"claude-sonnet-4-6":  {Per1MInput: 3.00, Per1MOutput: 15.00},
-		"claude-haiku-4-5":   {Per1MInput: 0.80, Per1MOutput: 4.00},
-		"claude-opus-4-6":    {Per1MInput: 15.00, Per1MOutput: 75.00},
+		"claude-sonnet-4-6": {Per1MInput: 3.00, Per1MOutput: 15.00},
+		"claude-haiku-4-5":  {Per1MInput: 0.80, Per1MOutput: 4.00},
+		"claude-opus-4-6":   {Per1MInput: 15.00, Per1MOutput: 75.00},
 	}
 }

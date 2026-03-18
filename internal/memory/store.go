@@ -362,7 +362,7 @@ type scanner interface {
 func scanMemory(sc scanner) (*Memory, error) {
 	var m Memory
 	var (
-		cat, scope, status string
+		cat, scope, status   string
 		createdAt, updatedAt string
 		embeddingBlob        []byte
 		lastUsed             sql.NullString

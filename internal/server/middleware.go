@@ -156,10 +156,10 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 
 // rateLimiter implements a simple sliding window rate limiter with per-IP tracking.
 type rateLimiter struct {
-	mu       sync.Mutex
-	windows  map[string]*window
-	done     chan struct{}
-	stopped  atomic.Bool
+	mu      sync.Mutex
+	windows map[string]*window
+	done    chan struct{}
+	stopped atomic.Bool
 }
 
 // window tracks request timestamps within a sliding window.

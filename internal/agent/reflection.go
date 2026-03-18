@@ -52,8 +52,8 @@ type ReflectionResult struct {
 
 // ProposedMemory is a memory suggested by the reflection engine.
 type ProposedMemory struct {
-	Content    string `json:"content"`
-	Category   string `json:"category"`
+	Content    string  `json:"content"`
+	Category   string  `json:"category"`
 	Confidence float64 `json:"confidence"`
 }
 

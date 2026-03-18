@@ -78,7 +78,7 @@ func TestInsertEvent(t *testing.T) {
 
 	var (
 		id, source, kind, title, actor string
-		createdAt                       string
+		createdAt                      string
 	)
 	err = d.QueryRow("SELECT id, source, kind, title, actor, created_at FROM events WHERE id = 'evt-001'").
 		Scan(&id, &source, &kind, &title, &actor, &createdAt)

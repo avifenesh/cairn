@@ -10,9 +10,9 @@ import (
 // Registry manages multiple LLM providers and resolves models to providers.
 type Registry struct {
 	mu        sync.RWMutex
-	providers map[string]Provider            // providerID → Provider
-	models    map[string]string              // modelID → providerID
-	fallbacks map[string]string              // modelID → fallback modelID
+	providers map[string]Provider              // providerID → Provider
+	models    map[string]string                // modelID → providerID
+	fallbacks map[string]string                // modelID → fallback modelID
 	defaults  struct{ provider, model string } // default provider + model
 	logger    *slog.Logger
 }

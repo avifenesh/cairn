@@ -159,13 +159,13 @@ func (p *OpenAIProvider) buildRequestBody(req *Request) ([]byte, error) {
 
 // OpenAI request types (shared format with GLM since GLM is OpenAI-compatible).
 type oaiRequest struct {
-	Model       string         `json:"model"`
-	Messages    []oaiMessage   `json:"messages"`
-	Stream      bool           `json:"stream"`
-	MaxTokens   int            `json:"max_tokens,omitempty"`
-	Temperature *float64       `json:"temperature,omitempty"`
-	Stop        []string       `json:"stop,omitempty"`
-	Tools       []oaiToolDef   `json:"tools,omitempty"`
+	Model       string       `json:"model"`
+	Messages    []oaiMessage `json:"messages"`
+	Stream      bool         `json:"stream"`
+	MaxTokens   int          `json:"max_tokens,omitempty"`
+	Temperature *float64     `json:"temperature,omitempty"`
+	Stop        []string     `json:"stop,omitempty"`
+	Tools       []oaiToolDef `json:"tools,omitempty"`
 }
 
 type oaiMessage struct {
@@ -176,8 +176,8 @@ type oaiMessage struct {
 }
 
 type oaiToolDef struct {
-	Type     string          `json:"type"`
-	Function oaiToolDefFunc  `json:"function"`
+	Type     string         `json:"type"`
+	Function oaiToolDefFunc `json:"function"`
 }
 
 type oaiToolDefFunc struct {

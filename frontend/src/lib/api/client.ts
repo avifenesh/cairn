@@ -142,11 +142,15 @@ export const getTasks = async (params?: { status?: string; type?: string }) => {
 	if (params?.type) q.set('type', params.type);
 	const qs = q.toString();
 	const raw = await get<Record<string, unknown>>(`/v1/tasks${qs ? '?' + qs : ''}`);
-	const tasks = ((raw.tasks ?? raw.items ?? []) as Array<Record<string, unknown>>).map((t) => ({
-		...t,
-		title: t.title || t.description || t.mode || t.type || 'Task',
-		status: t.status === 'queued' ? 'pending' : t.status,
-	})) as Task[];
+	const tasks = ((raw.tasks ?? raw.items ?? []) as Array<Record<string, unknown>>).map((t) => {
+		const input = t.input as { message?: string } | undefined;
+		return {
+			...t,
+			title: t.title || t.description || input?.message || t.type || 'Task',
+			status: t.status === 'queued' ? 'pending' : t.status === 'canceled' ? 'cancelled' : t.status,
+			input,
+		};
+	}) as Task[];
 	return { items: tasks, hasMore: (raw.hasMore ?? false) as boolean };
 };
 

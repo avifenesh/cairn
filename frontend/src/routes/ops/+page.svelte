@@ -9,10 +9,11 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { ShieldCheck, ShieldX, X } from '@lucide/svelte';
+	import { ShieldCheck, ShieldX, X, Trash2 } from '@lucide/svelte';
 	import SystemStatus from '$lib/components/shared/SystemStatus.svelte';
 
 	let tab = $state<string>('approvals');
+	let taskFilter = $state<'all' | 'active' | 'completed' | 'failed'>('all');
 	let selectedIds = $state<Set<string>>(new Set());
 
 	onMount(async () => {
@@ -80,6 +81,33 @@
 			console.error('[ops] Failed to create task:', err);
 		}
 	}
+
+	function handleDeleteTask(id: string) {
+		taskStore.removeTask(id);
+	}
+
+	function handleClearCompleted() {
+		const completed = taskStore.tasks.filter((t) => t.status === 'completed' || t.status === 'cancelled');
+		completed.forEach((t) => taskStore.removeTask(t.id));
+	}
+
+	const filteredTasks = $derived(() => {
+		const tasks = taskStore.tasks;
+		if (taskFilter === 'all') return tasks;
+		if (taskFilter === 'active') return tasks.filter((t) => t.status === 'pending' || t.status === 'running');
+		if (taskFilter === 'completed') return tasks.filter((t) => t.status === 'completed');
+		if (taskFilter === 'failed') return tasks.filter((t) => t.status === 'failed' || t.status === 'cancelled');
+		return tasks;
+	});
+
+	const completedCount = $derived(taskStore.tasks.filter((t) => t.status === 'completed' || t.status === 'cancelled').length);
+
+	const taskFilters: Array<{ key: typeof taskFilter; label: string }> = [
+		{ key: 'all', label: 'All' },
+		{ key: 'active', label: 'Active' },
+		{ key: 'completed', label: 'Completed' },
+		{ key: 'failed', label: 'Failed' },
+	];
 </script>
 
 <div class="mx-auto max-w-5xl p-6">
@@ -166,9 +194,33 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="tasks">
-			<div class="mb-4">
+			<div class="mb-4 flex items-center gap-2 flex-wrap">
 				<TaskCreateForm oncreate={handleCreateTask} />
+				<div class="flex items-center gap-1 ml-auto">
+					{#each taskFilters as f}
+						<Button
+							variant={taskFilter === f.key ? 'secondary' : 'ghost'}
+							size="sm"
+							class="h-6 text-[10px] px-2 {taskFilter === f.key ? 'text-[var(--cairn-accent)]' : 'text-[var(--text-tertiary)]'}"
+							onclick={() => (taskFilter = f.key)}
+						>
+							{f.label}
+						</Button>
+					{/each}
+				</div>
 			</div>
+			{#if completedCount > 0}
+				<div class="mb-3 flex items-center gap-2">
+					<Button
+						variant="ghost"
+						size="sm"
+						class="h-6 text-[10px] gap-1 text-[var(--text-tertiary)] hover:text-[var(--color-error)]"
+						onclick={handleClearCompleted}
+					>
+						<Trash2 class="h-3 w-3" /> Clear {completedCount} finished
+					</Button>
+				</div>
+			{/if}
 			{#if taskStore.loading}
 				<div class="flex flex-col gap-2">
 					{#each Array(3) as _, i}
@@ -178,16 +230,18 @@
 						</div>
 					{/each}
 				</div>
-			{:else if taskStore.tasks.length === 0}
+			{:else if filteredTasks().length === 0}
 				<div class="py-16 text-center">
-					<p class="text-sm text-[var(--text-tertiary)]">No tasks</p>
+					<p class="text-sm text-[var(--text-tertiary)]">
+						{taskFilter === 'all' ? 'No tasks' : `No ${taskFilter} tasks`}
+					</p>
 					<p class="mt-1 text-xs text-[var(--text-tertiary)]/60">Tasks will appear here when the agent is working</p>
 				</div>
 			{:else}
 				<div class="flex flex-col gap-2">
-					{#each taskStore.tasks as task, i (task.id)}
-						<div class="animate-in" style="animation-delay: {i * 30}ms">
-							<TaskCard {task} oncancel={handleCancel} />
+					{#each filteredTasks() as task, i (task.id)}
+						<div class="animate-in" style="animation-delay: {Math.min(i * 20, 200)}ms">
+							<TaskCard {task} oncancel={handleCancel} ondelete={handleDeleteTask} />
 						</div>
 					{/each}
 				</div>

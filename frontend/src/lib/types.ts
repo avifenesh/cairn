@@ -55,6 +55,9 @@ export interface Task {
 	progress?: number;
 	result?: string;
 	error?: string;
+	sessionId?: string;
+	mode?: string;
+	input?: { message?: string };
 	createdAt: string;
 	updatedAt: string;
 }

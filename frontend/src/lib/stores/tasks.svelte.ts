@@ -31,6 +31,10 @@ export const taskStore = {
 		approvals = [approval, ...approvals];
 	},
 
+	removeTask(id: string) {
+		tasks = tasks.filter((t) => t.id !== id);
+	},
+
 	resolveApproval(id: string, status: 'approved' | 'denied') {
 		approvals = approvals.map((a) =>
 			a.id === id ? { ...a, status, decidedAt: new Date().toISOString() } : a,

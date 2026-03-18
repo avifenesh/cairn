@@ -110,7 +110,19 @@ export const sseStore = {
 
 		// Chat streaming
 		handle('assistant_delta', source, (d) => chatStore.appendDelta(d.taskId, d.deltaText));
-		handle('assistant_end', source, (d) => chatStore.completeMessage(d.taskId, d.messageText));
+		handle('assistant_end', source, (d) => {
+			// Backend may send empty taskId — resolve from active streaming message
+			let taskId = d.taskId;
+			if (!taskId) {
+				const active = chatStore.activeStream;
+				if (active) taskId = active.taskId;
+			}
+			if (taskId) {
+				const streaming = chatStore.streamingMessages.get(taskId);
+				const text = d.messageText ?? d.text ?? streaming?.content ?? '';
+				chatStore.completeMessage(taskId, text);
+			}
+		});
 		handle('assistant_reasoning', source, (d) => chatStore.appendReasoning(d.taskId, d.round, d.thought));
 		handle('assistant_tool_call', source, (d) => chatStore.appendToolCall(d.taskId, d.toolName, d.phase, d.args, d.result));
 

@@ -97,7 +97,8 @@ docs/design/                  Architecture specs (VISION, PHASES, pieces/01-11)
 # Backend (from repo root)
 go vet ./...                    # Lint - run before every commit
 go test -race ./...             # Tests with race detector
-go build -o cairn ./cmd/cairn   # Build binary
+go build -o cairn ./cmd/cairn                    # Build binary (dev, filesystem frontend)
+go build -tags embed_frontend -o cairn ./cmd/cairn  # Build with embedded frontend (production)
 ./cairn chat "hello"            # CLI chat (ReAct agent)
 ./cairn serve                   # HTTP server on :8787
 

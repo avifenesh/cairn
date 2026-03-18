@@ -6,19 +6,23 @@
 
 	let { content }: { content: string } = $props();
 
+	const MAX_DESCRIPTION_LENGTH = 500;
+	const DONE_TIMEOUT_MS = 2000;
+	const ERROR_TIMEOUT_MS = 3000;
+
 	let phase = $state<'idle' | 'picking' | 'saving' | 'done' | 'error'>('idle');
 	let priority = $state(2);
 
 	async function save() {
 		phase = 'saving';
 		try {
-			await createTask(content.slice(0, 500), 'general', priority);
+			await createTask(content.slice(0, MAX_DESCRIPTION_LENGTH), 'general', priority);
 			phase = 'done';
-			setTimeout(() => { phase = 'idle'; }, 2000);
+			setTimeout(() => { phase = 'idle'; }, DONE_TIMEOUT_MS);
 		} catch (err) {
 			console.error('[task] Failed to create:', err);
 			phase = 'error';
-			setTimeout(() => { phase = 'idle'; }, 3000);
+			setTimeout(() => { phase = 'idle'; }, ERROR_TIMEOUT_MS);
 		}
 	}
 </script>

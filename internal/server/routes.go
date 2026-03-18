@@ -213,14 +213,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"id":          t.ID,
-		"type":        string(t.Type),
-		"status":      string(t.Status),
-		"description": t.Description,
-		"priority":    int(t.Priority),
-		"createdAt":   t.CreatedAt.Format(time.RFC3339),
-	})
+	writeJSON(w, http.StatusCreated, marshalTask(t))
 }
 
 func (s *Server) handleCancelTask(w http.ResponseWriter, r *http.Request) {

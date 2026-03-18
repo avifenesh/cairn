@@ -76,8 +76,8 @@
 		try {
 			const task = await createTask(description, type, priority);
 			taskStore.upsertTask(task);
-		} catch {
-			// handled
+		} catch (err) {
+			console.error('[ops] Failed to create task:', err);
 		}
 	}
 </script>

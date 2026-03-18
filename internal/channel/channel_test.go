@@ -85,6 +85,47 @@ func TestRouterSendTo(t *testing.T) {
 	}
 }
 
+func TestRouterMultiChannel(t *testing.T) {
+	handler := func(_ context.Context, _ *IncomingMessage) (*OutgoingMessage, error) {
+		return nil, nil
+	}
+	r := NewRouter(handler, nil)
+
+	ch1 := &mockChannel{name: "telegram"}
+	ch2 := &mockChannel{name: "discord"}
+	ch3 := &mockChannel{name: "slack"}
+	r.Register(ch1)
+	r.Register(ch2)
+	r.Register(ch3)
+
+	names := r.Channels()
+	if len(names) != 3 {
+		t.Fatalf("expected 3 channels, got %d", len(names))
+	}
+
+	msg := &OutgoingMessage{Text: "broadcast"}
+	r.Broadcast(context.Background(), msg)
+
+	for _, ch := range []*mockChannel{ch1, ch2, ch3} {
+		ch.mu.Lock()
+		count := len(ch.sent)
+		ch.mu.Unlock()
+		if count != 1 {
+			t.Fatalf("%s: expected 1 message, got %d", ch.name, count)
+		}
+	}
+
+	// SendTo specific channel.
+	if err := r.SendTo(context.Background(), "discord", msg); err != nil {
+		t.Fatalf("SendTo discord failed: %v", err)
+	}
+	ch2.mu.Lock()
+	if len(ch2.sent) != 2 {
+		t.Fatalf("discord: expected 2 messages, got %d", len(ch2.sent))
+	}
+	ch2.mu.Unlock()
+}
+
 func TestTelegramParseMessage(t *testing.T) {
 	// Test command parsing directly.
 	in := &IncomingMessage{

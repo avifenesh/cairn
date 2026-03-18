@@ -5,6 +5,8 @@ import { feedStore } from './feed.svelte';
 import { chatStore } from './chat.svelte';
 import { taskStore } from './tasks.svelte';
 import { appStore } from './app.svelte';
+import { skillStore } from './skills.svelte';
+import { statusStore } from './status.svelte';
 import { offlineQueue } from './offline-queue.svelte';
 
 let eventSource: EventSource | null = $state(null);
@@ -183,7 +185,13 @@ export const sseStore = {
 		handle('agent_progress', source, (d) => appStore.setAgentProgress(d.agentId, d.message));
 
 		// Skills
-		handle('skill_activated', source, (d) => appStore.addNotification('skill', `Skill activated: ${d.skillName}`));
+		handle('skill_activated', source, (d) => {
+			skillStore.activateSkill(d.skillName);
+			appStore.addNotification('skill', `Skill activated: ${d.skillName}`);
+		});
+
+		// Budget
+		handle('budget_update', source, (d) => statusStore.setBudget(d as Record<string, number>));
 	},
 
 	disconnect() {

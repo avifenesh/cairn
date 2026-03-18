@@ -246,6 +246,11 @@ export const getSkills = async () => {
 	};
 };
 
+export const getSkillDetail = async (name: string) => {
+	const raw = await get<Record<string, unknown>>(`/v1/skills/${encodeURIComponent(name)}`);
+	return raw as unknown as Skill & { content: string };
+};
+
 // Soul
 export const getSoul = () => get<SoulContent>('/v1/soul');
 export const updateSoul = (content: string) => put<{ ok: boolean; sha: string }>('/v1/soul', { content });

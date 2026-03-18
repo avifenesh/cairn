@@ -8,6 +8,7 @@
 	import ModeSelector from './ModeSelector.svelte';
 	import SessionPicker from './SessionPicker.svelte';
 	import VoiceButton from './VoiceButton.svelte';
+	import ActiveSkillChip from './ActiveSkillChip.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Bot, Send, Loader2, Brain } from '@lucide/svelte';
 
@@ -187,6 +188,7 @@
 			<div class="mb-2 flex items-center gap-2">
 				<ModeSelector />
 				<SessionPicker />
+				<ActiveSkillChip />
 			</div>
 
 			<div class="flex items-end gap-2">

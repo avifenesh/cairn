@@ -20,18 +20,22 @@ import (
 // Loop is the always-on agent loop. It ticks periodically, checks for pending
 // tasks, decides on proactive actions, and drives the reflection cycle.
 type Loop struct {
-	agent     Agent
-	tasks     *task.Engine
-	events    *signal.EventStore
-	memories  *memory.Service
-	soul      *memory.Soul
-	tools     *tool.Registry
-	provider  llm.Provider
-	bus       *eventbus.Bus
-	journaler *Journaler
-	reflector *ReflectionEngine
-	logger    *slog.Logger
-	config    LoopConfig
+	agent        Agent
+	tasks        *task.Engine
+	events       *signal.EventStore
+	memories     *memory.Service
+	soul         *memory.Soul
+	tools        *tool.Registry
+	provider     llm.Provider
+	bus          *eventbus.Bus
+	journaler    *Journaler
+	reflector    *ReflectionEngine
+	logger       *slog.Logger
+	config       LoopConfig
+	toolMemories tool.MemoryService
+	toolEvents   tool.EventService
+	toolDigest   tool.DigestService
+	toolJournal  tool.JournalService
 
 	cancel  context.CancelFunc
 	stopped atomic.Bool
@@ -63,18 +67,22 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 	}
 
 	return &Loop{
-		agent:     deps.Agent,
-		tasks:     deps.Tasks,
-		events:    deps.Events,
-		memories:  deps.Memories,
-		soul:      deps.Soul,
-		tools:     deps.Tools,
-		provider:  deps.Provider,
-		bus:       deps.Bus,
-		journaler: deps.Journaler,
-		reflector: deps.Reflector,
-		logger:    logger,
-		config:    cfg,
+		agent:        deps.Agent,
+		tasks:        deps.Tasks,
+		events:       deps.Events,
+		memories:     deps.Memories,
+		soul:         deps.Soul,
+		tools:        deps.Tools,
+		provider:     deps.Provider,
+		bus:          deps.Bus,
+		journaler:    deps.Journaler,
+		reflector:    deps.Reflector,
+		logger:       logger,
+		config:       cfg,
+		toolMemories: deps.ToolMemories,
+		toolEvents:   deps.ToolEvents,
+		toolDigest:   deps.ToolDigest,
+		toolJournal:  deps.ToolJournal,
 	}
 }
 
@@ -91,6 +99,12 @@ type LoopDeps struct {
 	Journaler *Journaler
 	Reflector *ReflectionEngine
 	Logger    *slog.Logger
+
+	// Tool service adapters for agent tools.
+	ToolMemories tool.MemoryService
+	ToolEvents   tool.EventService
+	ToolDigest   tool.DigestService
+	ToolJournal  tool.JournalService
 }
 
 // Start begins the agent loop in a background goroutine. Safe to call only once.
@@ -185,17 +199,21 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 	}
 
 	invCtx := &InvocationContext{
-		Context:     ctx,
-		SessionID:   sessionID,
-		UserMessage: t.Description,
-		Mode:        tool.ModeWork,
-		Session:     session,
-		Tools:       l.tools,
-		LLM:         l.provider,
-		Memory:      l.memories,
-		Soul:        l.soul,
-		Bus:         l.bus,
-		Config:      &AgentConfig{Model: l.config.Model, MaxRounds: 10},
+		Context:      ctx,
+		SessionID:    sessionID,
+		UserMessage:  t.Description,
+		Mode:         tool.ModeWork,
+		Session:      session,
+		Tools:        l.tools,
+		LLM:          l.provider,
+		Memory:       l.memories,
+		Soul:         l.soul,
+		Bus:          l.bus,
+		ToolMemories: l.toolMemories,
+		ToolEvents:   l.toolEvents,
+		ToolDigest:   l.toolDigest,
+		ToolJournal:  l.toolJournal,
+		Config:       &AgentConfig{Model: l.config.Model, MaxRounds: 10},
 	}
 
 	// Run agent, collect assistant response only (skip user events).

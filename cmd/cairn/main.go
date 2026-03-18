@@ -105,9 +105,10 @@ func runServe(logger *slog.Logger) {
 		}
 	}
 
-	// Initialize tool registry.
+	// Initialize tool registry and configure web tools.
 	toolRegistry := tool.NewRegistry()
 	toolRegistry.Register(builtin.All()...)
+	builtin.SetWebConfig(cfg.SearXNGURL, time.Duration(cfg.WebFetchTimeout)*time.Second, cfg.WebFetchMaxSize)
 
 	// Initialize memory service.
 	memStore := memory.NewStore(database)
@@ -196,6 +197,21 @@ func runServe(logger *slog.Logger) {
 	scheduler.Start()
 	defer scheduler.Close()
 
+	// Initialize digest runner (for agent digest tool).
+	var digestRunner *signalplane.DigestRunner
+	if provider != nil {
+		digestRunner = signalplane.NewDigestRunner(eventStore, provider, cfg.LLMModel)
+	}
+
+	// Build tool service adapters for agent tools.
+	memAdapter := &memoryAdapter{svc: memService}
+	eventAdapter := &eventAdapter{store: eventStore}
+	var digestAdapt tool.DigestService
+	if digestRunner != nil {
+		digestAdapt = &digestAdapter{runner: digestRunner}
+	}
+	journalAdapt := &journalAdapter{store: journalStore}
+
 	// Initialize webhook handler.
 	var webhookHandler *signalplane.WebhookHandler
 	if len(cfg.WebhookSecrets) > 0 {
@@ -216,17 +232,21 @@ func runServe(logger *slog.Logger) {
 			ReflectionInterval: time.Duration(cfg.ReflectionInterval) * time.Second,
 			Model:              cfg.LLMModel,
 		}, agent.LoopDeps{
-			Agent:     reactAgent,
-			Tasks:     taskEngine,
-			Events:    eventStore,
-			Memories:  memService,
-			Soul:      soul,
-			Tools:     toolRegistry,
-			Provider:  provider,
-			Bus:       bus,
-			Journaler: journaler,
-			Reflector: reflector,
-			Logger:    logger,
+			Agent:        reactAgent,
+			Tasks:        taskEngine,
+			Events:       eventStore,
+			Memories:     memService,
+			Soul:         soul,
+			Tools:        toolRegistry,
+			Provider:     provider,
+			Bus:          bus,
+			Journaler:    journaler,
+			Reflector:    reflector,
+			Logger:       logger,
+			ToolMemories: memAdapter,
+			ToolEvents:   eventAdapter,
+			ToolDigest:   digestAdapt,
+			ToolJournal:  journalAdapt,
 		})
 		agentLoop.Start()
 		defer agentLoop.Close()
@@ -249,6 +269,10 @@ func runServe(logger *slog.Logger) {
 		ContextBuilder: ctxBuilder,
 		Plugins:        pluginMgr,
 		JournalStore:   journalStore,
+		ToolMemories:   memAdapter,
+		ToolEvents:     eventAdapter,
+		ToolDigest:     digestAdapt,
+		ToolJournal:    journalAdapt,
 	})
 
 	// Graceful shutdown on SIGINT/SIGTERM.

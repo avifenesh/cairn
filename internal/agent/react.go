@@ -272,6 +272,10 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			WorkDir:   workDir(invCtx),
 			Bus:       invCtx.Bus,
 			Cancel:    invCtx.Context,
+			Memories:  invCtx.ToolMemories,
+			Events:    invCtx.ToolEvents,
+			Digest:    invCtx.ToolDigest,
+			Journal:   invCtx.ToolJournal,
 		}
 
 		for _, tc := range toolCalls {

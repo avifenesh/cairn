@@ -42,6 +42,12 @@ type Server struct {
 	contextBuilder *memory.ContextBuilder
 	plugins        *plugin.Manager
 	journalStore   *agent.JournalStore
+
+	// Tool service adapters (injected into ToolContext for agent tools).
+	toolMemories tool.MemoryService
+	toolEvents   tool.EventService
+	toolDigest   tool.DigestService
+	toolJournal  tool.JournalService
 }
 
 // ServerConfig carries all dependencies needed to construct a Server.
@@ -60,6 +66,12 @@ type ServerConfig struct {
 	ContextBuilder *memory.ContextBuilder // optional: token-budgeted context
 	Plugins        *plugin.Manager        // optional: lifecycle hooks
 	JournalStore   *agent.JournalStore    // optional: for journal entries in context
+
+	// Tool service adapters (set these so agent tools can access services).
+	ToolMemories tool.MemoryService
+	ToolEvents   tool.EventService
+	ToolDigest   tool.DigestService
+	ToolJournal  tool.JournalService
 }
 
 // New creates a fully wired Server with all routes and middleware registered.
@@ -87,6 +99,10 @@ func New(cfg ServerConfig) *Server {
 		contextBuilder: cfg.ContextBuilder,
 		plugins:        cfg.Plugins,
 		journalStore:   cfg.JournalStore,
+		toolMemories:   cfg.ToolMemories,
+		toolEvents:     cfg.ToolEvents,
+		toolDigest:     cfg.ToolDigest,
+		toolJournal:    cfg.ToolJournal,
 	}
 
 	// Create SSE broadcaster.

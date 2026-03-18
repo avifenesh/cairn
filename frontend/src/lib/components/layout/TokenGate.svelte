@@ -3,8 +3,6 @@
 	import { Input } from '$lib/components/ui/input';
 	import { KeyRound } from '@lucide/svelte';
 
-	let { onauth }: { onauth: () => void } = $props();
-
 	let token = $state('');
 	let error = $state('');
 	let checking = $state(false);
@@ -25,7 +23,8 @@
 			} else {
 				error = 'Invalid token';
 			}
-		} catch {
+		} catch (e) {
+			console.warn('[TokenGate] validation failed:', e);
 			error = 'Cannot reach server';
 		} finally {
 			checking = false;

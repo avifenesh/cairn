@@ -153,7 +153,7 @@
 </script>
 
 {#if !isAuthed}
-	<TokenGate onauth={() => {}} />
+	<TokenGate />
 {:else}
 <Tooltip.Provider>
 <div class="flex h-dvh flex-col overflow-hidden bg-background text-foreground">

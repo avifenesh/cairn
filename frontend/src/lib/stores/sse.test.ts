@@ -14,6 +14,8 @@ vi.mock('./chat.svelte', () => ({
 		completeMessage: vi.fn(),
 		appendReasoning: vi.fn(),
 		appendToolCall: vi.fn(),
+		get activeStream() { return null; },
+		streamingMessages: new Map(),
 	},
 }));
 vi.mock('./tasks.svelte', () => ({

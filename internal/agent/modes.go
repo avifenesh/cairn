@@ -60,9 +60,9 @@ func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilde
 			parts = append(parts, result.Text)
 		}
 
-		// Track memory usage (fire-and-forget).
+		// Track memory usage (fire-and-forget with detached context).
 		if len(result.InjectedMemoryIDs) > 0 {
-			go ctxBuilder.MarkUsed(ctx.Context, result.InjectedMemoryIDs)
+			go ctxBuilder.MarkUsed(result.InjectedMemoryIDs)
 		}
 	} else {
 		// Fallback: basic soul injection when no context builder available.

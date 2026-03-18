@@ -3,8 +3,10 @@ package memory
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -15,7 +17,6 @@ type ContextConfig struct {
 	HardRuleReserve int     // Tokens reserved for hard rules (default: 500)
 	DecayHalfLife   float64 // Days — memory relevance half-life (default: 30)
 	StaleThreshold  float64 // Days — penalty for unused memories (default: 14)
-	MMRLambda       float64 // MMR diversity/relevance tradeoff (default: 0.7)
 	MaxEntryLength  int     // Per-memory content cap in chars (default: 2000)
 }
 
@@ -26,7 +27,6 @@ func DefaultContextConfig() ContextConfig {
 		HardRuleReserve: 500,
 		DecayHalfLife:   30,
 		StaleThreshold:  14,
-		MMRLambda:       0.7,
 		MaxEntryLength:  2000,
 	}
 }
@@ -52,8 +52,8 @@ type ContextStats struct {
 // memory tiers: semantic (memories), episodic (journal), procedural (soul).
 //
 // Pipeline (each stage is independent — failure in one doesn't block others):
-//  1. Hard rules — always included, packed first with reserved budget
-//  2. RAG memories — search by query, decay + staleness scoring, MMR diversity
+//  1. Hard rules — always included, packed first within reserved budget
+//  2. RAG memories — search by query, decay + staleness scoring, budget-pack
 //  3. Journal digest — last 48h of episodic memory
 //  4. Soul identity — procedural memory from SOUL.md
 //
@@ -76,9 +76,6 @@ func NewContextBuilder(store *Store, embedder Embedder, config ContextConfig) *C
 	if config.MaxEntryLength <= 0 {
 		config.MaxEntryLength = DefaultContextConfig().MaxEntryLength
 	}
-	if config.MMRLambda <= 0 {
-		config.MMRLambda = DefaultContextConfig().MMRLambda
-	}
 	return &ContextBuilder{store: store, embedder: embedder, config: config}
 }
 
@@ -93,12 +90,17 @@ func (b *ContextBuilder) Build(ctx context.Context, query string, soulContent st
 	var sections []string
 	budgetUsed := 0
 
-	// Wrapper overhead.
+	// Account for wrapper + preamble overhead upfront.
 	wrapperCost := EstimateTokens("<memory_context>\n</memory_context>")
-	budgetUsed += wrapperCost
+	preambleCost := EstimateTokens(memoryPreamble)
+	budgetUsed += wrapperCost + preambleCost
 
-	// Stage 1: Hard rules (reserved budget, packed first).
-	hardSection, hardIDs, hardTokens := b.buildHardRules(ctx, cfg.TokenBudget)
+	// Stage 1: Hard rules (capped at HardRuleReserve, packed first).
+	hardBudget := cfg.HardRuleReserve
+	if hardBudget > cfg.TokenBudget-budgetUsed {
+		hardBudget = cfg.TokenBudget - budgetUsed
+	}
+	hardSection, hardIDs, hardTokens := b.buildHardRules(ctx, hardBudget)
 	if hardSection != "" {
 		sections = append(sections, hardSection)
 		budgetUsed += hardTokens
@@ -106,7 +108,7 @@ func (b *ContextBuilder) Build(ctx context.Context, query string, soulContent st
 		result.Stats.HardRulesIncluded = len(hardIDs)
 	}
 
-	// Stage 2: RAG memories (remaining budget after hard rules + wrapper).
+	// Stage 2: RAG memories (remaining budget after hard rules + overhead).
 	ragBudget := cfg.TokenBudget - budgetUsed
 	if ragBudget > 0 && query != "" {
 		ragSection, ragIDs, ragTokens := b.buildRAGMemories(ctx, query, ragBudget)
@@ -118,13 +120,13 @@ func (b *ContextBuilder) Build(ctx context.Context, query string, soulContent st
 		}
 	}
 
-	// Stage 3: Journal digest (last 48h, outside memory budget — appended after).
+	// Stage 3: Journal digest (last 48h, outside memory budget).
 	journalSection := buildJournalDigest(journalEntries)
 	if journalSection != "" {
 		result.Stats.JournalEntries = len(journalEntries)
 	}
 
-	// Stage 4: Soul identity (outside memory budget — always included).
+	// Stage 4: Soul identity (outside memory budget).
 	soulSection := ""
 	if soulContent != "" {
 		soulSection = "## Soul\n" + soulContent
@@ -133,13 +135,11 @@ func (b *ContextBuilder) Build(ctx context.Context, query string, soulContent st
 	// Assemble final text.
 	var out strings.Builder
 
-	// Soul goes first (identity).
 	if soulSection != "" {
 		out.WriteString(soulSection)
 		out.WriteString("\n\n")
 	}
 
-	// Memory context block.
 	if len(sections) > 0 {
 		out.WriteString(memoryPreamble)
 		out.WriteString("<memory_context>\n")
@@ -148,7 +148,6 @@ func (b *ContextBuilder) Build(ctx context.Context, query string, soulContent st
 		out.WriteString("\n\n")
 	}
 
-	// Journal digest.
 	if journalSection != "" {
 		out.WriteString(journalSection)
 	}
@@ -160,16 +159,21 @@ func (b *ContextBuilder) Build(ctx context.Context, query string, soulContent st
 }
 
 // MarkUsed updates access_count and last_accessed_at for injected memories.
-func (b *ContextBuilder) MarkUsed(ctx context.Context, ids []string) {
+// Uses a detached context so cancellation of the request doesn't abort tracking.
+func (b *ContextBuilder) MarkUsed(ids []string) {
 	if len(ids) == 0 {
 		return
 	}
-	b.store.MarkMemoriesUsed(ctx, ids)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := b.store.MarkMemoriesUsed(ctx, ids); err != nil {
+		slog.Warn("context: failed to mark memories used", "count", len(ids), "error", err)
+	}
 }
 
 // --- Stage 1: Hard Rules ---
 
-func (b *ContextBuilder) buildHardRules(ctx context.Context, totalBudget int) (section string, ids []string, tokens int) {
+func (b *ContextBuilder) buildHardRules(ctx context.Context, budget int) (section string, ids []string, tokens int) {
 	rules, err := b.store.List(ctx, ListOpts{
 		Category: CatHardRule,
 		Status:   StatusAccepted,
@@ -184,8 +188,8 @@ func (b *ContextBuilder) buildHardRules(ctx context.Context, totalBudget int) (s
 	for _, r := range rules {
 		entry := FormatMemoryEntry(r, b.config.MaxEntryLength)
 		cost := EstimateTokens(entry + "\n")
-		if used+cost > totalBudget {
-			break // hard rules that exceed total budget are dropped (shouldn't happen with reasonable budgets)
+		if used+cost > budget {
+			break
 		}
 		entries = append(entries, entry)
 		ids = append(ids, r.ID)
@@ -224,13 +228,9 @@ func (b *ContextBuilder) buildRAGMemories(ctx context.Context, query string, bud
 	}
 
 	// Sort by score descending.
-	for i := 0; i < len(candidates); i++ {
-		for j := i + 1; j < len(candidates); j++ {
-			if candidates[j].score > candidates[i].score {
-				candidates[i], candidates[j] = candidates[j], candidates[i]
-			}
-		}
-	}
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].score > candidates[j].score
+	})
 
 	// Budget-pack.
 	var entries []string
@@ -314,18 +314,17 @@ var adversarialTagPattern = regexp.MustCompile(
 	`(?i)</?(?:system|instructions|identity|context|tool_code|tool_result|assistant|user|human|prompt|role|function_call|function|command|execute|admin|root|sudo|override)\b[^>]*>`,
 )
 
+// genericTagPattern matches remaining XML/HTML tags.
+var genericTagPattern = regexp.MustCompile(`<[^>]*>`)
+
 // SanitizeForPrompt cleans memory content for safe LLM injection.
 // Strips adversarial tags, collapses newlines, truncates to maxLen.
 func SanitizeForPrompt(content string, maxLen int) string {
-	// Strip adversarial XML/HTML tags.
 	sanitized := adversarialTagPattern.ReplaceAllString(content, "")
-	// Strip remaining XML/HTML tags.
-	sanitized = regexp.MustCompile(`<[^>]*>`).ReplaceAllString(sanitized, "")
-	// Collapse newlines to single spaces.
+	sanitized = genericTagPattern.ReplaceAllString(sanitized, "")
 	sanitized = strings.Join(strings.Fields(sanitized), " ")
 	sanitized = strings.TrimSpace(sanitized)
 
-	// Truncate (rune-safe).
 	if runes := []rune(sanitized); len(runes) > maxLen {
 		sanitized = string(runes[:maxLen]) + "..."
 	}

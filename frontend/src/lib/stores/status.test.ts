@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { statusStore } from './status.svelte';
 
 describe('statusStore', () => {
+	beforeEach(() => {
+		statusStore.setStatus({ uptime: '', version: '' });
+		statusStore.setBudget({ todayUsd: 0, weekUsd: 0, budgetDailyUsd: 0, budgetWeeklyUsd: 0 });
+	});
 	it('sets status data', () => {
 		statusStore.setStatus({ uptime: '5h30m', version: '0.1.0' });
 		expect(statusStore.uptime).toBe('5h30m');

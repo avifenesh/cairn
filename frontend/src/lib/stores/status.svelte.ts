@@ -1,4 +1,4 @@
-// Status store — system status, budget, poller state
+// Status store — system status and budget tracking
 
 let uptime = $state('');
 let version = $state('');
@@ -16,8 +16,8 @@ export const statusStore = {
 	get budgetWeeklyCap() { return budgetWeeklyCap; },
 
 	setStatus(data: Record<string, unknown>) {
-		if (data.uptime) uptime = String(data.uptime);
-		if (data.version) version = String(data.version);
+		if ('uptime' in data) uptime = String(data.uptime ?? '');
+		if ('version' in data) version = String(data.version ?? '');
 	},
 
 	setBudget(data: Record<string, number>) {

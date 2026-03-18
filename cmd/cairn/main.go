@@ -588,9 +588,10 @@ func runInstallSkill(logger *slog.Logger, source string) {
 		defer os.RemoveAll(tmpDir)
 
 		fmt.Printf("Cloning %s...\n", source)
-		cmd := exec.Command("git", "clone", "--depth", "1", source, tmpDir)
+		cmd := exec.Command("git", "clone", "--depth", "1", "--", source, tmpDir)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 		if err := cmd.Run(); err != nil {
 			exitf("git clone failed: %v", err)
 		}
@@ -619,8 +620,14 @@ func runInstallSkill(logger *slog.Logger, source string) {
 		exitf("failed to parse SKILL.md: %v", err)
 	}
 
+	// Collect known tool names from builtin registry for validation.
+	knownToolNames := make([]string, 0, len(builtin.All()))
+	for _, t := range builtin.All() {
+		knownToolNames = append(knownToolNames, t.Name())
+	}
+
 	// Validate.
-	issues := skill.Validate(sk, nil) // no known tools at CLI time
+	issues := skill.Validate(sk, knownToolNames)
 	for _, iss := range issues {
 		fmt.Printf("  [%s] %s\n", iss.Severity, iss.Message)
 	}
@@ -693,7 +700,8 @@ func findSkillDir(root string) (string, error) {
 	return "", fmt.Errorf("no SKILL.md found in %q or its subdirectories", root)
 }
 
-// copyDir recursively copies a directory tree.
+// copyDir recursively copies a directory tree, skipping .git directories
+// and rejecting symlinks to prevent dereferencing attacks.
 func copyDir(src, dst string) error {
 	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -707,11 +715,21 @@ func copyDir(src, dst string) error {
 		}
 		target := filepath.Join(dst, rel)
 
+		// Skip .git directories (cloned repos include these).
+		if d.IsDir() && d.Name() == ".git" {
+			return filepath.SkipDir
+		}
+
+		// Reject symlinks to prevent dereferencing arbitrary files.
+		if d.Type()&fs.ModeSymlink != 0 {
+			return fmt.Errorf("symlink found at %s — refusing to copy for security", rel)
+		}
+
 		if d.IsDir() {
 			return os.MkdirAll(target, 0755)
 		}
 
-		// Copy file.
+		// Copy regular file.
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return err

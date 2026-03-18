@@ -263,9 +263,14 @@ func skillDirs() []string {
 
 	dirs = append(dirs, ".cairn/skills")
 
-	// Append any extra directories from SKILL_DIRS env var.
+	// Append any extra directories from SKILL_DIRS env var, filtering empty entries.
 	if extra := envSlice("SKILL_DIRS", nil); len(extra) > 0 {
-		dirs = append(dirs, extra...)
+		for _, d := range extra {
+			d = strings.TrimSpace(d)
+			if d != "" {
+				dirs = append(dirs, d)
+			}
+		}
 	}
 
 	return dirs

@@ -87,7 +87,8 @@
 					{active
 					? 'nav-active-bar bg-[var(--accent-dim)] text-[var(--cairn-accent)] font-medium'
 					: 'text-[var(--text-secondary)] hover:bg-[var(--bg-2)] hover:text-[var(--text-primary)]'}"
-				title={collapsed ? item.label : undefined}
+				aria-label={collapsed ? item.label : undefined}
+				aria-current={active ? 'page' : undefined}
 			>
 				<item.icon class="h-4 w-4 flex-shrink-0" />
 				{#if !collapsed}
@@ -116,7 +117,8 @@
 					{active
 					? 'nav-active-bar bg-[var(--accent-dim)] text-[var(--cairn-accent)]'
 					: 'text-[var(--text-tertiary)] hover:bg-[var(--bg-2)] hover:text-[var(--text-secondary)]'}"
-				title={collapsed ? item.label : undefined}
+				aria-label={collapsed ? item.label : undefined}
+				aria-current={active ? 'page' : undefined}
 			>
 				<item.icon class="h-4 w-4 flex-shrink-0" />
 				{#if !collapsed}

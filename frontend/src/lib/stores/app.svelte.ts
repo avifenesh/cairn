@@ -30,12 +30,11 @@ let density = $state<Density>((safeGetItem('cairn_density') as Density) || 'comf
 let mood = $state<Mood>((safeGetItem('cairn_mood') as Mood) || 'default');
 let commandPaletteOpen = $state(false);
 let helpModalOpen = $state(false);
-let contextPanelOpen = $state(false);
+let contextPanelOpen = $state(true);
 let notifications = $state<Notification[]>([]);
 let pollStatuses = $state<Record<string, { newCount: number; at: number }>>({});
 let agentProgresses = $state<Record<string, string>>({});
 let sidebarCollapsed = $state(false);
-let mobileMenuOpen = $state(false);
 let budgetTodayUsd = $state<number | null>(null);
 let budgetDailyLimitUsd = $state<number | null>(null);
 
@@ -50,7 +49,6 @@ export const appStore = {
 	get pollStatuses() { return pollStatuses; },
 	get agentProgresses() { return agentProgresses; },
 	get sidebarCollapsed() { return sidebarCollapsed; },
-	get mobileMenuOpen() { return mobileMenuOpen; },
 	get autoMoodEnabled() { return autoMoodEnabled; },
 	get helpModalOpen() { return helpModalOpen; },
 	get contextPanelOpen() { return contextPanelOpen; },
@@ -94,8 +92,6 @@ export const appStore = {
 	closeHelpModal() { helpModalOpen = false; },
 
 	toggleSidebar() { sidebarCollapsed = !sidebarCollapsed; },
-	toggleMobileMenu() { mobileMenuOpen = !mobileMenuOpen; },
-	closeMobileMenu() { mobileMenuOpen = false; },
 
 	toggleContextPanel() { contextPanelOpen = !contextPanelOpen; },
 	closeContextPanel() { contextPanelOpen = false; },

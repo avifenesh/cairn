@@ -220,6 +220,9 @@ func parseJournalResult(result string, session *Session, duration time.Duration)
 		DurationMs: duration.Milliseconds(),
 	}
 
+	// Strip markdown fences if present.
+	result = stripMarkdownFences(result)
+
 	// Try to parse as JSON.
 	var parsed struct {
 		Summary   string   `json:"summary"`
@@ -252,6 +255,28 @@ func parseJournalResult(result string, session *Session, duration time.Duration)
 	}
 
 	return entry
+}
+
+// stripMarkdownFences removes ```json ... ``` or similar fences from LLM output.
+func stripMarkdownFences(s string) string {
+	s = strings.TrimSpace(s)
+	if !strings.HasPrefix(s, "```") {
+		return s
+	}
+	// Remove opening fence (```json, ```, etc.).
+	rest := s[3:]
+	if idx := strings.IndexByte(rest, '\n'); idx >= 0 {
+		rest = rest[idx+1:]
+	} else {
+		// Single-line: strip everything after opening ``` until closing ```.
+		rest = strings.TrimPrefix(rest, "json")
+		rest = strings.TrimPrefix(rest, " ")
+	}
+	// Remove closing fence.
+	if idx := strings.LastIndex(rest, "```"); idx >= 0 {
+		rest = rest[:idx]
+	}
+	return strings.TrimSpace(rest)
 }
 
 func (j *Journaler) callLLM(ctx context.Context, prompt string) (string, error) {

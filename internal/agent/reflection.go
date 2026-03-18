@@ -98,11 +98,24 @@ func (r *ReflectionEngine) Reflect(ctx context.Context) (*ReflectionResult, erro
 
 // Apply takes a ReflectionResult and creates the proposed memories.
 // SOUL patches are returned but not applied automatically (requires approval).
+// validCategories is the set of known memory categories.
+var validCategories = map[memory.Category]bool{
+	memory.CatFact:         true,
+	memory.CatPreference:   true,
+	memory.CatDecision:     true,
+	memory.CatHardRule:     true,
+	memory.CatWritingStyle: true,
+}
+
 func (r *ReflectionEngine) Apply(ctx context.Context, result *ReflectionResult) error {
 	for _, pm := range result.Memories {
+		cat := memory.Category(pm.Category)
+		if !validCategories[cat] {
+			cat = memory.CatFact // default to fact if LLM returns unknown category
+		}
 		m := &memory.Memory{
 			Content:    pm.Content,
-			Category:   memory.Category(pm.Category),
+			Category:   cat,
 			Scope:      memory.ScopeGlobal,
 			Status:     memory.StatusProposed,
 			Confidence: pm.Confidence,
@@ -172,19 +185,7 @@ Rules:
 }
 
 func (r *ReflectionEngine) parseResult(raw string) *ReflectionResult {
-	// Try to extract JSON from the response (may have extra text around it).
-	raw = strings.TrimSpace(raw)
-
-	// Strip markdown fences if present.
-	if strings.HasPrefix(raw, "```") {
-		if idx := strings.Index(raw[3:], "\n"); idx >= 0 {
-			raw = raw[3+idx+1:]
-		}
-		if idx := strings.LastIndex(raw, "```"); idx >= 0 {
-			raw = raw[:idx]
-		}
-		raw = strings.TrimSpace(raw)
-	}
+	raw = stripMarkdownFences(raw)
 
 	var result ReflectionResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {

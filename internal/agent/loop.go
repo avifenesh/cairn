@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -56,6 +57,10 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 	if cfg.ReflectionInterval <= 0 {
 		cfg.ReflectionInterval = 30 * time.Minute
 	}
+	logger := deps.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
 
 	return &Loop{
 		agent:     deps.Agent,
@@ -68,7 +73,7 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		bus:       deps.Bus,
 		journaler: deps.Journaler,
 		reflector: deps.Reflector,
-		logger:    deps.Logger,
+		logger:    logger,
 		config:    cfg,
 	}
 }
@@ -88,8 +93,11 @@ type LoopDeps struct {
 	Logger    *slog.Logger
 }
 
-// Start begins the agent loop in a background goroutine.
+// Start begins the agent loop in a background goroutine. Safe to call only once.
 func (l *Loop) Start() {
+	if l.stopped.Load() {
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	l.cancel = cancel
 	l.wg.Add(1)
@@ -169,15 +177,16 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 
 	l.logger.Info("agent loop: executing task", "task", t.ID, "type", t.Type, "description", t.Description)
 
-	// Create a session for this task.
+	sessionID := "loop-" + t.ID
 	session := &Session{
+		ID:    sessionID,
 		Mode:  tool.ModeWork,
 		State: map[string]any{"taskId": t.ID},
 	}
 
 	invCtx := &InvocationContext{
 		Context:     ctx,
-		SessionID:   "loop-" + t.ID,
+		SessionID:   sessionID,
 		UserMessage: t.Description,
 		Mode:        tool.ModeWork,
 		Session:     session,
@@ -189,31 +198,40 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 		Config:      &AgentConfig{Model: l.config.Model, MaxRounds: 10},
 	}
 
-	// Run agent, collect response.
-	var response string
+	// Run agent, collect assistant response only (skip user events).
+	var response strings.Builder
 	taskStart := time.Now()
 	for ev := range l.agent.Run(invCtx) {
 		if ev.Err != nil {
 			l.logger.Error("agent loop: task error", "task", t.ID, "error", ev.Err)
-			l.tasks.Fail(ctx, t.ID, ev.Err)
+			if err := l.tasks.Fail(ctx, t.ID, ev.Err); err != nil {
+				l.logger.Warn("agent loop: fail task error", "task", t.ID, "error", err)
+			}
 			return true
 		}
 		if ev.Event != nil {
-			for _, part := range ev.Event.Parts {
-				if tp, ok := part.(TextPart); ok {
-					response += tp.Text
+			session.Events = append(session.Events, ev.Event)
+			if ev.Event.Author != "user" {
+				for _, part := range ev.Event.Parts {
+					if tp, ok := part.(TextPart); ok {
+						response.WriteString(tp.Text)
+					}
 				}
 			}
 		}
 	}
 
-	outputJSON, err := json.Marshal(response)
+	outputJSON, err := json.Marshal(response.String())
 	if err != nil {
 		l.logger.Error("agent loop: marshal output", "task", t.ID, "error", err)
-		l.tasks.Fail(ctx, t.ID, err)
+		if fErr := l.tasks.Fail(ctx, t.ID, err); fErr != nil {
+			l.logger.Warn("agent loop: fail task error", "task", t.ID, "error", fErr)
+		}
 		return true
 	}
-	l.tasks.Complete(ctx, t.ID, json.RawMessage(outputJSON))
+	if err := l.tasks.Complete(ctx, t.ID, json.RawMessage(outputJSON)); err != nil {
+		l.logger.Warn("agent loop: complete task error", "task", t.ID, "error", err)
+	}
 	l.logger.Info("agent loop: task completed", "task", t.ID, "duration", time.Since(taskStart))
 
 	// Journal the session.

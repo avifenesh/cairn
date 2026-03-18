@@ -112,16 +112,19 @@ export const sseStore = {
 		let pendingDelta = '';
 		let pendingDeltaTaskId = '';
 		let deltaFlushHandle: number | null = null;
+		const completedTaskIds = new Set<string>();
 
 		function flushDelta() {
 			deltaFlushHandle = null;
-			if (pendingDelta && pendingDeltaTaskId) {
+			if (pendingDelta && pendingDeltaTaskId && !completedTaskIds.has(pendingDeltaTaskId)) {
 				chatStore.appendDelta(pendingDeltaTaskId, pendingDelta);
 				pendingDelta = '';
 			}
 		}
 
 		handle('assistant_delta', source, (d) => {
+			// Ignore deltas for already-completed tasks
+			if (completedTaskIds.has(d.taskId)) return;
 			if (pendingDeltaTaskId && pendingDeltaTaskId !== d.taskId) {
 				flushDelta();
 			}
@@ -140,6 +143,9 @@ export const sseStore = {
 				if (active) taskId = active.taskId;
 			}
 			if (!taskId) return;
+
+			// Mark as completed BEFORE any async work — prevents RAF race
+			completedTaskIds.add(taskId);
 
 			// Build final content: store content + any unflushed buffer
 			const streaming = chatStore.streamingMessages.get(taskId);

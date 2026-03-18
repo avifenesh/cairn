@@ -31,7 +31,7 @@ describe('API client fetch behavior', () => {
 	});
 
 	it('GET includes credentials and token header', async () => {
-		localStorage.setItem('pub_api_token', 'test-token');
+		localStorage.setItem('cairn_api_token', 'test-token');
 
 		let capturedInit: RequestInit | undefined;
 		globalThis.fetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
@@ -46,7 +46,7 @@ describe('API client fetch behavior', () => {
 		expect(capturedInit?.credentials).toBe('include');
 		expect((capturedInit?.headers as Record<string, string>)['X-Api-Token']).toBe('test-token');
 
-		localStorage.removeItem('pub_api_token');
+		localStorage.removeItem('cairn_api_token');
 	});
 
 	it('throws ApiError on non-ok response', async () => {

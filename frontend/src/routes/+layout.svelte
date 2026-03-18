@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import Header from '$lib/components/layout/Header.svelte';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import BottomNav from '$lib/components/layout/BottomNav.svelte';
@@ -144,6 +145,7 @@
 	});
 </script>
 
+<Tooltip.Provider>
 <div class="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
 	<Header />
 
@@ -161,6 +163,7 @@
 	<StatusBar />
 	<BottomNav />
 </div>
+</Tooltip.Provider>
 
 <CommandPalette />
 <HelpModal open={appStore.helpModalOpen} onclose={() => appStore.closeHelpModal()} />

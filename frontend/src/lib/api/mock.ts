@@ -76,7 +76,7 @@ export const mockCosts: CostData = {
 export const useMocks = (): boolean => {
 	if (import.meta.env.PROD) return false;
 	try {
-		return localStorage.getItem('pub_use_mocks') === 'true';
+		return localStorage.getItem('cairn_use_mocks') === 'true';
 	} catch {
 		return false;
 	}

@@ -30,7 +30,7 @@ function safeParse(eventName: string, data: string): unknown | null {
 }
 
 function getStreamUrl(): string {
-	const token = localStorage.getItem('pub_api_token');
+	const token = localStorage.getItem('cairn_api_token');
 	const base = '/v1/stream';
 	const params = new URLSearchParams();
 	if (token) params.set('token', token);

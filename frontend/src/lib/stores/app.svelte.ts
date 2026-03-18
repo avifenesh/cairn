@@ -13,7 +13,7 @@ interface Notification {
 }
 
 function getToastDuration(): number {
-	try { return (Number(localStorage.getItem('pub_toast_duration')) || 5) * 1000; }
+	try { return (Number(localStorage.getItem('cairn_toast_duration')) || 5) * 1000; }
 	catch { return 5000; }
 }
 
@@ -21,13 +21,13 @@ function safeGetItem(key: string): string | null {
 	try { return localStorage.getItem(key); } catch { return null; }
 }
 
-let autoMoodEnabled = $state(safeGetItem('pub_auto_mood') === 'true');
+let autoMoodEnabled = $state(safeGetItem('cairn_auto_mood') === 'true');
 
 let sseConnected = $state(false);
 let clientId = $state<string | null>(null);
-let theme = $state<Theme>((localStorage.getItem('pub_theme') as Theme) || 'dark');
-let density = $state<Density>((localStorage.getItem('pub_density') as Density) || 'comfortable');
-let mood = $state<Mood>((localStorage.getItem('pub_mood') as Mood) || 'default');
+let theme = $state<Theme>((safeGetItem('cairn_theme') as Theme) || 'dark');
+let density = $state<Density>((safeGetItem('cairn_density') as Density) || 'comfortable');
+let mood = $state<Mood>((safeGetItem('cairn_mood') as Mood) || 'default');
 let commandPaletteOpen = $state(false);
 let helpModalOpen = $state(false);
 let contextPanelOpen = $state(true);
@@ -60,19 +60,19 @@ export const appStore = {
 
 	setTheme(t: Theme) {
 		theme = t;
-		localStorage.setItem('pub_theme', t);
+		localStorage.setItem('cairn_theme', t);
 		document.documentElement.setAttribute('data-theme', t);
 	},
 
 	setDensity(d: Density) {
 		density = d;
-		localStorage.setItem('pub_density', d);
+		localStorage.setItem('cairn_density', d);
 		document.documentElement.setAttribute('data-density', d);
 	},
 
 	setMood(m: Mood) {
 		mood = m;
-		localStorage.setItem('pub_mood', m);
+		localStorage.setItem('cairn_mood', m);
 		if (m === 'default') {
 			document.documentElement.removeAttribute('data-mood');
 		} else {
@@ -131,7 +131,7 @@ export const appStore = {
 
 	setAutoMood(enabled: boolean) {
 		autoMoodEnabled = enabled;
-		try { localStorage.setItem('pub_auto_mood', String(enabled)); } catch {}
+		try { localStorage.setItem('cairn_auto_mood', String(enabled)); } catch {}
 		if (enabled) appStore.applyAutoMood();
 	},
 

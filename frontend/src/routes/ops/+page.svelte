@@ -4,8 +4,13 @@
 	import { taskStore } from '$lib/stores/tasks.svelte';
 	import TaskCard from '$lib/components/tasks/TaskCard.svelte';
 	import ApprovalCard from '$lib/components/tasks/ApprovalCard.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
+	import * as Tabs from '$lib/components/ui/tabs';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { ShieldCheck, ShieldX, X } from '@lucide/svelte';
 
-	let tab = $state<'approvals' | 'tasks'>('approvals');
+	let tab = $state<string>('approvals');
 	let selectedIds = $state<Set<string>>(new Set());
 
 	onMount(async () => {
@@ -66,88 +71,109 @@
 	}
 </script>
 
-<div class="mx-auto max-w-4xl p-6">
-	<h1 class="mb-6 text-2xl font-semibold text-[var(--text-primary)]">Ops Inbox</h1>
+<div class="mx-auto max-w-5xl p-6">
+	<h1 class="mb-6 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Ops</h1>
 
-	<!-- Tab bar -->
-	<div class="mb-6 flex gap-1 rounded-lg bg-[var(--bg-2)] p-1">
-		<button
-			class="flex-1 rounded-md px-3 py-1.5 text-sm transition-colors duration-[var(--dur-fast)]
-				{tab === 'approvals' ? 'bg-[var(--bg-1)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)]'}"
-			onclick={() => (tab = 'approvals')}
-		>
-			Approvals
-			{#if taskStore.pendingApprovals.length > 0}
-				<span class="ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[var(--pub-accent)] px-1 text-[10px] font-medium text-[var(--primary-foreground)]">
-					{taskStore.pendingApprovals.length}
-				</span>
+	<Tabs.Root bind:value={tab}>
+		<Tabs.List class="mb-6">
+			<Tabs.Trigger value="approvals" class="gap-1.5">
+				Approvals
+				{#if taskStore.pendingApprovals.length > 0}
+					<Badge variant="default" class="h-4 min-w-4 px-1 text-[10px]">
+						{taskStore.pendingApprovals.length}
+					</Badge>
+				{/if}
+			</Tabs.Trigger>
+			<Tabs.Trigger value="tasks">Tasks</Tabs.Trigger>
+		</Tabs.List>
+
+		<!-- Bulk actions bar -->
+		{#if tab === 'approvals' && selectedIds.size > 0}
+			<div class="mb-4 flex items-center gap-2 rounded-lg border border-border-subtle bg-[var(--bg-1)] px-4 py-2">
+				<span class="text-xs text-[var(--text-secondary)] font-medium">{selectedIds.size} selected</span>
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-7 text-xs gap-1 border-[var(--color-success)]/30 text-[var(--color-success)] hover:bg-[var(--color-success)]/10"
+					onclick={bulkApprove}
+				>
+					<ShieldCheck class="h-3 w-3" /> Approve
+				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-7 text-xs gap-1 border-[var(--color-error)]/30 text-[var(--color-error)] hover:bg-[var(--color-error)]/10"
+					onclick={bulkDeny}
+				>
+					<ShieldX class="h-3 w-3" /> Deny
+				</Button>
+				<Button
+					variant="ghost"
+					size="sm"
+					class="h-7 text-xs ml-auto"
+					onclick={() => (selectedIds = new Set())}
+				>
+					<X class="h-3 w-3" /> Clear
+				</Button>
+			</div>
+		{/if}
+
+		<Tabs.Content value="approvals">
+			{#if taskStore.loading}
+				<div class="flex flex-col gap-3">
+					{#each Array(3) as _, i}
+						<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 animate-in" style="animation-delay: {i * 50}ms">
+							<Skeleton class="h-4 w-48 mb-2" />
+							<Skeleton class="h-3 w-32" />
+						</div>
+					{/each}
+				</div>
+			{:else if taskStore.pendingApprovals.length === 0}
+				<div class="py-16 text-center">
+					<p class="text-sm text-[var(--text-tertiary)]">No pending approvals</p>
+					<p class="mt-1 text-xs text-[var(--text-tertiary)]/60">All clear — nothing needs your attention</p>
+				</div>
+			{:else}
+				<div class="flex flex-col gap-3">
+					{#each taskStore.pendingApprovals as approval, i (approval.id)}
+						<div class="animate-in" style="animation-delay: {i * 40}ms">
+							<ApprovalCard
+								{approval}
+								onapprove={handleApprove}
+								ondeny={handleDeny}
+								selected={selectedIds.has(approval.id)}
+								onselect={toggleSelect}
+							/>
+						</div>
+					{/each}
+				</div>
 			{/if}
-		</button>
-		<button
-			class="flex-1 rounded-md px-3 py-1.5 text-sm transition-colors duration-[var(--dur-fast)]
-				{tab === 'tasks' ? 'bg-[var(--bg-1)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)]'}"
-			onclick={() => (tab = 'tasks')}
-		>
-			Tasks
-		</button>
-	</div>
+		</Tabs.Content>
 
-	<!-- Bulk actions bar -->
-	{#if tab === 'approvals' && selectedIds.size > 0}
-		<div class="mb-4 flex items-center gap-3 rounded-lg bg-[var(--bg-2)] px-4 py-2">
-			<span class="text-xs text-[var(--text-secondary)]">{selectedIds.size} selected</span>
-			<button
-				class="rounded-md bg-[var(--color-success)]/10 px-3 py-1 text-xs font-medium text-[var(--color-success)] hover:bg-[var(--color-success)]/20 transition-colors"
-				onclick={bulkApprove}
-			>
-				Approve all
-			</button>
-			<button
-				class="rounded-md bg-[var(--color-error)]/10 px-3 py-1 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/20 transition-colors"
-				onclick={bulkDeny}
-			>
-				Deny all
-			</button>
-			<button
-				class="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-				onclick={() => (selectedIds = new Set())}
-			>
-				Clear
-			</button>
-		</div>
-	{/if}
-
-	{#if taskStore.loading}
-		<div class="flex flex-col gap-3">
-			{#each Array(3) as _}
-				<div class="h-20 animate-pulse rounded-lg bg-[var(--bg-2)]"></div>
-			{/each}
-		</div>
-	{:else if tab === 'approvals'}
-		{#if taskStore.pendingApprovals.length === 0}
-			<p class="py-12 text-center text-sm text-[var(--text-tertiary)]">No pending approvals</p>
-		{:else}
-			<div class="flex flex-col gap-3">
-				{#each taskStore.pendingApprovals as approval (approval.id)}
-					<ApprovalCard
-						{approval}
-						onapprove={handleApprove}
-						ondeny={handleDeny}
-						selected={selectedIds.has(approval.id)}
-						onselect={toggleSelect}
-					/>
-				{/each}
-			</div>
-		{/if}
-	{:else}
-		{#if taskStore.tasks.length === 0}
-			<p class="py-12 text-center text-sm text-[var(--text-tertiary)]">No tasks</p>
-		{:else}
-			<div class="flex flex-col gap-2">
-				{#each taskStore.tasks as task (task.id)}
-					<TaskCard {task} oncancel={handleCancel} />
-				{/each}
-			</div>
-		{/if}
-	{/if}
+		<Tabs.Content value="tasks">
+			{#if taskStore.loading}
+				<div class="flex flex-col gap-2">
+					{#each Array(3) as _, i}
+						<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-3 animate-in" style="animation-delay: {i * 50}ms">
+							<Skeleton class="h-4 w-40 mb-1" />
+							<Skeleton class="h-3 w-24" />
+						</div>
+					{/each}
+				</div>
+			{:else if taskStore.tasks.length === 0}
+				<div class="py-16 text-center">
+					<p class="text-sm text-[var(--text-tertiary)]">No tasks</p>
+					<p class="mt-1 text-xs text-[var(--text-tertiary)]/60">Tasks will appear here when the agent is working</p>
+				</div>
+			{:else}
+				<div class="flex flex-col gap-2">
+					{#each taskStore.tasks as task, i (task.id)}
+						<div class="animate-in" style="animation-delay: {i * 30}ms">
+							<TaskCard {task} oncancel={handleCancel} />
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</Tabs.Content>
+	</Tabs.Root>
 </div>

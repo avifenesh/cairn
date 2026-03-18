@@ -25,7 +25,7 @@ describe('appStore', () => {
 		it('setTheme persists to localStorage and sets DOM attribute', () => {
 			appStore.setTheme('light');
 			expect(appStore.theme).toBe('light');
-			expect(localStorage.getItem('pub_theme')).toBe('light');
+			expect(localStorage.getItem('cairn_theme')).toBe('light');
 			expect(document.documentElement.getAttribute('data-theme')).toBe('light');
 		});
 
@@ -46,7 +46,7 @@ describe('appStore', () => {
 		it('setDensity persists and sets DOM attribute', () => {
 			appStore.setDensity('dense');
 			expect(appStore.density).toBe('dense');
-			expect(localStorage.getItem('pub_density')).toBe('dense');
+			expect(localStorage.getItem('cairn_density')).toBe('dense');
 			expect(document.documentElement.getAttribute('data-density')).toBe('dense');
 		});
 	});
@@ -59,7 +59,7 @@ describe('appStore', () => {
 		it('setMood persists and sets DOM attribute for non-default moods', () => {
 			appStore.setMood('ocean');
 			expect(document.documentElement.getAttribute('data-mood')).toBe('ocean');
-			expect(localStorage.getItem('pub_mood')).toBe('ocean');
+			expect(localStorage.getItem('cairn_mood')).toBe('ocean');
 		});
 
 		it('setMood removes DOM attribute for default mood', () => {

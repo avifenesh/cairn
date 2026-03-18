@@ -44,20 +44,20 @@ describe('FeedItem', () => {
 		const { container } = render(FeedItem, { item: makeItem({ isRead: false }) });
 		// Unread dot is a small accent-colored span
 		const dots = container.querySelectorAll('span');
-		const accentDot = Array.from(dots).find((s) => s.className.includes('bg-[var(--pub-accent)]'));
+		const accentDot = Array.from(dots).find((s) => s.className.includes('bg-[var(--cairn-accent)]'));
 		expect(accentDot).toBeTruthy();
 	});
 
 	it('does not show unread indicator for read items', () => {
 		const { container } = render(FeedItem, { item: makeItem({ isRead: true }) });
 		const dots = container.querySelectorAll('span');
-		const accentDot = Array.from(dots).find((s) => s.className.includes('bg-[var(--pub-accent)]'));
+		const accentDot = Array.from(dots).find((s) => s.className.includes('bg-[var(--cairn-accent)]'));
 		expect(accentDot).toBeFalsy();
 	});
 
 	it('applies opacity class for read items', () => {
 		const { container } = render(FeedItem, { item: makeItem({ isRead: true }) });
 		const link = container.querySelector('a');
-		expect(link?.className).toContain('opacity-60');
+		expect(link?.className).toContain('opacity-50');
 	});
 });

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Search } from '@lucide/svelte';
+	import { Input } from '$lib/components/ui/input';
 	import { onDestroy } from 'svelte';
 
 	let { value = $bindable(''), onsearch }: { value: string; onsearch: () => void } = $props();
@@ -16,12 +17,12 @@
 </script>
 
 <div class="relative flex-1">
-	<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
-	<input
+	<Search class="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
+	<Input
 		type="search"
 		placeholder="Search memories..."
 		bind:value
 		oninput={handleInput}
-		class="w-full rounded-lg border border-border-subtle bg-[var(--bg-2)] pl-10 pr-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--pub-accent)] focus:outline-none"
+		class="pl-9 h-9 bg-[var(--bg-0)]"
 	/>
 </div>

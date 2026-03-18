@@ -1,13 +1,15 @@
 <script lang="ts">
-	import { Wrench } from '@lucide/svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Wrench, Check } from '@lucide/svelte';
 
 	let { toolName, phase }: { toolName: string; phase: string } = $props();
 </script>
 
-<span class="inline-flex items-center gap-1 rounded-full bg-[var(--bg-3)] px-2 py-0.5 text-[10px] text-[var(--text-tertiary)]">
-	<Wrench class="h-2.5 w-2.5" />
-	{toolName}
+<Badge variant="outline" class="h-5 gap-1 px-1.5 text-[10px] font-mono {phase === 'start' ? 'border-[var(--cairn-accent)]/30 text-[var(--cairn-accent)]' : 'text-[var(--text-tertiary)]'}">
 	{#if phase === 'start'}
-		<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--pub-accent)]"></span>
+		<Wrench class="h-2.5 w-2.5 animate-spin" />
+	{:else}
+		<Check class="h-2.5 w-2.5" />
 	{/if}
-</span>
+	{toolName}
+</Badge>

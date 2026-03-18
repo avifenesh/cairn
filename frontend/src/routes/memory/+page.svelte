@@ -5,6 +5,9 @@
 	import MemoryCard from '$lib/components/memory/MemoryCard.svelte';
 	import MemorySearch from '$lib/components/memory/MemorySearch.svelte';
 	import MemoryEditor from '$lib/components/memory/MemoryEditor.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { Brain } from '@lucide/svelte';
 
 	let filter = $state<'all' | 'proposed' | 'accepted'>('all');
@@ -63,52 +66,62 @@
 		if (filter === 'all') return source;
 		return source.filter((m) => m.status === filter);
 	});
+
+	const filters: Array<{ key: typeof filter; label: string }> = [
+		{ key: 'all', label: 'All' },
+		{ key: 'proposed', label: 'Proposed' },
+		{ key: 'accepted', label: 'Accepted' },
+	];
 </script>
 
-<div class="mx-auto max-w-4xl p-6">
+<div class="mx-auto max-w-5xl p-6">
 	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-2xl font-semibold text-[var(--text-primary)]">Memory</h1>
+		<h1 class="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Memory</h1>
 		<MemoryEditor oncreate={handleCreate} />
 	</div>
 
-	<!-- Search -->
 	<div class="mb-4 flex gap-2">
 		<MemorySearch bind:value={memoryStore.searchQuery} onsearch={handleSearch} />
 	</div>
 
-	<!-- Filter tabs -->
-	<div class="mb-4 flex gap-1">
-		{#each ['all', 'proposed', 'accepted'] as f}
-			<button
-				class="rounded-md px-3 py-1.5 text-xs transition-colors duration-[var(--dur-fast)]
-					{filter === f
-					? 'bg-[var(--accent-dim)] text-[var(--pub-accent)]'
-					: 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
-				onclick={() => (filter = f as typeof filter)}
+	<div class="mb-4 flex items-center gap-1">
+		{#each filters as f}
+			<Button
+				variant={filter === f.key ? 'secondary' : 'ghost'}
+				size="sm"
+				class="h-7 text-xs gap-1.5
+					{filter === f.key ? 'text-[var(--cairn-accent)]' : 'text-[var(--text-tertiary)]'}"
+				onclick={() => (filter = f.key)}
 			>
-				{f.charAt(0).toUpperCase() + f.slice(1)}
-				{#if f === 'proposed' && memoryStore.proposedCount > 0}
-					<span class="ml-1 text-[10px]">({memoryStore.proposedCount})</span>
+				{f.label}
+				{#if f.key === 'proposed' && memoryStore.proposedCount > 0}
+					<Badge variant="default" class="h-4 min-w-4 px-1 text-[10px]">{memoryStore.proposedCount}</Badge>
 				{/if}
-			</button>
+			</Button>
 		{/each}
 	</div>
 
 	{#if memoryStore.loading}
 		<div class="flex flex-col gap-3">
-			{#each Array(5) as _}
-				<div class="h-20 animate-pulse rounded-lg bg-[var(--bg-2)]"></div>
+			{#each Array(5) as _, i}
+				<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 animate-in" style="animation-delay: {i * 40}ms">
+					<Skeleton class="h-4 w-64 mb-2" />
+					<Skeleton class="h-3 w-32" />
+				</div>
 			{/each}
 		</div>
 	{:else if displayMemories().length === 0}
-		<div class="flex flex-col items-center justify-center py-16 text-[var(--text-tertiary)]">
-			<Brain class="mb-3 h-10 w-10 opacity-40" />
+		<div class="flex flex-col items-center justify-center py-20 text-[var(--text-tertiary)]">
+			<Brain class="mb-3 h-10 w-10 opacity-30" />
 			<p class="text-sm">No memories found</p>
+			<p class="mt-1 text-xs opacity-60">Memories appear as the agent learns from your interactions</p>
 		</div>
 	{:else}
 		<div class="flex flex-col gap-3">
-			{#each displayMemories() as memory (memory.id)}
-				<MemoryCard {memory} onaccept={handleAccept} onreject={handleReject} />
+			{#each displayMemories() as memory, i (memory.id)}
+				<div class="animate-in" style="animation-delay: {Math.min(i * 30, 300)}ms">
+					<MemoryCard {memory} onaccept={handleAccept} onreject={handleReject} />
+				</div>
 			{/each}
 		</div>
 	{/if}

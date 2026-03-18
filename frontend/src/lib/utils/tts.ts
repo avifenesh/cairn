@@ -7,7 +7,7 @@ export async function playTTS(text: string, format: string = 'mp3'): Promise<voi
 	stopTTS();
 	const params = new URLSearchParams({ text, format });
 	const h: HeadersInit = {};
-	const token = localStorage.getItem('pub_api_token');
+	const token = localStorage.getItem('cairn_api_token');
 	if (token) h['X-Api-Token'] = token;
 	const res = await fetch(`/v1/assistant/voice/tts?${params}`, {
 		credentials: 'include',

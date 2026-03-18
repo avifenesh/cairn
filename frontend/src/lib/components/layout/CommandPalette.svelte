@@ -117,7 +117,7 @@
 		onclick={close}
 	>
 		<div
-			class="mx-auto mt-[20vh] w-full max-w-lg rounded-xl border border-border-subtle bg-[var(--bg-1)] shadow-lg"
+			class="mx-auto mt-[20vh] w-full max-w-lg rounded-xl border border-border-subtle bg-[var(--bg-1)] shadow-lg backdrop-blur-sm"
 			role="dialog"
 			aria-modal="true"
 			aria-label="Command palette"
@@ -146,7 +146,7 @@
 					<button
 						class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-[var(--dur-fast)]
 							{i === selectedIndex
-							? 'bg-[var(--accent-dim)] text-[var(--pub-accent)]'
+							? 'bg-[var(--accent-dim)] text-[var(--cairn-accent)]'
 							: 'text-[var(--text-secondary)] hover:bg-[var(--bg-2)]'}"
 						role="menuitem"
 						onclick={() => item.action()}

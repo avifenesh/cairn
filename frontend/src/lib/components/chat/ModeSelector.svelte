@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { chatStore } from '$lib/stores/chat.svelte';
 	import type { ChatMode } from '$lib/types';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Badge } from '$lib/components/ui/badge';
 	import { Plus, X } from '@lucide/svelte';
 
 	interface CustomMode {
@@ -24,7 +27,7 @@
 
 	function loadCustomModes(): CustomMode[] {
 		try {
-			return JSON.parse(localStorage.getItem('pub_custom_modes') || '[]');
+			return JSON.parse(localStorage.getItem('cairn_custom_modes') || '[]');
 		} catch {
 			return [];
 		}
@@ -32,10 +35,8 @@
 
 	function saveCustomModes() {
 		try {
-			localStorage.setItem('pub_custom_modes', JSON.stringify(customModes));
-		} catch {
-			// storage full or unavailable
-		}
+			localStorage.setItem('cairn_custom_modes', JSON.stringify(customModes));
+		} catch {}
 	}
 
 	function selectBuiltin(mode: ChatMode) {
@@ -44,7 +45,6 @@
 	}
 
 	function selectCustom(mode: CustomMode) {
-		// Custom modes use 'talk' as the backend mode, prompt injection is client-side
 		chatStore.setMode('talk');
 		activeCustomMode = mode.name;
 	}
@@ -69,7 +69,6 @@
 		}
 	}
 
-	// Expose active custom mode's prompt injection for ChatPanel to use
 	export function getActivePromptInjection(): string | null {
 		if (!activeCustomMode) return null;
 		return customModes.find((m) => m.name === activeCustomMode)?.promptInjection ?? null;
@@ -78,22 +77,22 @@
 
 <div class="flex flex-wrap items-center gap-1">
 	{#each builtinModes as m}
-		<button
-			class="rounded-md px-2.5 py-1 text-xs transition-colors duration-[var(--dur-fast)]
-				{chatStore.mode === m.value && !activeCustomMode
-				? 'bg-[var(--accent-dim)] text-[var(--pub-accent)]'
-				: 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
+		<Button
+			variant={chatStore.mode === m.value && !activeCustomMode ? 'secondary' : 'ghost'}
+			size="sm"
+			class="h-6 text-[11px] px-2
+				{chatStore.mode === m.value && !activeCustomMode ? 'text-[var(--cairn-accent)]' : 'text-[var(--text-tertiary)]'}"
 			onclick={() => selectBuiltin(m.value)}
 		>
 			{m.label}
-		</button>
+		</Button>
 	{/each}
 	{#each customModes as m}
-		<button
-			class="group flex items-center gap-1 rounded-md px-2.5 py-1 text-xs transition-colors duration-[var(--dur-fast)]
-				{activeCustomMode === m.name
-				? 'bg-[var(--accent-dim)] text-[var(--pub-accent)]'
-				: 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
+		<Button
+			variant={activeCustomMode === m.name ? 'secondary' : 'ghost'}
+			size="sm"
+			class="group h-6 text-[11px] px-2 gap-1
+				{activeCustomMode === m.name ? 'text-[var(--cairn-accent)]' : 'text-[var(--text-tertiary)]'}"
 			onclick={() => selectCustom(m)}
 		>
 			{m.name}
@@ -106,49 +105,44 @@
 			>
 				<X class="h-2.5 w-2.5" />
 			</span>
-		</button>
+		</Button>
 	{/each}
-	<button
-		class="rounded-md px-1.5 py-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+	<Button
+		variant="ghost"
+		size="sm"
+		class="h-6 w-6 p-0 text-[var(--text-tertiary)]"
 		onclick={() => (showAdd = !showAdd)}
 	>
 		<Plus class="h-3 w-3" />
-	</button>
+	</Button>
 </div>
 
 {#if showAdd}
-	<div class="mt-2 rounded-lg border border-border-subtle bg-[var(--bg-2)] p-3">
+	<div class="mt-2 rounded-lg border border-border-subtle bg-[var(--bg-1)] p-3">
 		<div class="flex flex-col gap-2">
-			<input
+			<Input
 				bind:value={newName}
 				placeholder="Mode name"
-				class="rounded-md border border-border-subtle bg-[var(--bg-1)] px-2 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--pub-accent)] focus:outline-none"
+				class="h-7 text-xs"
 			/>
-			<input
+			<Input
 				bind:value={newDesc}
 				placeholder="Description (optional)"
-				class="rounded-md border border-border-subtle bg-[var(--bg-1)] px-2 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+				class="h-7 text-xs"
 			/>
 			<textarea
 				bind:value={newPrompt}
 				placeholder="System prompt injection"
 				rows="2"
-				class="resize-none rounded-md border border-border-subtle bg-[var(--bg-1)] px-2 py-1 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+				class="resize-none rounded-md border border-border-subtle bg-[var(--bg-0)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--cairn-accent)] focus:ring-1 focus:ring-[var(--cairn-accent)]/30 focus:outline-none transition-colors"
 			></textarea>
 			<div class="flex gap-2">
-				<button
-					class="rounded-md bg-[var(--pub-accent)] px-2.5 py-1 text-xs text-[var(--primary-foreground)] disabled:opacity-50"
-					onclick={addMode}
-					disabled={!newName.trim()}
-				>
+				<Button size="sm" class="h-7 text-xs" onclick={addMode} disabled={!newName.trim()}>
 					Add
-				</button>
-				<button
-					class="text-xs text-[var(--text-tertiary)]"
-					onclick={() => (showAdd = false)}
-				>
+				</Button>
+				<Button variant="ghost" size="sm" class="h-7 text-xs" onclick={() => (showAdd = false)}>
 					Cancel
-				</button>
+				</Button>
 			</div>
 		</div>
 	</div>

@@ -10,8 +10,8 @@ export const taskStore = {
 	get tasks() { return tasks; },
 	get approvals() { return approvals; },
 	get loading() { return loading; },
-	get pendingApprovals() { return approvals.filter((a) => a.status === 'pending'); },
-	get activeTasks() { return tasks.filter((t) => t.status === 'running' || t.status === 'pending'); },
+	get pendingApprovals() { return (approvals ?? []).filter((a) => a.status === 'pending'); },
+	get activeTasks() { return (tasks ?? []).filter((t) => t.status === 'running' || t.status === 'pending'); },
 
 	setTasks(t: Task[]) { tasks = t; },
 	setApprovals(a: Approval[]) { approvals = a; },

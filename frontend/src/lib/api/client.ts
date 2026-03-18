@@ -142,7 +142,12 @@ export const getTasks = async (params?: { status?: string; type?: string }) => {
 	if (params?.type) q.set('type', params.type);
 	const qs = q.toString();
 	const raw = await get<Record<string, unknown>>(`/v1/tasks${qs ? '?' + qs : ''}`);
-	return { items: (raw.tasks ?? raw.items ?? []) as Task[], hasMore: (raw.hasMore ?? false) as boolean };
+	const tasks = ((raw.tasks ?? raw.items ?? []) as Array<Record<string, unknown>>).map((t) => ({
+		...t,
+		title: t.title || t.description || t.mode || t.type || 'Task',
+		status: t.status === 'queued' ? 'pending' : t.status,
+	})) as Task[];
+	return { items: tasks, hasMore: (raw.hasMore ?? false) as boolean };
 };
 
 export const cancelTask = (id: string) => post<{ ok: boolean }>(`/v1/tasks/${id}/cancel`);

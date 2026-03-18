@@ -200,13 +200,19 @@ func (p *GLMProvider) buildRequestBody(req *Request) ([]byte, error) {
 		temp = &t
 	}
 
+	// Only enable thinking for models that support it (glm-5-turbo, glm-4.7).
+	var thinking *glmThinking
+	if strings.Contains(model, "turbo") || strings.HasPrefix(model, "glm-4.") {
+		thinking = &glmThinking{Type: "enabled"}
+	}
+
 	glmReq := glmRequest{
 		Model:       model,
 		Stream:      true,
 		MaxTokens:   maxTokens,
 		Temperature: temp,
 		Stop:        req.Stop,
-		Thinking:    &glmThinking{Type: "enabled"},
+		Thinking:    thinking,
 	}
 
 	// Build messages.

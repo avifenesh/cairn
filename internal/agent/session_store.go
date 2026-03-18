@@ -89,8 +89,9 @@ func (s *SessionStore) List(ctx context.Context, limit int) ([]*Session, error) 
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, title, mode, created_at, updated_at
-		FROM sessions ORDER BY updated_at DESC LIMIT ?`, limit)
+		SELECT s.id, s.title, s.mode, s.created_at, s.updated_at,
+			(SELECT COUNT(*) FROM messages WHERE session_id = s.id) as msg_count
+		FROM sessions s ORDER BY s.updated_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("session store: list: %w", err)
 	}
@@ -99,18 +100,30 @@ func (s *SessionStore) List(ctx context.Context, limit int) ([]*Session, error) 
 	var sessions []*Session
 	for rows.Next() {
 		var id, title, mode, createdAt, updatedAt string
-		if err := rows.Scan(&id, &title, &mode, &createdAt, &updatedAt); err != nil {
+		var msgCount int
+		if err := rows.Scan(&id, &title, &mode, &createdAt, &updatedAt, &msgCount); err != nil {
 			return nil, fmt.Errorf("session store: scan list: %w", err)
 		}
 		sessions = append(sessions, &Session{
-			ID:        id,
-			Title:     title,
-			Mode:      tool.Mode(mode),
-			CreatedAt: parseTime(createdAt),
-			UpdatedAt: parseTime(updatedAt),
+			ID:           id,
+			Title:        title,
+			Mode:         tool.Mode(mode),
+			MessageCount: msgCount,
+			CreatedAt:    parseTime(createdAt),
+			UpdatedAt:    parseTime(updatedAt),
 		})
 	}
 	return sessions, rows.Err()
+}
+
+// UpdateTitle sets the session title.
+func (s *SessionStore) UpdateTitle(ctx context.Context, sessionID, title string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?`,
+		title, time.Now().UTC().Format(time.RFC3339), sessionID)
+	if err != nil {
+		return fmt.Errorf("session store: update title %s: %w", sessionID, err)
+	}
+	return nil
 }
 
 // AppendEvent persists an event as a message in the session.

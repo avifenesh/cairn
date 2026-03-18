@@ -66,6 +66,14 @@
 	const streamingList = $derived([...chatStore.streamingMessages.values()]);
 	const hasMessages = $derived(chatStore.messages.length > 0 || streamingList.length > 0);
 
+	// Mode-specific accent colors
+	const modeColors: Record<string, string> = {
+		talk: 'var(--cairn-accent)',
+		work: '#F59E0B',
+		coding: '#06B6D4',
+	};
+	const modeColor = $derived(modeColors[chatStore.mode] ?? 'var(--cairn-accent)');
+
 	// Auto-scroll when messages change (new message or session loaded)
 	$effect(() => {
 		// Track message count to trigger scroll
@@ -157,11 +165,14 @@
 			</div>
 
 			<div class="flex items-end gap-2">
-				<div class="flex-1 rounded-lg border border-border-subtle bg-[var(--bg-0)] focus-within:border-[var(--cairn-accent)] focus-within:ring-1 focus-within:ring-[var(--cairn-accent)]/30 transition-colors">
+				<div
+					class="flex-1 rounded-lg border bg-[var(--bg-0)] transition-colors"
+					style="border-color: color-mix(in srgb, {modeColor} 25%, transparent)"
+				>
 					<textarea
 						bind:value={inputText}
 						onkeydown={handleKeydown}
-						placeholder="Send a message..."
+						placeholder="{chatStore.mode === 'coding' ? 'Describe a coding task...' : chatStore.mode === 'work' ? 'What needs to get done?' : 'Send a message...'}"
 						rows="1"
 						class="w-full resize-none bg-transparent px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
 					></textarea>
@@ -170,6 +181,7 @@
 				<Button
 					size="icon"
 					class="h-10 w-10 rounded-lg"
+					style="background-color: {modeColor}"
 					onclick={handleSend}
 					disabled={!inputText.trim() || sending}
 					aria-label="Send"

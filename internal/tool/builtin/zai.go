@@ -86,6 +86,7 @@ func callZaiMCP(ctx context.Context, service, toolName string, args map[string]a
 		return "", fmt.Errorf("zai: create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
 	req.Header.Set("Authorization", "Bearer "+zaiConfig.APIKey)
 
 	resp, err := zaiConfig.HTTPClient.Do(req)

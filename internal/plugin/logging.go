@@ -34,13 +34,15 @@ func (p *LoggingPlugin) BeforeAgentRun(ctx context.Context, inv *Invocation) (co
 }
 
 func (p *LoggingPlugin) AfterAgentRun(ctx context.Context, inv *Invocation, result *RunResult) context.Context {
-	start, _ := ctx.Value(agentStartKey{}).(time.Time)
-	duration := time.Since(start)
-	p.logger.Info("agent run completed",
+	args := []any{
 		"session", inv.SessionID,
 		"rounds", result.Rounds,
 		"toolCalls", result.ToolCalls,
-		"duration", duration)
+	}
+	if start, ok := ctx.Value(agentStartKey{}).(time.Time); ok {
+		args = append(args, "duration", time.Since(start))
+	}
+	p.logger.Info("agent run completed", args...)
 	return ctx
 }
 
@@ -79,13 +81,16 @@ func (p *LoggingPlugin) BeforeLLMCall(ctx context.Context, call *LLMCall) (conte
 }
 
 func (p *LoggingPlugin) AfterLLMCall(ctx context.Context, call *LLMCall, usage *TokenUsage) context.Context {
-	start, _ := ctx.Value(llmStartKey{}).(time.Time)
-	p.logger.Info("llm call completed",
+	args := []any{
 		"model", call.Model,
 		"round", call.Round,
 		"inputTokens", usage.InputTokens,
 		"outputTokens", usage.OutputTokens,
-		"duration", time.Since(start))
+	}
+	if start, ok := ctx.Value(llmStartKey{}).(time.Time); ok {
+		args = append(args, "duration", time.Since(start))
+	}
+	p.logger.Info("llm call completed", args...)
 	return ctx
 }
 

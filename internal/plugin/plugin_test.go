@@ -88,7 +88,9 @@ func TestManager_ContextPropagation(t *testing.T) {
 	})
 
 	inv := &Invocation{SessionID: "s1"}
-	m.RunBeforeAgentRun(context.Background(), inv)
+	if _, err := m.RunBeforeAgentRun(context.Background(), inv); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
 
 func TestManager_ToolHooks(t *testing.T) {

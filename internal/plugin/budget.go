@@ -95,17 +95,21 @@ func (p *BudgetPlugin) BeforeLLMCall(ctx context.Context, call *LLMCall) (contex
 
 func (p *BudgetPlugin) AfterLLMCall(ctx context.Context, call *LLMCall, usage *TokenUsage) context.Context {
 	cost := estimateCost(call.Model, usage.InputTokens, usage.OutputTokens)
+
 	p.mu.Lock()
+	p.maybeReset()
 	p.dailySpend += cost
 	p.weeklySpend += cost
+	dailySpend := p.dailySpend // snapshot under lock for logging
 	p.mu.Unlock()
+
 	p.totalCalls.Add(1)
 
 	if cost > 0 {
 		p.logger.Debug("budget: llm cost",
 			"model", call.Model,
 			"cost", cost,
-			"dailySpend", p.dailySpend,
+			"dailySpend", dailySpend,
 			"dailyCap", p.dailyCap)
 	}
 	return ctx

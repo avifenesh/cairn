@@ -118,15 +118,20 @@ func NewManager(logger *slog.Logger) *Manager {
 	return &Manager{logger: logger}
 }
 
-// Register adds a plugin. Call before starting the agent loop.
+// Register adds a plugin. Call before starting the agent loop. Panics on nil.
 func (m *Manager) Register(p Plugin) {
+	if p == nil {
+		panic("plugin: Register called with nil plugin")
+	}
 	m.plugins = append(m.plugins, p)
 	m.logger.Info("plugin registered", "name", p.Name())
 }
 
-// Plugins returns the registered plugins (for inspection/testing).
+// Plugins returns a copy of the registered plugins (safe for inspection).
 func (m *Manager) Plugins() []Plugin {
-	return m.plugins
+	out := make([]Plugin, len(m.plugins))
+	copy(out, m.plugins)
+	return out
 }
 
 // --- Agent hook runners ---

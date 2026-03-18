@@ -173,7 +173,7 @@ export const getSessionMessages = async (sessionId: string) => {
 };
 
 export const sendMessage = (message: string, mode?: ChatMode, sessionId?: string) =>
-	post<{ taskId: string }>('/v1/assistant/message', { message, mode, sessionId });
+	post<{ taskId: string; sessionId?: string }>('/v1/assistant/message', { message, mode, sessionId });
 
 // Voice
 export const uploadVoice = async (audio: Blob, mode?: ChatMode, sessionId?: string) => {

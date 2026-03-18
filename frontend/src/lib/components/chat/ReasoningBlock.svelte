@@ -10,6 +10,8 @@
 		isStreaming?: boolean;
 	} = $props();
 
+	const contentId = `reasoning-${crypto.randomUUID().slice(0, 8)}`;
+
 	let expanded = $state(false);
 	let wasStreaming = $state(false);
 
@@ -33,7 +35,7 @@
 		class="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] transition-colors hover:bg-[var(--bg-2)]/50"
 		onclick={() => { expanded = !expanded; }}
 		aria-expanded={expanded}
-		aria-controls="reasoning-content"
+		aria-controls={contentId}
 		type="button"
 	>
 		<Brain class="h-3.5 w-3.5 text-[var(--cairn-accent)] flex-shrink-0" />
@@ -56,9 +58,8 @@
 
 	{#if expanded}
 		<div
-			id="reasoning-content"
+			id={contentId}
 			class="border-t border-border-subtle px-3 py-2 text-xs text-[var(--text-secondary)] leading-relaxed max-h-64 overflow-y-auto"
-			aria-hidden={!expanded}
 		>
 			{#each steps as step}
 				<p class="mb-1.5 last:mb-0">

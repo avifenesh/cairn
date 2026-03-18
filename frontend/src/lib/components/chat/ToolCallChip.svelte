@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Badge } from '$lib/components/ui/badge';
 	import { Wrench, Check, AlertCircle, ChevronDown, ChevronUp } from '@lucide/svelte';
 
 	let {

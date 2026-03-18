@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createMemory } from '$lib/api/client';
+	import { MEMORY_CATEGORIES } from '$lib/constants';
 	import { Button } from '$lib/components/ui/button';
 	import { BookmarkPlus, Check, AlertCircle } from '@lucide/svelte';
 
@@ -8,20 +9,14 @@
 	let phase = $state<'idle' | 'picking' | 'saving' | 'done' | 'error'>('idle');
 	let category = $state('fact');
 
-	const categories = [
-		{ value: 'fact', label: 'Fact' },
-		{ value: 'preference', label: 'Preference' },
-		{ value: 'hard_rule', label: 'Hard Rule' },
-		{ value: 'decision', label: 'Decision' },
-	];
-
 	async function save() {
 		phase = 'saving';
 		try {
 			await createMemory(content, category);
 			phase = 'done';
 			setTimeout(() => { phase = 'idle'; }, 2000);
-		} catch {
+		} catch (err) {
+			console.error('[memory] Failed to create:', err);
 			phase = 'error';
 			setTimeout(() => { phase = 'idle'; }, 3000);
 		}
@@ -45,7 +40,7 @@
 			aria-label="Memory category"
 			class="h-6 rounded border border-border-subtle bg-[var(--bg-0)] px-1.5 text-[10px] text-[var(--text-secondary)] focus:outline-none"
 		>
-			{#each categories as cat}
+			{#each MEMORY_CATEGORIES as cat}
 				<option value={cat.value}>{cat.label}</option>
 			{/each}
 		</select>

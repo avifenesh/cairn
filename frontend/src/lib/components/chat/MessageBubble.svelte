@@ -44,7 +44,7 @@
 				{relativeTime(message.createdAt)}
 			</time>
 			<!-- Action bar — visible on hover -->
-			<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+			<div class="flex items-center gap-0.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity">
 				<Button
 					variant="ghost"
 					size="icon"

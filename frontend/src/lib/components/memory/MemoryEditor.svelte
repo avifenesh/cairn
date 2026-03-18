@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import { MEMORY_CATEGORIES } from '$lib/constants';
 	import { Plus, X } from '@lucide/svelte';
 
 	let { oncreate }: { oncreate: (content: string, category: string) => void } = $props();
@@ -7,14 +8,6 @@
 	let open = $state(false);
 	let content = $state('');
 	let category = $state('fact');
-
-	const categories = [
-		{ value: 'fact', label: 'Fact' },
-		{ value: 'preference', label: 'Preference' },
-		{ value: 'hard_rule', label: 'Hard Rule' },
-		{ value: 'decision', label: 'Decision' },
-		{ value: 'writing_style', label: 'Writing Style' },
-	];
 
 	function handleCreate() {
 		const text = content.trim();
@@ -50,7 +43,7 @@
 				aria-label="Memory category"
 				class="rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 py-1.5 text-xs text-[var(--text-secondary)] focus:border-[var(--cairn-accent)] focus:outline-none transition-colors"
 			>
-				{#each categories as cat}
+				{#each MEMORY_CATEGORIES as cat}
 					<option value={cat.value}>{cat.label}</option>
 				{/each}
 			</select>

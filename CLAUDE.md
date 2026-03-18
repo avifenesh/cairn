@@ -34,7 +34,7 @@ Phase 1: Foundation (event bus + LLM + SQLite)                [DONE]
 Phase 2: Core Systems (tools | tasks | memory) in parallel    [DONE]
 Phase 3: Agent Core (ReAct loop wires all together)           [DONE]
 Phase 4: Server + Skills + Signal Plane (4a+4b+4c)             [DONE]
-Phase 5: Integration, always-on loop, open-source release
+Phase 5: Integration, always-on loop, open-source release      [IN PROGRESS]
 ```
 
 ## Architecture
@@ -81,7 +81,7 @@ internal/
   agent/                      ReAct loop, session store, modes (talk/work/coding), system prompt builder
   server/                     HTTP server, REST routes, SSE broadcaster, auth, static files
   skill/                      SKILL.md parser, discovery, hot-reload, prompt injection
-  signal/                     Signal plane: event store, scheduler, GitHub + HN pollers
+  signal/                     Signal plane: event store, scheduler, 5 pollers, webhooks, digest
 frontend/                     SvelteKit 5 app (Svelte 5 runes, Tailwind v4, shadcn-svelte)
   src/routes/                 today, chat, ops, memory, agents, skills, soul, settings
   src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav)

@@ -702,9 +702,10 @@ func (s *Server) generateSessionTitle(sessionID, userMsg, assistantMsg string) {
 	defer cancel()
 
 	req := &llm.Request{
-		Model:     "glm-5-turbo",
-		System:    "You generate very short conversation titles (3-6 words). Reply with ONLY the title text, nothing else.",
-		MaxTokens: 200,
+		Model:           "glm-5-turbo",
+		System:          "You generate very short conversation titles (3-6 words). Reply with ONLY the title text, nothing else.",
+		MaxTokens:       30,
+		DisableThinking: true,
 		Messages: []llm.Message{
 			{Role: "user", Content: []llm.ContentBlock{llm.TextBlock{Text: fmt.Sprintf("User: %s\nAssistant: %s", truncate(userMsg, 150), truncate(assistantMsg, 150))}}},
 		},

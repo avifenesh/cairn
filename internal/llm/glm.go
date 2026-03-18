@@ -200,9 +200,11 @@ func (p *GLMProvider) buildRequestBody(req *Request) ([]byte, error) {
 		temp = &t
 	}
 
-	// Only enable thinking for models that support it (glm-5-turbo, glm-4.7).
+	// Enable thinking for capable models unless explicitly disabled.
 	var thinking *glmThinking
-	if strings.Contains(model, "turbo") || strings.HasPrefix(model, "glm-4.") {
+	if req.DisableThinking {
+		thinking = &glmThinking{Type: "disabled"}
+	} else if strings.Contains(model, "turbo") || strings.HasPrefix(model, "glm-4.") {
 		thinking = &glmThinking{Type: "enabled"}
 	}
 

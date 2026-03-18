@@ -21,9 +21,10 @@ type Request struct {
 	Messages    []Message
 	System      string
 	Tools       []ToolDef
-	MaxTokens   int
-	Temperature *float64
-	Stop        []string
+	MaxTokens       int
+	Temperature     *float64
+	Stop            []string
+	DisableThinking bool // Skip reasoning/thinking for simple prompts
 }
 
 // Message in conversation.

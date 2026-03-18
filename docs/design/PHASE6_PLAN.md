@@ -5,12 +5,13 @@
 
 ## Current State (updated 2026-03-18)
 
-318 backend tests, 213 frontend tests, 14 packages, ~24,000 lines of Go.
+326+ backend tests, 221 frontend tests, 14 packages, ~24,000+ lines of Go.
 25 built-in tools. 5 bundled SKILL.md files.
 
 **Phase 6 backend COMPLETE** (PRs #21, #24, #26 — all merged).
-**Phase 6 frontend NEAR COMPLETE** — 11/13 items done (PRs #28-38). Remaining: 6f.3, 6f.9, 6f.10, 6f.14-18.
-Phase 6.5 (skill activation), remaining Phase 6 frontend, Phase 7, and Phase 8 remain.
+**Phase 6.5 PR A COMPLETE** (PR #37 — skill activation, session scoping).
+**Phase 6 frontend NEAR COMPLETE** — 13/15 items done (PRs #28-40). Remaining: 6f.3 (feed actions), 6f.9 (skill detail — needs backend GET /v1/skills/:name).
+Phase 6.5 PR B (skill install), Phase 7, and Phase 8 remain.
 
 ---
 
@@ -83,7 +84,7 @@ Phase 6.5 (skill activation), remaining Phase 6 frontend, Phase 7, and Phase 8 r
 |---|------|-----------|---------|
 | 6f.8 | Skill browser | Extend skills page | **DONE PR #32** — search/filter, expandable cards, inclusion badges, a11y. |
 | 6f.9 | Skill detail | New: `SkillDetail.svelte` | Full SKILL.md rendered as markdown. "Load into chat" button. |
-| 6f.10 | Active skill indicator | Extend `ChatPanel.svelte` | Chip below mode selector: "Active skill: web-search". |
+| 6f.10 | Active skill indicator | Extend `ChatPanel.svelte` | **DONE PR #40** — ActiveSkillChip, reads from skillStore.activeSkills. |
 
 #### Ops View (`src/routes/ops/`)
 
@@ -102,12 +103,12 @@ Phase 6.5 (skill activation), remaining Phase 6 frontend, Phase 7, and Phase 8 r
 
 | # | What | File | Details |
 |---|------|------|---------|
-| 6f.14 | New API methods | `client.ts` | `getPlugins()`, `getPluginStats()`, `getBudget()`, `getJournal(hours)`, `getSkillDetail(name)` |
-| 6f.15 | Skills store | New: `skills.svelte.ts` | Skill list, active skill state, load/search actions |
-| 6f.16 | Status store | New: `status.svelte.ts` | Budget, pollers, memory stats. SSE `budget_update` handler |
-| 6f.17 | SSE: `budget_update` | `sse.svelte.ts` | Updates status store after each LLM call |
-| 6f.18 | SSE: `tool_executed` | `sse.svelte.ts` | Updates ToolCallChip with result/duration |
-| 6f.19-22 | Tests | | ToolCallChip, MemoryBatchActions, skills store, status store |
+| 6f.14 | New API methods | `client.ts` | **DONE PR #40** — getSkillDetail, createTask. getPlugins/getBudget/getJournal remain. |
+| 6f.15 | Skills store | New: `skills.svelte.ts` | **DONE PR #40** — skill list, active skills, selected skill, 5 tests. |
+| 6f.16 | Status store | New: `status.svelte.ts` | **DONE PR #40** — budget, uptime, version, 3 tests. |
+| 6f.17 | SSE: `budget_update` | `sse.svelte.ts` | **DONE PR #40** — routes to statusStore.setBudget. |
+| 6f.18 | SSE: `tool_executed` | `sse.svelte.ts` | Pending — backend doesn't emit this event yet. |
+| 6f.19-22 | Tests | | **DONE** — ToolCallChip (8), skills store (5), status store (3), + component tests. |
 
 ---
 

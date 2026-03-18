@@ -353,7 +353,7 @@ func runServe(logger *slog.Logger) {
 	defer cancel()
 
 	// Start channel router if any channels are configured.
-	if cfg.TelegramBotToken != "" {
+	if cfg.TelegramBotToken != "" || cfg.DiscordBotToken != "" || cfg.SlackBotToken != "" {
 		channelSessionStore := cairnchannel.NewSessionStore(database.DB)
 		sessionTimeout := time.Duration(cfg.ChannelSessionTimeout) * time.Minute
 
@@ -455,15 +455,44 @@ func runServe(logger *slog.Logger) {
 
 		channelRouter := cairnchannel.NewRouter(channelHandler, logger)
 
-		tg, err := cairnchannel.NewTelegram(cairnchannel.TelegramConfig{
-			BotToken: cfg.TelegramBotToken,
-			ChatID:   cfg.TelegramChatID,
-		}, channelHandler, logger)
-		if err != nil {
-			logger.Error("telegram adapter failed", "error", err)
-		} else {
-			channelRouter.Register(tg)
-			logger.Info("telegram channel registered", "chatID", cfg.TelegramChatID)
+		if cfg.TelegramBotToken != "" {
+			tg, err := cairnchannel.NewTelegram(cairnchannel.TelegramConfig{
+				BotToken: cfg.TelegramBotToken,
+				ChatID:   cfg.TelegramChatID,
+			}, channelHandler, logger)
+			if err != nil {
+				logger.Error("telegram adapter failed", "error", err)
+			} else {
+				channelRouter.Register(tg)
+				logger.Info("telegram channel registered", "chatID", cfg.TelegramChatID)
+			}
+		}
+
+		if cfg.DiscordBotToken != "" {
+			dc, err := cairnchannel.NewDiscord(cairnchannel.DiscordConfig{
+				BotToken:  cfg.DiscordBotToken,
+				ChannelID: cfg.DiscordChannelID,
+			}, channelHandler, logger)
+			if err != nil {
+				logger.Error("discord adapter failed", "error", err)
+			} else {
+				channelRouter.Register(dc)
+				logger.Info("discord channel registered", "channelID", cfg.DiscordChannelID)
+			}
+		}
+
+		if cfg.SlackBotToken != "" {
+			sl, err := cairnchannel.NewSlack(cairnchannel.SlackConfig{
+				BotToken:  cfg.SlackBotToken,
+				AppToken:  cfg.SlackAppToken,
+				ChannelID: cfg.SlackChannelID,
+			}, channelHandler, logger)
+			if err != nil {
+				logger.Error("slack adapter failed", "error", err)
+			} else {
+				channelRouter.Register(sl)
+				logger.Info("slack channel registered", "channelID", cfg.SlackChannelID)
+			}
 		}
 
 		// Start router in background — stopped by ctx cancel on shutdown.

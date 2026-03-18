@@ -205,11 +205,9 @@ func runServe(logger *slog.Logger) {
 
 	// Start always-on agent loop (if idle mode enabled and agent available).
 	if cfg.IdleModeEnabled && reactAgent != nil && provider != nil {
-		var journaler *agent.Journaler
-		journaler = agent.NewJournaler(journalStore, provider, cfg.LLMModel)
+		journaler := agent.NewJournaler(journalStore, provider, cfg.LLMModel)
 
-		var reflector *agent.ReflectionEngine
-		reflector = agent.NewReflectionEngine(journalStore, memService, soul, provider, cfg.LLMModel, agent.ReflectionConfig{
+		reflector := agent.NewReflectionEngine(journalStore, memService, soul, provider, cfg.LLMModel, agent.ReflectionConfig{
 			Interval: time.Duration(cfg.ReflectionInterval) * time.Second,
 		})
 

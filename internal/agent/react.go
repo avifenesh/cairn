@@ -155,7 +155,8 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 		llmCh, err := invCtx.LLM.Stream(invCtx.Context, req)
 		if err != nil {
 			if invCtx.Plugins != nil {
-				invCtx.Plugins.RunOnLLMError(invCtx.Context, llmCall, err)
+				invCtx.Context = invCtx.Plugins.RunOnLLMError(invCtx.Context, llmCall, err)
+				invCtx.Plugins.RunOnAgentError(invCtx.Context, inv, err)
 			}
 			emit(invCtx.Context, ch, RunEvent{Err: fmt.Errorf("llm stream: %w", err)})
 			return
@@ -326,6 +327,9 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			} else if result.Error != "" {
 				status = ToolFailed
 				errStr = result.Error
+				if invCtx.Plugins != nil {
+					invCtx.Context = invCtx.Plugins.RunOnToolError(invCtx.Context, toolCallInfo, fmt.Errorf("%s", result.Error))
+				}
 			} else {
 				output = result.Output
 				if invCtx.Plugins != nil {
@@ -382,13 +386,9 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 		// 6. Loop continues — LLM will see tool results.
 	}
 
-	// Max rounds exhausted.
+	// Max rounds exhausted — treat as abnormal termination.
 	if invCtx.Plugins != nil {
-		invCtx.Plugins.RunAfterAgentRun(invCtx.Context, inv, &plugin.RunResult{
-			Rounds:     maxRounds,
-			ToolCalls:  totalToolCalls,
-			DurationMs: time.Since(agentStart).Milliseconds(),
-		})
+		invCtx.Plugins.RunOnAgentError(invCtx.Context, inv, fmt.Errorf("max rounds exhausted (%d)", maxRounds))
 	}
 	a.logger.Warn("max rounds exhausted", "maxRounds", maxRounds, "mode", mode)
 	emit(invCtx.Context, ch, RunEvent{Event: &Event{

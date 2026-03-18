@@ -531,7 +531,9 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 	// Build journal entries for context (last 48h).
 	var journalEntries []memory.JournalDigestEntry
 	if s.journalStore != nil {
-		if entries, err := s.journalStore.Recent(ctx, 48*time.Hour); err == nil {
+		if entries, err := s.journalStore.Recent(ctx, 48*time.Hour); err != nil {
+			s.logger.Warn("journal entries failed, proceeding without", "error", err)
+		} else {
 			for _, e := range entries {
 				journalEntries = append(journalEntries, memory.JournalDigestEntry{
 					Summary:   e.Summary,

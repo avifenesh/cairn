@@ -1,6 +1,8 @@
 package channel
 
 import (
+	"fmt"
+	"html"
 	"strings"
 )
 
@@ -25,25 +27,46 @@ func Normalize(markdown, target string) string {
 
 // toTelegramV2 converts CommonMark to Telegram MarkdownV2.
 // Telegram V2 uses different bold syntax and requires escaping special chars.
+// Links are converted before escaping to preserve clickable format.
 func toTelegramV2(md string) string {
-	// Escape special characters that Telegram V2 requires.
-	// Must be done BEFORE converting markdown syntax.
-	specials := []string{"_", "[", "]", "(", ")", "~", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
+	// Convert links first (before escaping brackets/parens).
+	// Telegram V2 supports [text](url) natively.
+	// We protect link syntax from escaping by replacing with placeholders.
+	type linkPlaceholder struct{ text, url string }
+	var links []linkPlaceholder
+	md = convertLinks(md, func(text, url string) string {
+		idx := len(links)
+		links = append(links, linkPlaceholder{text, url})
+		return fmt.Sprintf("\x02LINK%d\x02", idx)
+	})
 
-	// First, protect existing markdown syntax by replacing temporarily.
+	// Protect existing markdown syntax.
 	md = strings.ReplaceAll(md, "**", "\x01BOLD\x01")
 	md = strings.ReplaceAll(md, "```", "\x01CODE3\x01")
 	md = strings.ReplaceAll(md, "`", "\x01CODE1\x01")
 
-	// Escape specials.
+	// Escape special characters that Telegram V2 requires.
+	specials := []string{"_", "[", "]", "(", ")", "~", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"}
 	for _, s := range specials {
 		md = strings.ReplaceAll(md, s, "\\"+s)
 	}
 
 	// Restore markdown with Telegram V2 syntax.
-	md = strings.ReplaceAll(md, "\x01BOLD\x01", "*")    // **bold** → *bold*
-	md = strings.ReplaceAll(md, "\x01CODE3\x01", "```") // code blocks stay
-	md = strings.ReplaceAll(md, "\x01CODE1\x01", "`")   // inline code stays
+	md = strings.ReplaceAll(md, "\x01BOLD\x01", "*")
+	md = strings.ReplaceAll(md, "\x01CODE3\x01", "```")
+	md = strings.ReplaceAll(md, "\x01CODE1\x01", "`")
+
+	// Restore links with escaped content.
+	for i, link := range links {
+		placeholder := fmt.Sprintf("\x02LINK%d\x02", i)
+		// Escape text and URL separately for Telegram V2.
+		escapedText := link.text
+		for _, s := range specials {
+			escapedText = strings.ReplaceAll(escapedText, s, "\\"+s)
+		}
+		md = strings.ReplaceAll(md, placeholder, "["+escapedText+"]("+link.url+")")
+	}
+
 	return md
 }
 
@@ -59,17 +82,34 @@ func toSlackMrkdwn(md string) string {
 }
 
 // toMatrixHTML converts CommonMark to basic HTML for Matrix.
+// HTML-escapes input first to prevent injection, then applies formatting.
 func toMatrixHTML(md string) string {
+	// Extract links before escaping (they contain special chars).
+	type linkInfo struct{ text, url string }
+	var links []linkInfo
+	md = convertLinks(md, func(text, url string) string {
+		idx := len(links)
+		links = append(links, linkInfo{text, url})
+		return fmt.Sprintf("\x02MLINK%d\x02", idx)
+	})
+
+	// HTML-escape the content to prevent injection.
+	md = html.EscapeString(md)
+
 	// Bold: **text** → <strong>text</strong>
 	md = replacePairs(md, "**", "<strong>", "</strong>")
-	// Italic: *text* → <em>text</em>  (single asterisk after bold conversion)
+	// Italic: *text* → <em>text</em>
 	md = replacePairs(md, "*", "<em>", "</em>")
 	// Code: `text` → <code>text</code>
 	md = replacePairs(md, "`", "<code>", "</code>")
-	// Links: [text](url) → <a href="url">text</a>
-	md = convertLinks(md, func(text, url string) string {
-		return `<a href="` + url + `">` + text + `</a>`
-	})
+
+	// Restore links as HTML anchors.
+	for i, link := range links {
+		placeholder := fmt.Sprintf("\x02MLINK%d\x02", i)
+		md = strings.ReplaceAll(md, html.EscapeString(placeholder),
+			`<a href="`+html.EscapeString(link.url)+`">`+html.EscapeString(link.text)+`</a>`)
+	}
+
 	// Newlines → <br>
 	md = strings.ReplaceAll(md, "\n", "<br>\n")
 	return md

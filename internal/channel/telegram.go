@@ -60,7 +60,7 @@ func (t *TelegramAdapter) Start(ctx context.Context) error {
 	for update := range updates {
 		if update.Message == nil {
 			// Handle callback queries (button clicks).
-			if update.CallbackQuery != nil {
+			if update.CallbackQuery != nil && update.CallbackQuery.Message != nil {
 				t.handleCallback(ctx, update.CallbackQuery)
 			}
 			continue
@@ -75,8 +75,12 @@ func (t *TelegramAdapter) Start(ctx context.Context) error {
 		}
 
 		incoming := parseMessage(msg)
+		username := ""
+		if msg.From != nil {
+			username = msg.From.Username
+		}
 		t.logger.Info("telegram message received",
-			"from", msg.From.Username,
+			"from", username,
 			"text", truncate(incoming.Text, 100),
 			"command", incoming.Command,
 		)
@@ -107,24 +111,24 @@ func (t *TelegramAdapter) Send(ctx context.Context, msg *OutgoingMessage) error 
 	if t.chatID == 0 {
 		return fmt.Errorf("telegram: no chat ID configured")
 	}
-	t.sendResponse(ctx, t.chatID, msg)
-	return nil
+	return t.sendResponse(ctx, t.chatID, msg)
 }
 
 func (t *TelegramAdapter) Close() error {
 	return nil // long polling stops when context is cancelled
 }
 
-func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *OutgoingMessage) {
+func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *OutgoingMessage) error {
 	text := Normalize(msg.Text, "telegram")
 	if text == "" {
-		return
+		return nil
 	}
 
 	params := tu.Message(tu.ID(chatID), text).
 		WithParseMode(telego.ModeMarkdownV2)
 
-	// Add inline keyboard if there are actions.
+	// Build inline keyboard if there are actions.
+	var replyMarkup *telego.InlineKeyboardMarkup
 	if len(msg.Actions) > 0 {
 		var rows [][]telego.InlineKeyboardButton
 		for _, group := range msg.Actions {
@@ -137,19 +141,23 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 			}
 			rows = append(rows, row)
 		}
-		params = params.WithReplyMarkup(&telego.InlineKeyboardMarkup{
-			InlineKeyboard: rows,
-		})
+		replyMarkup = &telego.InlineKeyboardMarkup{InlineKeyboard: rows}
+		params = params.WithReplyMarkup(replyMarkup)
 	}
 
 	if _, err := t.bot.SendMessage(ctx, params); err != nil {
-		// Fallback: try without markdown if parse fails.
+		// Fallback: try without markdown if parse fails, keep buttons.
 		t.logger.Warn("telegram: markdown send failed, retrying plain", "error", err)
 		plain := tu.Message(tu.ID(chatID), stripMarkdown(msg.Text))
+		if replyMarkup != nil {
+			plain = plain.WithReplyMarkup(replyMarkup)
+		}
 		if _, err2 := t.bot.SendMessage(ctx, plain); err2 != nil {
 			t.logger.Error("telegram: send failed", "error", err2)
+			return err2
 		}
 	}
+	return nil
 }
 
 func (t *TelegramAdapter) sendText(ctx context.Context, chatID int64, text string) {
@@ -196,10 +204,15 @@ func (t *TelegramAdapter) handleCallback(ctx context.Context, cb *telego.Callbac
 
 // parseMessage converts a Telegram message to a canonical IncomingMessage.
 func parseMessage(msg *telego.Message) *IncomingMessage {
+	userID := "unknown"
+	if msg.From != nil {
+		userID = fmt.Sprintf("%d", msg.From.ID)
+	}
+
 	in := &IncomingMessage{
 		ID:        fmt.Sprintf("tg_%d", msg.MessageID),
 		ChannelID: "telegram",
-		UserID:    fmt.Sprintf("%d", msg.From.ID),
+		UserID:    userID,
 		ChatID:    fmt.Sprintf("%d", msg.Chat.ID),
 		Text:      msg.Text,
 		Metadata:  make(map[string]string),

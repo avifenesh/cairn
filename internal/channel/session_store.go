@@ -37,9 +37,11 @@ func (s *SessionStore) GetOrCreate(ctx context.Context, channel, chatID string, 
 			if time.Since(t) < timeout {
 				// Session still active — touch updated_at.
 				now := time.Now().UTC().Format(sessionTimeFormat)
-				s.db.ExecContext(ctx, `
+				if _, err := s.db.ExecContext(ctx, `
 					UPDATE channel_sessions SET updated_at = ? WHERE channel = ? AND chat_id = ?`,
-					now, channel, chatID)
+					now, channel, chatID); err != nil {
+					return sessionID, false, fmt.Errorf("channel session touch: %w", err)
+				}
 				return sessionID, false, nil
 			}
 		}
@@ -81,6 +83,8 @@ func (s *SessionStore) Reset(ctx context.Context, channel, chatID string) error 
 
 func generateSessionID() string {
 	b := make([]byte, 12)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return fmt.Sprintf("ch_%x", b)
 }

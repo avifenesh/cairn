@@ -337,6 +337,10 @@ func runServe(logger *slog.Logger) {
 		ToolSkills:     skillAdapt,
 	})
 
+	// Graceful shutdown context — all subsystems observe this.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Start channel router if any channels are configured.
 	if cfg.TelegramBotToken != "" {
 		channelSessionStore := cairnchannel.NewSessionStore(database.DB)
@@ -346,7 +350,9 @@ func runServe(logger *slog.Logger) {
 		channelHandler := func(ctx context.Context, msg *cairnchannel.IncomingMessage) (*cairnchannel.OutgoingMessage, error) {
 			// Handle /new command — reset session.
 			if msg.IsCommand && msg.Command == "new" {
-				channelSessionStore.Reset(ctx, msg.ChannelID, msg.ChatID)
+				if err := channelSessionStore.Reset(ctx, msg.ChannelID, msg.ChatID); err != nil {
+					return nil, fmt.Errorf("channel session reset: %w", err)
+				}
 				return &cairnchannel.OutgoingMessage{Text: "New session started."}, nil
 			}
 
@@ -357,15 +363,18 @@ func runServe(logger *slog.Logger) {
 			}
 
 			// Load or create agent session.
-			session, err := sessionStore.Get(ctx, sessionID)
-			if err != nil || session == nil || isNew {
+			session, getErr := sessionStore.Get(ctx, sessionID)
+			if getErr != nil && !isNew {
+				return nil, fmt.Errorf("channel: load session: %w", getErr)
+			}
+			if session == nil || isNew {
 				session = &agent.Session{
 					ID:    sessionID,
 					Mode:  tool.ModeTalk,
 					State: map[string]any{"channel": msg.ChannelID, "chatID": msg.ChatID},
 				}
 				if err := sessionStore.Create(ctx, session); err != nil {
-					logger.Warn("channel: failed to create session", "error", err)
+					return nil, fmt.Errorf("channel: create session: %w", err)
 				}
 			}
 
@@ -420,10 +429,14 @@ func runServe(logger *slog.Logger) {
 
 			// Persist conversation.
 			userEv := &agent.Event{Author: "user", Parts: []agent.Part{agent.TextPart{Text: text}}}
-			sessionStore.AppendEvent(ctx, sessionID, userEv)
+			if err := sessionStore.AppendEvent(ctx, sessionID, userEv); err != nil {
+				logger.Warn("channel: failed to persist user event", "error", err)
+			}
 			if response.Len() > 0 {
 				assistantEv := &agent.Event{Author: cfg.LLMModel, Parts: []agent.Part{agent.TextPart{Text: response.String()}}}
-				sessionStore.AppendEvent(ctx, sessionID, assistantEv)
+				if err := sessionStore.AppendEvent(ctx, sessionID, assistantEv); err != nil {
+					logger.Warn("channel: failed to persist assistant event", "error", err)
+				}
 			}
 
 			return &cairnchannel.OutgoingMessage{Text: response.String()}, nil
@@ -442,17 +455,13 @@ func runServe(logger *slog.Logger) {
 			logger.Info("telegram channel registered", "chatID", cfg.TelegramChatID)
 		}
 
-		// Start router in background (will be stopped by ctx cancel).
+		// Start router in background — stopped by ctx cancel on shutdown.
 		go func() {
-			if err := channelRouter.Start(context.Background()); err != nil && err != context.Canceled {
+			if err := channelRouter.Start(ctx); err != nil && err != context.Canceled {
 				logger.Error("channel router error", "error", err)
 			}
 		}()
 	}
-
-	// Graceful shutdown context — created before MCP so all subsystems observe it.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// Start MCP server if enabled.
 	if cfg.MCPServerEnabled {

@@ -91,10 +91,12 @@ func (r *Router) Broadcast(ctx context.Context, msg *OutgoingMessage) {
 }
 
 // SendTo sends a message to a specific channel by name.
+// Returns nil if the channel is not registered (logged for debugging).
 func (r *Router) SendTo(ctx context.Context, channelName string, msg *OutgoingMessage) error {
 	ch, ok := r.channels[channelName]
 	if !ok {
-		return nil // channel not registered, skip silently
+		r.logger.Debug("sendTo: channel not registered, skipping", "channel", channelName)
+		return nil
 	}
 	return ch.Send(ctx, msg)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
+	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 )
@@ -43,6 +44,7 @@ type InvocationContext struct {
 	Config         *AgentConfig
 	ContextBuilder *memory.ContextBuilder      // Token-budgeted context assembly (nil = fallback)
 	JournalEntries []memory.JournalDigestEntry // Last 48h journal for context
+	Plugins        *plugin.Manager             // Lifecycle hooks (nil = no plugins)
 }
 
 // AgentConfig holds per-invocation agent configuration.

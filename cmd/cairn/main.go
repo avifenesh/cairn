@@ -134,12 +134,9 @@ func runServe(logger *slog.Logger) {
 		}, logger))
 		logger.Info("budget plugin active", "dailyCap", cfg.BudgetDailyCap, "weeklyCap", cfg.BudgetWeeklyCap)
 	}
-	// ctxBuilder and pluginMgr will be wired into ReAct loop in the integration PR.
-	_ = ctxBuilder
-	_ = pluginMgr
-
-	// Initialize session store.
+	// Initialize session store + journal store.
 	sessionStore := agent.NewSessionStore(database)
+	journalStore := agent.NewJournalStore(database.DB)
 
 	// Initialize task engine.
 	taskStore := task.NewStore(database)
@@ -206,19 +203,54 @@ func runServe(logger *slog.Logger) {
 		logger.Info("signal: webhook handler ready", "webhooks", len(cfg.WebhookSecrets))
 	}
 
+	// Start always-on agent loop (if idle mode enabled and agent available).
+	if cfg.IdleModeEnabled && reactAgent != nil && provider != nil {
+		var journaler *agent.Journaler
+		journaler = agent.NewJournaler(journalStore, provider, cfg.LLMModel)
+
+		var reflector *agent.ReflectionEngine
+		reflector = agent.NewReflectionEngine(journalStore, memService, soul, provider, cfg.LLMModel, agent.ReflectionConfig{
+			Interval: time.Duration(cfg.ReflectionInterval) * time.Second,
+		})
+
+		agentLoop := agent.NewLoop(agent.LoopConfig{
+			TickInterval:       time.Duration(cfg.AgentTickInterval) * time.Second,
+			ReflectionInterval: time.Duration(cfg.ReflectionInterval) * time.Second,
+			Model:              cfg.LLMModel,
+		}, agent.LoopDeps{
+			Agent:     reactAgent,
+			Tasks:     taskEngine,
+			Events:    eventStore,
+			Memories:  memService,
+			Soul:      soul,
+			Tools:     toolRegistry,
+			Provider:  provider,
+			Bus:       bus,
+			Journaler: journaler,
+			Reflector: reflector,
+			Logger:    logger,
+		})
+		agentLoop.Start()
+		defer agentLoop.Close()
+		logger.Info("agent loop started", "tick", cfg.AgentTickInterval, "reflection", cfg.ReflectionInterval)
+	}
+
 	// Create and start the server.
 	srv := server.New(server.ServerConfig{
-		Agent:    reactAgent,
-		Sessions: sessionStore,
-		Tasks:    taskEngine,
-		Memories: memService,
-		Soul:     soul,
-		Tools:    toolRegistry,
-		LLM:      provider,
-		Bus:      bus,
-		Config:   cfg,
-		Logger:   logger,
-		Webhooks: webhookHandler,
+		Agent:          reactAgent,
+		Sessions:       sessionStore,
+		Tasks:          taskEngine,
+		Memories:       memService,
+		Soul:           soul,
+		Tools:          toolRegistry,
+		LLM:            provider,
+		Bus:            bus,
+		Config:         cfg,
+		Logger:         logger,
+		Webhooks:       webhookHandler,
+		ContextBuilder: ctxBuilder,
+		Plugins:        pluginMgr,
+		JournalStore:   journalStore,
 	})
 
 	// Graceful shutdown on SIGINT/SIGTERM.

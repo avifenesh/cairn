@@ -16,6 +16,7 @@ import (
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
+	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 )
@@ -23,36 +24,42 @@ import (
 // Server is the main HTTP server for Cairn, wiring together all API routes,
 // SSE broadcasting, middleware, and static file serving.
 type Server struct {
-	mux         *http.ServeMux
-	httpServer  *http.Server
-	sse         *SSEBroadcaster
-	agent       agent.Agent
-	sessions    *agent.SessionStore
-	tasks       *task.Engine
-	memories    *memory.Service
-	soul        *memory.Soul
-	tools       *tool.Registry
-	llm         llm.Provider
-	bus         *eventbus.Bus
-	config      *config.Config
-	logger      *slog.Logger
-	rateLimiter *rateLimiter
-	webhooks    http.Handler
+	mux            *http.ServeMux
+	httpServer     *http.Server
+	sse            *SSEBroadcaster
+	agent          agent.Agent
+	sessions       *agent.SessionStore
+	tasks          *task.Engine
+	memories       *memory.Service
+	soul           *memory.Soul
+	tools          *tool.Registry
+	llm            llm.Provider
+	bus            *eventbus.Bus
+	config         *config.Config
+	logger         *slog.Logger
+	rateLimiter    *rateLimiter
+	webhooks       http.Handler
+	contextBuilder *memory.ContextBuilder
+	plugins        *plugin.Manager
+	journalStore   *agent.JournalStore
 }
 
 // ServerConfig carries all dependencies needed to construct a Server.
 type ServerConfig struct {
-	Agent    agent.Agent
-	Sessions *agent.SessionStore
-	Tasks    *task.Engine
-	Memories *memory.Service
-	Soul     *memory.Soul
-	Tools    *tool.Registry
-	LLM      llm.Provider
-	Bus      *eventbus.Bus
-	Config   *config.Config
-	Logger   *slog.Logger
-	Webhooks http.Handler // optional: POST /v1/webhooks/{name}
+	Agent          agent.Agent
+	Sessions       *agent.SessionStore
+	Tasks          *task.Engine
+	Memories       *memory.Service
+	Soul           *memory.Soul
+	Tools          *tool.Registry
+	LLM            llm.Provider
+	Bus            *eventbus.Bus
+	Config         *config.Config
+	Logger         *slog.Logger
+	Webhooks       http.Handler           // optional: POST /v1/webhooks/{name}
+	ContextBuilder *memory.ContextBuilder // optional: token-budgeted context
+	Plugins        *plugin.Manager        // optional: lifecycle hooks
+	JournalStore   *agent.JournalStore    // optional: for journal entries in context
 }
 
 // New creates a fully wired Server with all routes and middleware registered.
@@ -64,19 +71,22 @@ func New(cfg ServerConfig) *Server {
 	mux := http.NewServeMux()
 
 	s := &Server{
-		mux:         mux,
-		agent:       cfg.Agent,
-		sessions:    cfg.Sessions,
-		tasks:       cfg.Tasks,
-		memories:    cfg.Memories,
-		soul:        cfg.Soul,
-		tools:       cfg.Tools,
-		llm:         cfg.LLM,
-		bus:         cfg.Bus,
-		config:      cfg.Config,
-		logger:      cfg.Logger,
-		rateLimiter: newRateLimiter(),
-		webhooks:    cfg.Webhooks,
+		mux:            mux,
+		agent:          cfg.Agent,
+		sessions:       cfg.Sessions,
+		tasks:          cfg.Tasks,
+		memories:       cfg.Memories,
+		soul:           cfg.Soul,
+		tools:          cfg.Tools,
+		llm:            cfg.LLM,
+		bus:            cfg.Bus,
+		config:         cfg.Config,
+		logger:         cfg.Logger,
+		rateLimiter:    newRateLimiter(),
+		webhooks:       cfg.Webhooks,
+		contextBuilder: cfg.ContextBuilder,
+		plugins:        cfg.Plugins,
+		journalStore:   cfg.JournalStore,
 	}
 
 	// Create SSE broadcaster.

@@ -336,10 +336,14 @@ func runServe(logger *slog.Logger) {
 		ToolSkills:     skillAdapt,
 	})
 
+	// Graceful shutdown context — created before MCP so all subsystems observe it.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Start MCP server if enabled.
 	if cfg.MCPServerEnabled {
 		mcpToolCtx := &tool.ToolContext{
-			Cancel:   context.Background(),
+			Cancel:   ctx,
 			Memories: memAdapter,
 			Events:   eventAdapter,
 			Digest:   digestAdapt,
@@ -364,17 +368,13 @@ func runServe(logger *slog.Logger) {
 		}
 		if transport == "stdio" || transport == "both" {
 			go func() {
-				if err := mcpSrv.ServeStdio(context.Background()); err != nil {
+				if err := mcpSrv.ServeStdio(ctx); err != nil && ctx.Err() == nil {
 					logger.Error("mcp stdio server error", "error", err)
 				}
 			}()
 		}
 		logger.Info("mcp server started", "transport", transport, "port", cfg.MCPPort)
 	}
-
-	// Graceful shutdown on SIGINT/SIGTERM.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)

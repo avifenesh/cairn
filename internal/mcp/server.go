@@ -47,7 +47,7 @@ func New(cfg Config, reg *tool.Registry, toolCtx *tool.ToolContext, logger *slog
 		"cairn",
 		"1.0.0",
 		mcpserver.WithToolCapabilities(true),
-		mcpserver.WithResourceCapabilities(false, true),
+		mcpserver.WithResourceCapabilities(true, true),
 		mcpserver.WithRecovery(),
 		mcpserver.WithToolHandlerMiddleware(
 			WriteRateLimitMiddleware(cfg.WriteRateLimit, time.Minute),

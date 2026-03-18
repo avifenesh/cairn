@@ -51,6 +51,20 @@ type Config struct {
 	CratesPackages []string          // crates.io crates to track
 	WebhookSecrets map[string]string // webhook name -> HMAC secret
 
+	// Memory context builder
+	MemoryContextBudget   int     // Token budget (default: 4000)
+	MemoryHardRuleReserve int     // Reserved for hard rules (default: 500)
+	MemoryDecayHalfLife   float64 // Days (default: 30)
+	MemoryStaleThreshold  float64 // Days (default: 14)
+
+	// Budget
+	BudgetDailyCap  float64 // Daily LLM spend cap USD (0 = unlimited)
+	BudgetWeeklyCap float64 // Weekly LLM spend cap USD (0 = unlimited)
+
+	// Agent loop
+	AgentTickInterval  int // Seconds (default: 60)
+	ReflectionInterval int // Seconds (default: 1800)
+
 	// Paths
 	SoulPath  string
 	SkillDirs []string
@@ -59,22 +73,26 @@ type Config struct {
 
 // Load reads configuration from environment variables with sensible defaults.
 func Load() (*Config, error) {
-	// Read provider-agnostic vars first, fall back to GLM-specific aliases.
-	apiKey := envStr("LLM_API_KEY", envStr("GLM_API_KEY", envStr("OPENAI_API_KEY", "")))
-	baseURL := envStr("LLM_BASE_URL", envStr("GLM_BASE_URL", envStr("OPENAI_BASE_URL", "")))
+	// Read provider-agnostic vars first, fall back to GLM/Zhipu/OpenAI aliases.
+	apiKey := envStr("LLM_API_KEY", envStr("GLM_API_KEY", envStr("ZHIPU_API_KEY", envStr("OPENAI_API_KEY", ""))))
+	baseURL := envStr("LLM_BASE_URL", envStr("GLM_BASE_URL", envStr("ZHIPU_BASE_URL", envStr("OPENAI_BASE_URL", ""))))
 	model := envStr("LLM_MODEL", envStr("GLM_MODEL", ""))
 	provider := envStr("LLM_PROVIDER", "")
 
 	// Auto-detect provider from env vars if not explicitly set.
 	if provider == "" {
 		switch {
-		case envStr("GLM_API_KEY", "") != "":
+		case envStr("GLM_API_KEY", envStr("ZHIPU_API_KEY", "")) != "":
 			provider = "glm"
 		case envStr("OPENAI_API_KEY", "") != "":
 			provider = "openai"
 		default:
-			provider = "glm" // default
+			provider = "glm"
 		}
+	}
+	// Normalize "zhipu" → "glm" (Pub v1 uses GLM_PROVIDER=zhipu).
+	if provider == "zhipu" {
+		provider = "glm"
 	}
 
 	// Apply provider-specific defaults.
@@ -96,34 +114,42 @@ func Load() (*Config, error) {
 	}
 
 	c := &Config{
-		Port:             envInt("PORT", 8787),
-		Host:             envStr("HOST", "0.0.0.0"),
-		DatabasePath:     envStr("DATABASE_PATH", "./data/cairn.db"),
-		LLMProvider:      provider,
-		LLMAPIKey:        apiKey,
-		LLMBaseURL:       baseURL,
-		LLMModel:         model,
-		LLMFallbackModel: envStr("LLM_FALLBACK_MODEL", envStr("GLM_FALLBACK_MODEL", "")),
-		GLMAPIKey:        apiKey,
-		GLMBaseURL:       baseURL,
-		GLMModel:         model,
-		WriteAPIToken:    envStr("WRITE_API_TOKEN", ""),
-		ReadAPIToken:     envStr("READ_API_TOKEN", ""),
-		FrontendOrigin:   envStr("FRONTEND_ORIGIN", ""),
-		CodingEnabled:    envBool("CODING_ENABLED", false),
-		IdleModeEnabled:  envBool("IDLE_MODE_ENABLED", false),
-		GHToken:          envStr("GH_TOKEN", envStr("GITHUB_TOKEN", "")),
-		GHOrgs:           envSlice("GH_ORGS", nil),
-		HNKeywords:       envSlice("HN_KEYWORDS", nil),
-		HNMinScore:       envInt("HN_MIN_SCORE", 0),
-		PollInterval:     envInt("POLL_INTERVAL", 300),
-		RedditSubs:       envSlice("REDDIT_SUBS", nil),
-		NPMPackages:      envSlice("NPM_PACKAGES", nil),
-		CratesPackages:   envSlice("CRATES_PACKAGES", nil),
-		WebhookSecrets:   envMap("WEBHOOK_SECRETS"),
-		SoulPath:         envStr("SOUL_PATH", "./SOUL.md"),
-		SkillDirs:        envSlice("SKILL_DIRS", []string{"./.pub/skills"}),
-		DataDir:          envStr("DATA_DIR", "./data"),
+		Port:                  envInt("PORT", 8787),
+		Host:                  envStr("HOST", "0.0.0.0"),
+		DatabasePath:          envStr("DATABASE_PATH", "./data/cairn.db"),
+		LLMProvider:           provider,
+		LLMAPIKey:             apiKey,
+		LLMBaseURL:            baseURL,
+		LLMModel:              model,
+		LLMFallbackModel:      envStr("LLM_FALLBACK_MODEL", envStr("GLM_FALLBACK_MODEL", "")),
+		GLMAPIKey:             apiKey,
+		GLMBaseURL:            baseURL,
+		GLMModel:              model,
+		WriteAPIToken:         envStr("WRITE_API_TOKEN", ""),
+		ReadAPIToken:          envStr("READ_API_TOKEN", ""),
+		FrontendOrigin:        envStr("FRONTEND_ORIGIN", ""),
+		CodingEnabled:         envBool("CODING_ENABLED", false),
+		IdleModeEnabled:       envBool("IDLE_MODE_ENABLED", false),
+		GHToken:               envStr("GH_TOKEN", envStr("GITHUB_TOKEN", "")),
+		GHOrgs:                envSlice("GH_ORGS", nil),
+		HNKeywords:            envSlice("HN_KEYWORDS", nil),
+		HNMinScore:            envInt("HN_MIN_SCORE", 0),
+		PollInterval:          pollIntervalSeconds(),
+		RedditSubs:            envSlice("REDDIT_SUBS", nil),
+		NPMPackages:           envSlice("NPM_PACKAGES", nil),
+		CratesPackages:        envSlice("CRATES_PACKAGES", envSlice("CRATES", nil)),
+		WebhookSecrets:        envMap("WEBHOOK_SECRETS"),
+		MemoryContextBudget:   envInt("MEMORY_CONTEXT_BUDGET", 4000),
+		MemoryHardRuleReserve: envInt("MEMORY_HARD_RULE_RESERVE", 500),
+		MemoryDecayHalfLife:   envFloat("MEMORY_DECAY_HALF_LIFE", 30),
+		MemoryStaleThreshold:  envFloat("MEMORY_STALE_THRESHOLD", 14),
+		BudgetDailyCap:        envFloat("BUDGET_DAILY_CAP", envFloat("BEDROCK_DAILY_BUDGET_USD", envFloat("IDLE_BUDGET_CAP_USD", 0))),
+		BudgetWeeklyCap:       envFloat("BUDGET_WEEKLY_CAP", envFloat("BEDROCK_WEEKLY_BUDGET_USD", 0)),
+		AgentTickInterval:     envInt("AGENT_TICK_INTERVAL", 60),
+		ReflectionInterval:    envInt("REFLECTION_INTERVAL", 1800),
+		SoulPath:              envStr("SOUL_PATH", "./SOUL.md"),
+		SkillDirs:             envSlice("SKILL_DIRS", []string{"./.pub/skills"}),
+		DataDir:               envStr("DATA_DIR", "./data"),
 	}
 
 	if c.LLMAPIKey == "" {
@@ -183,6 +209,26 @@ func envSlice(key string, fallback []string) []string {
 		return strings.Split(v, ",")
 	}
 	return fallback
+}
+
+func envFloat(key string, fallback float64) float64 {
+	if v := os.Getenv(key); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
+		}
+	}
+	return fallback
+}
+
+// pollIntervalSeconds reads POLL_INTERVAL (seconds) or POLL_INTERVAL_MS (ms, Pub v1 compat).
+func pollIntervalSeconds() int {
+	if v := envInt("POLL_INTERVAL", 0); v > 0 {
+		return v
+	}
+	if v := envInt("POLL_INTERVAL_MS", 0); v > 0 {
+		return v / 1000
+	}
+	return 300 // default: 5 minutes
 }
 
 // envMap parses JSON from an env var into map[string]string.

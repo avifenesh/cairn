@@ -16,6 +16,7 @@ import (
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
+	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/server"
 	signalplane "github.com/avifenesh/cairn/internal/signal"
 	"github.com/avifenesh/cairn/internal/task"
@@ -113,6 +114,29 @@ func runServe(logger *slog.Logger) {
 	memService := memory.NewService(memStore, memory.NoopEmbedder{}, bus)
 	soul := memory.NewSoul(cfg.SoulPath)
 	soul.Load() // ignore error if SOUL.md doesn't exist yet
+
+	// Initialize context builder (token-budgeted memory injection).
+	ctxBuilder := memory.NewContextBuilder(memStore, memory.NoopEmbedder{}, memory.ContextConfig{
+		TokenBudget:     cfg.MemoryContextBudget,
+		HardRuleReserve: cfg.MemoryHardRuleReserve,
+		DecayHalfLife:   cfg.MemoryDecayHalfLife,
+		StaleThreshold:  cfg.MemoryStaleThreshold,
+	})
+	logger.Info("context builder ready", "budget", cfg.MemoryContextBudget, "hardRuleReserve", cfg.MemoryHardRuleReserve)
+
+	// Initialize plugin manager.
+	pluginMgr := plugin.NewManager(logger)
+	pluginMgr.Register(plugin.NewLoggingPlugin(logger))
+	if cfg.BudgetDailyCap > 0 || cfg.BudgetWeeklyCap > 0 {
+		pluginMgr.Register(plugin.NewBudgetPlugin(plugin.BudgetConfig{
+			DailyCap:  cfg.BudgetDailyCap,
+			WeeklyCap: cfg.BudgetWeeklyCap,
+		}, logger))
+		logger.Info("budget plugin active", "dailyCap", cfg.BudgetDailyCap, "weeklyCap", cfg.BudgetWeeklyCap)
+	}
+	// ctxBuilder and pluginMgr will be wired into ReAct loop in the integration PR.
+	_ = ctxBuilder
+	_ = pluginMgr
 
 	// Initialize session store.
 	sessionStore := agent.NewSessionStore(database)

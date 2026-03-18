@@ -17,6 +17,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 2 | LLM Client - multi-provider streaming, retry/fallback/budget | Done | `internal/llm/` |
 | 3 | Tool System - type-safe tools, registry, mode filtering, permissions | Done | `internal/tool/` |
 | 4 | Agent Core - ReAct loop, sessions, journaler, reflection, agent loop | Done | `internal/agent/` |
+| 4+ | Plugin System - lifecycle hooks (agent/tool/LLM), budget, logging | Done | `internal/plugin/` |
 | 5 | Task Engine - priority queue, worktree isolation, leases | Done | `internal/task/` |
 | 6 | Memory System - semantic + episodic + procedural, RAG, Soul | Done | `internal/memory/` |
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Done | `internal/signal/` |
@@ -83,7 +84,8 @@ internal/
   tool/builtin/               Built-in tools: readFile, writeFile, editFile, shell, gitRun, etc.
   task/                       Task store, priority queue, worktree manager, lease claiming, reaper
   memory/                     Memory store, RAG search + MMR, embedder interface, Soul loader
-  agent/                      ReAct loop, sessions, journaler, reflection engine, always-on loop
+  agent/                      ReAct loop, sessions, journaler, reflection, always-on loop
+  plugin/                     Lifecycle hooks (agent/tool/LLM), logging plugin, budget plugin
   server/                     HTTP server, REST routes, SSE broadcaster, auth, static (embed+FS), webhooks
   skill/                      SKILL.md parser, discovery, hot-reload, prompt injection
   signal/                     Signal plane: event store, scheduler, 5 pollers, webhooks, digest
@@ -154,13 +156,30 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 - `CRATES_PACKAGES` - comma-separated crates to track
 - `WEBHOOK_SECRETS` - JSON map of name->secret (e.g. '{"github":"abc"}')
 
+**Memory context:**
+- `MEMORY_CONTEXT_BUDGET` (4000) - total token budget for context builder
+- `MEMORY_HARD_RULE_RESERVE` (500) - reserved tokens for hard rules
+- `MEMORY_DECAY_HALF_LIFE` (30) - days, memory relevance half-life
+- `MEMORY_STALE_THRESHOLD` (14) - days, penalty for unused memories
+
+**Budget:**
+- `BUDGET_DAILY_CAP` (0) - daily LLM spend cap USD (0 = unlimited)
+- `BUDGET_WEEKLY_CAP` (0) - weekly LLM spend cap USD (0 = unlimited)
+- Aliases: `BEDROCK_DAILY_BUDGET_USD`, `IDLE_BUDGET_CAP_USD`
+
 **Agent loop:**
 - `AGENT_TICK_INTERVAL` (60) - tick interval in seconds
 - `REFLECTION_INTERVAL` (1800) - reflection cycle interval in seconds
-- `JOURNAL_ENABLED` (true) - enable session journaling
 
 **Feature flags:**
 - `CODING_ENABLED` (false), `IDLE_MODE_ENABLED` (false)
+
+**Pub v1 compatibility aliases:**
+- `ZHIPU_API_KEY` / `ZHIPU_BASE_URL` → `GLM_API_KEY` / `GLM_BASE_URL`
+- `GLM_PROVIDER=zhipu` → normalized to `glm`
+- `POLL_INTERVAL_MS` (ms) → `POLL_INTERVAL` (seconds)
+- `CRATES` → `CRATES_PACKAGES`
+- `BEDROCK_DAILY_BUDGET_USD` → `BUDGET_DAILY_CAP`
 
 **Paths:**
 - `SOUL_PATH` (./SOUL.md), `SKILL_DIRS` (./.pub/skills), `DATA_DIR` (./data)

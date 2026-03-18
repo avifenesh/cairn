@@ -52,6 +52,7 @@
 					class="h-6 w-6"
 					onclick={copyContent}
 					aria-label="Copy message"
+					title={copied ? 'Copied!' : 'Copy'}
 				>
 					{#if copied}
 						<Check class="h-3 w-3 text-[var(--color-success)]" />
@@ -60,8 +61,12 @@
 					{/if}
 				</Button>
 				{#if message.role === 'assistant'}
-					<QuickMemoryButton content={message.content} />
-					<CreateTaskButton content={message.content} />
+					<span title="Remember this">
+						<QuickMemoryButton content={message.content} />
+					</span>
+					<span title="Create task">
+						<CreateTaskButton content={message.content} />
+					</span>
 				{/if}
 			</div>
 		</div>

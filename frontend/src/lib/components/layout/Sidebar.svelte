@@ -85,7 +85,7 @@
 				href={item.href}
 				class="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-[var(--dur-fast)] relative
 					{active
-					? 'nav-active-bar bg-[var(--accent-dim)] text-[var(--cairn-accent)] font-medium'
+					? 'bg-[var(--accent-dim)] text-[var(--cairn-accent)] font-medium'
 					: 'text-[var(--text-secondary)] hover:bg-[var(--bg-2)] hover:text-[var(--text-primary)]'}"
 				aria-label={collapsed ? item.label : undefined}
 				aria-current={active ? 'page' : undefined}
@@ -115,7 +115,7 @@
 				href={item.href}
 				class="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-[var(--dur-fast)]
 					{active
-					? 'nav-active-bar bg-[var(--accent-dim)] text-[var(--cairn-accent)]'
+					? 'bg-[var(--accent-dim)] text-[var(--cairn-accent)]'
 					: 'text-[var(--text-tertiary)] hover:bg-[var(--bg-2)] hover:text-[var(--text-secondary)]'}"
 				aria-label={collapsed ? item.label : undefined}
 				aria-current={active ? 'page' : undefined}

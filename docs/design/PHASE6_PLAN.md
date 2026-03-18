@@ -9,13 +9,13 @@
 24 built-in tools. 5 bundled SKILL.md files.
 
 **Phase 6 backend COMPLETE** (PRs #21, #24, #26 — all merged).
-Phase 6 frontend (PR 4), Phase 7, and Phase 8 remain.
+Phase 6.5 (skill activation), Phase 6 frontend (PR 4), Phase 7, and Phase 8 remain.
 
 ---
 
-## Phase 6: Tools & Skills
+## Phase 6: Tools & Skills (BACKEND COMPLETE)
 
-### PR 1 — Backend: Web + Memory + Feed Tools (`internal/tool/builtin/`)
+### PR 1 — Backend: Web + Memory + Feed Tools ✅ MERGED (#21)
 
 | # | Tool | Inputs | Outputs | Pattern |
 |---|------|--------|---------|---------|
@@ -32,7 +32,7 @@ Phase 6 frontend (PR 4), Phase 7, and Phase 8 remain.
 
 **Config:** `SEARXNG_URL`, `WEB_FETCH_TIMEOUT` (30s), `WEB_FETCH_MAX_SIZE` (5MB)
 
-### PR 2 — Backend: Task + Communication Tools (`internal/tool/builtin/`)
+### PR 2 — Backend: Task + Communication Tools ✅ MERGED (#24)
 
 | # | Tool | Inputs | Outputs | Pattern |
 |---|------|--------|---------|---------|
@@ -43,7 +43,7 @@ Phase 6 frontend (PR 4), Phase 7, and Phase 8 remain.
 | 6b.5 | `getStatus` | (none) | JSON: uptime, poller status, memory stats, budget, active tasks, unread count | Aggregates from all services |
 | 6b.6 | Tests | | | |
 
-### PR 3 — Backend: Skill Tools + Bundled Skills
+### PR 3 — Backend: Skill Tools + Bundled Skills ✅ MERGED (#26)
 
 | # | What | Details |
 |---|------|---------|
@@ -110,7 +110,44 @@ Phase 6 frontend (PR 4), Phase 7, and Phase 8 remain.
 
 ---
 
-## Phase 7: Protocols (MCP + A2A)
+## Phase 6.5: Skill Activation System (NEW)
+
+> Research finding: Skills are prompt injection, NOT tool declaration (OpenCode pattern).
+> `allowed-tools` in SKILL.md frontmatter SCOPES which tools are available, doesn't create new ones.
+> Plugins (Go code, `internal/plugin/`) are the code-based tool-declaring extension layer.
+> This matches Claude Code's architecture: skills/slash commands are the primary extensibility;
+> MCP servers are secondary, for specific external service bridges.
+
+### PR A — Backend: Skill Activation + Session Scoping
+
+| # | What | Details | Pattern |
+|---|------|---------|---------|
+| 6.5a.1 | Active skill tracking | `Session.ActiveSkills []string`. `cairn.loadSkill` adds skill to session. | OpenCode: skill loaded into conversation |
+| 6.5a.2 | Tool filtering | When skill with `allowed-tools` is active, only those tools + always-available tools sent to LLM. No skill = all tools. | OpenCode: permission gate |
+| 6.5a.3 | Skill in system prompt | Active skill content injected into system prompt (not just tool output). Stacks with always-on skills. | OpenCode: `<skill_content>` blocks |
+| 6.5a.4 | Bundled files | `cairn.loadSkill` lists files in skill directory (scripts, references). Agent reads with `pub.readFile`. | OpenCode: `<skill_files>` listing |
+| 6.5a.5 | Permission gate | `disable-model-invocation: true` skills require approval before activation. | OpenCode: `ctx.ask({ permission: "skill" })` |
+| 6.5a.6 | Tests | | |
+
+### PR B — Backend: Skill Install + Discovery
+
+| # | What | Details | Pattern |
+|---|------|---------|---------|
+| 6.5b.1 | Multi-dir discovery | Scan `~/.cairn/skills/`, project `.cairn/skills/`, config `SKILL_DIRS` | OpenCode: global + project + config |
+| 6.5b.2 | URL install | `cairn install skill <git-url>` clones into skills dir | OpenCode: `DiscoveryService.pull(url)` |
+| 6.5b.3 | Validation | Vet `allowed-tools` against known tools, warn on `pub.shell` without `disable-model-invocation` | Cairn convention |
+| 6.5b.4 | Tests | | |
+
+### PR C — Backend: Plugin Tool Declaration (optional, if needed later)
+
+| # | What | Details | Pattern |
+|---|------|---------|---------|
+| 6.5c.1 | `Tools()` method on Plugin | Plugins can return `[]tool.Tool` registered at startup | OpenCode plugin: `tool: { key: ToolDefinition }` |
+| 6.5c.2 | Hot-reload | Plugin tools re-registered on reload | ADK-Go plugin lifecycle |
+
+---
+
+## Phase 7: Protocols (MCP + A2A) — Reduced Scope
 
 ### PR 5 — Backend: MCP Server (`internal/mcp/`)
 
@@ -207,29 +244,36 @@ Phase 6 frontend (PR 4), Phase 7, and Phase 8 remain.
 ## Dependency Graph
 
 ```
-PR 1 (Web+Memory+Feed tools) ─┐
-PR 2 (Task+Comm tools)         ├── parallel backend
-                                │
-PR 3 (Skill tools+bundles) ────┘ after PR1/2
-PR 4 (Frontend Phase 6) ────────  needs PR1-3
+Phase 6 (DONE):
+  PR 1 (Web+Memory+Feed tools) ─── merged #21
+  PR 2 (Task+Comm tools)        ─── merged #24
+  PR 3 (Skill tools+bundles)    ─── merged #26
+  PR 4 (Frontend Phase 6)       ─── needs PR1-3, for FE agent
 
-PR 5 (MCP Server) ──┐
-PR 6 (MCP Client) ──┤ parallel, needs Phase 6
-PR 7 (A2A Server) ──┘
-PR 8 (Frontend Phase 7) ────────  needs PR5-7
+Phase 6.5 (NEXT):
+  PR A (Skill activation)       ─── needs Phase 6
+  PR B (Skill install)          ─── needs PR A
+  PR C (Plugin tools)           ─── optional, independent
 
-PR 9 (Channels+Telegram) ─────── independent
-PR 10 (Frontend Channels) ─────── needs PR9
+Phase 7:
+  PR 5 (MCP Server) ──┐
+  PR 6 (MCP Client) ──┤ parallel, needs Phase 6
+  PR 7 (A2A Server) ──┘
+  PR 8 (Frontend Phase 7) ─────── needs PR5-7
 
-PR 11 (Intelligence) ───────────── independent
-PR 12 (Frontend Intelligence) ──── needs PR11
+Phase 8:
+  PR 9  (Channels+Telegram)     ─── independent
+  PR 10 (Frontend Channels)     ─── needs PR9
+  PR 11 (Intelligence)          ─── independent
+  PR 12 (Frontend Intelligence) ─── needs PR11
 ```
 
 ## Summary
 
 | Phase | Backend | Frontend | New capabilities |
 |-------|---------|----------|-----------------|
-| 6 | 3 PRs (15 tools + 5 skills) | 1 PR (22 subphases) | Web, memory, feed, tasks, skills |
+| 6 | 3 PRs ✅ DONE (16 tools + 5 skills) | 1 PR (22 subphases) | Web, memory, feed, tasks, skills |
+| 6.5 | 2-3 PRs (activation, install, plugin tools) | — (uses Phase 6 FE) | Skill activation, session scoping, install |
 | 7 | 3 PRs (MCP + A2A) | 1 PR (6 subphases) | External agents, external tools |
 | 8 | 2 PRs (channels + intelligence) | 2 PRs (10 subphases) | Telegram, embeddings, Gmail, voice |
-| **Total** | **8 PRs** | **4 PRs** | |
+| **Total** | **10-11 PRs** | **4 PRs** | |

@@ -117,6 +117,14 @@ func callZaiMCP(ctx context.Context, service, toolName string, args map[string]a
 		return "", fmt.Errorf("zai: RPC error %d: %s", rpcResp.Error.Code, rpcResp.Error.Message)
 	}
 
+	// Check for MCP-level errors (isError flag in CallToolResult).
+	var mcpCheck struct {
+		IsError bool `json:"isError"`
+	}
+	if json.Unmarshal(rpcResp.Result, &mcpCheck) == nil && mcpCheck.IsError {
+		return "", fmt.Errorf("zai: %s", extractMCPText(rpcResp.Result))
+	}
+
 	// Extract text content from MCP CallToolResult format.
 	return extractMCPText(rpcResp.Result), nil
 }

@@ -17,10 +17,10 @@ const (
 
 // Request to send to an LLM.
 type Request struct {
-	Model       string
-	Messages    []Message
-	System      string
-	Tools       []ToolDef
+	Model           string
+	Messages        []Message
+	System          string
+	Tools           []ToolDef
 	MaxTokens       int
 	Temperature     *float64
 	Stop            []string

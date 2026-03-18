@@ -54,6 +54,11 @@ func New(cfg Config, reg *tool.Registry, toolCtx *tool.ToolContext, logger *slog
 		),
 	)
 
+	// Require toolCtx — handlers will panic without it.
+	if toolCtx == nil {
+		panic("mcp.New: toolCtx must not be nil")
+	}
+
 	// Register all Cairn tools.
 	registerTools(mcpSrv, reg, toolCtx)
 
@@ -81,10 +86,12 @@ func (s *Server) MCPServer() *mcpserver.MCPServer {
 }
 
 // ServeStdio starts the MCP server on stdio (stdin/stdout).
-// Blocks until ctx is cancelled or an error occurs.
+// Blocks until ctx is cancelled or ServeStdio returns.
+// Note: the underlying mcp-go ServeStdio handles its own signal management;
+// when ctx is cancelled this function returns but the stdio goroutine may
+// still be draining. This is acceptable for shutdown.
 func (s *Server) ServeStdio(ctx context.Context) error {
 	s.logger.Info("mcp stdio transport starting")
-	// Use a goroutine-safe cancel so we can stop on context cancel.
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- mcpserver.ServeStdio(s.mcpSrv)

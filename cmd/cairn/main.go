@@ -342,8 +342,12 @@ func runServe(logger *slog.Logger) {
 
 	// Start MCP server if enabled.
 	if cfg.MCPServerEnabled {
+		// Determine working directory for filesystem tools.
+		workDir, _ := os.Getwd()
+
 		mcpToolCtx := &tool.ToolContext{
 			Cancel:   ctx,
+			WorkDir:  workDir,
 			Memories: memAdapter,
 			Events:   eventAdapter,
 			Digest:   digestAdapt,
@@ -359,6 +363,14 @@ func runServe(logger *slog.Logger) {
 		}, toolRegistry, mcpToolCtx, logger)
 
 		transport := cfg.MCPTransport
+		switch transport {
+		case "http", "stdio", "both":
+			// valid
+		default:
+			logger.Error("invalid MCP_TRANSPORT, must be http/stdio/both", "value", transport)
+			os.Exit(1)
+		}
+
 		if transport == "http" || transport == "both" {
 			go func() {
 				if err := mcpSrv.ServeHTTP(); err != nil {

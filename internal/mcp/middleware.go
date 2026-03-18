@@ -68,8 +68,14 @@ func (r *writeRateLimiter) allow() bool {
 }
 
 // WriteRateLimitMiddleware returns an MCP tool handler middleware that rate-limits
-// write tool calls to the specified limit per window.
+// write tool calls to the specified limit per window. The limiter is global
+// (shared across all sessions) — a per-session limiter would require session
+// context from mcp-go which is not available in the middleware chain.
+// If limit <= 0, no rate limiting is applied.
 func WriteRateLimitMiddleware(limit int, window time.Duration) mcpserver.ToolHandlerMiddleware {
+	if limit <= 0 {
+		return func(next mcpserver.ToolHandlerFunc) mcpserver.ToolHandlerFunc { return next }
+	}
 	limiter := newWriteRateLimiter(limit, window)
 
 	return func(next mcpserver.ToolHandlerFunc) mcpserver.ToolHandlerFunc {

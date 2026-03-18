@@ -26,15 +26,21 @@ func cairnToolToMCP(t tool.Tool) mcp.Tool {
 }
 
 // makeToolHandler creates an MCP tool handler that delegates to a Cairn tool.
-func makeToolHandler(t tool.Tool, toolCtx *tool.ToolContext) mcpserver.ToolHandlerFunc {
+// Each invocation creates a per-request ToolContext with the MCP request's
+// context for cancellation/deadline propagation.
+func makeToolHandler(t tool.Tool, baseCtx *tool.ToolContext) mcpserver.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Per-request context: inherit services from base, use request ctx for cancellation.
+		reqCtx := *baseCtx
+		reqCtx.Cancel = ctx
+
 		// Convert MCP arguments to JSON for Cairn tool.
 		args, err := json.Marshal(request.GetArguments())
 		if err != nil {
 			return nil, fmt.Errorf("marshal arguments: %w", err)
 		}
 
-		result, err := t.Execute(toolCtx, args)
+		result, err := t.Execute(&reqCtx, args)
 		if err != nil {
 			return nil, fmt.Errorf("tool %s: %w", t.Name(), err)
 		}

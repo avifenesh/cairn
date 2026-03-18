@@ -185,13 +185,17 @@ func LoadOptional() *Config {
 	if err != nil {
 		// Return a config with whatever we could read, just no LLM key.
 		c = &Config{
-			Port:         envInt("PORT", 8787),
-			Host:         envStr("HOST", "0.0.0.0"),
-			DatabasePath: envStr("DATABASE_PATH", "./data/cairn.db"),
-			LLMProvider:  envStr("LLM_PROVIDER", "glm"),
-			SoulPath:     envStr("SOUL_PATH", "./SOUL.md"),
-			SkillDirs:    skillDirs(),
-			DataDir:      envStr("DATA_DIR", "./data"),
+			Port:              envInt("PORT", 8787),
+			Host:              envStr("HOST", "0.0.0.0"),
+			DatabasePath:      envStr("DATABASE_PATH", "./data/cairn.db"),
+			LLMProvider:       envStr("LLM_PROVIDER", "glm"),
+			MCPServerEnabled:  envBool("MCP_SERVER_ENABLED", false),
+			MCPPort:           envInt("MCP_PORT", 3001),
+			MCPTransport:      envStr("MCP_TRANSPORT", "http"),
+			MCPWriteRateLimit: envInt("MCP_WRITE_RATE_LIMIT", 100),
+			SoulPath:          envStr("SOUL_PATH", "./SOUL.md"),
+			SkillDirs:         skillDirs(),
+			DataDir:           envStr("DATA_DIR", "./data"),
 		}
 	}
 	return c

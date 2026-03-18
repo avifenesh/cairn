@@ -4,7 +4,7 @@
 	import { sseStore } from '$lib/stores/sse.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Circle, Search, Sun, Moon, Menu, DollarSign, HelpCircle } from '@lucide/svelte';
+	import { Circle, Search, Sun, Moon, DollarSign, HelpCircle } from '@lucide/svelte';
 
 	function handleKeyboardShortcut() {
 		appStore.openCommandPalette();
@@ -37,15 +37,6 @@
 <header
 	class="flex h-[var(--header-h)] items-center border-b border-border-subtle bg-[var(--bg-1)] px-3 gap-3"
 >
-	<!-- Mobile menu toggle -->
-	<button
-		class="md:hidden rounded-md p-1.5 hover:bg-[var(--bg-2)] transition-colors"
-		onclick={() => appStore.toggleSidebar()}
-		aria-label="Toggle menu"
-	>
-		<Menu class="h-4 w-4 text-[var(--text-secondary)]" />
-	</button>
-
 	<!-- Breadcrumb -->
 	<div class="flex items-center gap-2 flex-1 min-w-0">
 		<span class="text-sm font-medium text-[var(--text-primary)] truncate">{currentView()}</span>

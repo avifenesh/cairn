@@ -3,7 +3,6 @@
 	import { appStore } from '$lib/stores/app.svelte';
 	import { feedStore } from '$lib/stores/feed.svelte';
 	import { taskStore } from '$lib/stores/tasks.svelte';
-	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 	import {
@@ -54,11 +53,12 @@
 	const collapsed = $derived(appStore.sidebarCollapsed);
 </script>
 
+<!-- Desktop only -->
 <nav
 	class="hidden md:flex flex-col border-r border-border-subtle bg-[var(--bg-1)] overflow-y-auto transition-[width] duration-[var(--dur-normal)] ease-[var(--ease-out)]"
 	style="width: {collapsed ? 'var(--sidebar-collapsed-w)' : 'var(--sidebar-w)'}"
 >
-	<!-- Logo + collapse toggle -->
+	<!-- Logo + collapse -->
 	<div class="flex items-center h-[var(--header-h)] px-3 border-b border-border-subtle">
 		{#if !collapsed}
 			<span class="text-sm font-semibold tracking-tight text-[var(--text-primary)] flex-1">Cairn</span>
@@ -81,65 +81,49 @@
 		{#each navItems as item}
 			{@const active = isActive(item.href)}
 			{@const count = badge(item.href)}
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					<a
-						href={item.href}
-						class="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-[var(--dur-fast)] relative
-							{active
-							? 'nav-active-bar bg-[var(--accent-dim)] text-[var(--cairn-accent)] font-medium'
-							: 'text-[var(--text-secondary)] hover:bg-[var(--bg-2)] hover:text-[var(--text-primary)]'}"
-					>
-						<item.icon class="h-4 w-4 flex-shrink-0" />
-						{#if !collapsed}
-							<span class="flex-1 truncate">{item.label}</span>
-							{#if count}
-								<Badge variant="default" class="h-5 min-w-5 px-1.5 text-[10px]">
-									{count > 99 ? '99+' : count}
-								</Badge>
-							{/if}
-							<kbd class="hidden lg:inline text-[10px] text-[var(--text-tertiary)] opacity-40 font-mono">{item.key}</kbd>
-						{:else if count}
-							<span class="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[var(--cairn-accent)]"></span>
-						{/if}
-					</a>
-				</Tooltip.Trigger>
-				{#if collapsed}
-					<Tooltip.Content side="right">
-						<p>{item.label}{count ? ` (${count})` : ''}</p>
-					</Tooltip.Content>
+			<a
+				href={item.href}
+				class="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-[var(--dur-fast)] relative
+					{active
+					? 'nav-active-bar bg-[var(--accent-dim)] text-[var(--cairn-accent)] font-medium'
+					: 'text-[var(--text-secondary)] hover:bg-[var(--bg-2)] hover:text-[var(--text-primary)]'}"
+				title={collapsed ? item.label : undefined}
+			>
+				<item.icon class="h-4 w-4 flex-shrink-0" />
+				{#if !collapsed}
+					<span class="flex-1 truncate">{item.label}</span>
+					{#if count}
+						<Badge variant="default" class="h-5 min-w-5 px-1.5 text-[10px]">
+							{count > 99 ? '99+' : count}
+						</Badge>
+					{/if}
+					<kbd class="hidden lg:inline text-[10px] text-[var(--text-tertiary)] opacity-40 font-mono">{item.key}</kbd>
+				{:else if count}
+					<span class="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-[var(--cairn-accent)]"></span>
 				{/if}
-			</Tooltip.Root>
+			</a>
 		{/each}
 	</div>
 
-	<!-- Bottom section -->
+	<!-- Bottom -->
 	<div class="p-2">
 		<Separator class="mb-2" />
 		{#each bottomItems as item}
 			{@const active = isActive(item.href)}
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					<a
-						href={item.href}
-						class="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-[var(--dur-fast)]
-							{active
-							? 'nav-active-bar bg-[var(--accent-dim)] text-[var(--cairn-accent)]'
-							: 'text-[var(--text-tertiary)] hover:bg-[var(--bg-2)] hover:text-[var(--text-secondary)]'}"
-					>
-						<item.icon class="h-4 w-4 flex-shrink-0" />
-						{#if !collapsed}
-							<span class="flex-1">{item.label}</span>
-							<kbd class="hidden lg:inline text-[10px] text-[var(--text-tertiary)] opacity-40 font-mono">{item.key}</kbd>
-						{/if}
-					</a>
-				</Tooltip.Trigger>
-				{#if collapsed}
-					<Tooltip.Content side="right">
-						<p>{item.label}</p>
-					</Tooltip.Content>
+			<a
+				href={item.href}
+				class="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-[var(--dur-fast)]
+					{active
+					? 'nav-active-bar bg-[var(--accent-dim)] text-[var(--cairn-accent)]'
+					: 'text-[var(--text-tertiary)] hover:bg-[var(--bg-2)] hover:text-[var(--text-secondary)]'}"
+				title={collapsed ? item.label : undefined}
+			>
+				<item.icon class="h-4 w-4 flex-shrink-0" />
+				{#if !collapsed}
+					<span class="flex-1">{item.label}</span>
+					<kbd class="hidden lg:inline text-[10px] text-[var(--text-tertiary)] opacity-40 font-mono">{item.key}</kbd>
 				{/if}
-			</Tooltip.Root>
+			</a>
 		{/each}
 	</div>
 </nav>

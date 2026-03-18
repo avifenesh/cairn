@@ -209,7 +209,7 @@ src/
 
 ## Status
 
-All subphases 10.1-10.11 + Phase 6 hardening complete. 169 tests across 19 files. 10.12 (Go embed) depends on backend server (Phase 4a).
+All subphases 10.1-10.12 + Phase 6 hardening + full redesign + chat integration complete. 169 tests across 19 files. Cairn design system (emerald, zinc, Geist), 14 shadcn-svelte components, token gate, SSE streaming chat working with GLM backend. Next: Phase 7 chat improvements.
 
 ## Phase 6: Hardening
 

@@ -18,7 +18,7 @@ A **Svelte 5 + SvelteKit** dashboard for Cairn — a personal agent operating sy
 | Components | shadcn-svelte | Copy-paste Tailwind components, accessible, Svelte 5 compatible |
 | Styling | Tailwind CSS v4 | CSS-first config, design tokens via `@theme` |
 | Icons | Lucide Svelte | Tree-shakeable, used by shadcn |
-| Fonts | Inter (UI) + JetBrains Mono (code) | Same as v1 |
+| Fonts | Geist (headings) + Inter (body) + Geist Mono (code) | Upgraded from v1 |
 | Markdown | marked + DOMPurify | Same libs as v1, proven |
 
 ## Design Tokens
@@ -33,7 +33,7 @@ The token file defines:
 - **Status**: success green, warning yellow, error red
 - **Border**: base + 3 opacity levels (subtle/default/strong)
 - **Radius**: sm(6) md(8) lg(10) xl(16) full(9999)
-- **Font stacks**: Inter sans, JetBrains Mono
+- **Font stacks**: Geist (headings), Inter (body), Geist Mono (code)
 - **Shadows**: sm/md/lg
 - **Motion**: easing (out/spring), duration (fast 120ms, normal 200ms, slow 350ms)
 - **Layout**: sidebar 240px, header 56px, toolbar 48px, touch target 44px
@@ -271,7 +271,30 @@ The Go backend embeds `frontend/dist/` via `embed.FS` and serves it at `/`.
 
 ## Completion Status
 
-All frontend phases (1-5), subphases (10.1-10.11), and Phase 6 hardening (10/10 items) are complete. 169 tests passing, build clean. Only 10.12 (Go embed) remains, which depends on the Go HTTP server (Phase 4a).
+All frontend phases (1-5), subphases (10.1-10.12), Phase 6 hardening (10/10 items), and full redesign complete. 169 tests, 14 shadcn-svelte components, Cairn design system (emerald accent, zinc backgrounds, Geist font). Token gate, SSE chat integration, API normalization layer all working.
+
+### Full Redesign (merged)
+
+Design system rewrite: `--pub-*` → `--cairn-*`, emerald `#10B981` accent, zinc backgrounds, Geist + Geist Mono fonts. 14 shadcn-svelte components (button, card, badge, tooltip, separator, scroll-area, dialog, dropdown-menu, input, toggle, avatar, skeleton, alert, tabs). All 26 custom components and 8 pages redesigned. Tabs use underline style, buttons are softer rounded-lg, density scales root font-size. Token gate for auth, SSE integration working with GLM backend.
+
+### Next: Chat Improvements (frontend-only, no backend dependency)
+
+| # | Item | Priority | Description |
+|---|------|----------|-------------|
+| C.1 | Copy button on messages | high | Copy message content to clipboard, "Copied" feedback |
+| C.2 | Better message styling | high | Markdown rendering polish, code block headers, proper prose styling |
+| C.3 | Context panel wiring | high | Wire tool calls and reasoning from SSE to context panel in real-time |
+| C.4 | Old conversation loading | high | Session picker loads message history, scroll to bottom, continue chat |
+| C.5 | Mode-specific styling | medium | Visual distinction per mode (talk/work/coding) — accent color, icon, border |
+| C.6 | File attachment | medium | Attach files to messages, preview, send as multipart |
+| C.7 | Voice input/output | medium | Wire VoiceButton to backend whisper endpoint, TTS playback |
+| C.8 | Message actions bar | medium | Hover actions: copy, remember, create task, share |
+| C.9 | Streaming improvements | medium | Smooth token-by-token rendering, cursor animation, cancellation |
+| C.10 | Chat empty state | low | Suggested prompts, recent sessions, quick actions |
+
+### Frontend Tool/Skill UI (from PHASE6_PLAN.md items 6f.1-6f.22 — blocked on backend PRs 1-3)
+
+Tool call display upgrade, inline memory creation, feed actions, task creation from chat, memory batch actions, skill browser/detail, system status, budget display, new API methods, stores, SSE events, tests.
 
 ### Phase 6: Hardening (approved improvements, independent of backend)
 

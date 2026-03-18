@@ -32,7 +32,7 @@
 		if (loading) return 'Loading...';
 		if (!chatStore.currentSessionId) return 'New chat';
 		const s = chatStore.sessions.find((s) => s.id === chatStore.currentSessionId);
-		return s?.title ?? `Session ${chatStore.currentSessionId.slice(0, 6)}`;
+		return s?.title || `Chat ${chatStore.currentSessionId.slice(0, 6)}`;
 	});
 </script>
 
@@ -58,7 +58,7 @@
 					class="justify-between text-xs {chatStore.currentSessionId === session.id ? 'text-[var(--cairn-accent)]' : ''}"
 					onclick={() => selectSession(session.id)}
 				>
-					<span class="truncate flex-1">{session.title ?? `Session ${session.id.slice(0, 6)}`}</span>
+					<span class="truncate flex-1">{session.title || `Chat ${session.id.slice(0, 6)}`}</span>
 					<span class="ml-2 flex-shrink-0 text-[10px] text-[var(--text-tertiary)] tabular-nums font-mono">
 						{session.messageCount ?? 0} msgs
 					</span>

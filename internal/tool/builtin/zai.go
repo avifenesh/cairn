@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -62,7 +63,8 @@ type jsonRPCError struct {
 
 // callZaiMCP makes a JSON-RPC call to a Z.ai MCP endpoint.
 func callZaiMCP(ctx context.Context, service, toolName string, args map[string]any) (string, error) {
-	endpoint := zaiConfig.BaseURL + "/" + service + "/mcp"
+	base := strings.TrimRight(zaiConfig.BaseURL, "/")
+	endpoint := base + "/" + service + "/mcp"
 
 	body := jsonRPCRequest{
 		JSONRPC: "2.0",
@@ -86,12 +88,7 @@ func callZaiMCP(ctx context.Context, service, toolName string, args map[string]a
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+zaiConfig.APIKey)
 
-	client := zaiConfig.HTTPClient
-	if client == nil {
-		client = &http.Client{Timeout: 60 * time.Second}
-	}
-
-	resp, err := client.Do(req)
+	resp, err := zaiConfig.HTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("zai: http request: %w", err)
 	}
@@ -162,7 +159,11 @@ var zaiWebSearch = tool.Define("cairn.webSearch",
 
 		args := map[string]any{"query": p.Query}
 		if p.NumResults != nil && *p.NumResults > 0 {
-			args["count"] = *p.NumResults
+			n := *p.NumResults
+			if n > 20 {
+				n = 20
+			}
+			args["count"] = n
 		}
 
 		text, err := callZaiMCP(safeCtx(ctx.Cancel), "web_search_prime", "webSearchPrime", args)
@@ -192,6 +193,18 @@ var zaiWebReader = tool.Define("cairn.webFetch",
 		}
 		if p.URL == "" {
 			return &tool.ToolResult{Error: "url is required"}, nil
+		}
+
+		// Validate URL scheme and block SSRF (same as direct fetch).
+		parsed, err := url.Parse(p.URL)
+		if err != nil {
+			return &tool.ToolResult{Error: fmt.Sprintf("invalid URL: %v", err)}, nil
+		}
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return &tool.ToolResult{Error: "only http and https URLs are supported"}, nil
+		}
+		if err := validateHost(parsed.Hostname()); err != nil {
+			return &tool.ToolResult{Error: err.Error()}, nil
 		}
 
 		text, err := callZaiMCP(safeCtx(ctx.Cancel), "web_reader", "webReader", map[string]any{"url": p.URL})

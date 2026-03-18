@@ -127,7 +127,8 @@ func runServe(logger *slog.Logger) {
 	}
 
 	// Configure web tool backends BEFORE registering tools (All() checks ZaiEnabled).
-	if cfg.ZaiWebEnabled && cfg.LLMAPIKey != "" {
+	// Only use Z.ai tools with GLM provider (prevents leaking non-GLM keys).
+	if cfg.ZaiWebEnabled && cfg.LLMAPIKey != "" && cfg.LLMProvider == "glm" {
 		builtin.SetZaiConfig(cfg.LLMAPIKey, cfg.ZaiBaseURL)
 		logger.Info("zai web tools enabled", "baseURL", cfg.ZaiBaseURL)
 	}

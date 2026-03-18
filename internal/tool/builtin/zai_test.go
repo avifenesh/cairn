@@ -4,19 +4,27 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
-func TestZaiEnabled(t *testing.T) {
-	// Default: disabled.
-	old := zaiConfig.APIKey
-	zaiConfig.APIKey = ""
-	zaiConfig.enabled.Store(false)
-	defer func() {
-		zaiConfig.APIKey = old
-		zaiConfig.enabled.Store(old != "")
-	}()
+func saveZaiState() func() {
+	key := zaiConfig.APIKey
+	base := zaiConfig.BaseURL
+	enabled := zaiConfig.enabled.Load()
+	client := zaiConfig.HTTPClient
+	return func() {
+		zaiConfig.APIKey = key
+		zaiConfig.BaseURL = base
+		zaiConfig.enabled.Store(enabled)
+		zaiConfig.HTTPClient = client
+	}
+}
 
+func TestZaiEnabled(t *testing.T) {
+	defer saveZaiState()()
+
+	SetZaiConfig("", "")
 	if ZaiEnabled() {
 		t.Fatal("expected Z.ai disabled with no API key")
 	}
@@ -25,16 +33,12 @@ func TestZaiEnabled(t *testing.T) {
 	if !ZaiEnabled() {
 		t.Fatal("expected Z.ai enabled with API key")
 	}
-
-	// Clean up.
-	SetZaiConfig("", "")
 }
 
 func TestZaiToolCount(t *testing.T) {
-	// Enable Z.ai, check tool count increases.
-	SetZaiConfig("test-key", "http://localhost")
-	defer SetZaiConfig("", "")
+	defer saveZaiState()()
 
+	SetZaiConfig("test-key", "http://localhost")
 	tools := All()
 	// 22 base + 5 Z.ai tools = 27
 	if len(tools) != 27 {
@@ -58,7 +62,8 @@ func TestZaiToolCount(t *testing.T) {
 }
 
 func TestZaiDefaultToolCount(t *testing.T) {
-	// Z.ai disabled — SearXNG path.
+	defer saveZaiState()()
+
 	SetZaiConfig("", "")
 	tools := All()
 	// 22 base + 2 SearXNG tools = 24
@@ -68,9 +73,15 @@ func TestZaiDefaultToolCount(t *testing.T) {
 }
 
 func TestCallZaiMCP_MockServer(t *testing.T) {
+	defer saveZaiState()()
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer test-key" {
 			t.Errorf("expected Bearer auth, got %q", r.Header.Get("Authorization"))
+		}
+		// Verify service path is included.
+		if !strings.Contains(r.URL.Path, "/web_search_prime/mcp") {
+			t.Errorf("expected /web_search_prime/mcp in path, got %q", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"search results here"}]}}`))
@@ -78,9 +89,8 @@ func TestCallZaiMCP_MockServer(t *testing.T) {
 	defer srv.Close()
 
 	SetZaiConfig("test-key", srv.URL)
-	defer SetZaiConfig("", "")
 
-	text, err := callZaiMCP(context.Background(), "", "webSearchPrime", map[string]any{"query": "test"})
+	text, err := callZaiMCP(context.Background(), "web_search_prime", "webSearchPrime", map[string]any{"query": "test"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

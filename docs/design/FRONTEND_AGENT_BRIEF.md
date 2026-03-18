@@ -271,7 +271,30 @@ The Go backend embeds `frontend/dist/` via `embed.FS` and serves it at `/`.
 
 ## Completion Status
 
-All frontend phases (1-5), subphases (10.1-10.11), and Phase 6 hardening (10/10 items) are complete. 169 tests passing, build clean. Only 10.12 (Go embed) remains, which depends on the Go HTTP server (Phase 4a).
+All frontend phases (1-5), subphases (10.1-10.12), Phase 6 hardening (10/10 items), and full redesign complete. 169 tests, 14 shadcn-svelte components, Cairn design system (emerald accent, zinc backgrounds, Geist font). Token gate, SSE chat integration, API normalization layer all working.
+
+### Full Redesign (merged)
+
+Design system rewrite: `--pub-*` → `--cairn-*`, emerald `#10B981` accent, zinc backgrounds, Geist + Geist Mono fonts. 14 shadcn-svelte components (button, card, badge, tooltip, separator, scroll-area, dialog, dropdown-menu, input, toggle, avatar, skeleton, alert, tabs). All 26 custom components and 8 pages redesigned. Tabs use underline style, buttons are softer rounded-lg, density scales root font-size. Token gate for auth, SSE integration working with GLM backend.
+
+### Next: Phase 7 Chat Improvements
+
+| # | Item | Priority | Description |
+|---|------|----------|-------------|
+| 7.1 | Copy button on messages | high | Copy message content to clipboard, "Copied" feedback |
+| 7.2 | Better message styling | high | Markdown rendering polish, code block headers, proper prose styling |
+| 7.3 | Context panel wiring | high | Wire tool calls and reasoning from SSE to context panel in real-time |
+| 7.4 | Old conversation loading | high | Session picker loads message history, scroll to bottom, continue chat |
+| 7.5 | Mode-specific styling | medium | Visual distinction per mode (talk/work/coding) — accent color, icon, border |
+| 7.6 | File attachment | medium | Attach files to messages, preview, send as multipart |
+| 7.7 | Voice input/output | medium | Wire VoiceButton to backend whisper endpoint, TTS playback |
+| 7.8 | Message actions bar | medium | Hover actions: copy, remember, create task, share |
+| 7.9 | Streaming improvements | medium | Smooth token-by-token rendering, cursor animation, cancellation |
+| 7.10 | Chat empty state | low | Suggested prompts, recent sessions, quick actions |
+
+### Phase 6 Frontend (from PHASE6_PLAN.md — blocked on backend PRs 1-3)
+
+Items 6f.1 through 6f.22: tool call upgrade, inline memory creation, feed actions, task creation from chat, memory batch actions, skill browser/detail, system status, budget display, new API methods, stores, SSE events, tests.
 
 ### Phase 6: Hardening (approved improvements, independent of backend)
 

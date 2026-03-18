@@ -26,7 +26,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.12 + Phase 6, 169 tests) | `frontend/` |
 | 11 | Channel Adapters - web, Telegram, Slack, CLI, API, voice | Not started | — |
 
-Frontend complete (10.1-10.12 + Phase 6 hardening). 169 tests across 19 files. 10.12 Go embed done. Backend: 242 tests. Next: Phase 5.2 (integration testing against Go server).
+Frontend complete (10.1-10.12 + Phase 6 hardening + full redesign + chat integration). 169 tests across 19 files. Cairn design system, 14 shadcn-svelte components, token gate, SSE chat working. Next: Phase 7 chat improvements (copy, context wiring, sessions, modes, files, voice).
 
 ## Phases
 

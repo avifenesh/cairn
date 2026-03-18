@@ -3,8 +3,10 @@ module github.com/avifenesh/cairn
 go 1.25.7
 
 require (
+	github.com/bwmarrin/discordgo v0.28.1
 	github.com/mark3labs/mcp-go v0.45.0
 	github.com/mymmrac/telego v1.7.0
+	github.com/slack-go/slack v0.15.0
 	modernc.org/sqlite v1.46.2
 )
 
@@ -12,7 +14,6 @@ require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
-	github.com/bwmarrin/discordgo v0.28.1 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
@@ -28,7 +29,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/slack-go/slack v0.15.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect

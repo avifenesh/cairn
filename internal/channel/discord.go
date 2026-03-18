@@ -85,7 +85,9 @@ func (d *DiscordAdapter) Start(ctx context.Context) error {
 				return
 			}
 			if resp != nil {
-				d.sendResponse(m.ChannelID, resp)
+				if sendErr := d.sendResponse(m.ChannelID, resp); sendErr != nil {
+					d.logger.Error("discord: send response failed", "error", sendErr)
+				}
 			}
 		}()
 	})
@@ -93,6 +95,11 @@ func (d *DiscordAdapter) Start(ctx context.Context) error {
 	// Handle button interactions.
 	d.session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if i.Type != discordgo.InteractionMessageComponent {
+			return
+		}
+
+		// Filter by channel if configured.
+		if d.channelID != "" && i.ChannelID != d.channelID {
 			return
 		}
 
@@ -134,7 +141,9 @@ func (d *DiscordAdapter) Start(ctx context.Context) error {
 				return
 			}
 			if resp != nil {
-				d.sendResponse(chatID, resp)
+				if sendErr := d.sendResponse(chatID, resp); sendErr != nil {
+					d.logger.Error("discord: send interaction response failed", "error", sendErr)
+				}
 			}
 		}()
 	})
@@ -159,8 +168,7 @@ func (d *DiscordAdapter) Send(_ context.Context, msg *OutgoingMessage) error {
 	if d.channelID == "" {
 		return fmt.Errorf("discord: no channel ID configured")
 	}
-	d.sendResponse(d.channelID, msg)
-	return nil
+	return d.sendResponse(d.channelID, msg)
 }
 
 func (d *DiscordAdapter) Close() error {
@@ -172,10 +180,10 @@ func (d *DiscordAdapter) Close() error {
 	return nil
 }
 
-func (d *DiscordAdapter) sendResponse(channelID string, msg *OutgoingMessage) {
+func (d *DiscordAdapter) sendResponse(channelID string, msg *OutgoingMessage) error {
 	text := Normalize(msg.Text, "discord")
 	if text == "" {
-		return
+		return nil
 	}
 
 	components := buildDiscordComponents(msg.Actions)
@@ -190,8 +198,10 @@ func (d *DiscordAdapter) sendResponse(channelID string, msg *OutgoingMessage) {
 		}
 		if _, err := d.session.ChannelMessageSendComplex(channelID, send); err != nil {
 			d.logger.Error("discord: send failed", "error", err)
+			return err
 		}
 	}
+	return nil
 }
 
 func (d *DiscordAdapter) sendText(channelID, text string) {

@@ -170,6 +170,11 @@ func (s *SlackAdapter) handleInteraction(ctx context.Context, cb slack.Interacti
 		return
 	}
 
+	// Filter by channel if configured.
+	if s.channelID != "" && cb.Channel.ID != s.channelID {
+		return
+	}
+
 	action := cb.ActionCallback.BlockActions[0]
 	s.logger.Info("slack interaction", "actionID", action.ActionID)
 
@@ -179,7 +184,7 @@ func (s *SlackAdapter) handleInteraction(ctx context.Context, cb slack.Interacti
 
 	chatID := cb.Channel.ID
 	incoming := &IncomingMessage{
-		ID:        fmt.Sprintf("sl_i_%s", action.ActionID),
+		ID:        fmt.Sprintf("sl_i_%s_%s", cb.TriggerID, action.ActionID),
 		ChannelID: "slack",
 		UserID:    cb.User.ID,
 		ChatID:    chatID,

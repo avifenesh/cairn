@@ -23,6 +23,13 @@ import (
 	"github.com/avifenesh/cairn/internal/tool/builtin"
 )
 
+// Set by goreleaser ldflags.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
@@ -35,13 +42,18 @@ func main() {
 		case "serve":
 			runServe(logger)
 			return
+		case "version":
+			fmt.Printf("cairn %s (%s) built %s\n", version, commit, date)
+			return
 		}
 	}
 
 	fmt.Println("cairn: personal agent OS")
+	fmt.Printf("version %s (%s)\n\n", version, commit)
 	fmt.Println("Usage: cairn chat \"your message here\"")
 	fmt.Println("       cairn chat --mode coding \"your message\"")
 	fmt.Println("       cairn serve               # start HTTP server")
+	fmt.Println("       cairn version             # show version info")
 }
 
 // runServe starts the HTTP server with all subsystems initialized.

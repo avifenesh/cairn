@@ -108,7 +108,14 @@ pnpm build                      # Static build to dist/
 pnpm check                      # Svelte + TypeScript check
 pnpm test                       # Vitest
 
-# Full validation (no CI pipeline yet - run manually before merge)
+# Make targets
+make test                       # Tests with race detector
+make lint                       # Formatting + vet
+make build                      # Dev binary
+make build-prod                 # Production binary with embedded frontend
+make dev                        # Run dev server
+
+# Full validation
 go vet ./... && go test -race ./... && cd frontend && pnpm check && pnpm test
 ```
 

@@ -216,8 +216,9 @@ export const getFleet = async () => {
 	if (useMocks()) return { agents: mockAgents, summary: { idle: 1, busy: 1 } };
 	try {
 		return await get<{ agents: Agent[]; summary: Record<string, number> }>('/v1/fleet');
-	} catch {
-		return { agents: [], summary: {} };
+	} catch (e) {
+		if (e instanceof ApiError && e.status === 404) return { agents: [], summary: {} };
+		throw e;
 	}
 };
 

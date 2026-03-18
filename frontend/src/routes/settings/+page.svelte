@@ -2,7 +2,7 @@
 	import { appStore, type Theme, type Density, type Mood } from '$lib/stores/app.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Monitor, Circle, Wifi, WifiOff } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff } from '@lucide/svelte';
 
 	const themes: { value: Theme; label: string; icon: typeof Sun }[] = [
 		{ value: 'dark', label: 'Dark', icon: Moon },

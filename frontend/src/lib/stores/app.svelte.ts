@@ -25,9 +25,9 @@ let autoMoodEnabled = $state(safeGetItem('cairn_auto_mood') === 'true');
 
 let sseConnected = $state(false);
 let clientId = $state<string | null>(null);
-let theme = $state<Theme>((localStorage.getItem('cairn_theme') as Theme) || 'dark');
-let density = $state<Density>((localStorage.getItem('cairn_density') as Density) || 'comfortable');
-let mood = $state<Mood>((localStorage.getItem('cairn_mood') as Mood) || 'default');
+let theme = $state<Theme>((safeGetItem('cairn_theme') as Theme) || 'dark');
+let density = $state<Density>((safeGetItem('cairn_density') as Density) || 'comfortable');
+let mood = $state<Mood>((safeGetItem('cairn_mood') as Mood) || 'default');
 let commandPaletteOpen = $state(false);
 let helpModalOpen = $state(false);
 let contextPanelOpen = $state(true);

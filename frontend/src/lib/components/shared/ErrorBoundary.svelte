@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import * as Alert from '$lib/components/ui/alert';
 	import { AlertTriangle, RefreshCw } from '@lucide/svelte';
 
 	let { error = null, onretry }: { error: string | null; onretry?: () => void } = $props();

@@ -4,7 +4,6 @@
 	import ToolCallChip from './ToolCallChip.svelte';
 	import ReasoningBlock from './ReasoningBlock.svelte';
 	import { relativeTime } from '$lib/utils/time';
-	import { Badge } from '$lib/components/ui/badge';
 	import { Bot, User } from '@lucide/svelte';
 
 	let { message }: { message: ChatMessage } = $props();

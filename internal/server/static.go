@@ -14,7 +14,6 @@ import (
 // with -tags embed_frontend) or the filesystem frontend/dist/ directory.
 // SPA fallback: any path that doesn't match a real file returns index.html.
 func (s *Server) staticHandler() http.Handler {
-	// Use embedded FS if available, else filesystem.
 	if frontend.Dist != nil {
 		return s.embeddedStaticHandler(frontend.Dist)
 	}
@@ -35,15 +34,14 @@ func (s *Server) embeddedStaticHandler(dist fs.FS) http.Handler {
 			return
 		}
 
-		// Try to open the file in the embedded FS.
 		path := strings.TrimPrefix(r.URL.Path, "/")
 		if path == "" {
 			path = "index.html"
 		}
 
-		f, err := dist.Open(path)
-		if err == nil {
-			f.Close()
+		// Use fs.Stat to check existence and whether it's a file (not dir).
+		info, err := fs.Stat(dist, path)
+		if err == nil && !info.IsDir() {
 			fileServer.ServeHTTP(w, r)
 			return
 		}
@@ -75,16 +73,24 @@ func (s *Server) fsStaticHandler(distDir string) http.Handler {
 
 		filePath := filepath.Join(distDir, reqPath)
 
-		// Path traversal protection.
-		absFilePath, _ := filepath.Abs(filePath)
-		absDistDir, _ := filepath.Abs(distDir)
+		// Path traversal protection: resolved path must be within distDir.
+		absFilePath, err := filepath.Abs(filePath)
+		if err != nil {
+			writeError(w, http.StatusForbidden, "forbidden")
+			return
+		}
+		absDistDir, err := filepath.Abs(distDir)
+		if err != nil {
+			writeError(w, http.StatusForbidden, "forbidden")
+			return
+		}
 		if !strings.HasPrefix(absFilePath, absDistDir+string(filepath.Separator)) && absFilePath != absDistDir {
 			writeError(w, http.StatusForbidden, "forbidden")
 			return
 		}
 
-		info, err := os.Stat(filePath)
-		if err != nil || info.IsDir() {
+		info, statErr := os.Stat(filePath)
+		if statErr != nil || info.IsDir() {
 			indexPath := filepath.Join(distDir, "index.html")
 			if _, err := os.Stat(indexPath); err == nil {
 				http.ServeFile(w, r, indexPath)

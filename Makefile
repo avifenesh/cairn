@@ -1,4 +1,4 @@
-.PHONY: build build-prod test lint vet fmt clean dev
+.PHONY: build build-prod test lint vet fmt clean dev frontend-build
 
 # Dev build (filesystem frontend)
 build:

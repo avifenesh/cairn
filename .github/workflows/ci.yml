@@ -7,12 +7,14 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - 'frontend/**'
       - '.github/workflows/ci.yml'
   pull_request:
     paths:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - 'frontend/**'
       - '.github/workflows/ci.yml'
 
 permissions:

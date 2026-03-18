@@ -87,6 +87,7 @@ export interface ToolCall {
 	result?: string;
 	error?: string;
 	durationMs?: number;
+	isExternal?: boolean;
 }
 
 export interface ReasoningStep {
@@ -149,6 +150,12 @@ export interface CostData {
 	weekUsd: number;
 	budgetDailyUsd: number;
 	budgetWeeklyUsd: number;
+}
+
+export interface McpStatus {
+	enabled: boolean;
+	port: number;
+	transport: string;
 }
 
 // SSE event types

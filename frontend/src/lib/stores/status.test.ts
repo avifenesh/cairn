@@ -25,4 +25,18 @@ describe('statusStore', () => {
 		expect(statusStore.budgetToday).toBe(1.0);
 		expect(statusStore.budgetWeek).toBe(5.0);
 	});
+
+	it('sets MCP status', () => {
+		statusStore.setMcpStatus({ enabled: true, port: 3001, transport: 'http' });
+		expect(statusStore.mcpEnabled).toBe(true);
+		expect(statusStore.mcpPort).toBe(3001);
+		expect(statusStore.mcpTransport).toBe('http');
+	});
+
+	it('defaults MCP status when partial', () => {
+		statusStore.setMcpStatus({});
+		expect(statusStore.mcpEnabled).toBe(false);
+		expect(statusStore.mcpPort).toBe(0);
+		expect(statusStore.mcpTransport).toBe('');
+	});
 });

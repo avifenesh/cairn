@@ -1,16 +1,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getSkills } from '$lib/api/client';
+	import { getSkills, getSkillDetail } from '$lib/api/client';
+	import { renderMarkdown } from '$lib/utils/markdown';
 	import type { Skill } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Sparkles, Search, X, ChevronDown, ChevronUp } from '@lucide/svelte';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Sparkles, Search, X, ChevronDown, ChevronUp, FileText, Loader2 } from '@lucide/svelte';
 
 	let skills = $state<Skill[]>([]);
 	let activeSkills = $state<string[]>([]);
 	let loading = $state(true);
 	let searchQuery = $state('');
 	let expandedSkill = $state<string | null>(null);
+	let detailContent = $state<string | null>(null);
+	let detailLoading = $state(false);
+	let dialogOpen = $state(false);
+	let dialogSkill = $state<{ name: string; content: string } | null>(null);
 
 	onMount(async () => {
 		try {
@@ -36,8 +42,28 @@
 		);
 	});
 
-	function toggleExpanded(name: string) {
-		expandedSkill = expandedSkill === name ? null : name;
+	async function toggleExpanded(name: string) {
+		if (expandedSkill === name) {
+			expandedSkill = null;
+			detailContent = null;
+			return;
+		}
+		expandedSkill = name;
+		detailContent = null;
+		detailLoading = true;
+		try {
+			const detail = await getSkillDetail(name);
+			detailContent = detail.content ?? null;
+		} catch {
+			detailContent = null;
+		} finally {
+			detailLoading = false;
+		}
+	}
+
+	function openDialog(name: string, content: string) {
+		dialogSkill = { name, content };
+		dialogOpen = true;
 	}
 
 	const inclusionColors: Record<string, string> = {
@@ -150,7 +176,27 @@
 									{/each}
 								{/if}
 							</div>
-							<p class="text-xs text-[var(--text-secondary)]">{skill.description}</p>
+							<p class="text-xs text-[var(--text-secondary)] mb-3">{skill.description}</p>
+
+							<!-- Skill content preview -->
+							{#if detailLoading}
+								<div class="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+									<Loader2 class="h-3 w-3 animate-spin" /> Loading skill content...
+								</div>
+							{:else if detailContent}
+								<div class="rounded-md border border-border-subtle bg-[var(--bg-0)] p-3 max-h-48 overflow-y-auto">
+									<div class="cairn-prose text-xs text-[var(--text-primary)] leading-relaxed">
+										{@html renderMarkdown(detailContent.length > 1000 ? detailContent.slice(0, 1000) + '\n\n...' : detailContent)}
+									</div>
+								</div>
+								<button
+									class="mt-2 text-xs text-[var(--cairn-accent)] hover:underline flex items-center gap-1"
+									onclick={() => openDialog(skill.name, detailContent ?? '')}
+									type="button"
+								>
+									<FileText class="h-3 w-3" /> View full SKILL.md
+								</button>
+							{/if}
 						</div>
 					{/if}
 				</div>
@@ -158,3 +204,39 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Skill detail dialog -->
+<Dialog.Root bind:open={dialogOpen}>
+	<Dialog.Content class="sm:max-w-2xl max-h-[80vh] overflow-y-auto bg-[var(--bg-0)] border-border-subtle">
+		<Dialog.Header>
+			<Dialog.Title class="text-[var(--text-primary)]">{dialogSkill?.name}</Dialog.Title>
+			<Dialog.Description class="text-[var(--text-tertiary)] text-xs">Full SKILL.md content</Dialog.Description>
+		</Dialog.Header>
+		{#if dialogSkill?.content}
+			<div class="cairn-prose text-sm text-[var(--text-primary)] leading-relaxed">
+				{@html renderMarkdown(dialogSkill.content)}
+			</div>
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>
+
+<style>
+	.cairn-prose :global(p) { margin: 0.5em 0; }
+	.cairn-prose :global(p:first-child) { margin-top: 0; }
+	.cairn-prose :global(strong) { color: var(--text-primary); font-weight: 600; }
+	.cairn-prose :global(ul), .cairn-prose :global(ol) { padding-left: 1.25em; margin: 0.5em 0; }
+	.cairn-prose :global(li) { margin: 0.2em 0; }
+	.cairn-prose :global(code) {
+		background: var(--bg-2); color: var(--cairn-accent);
+		padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.85em;
+		font-family: 'Geist Mono', monospace;
+	}
+	.cairn-prose :global(pre) {
+		background: var(--bg-2); border: 1px solid var(--border-subtle);
+		border-radius: 8px; padding: 0.75em 1em; overflow-x: auto; margin: 0.75em 0;
+	}
+	.cairn-prose :global(pre code) { background: none; color: var(--text-primary); padding: 0; }
+	.cairn-prose :global(h1), .cairn-prose :global(h2), .cairn-prose :global(h3) {
+		font-weight: 600; margin: 0.75em 0 0.25em; color: var(--text-primary);
+	}
+</style>

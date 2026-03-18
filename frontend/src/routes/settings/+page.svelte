@@ -1,16 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { appStore, type Theme, type Density, type Mood } from '$lib/stores/app.svelte';
-	import { getCosts } from '$lib/api/client';
+	import { getCosts, getMcpStatus } from '$lib/api/client';
+	import type { McpStatus } from '$lib/types';
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff, DollarSign } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug } from '@lucide/svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
+	let mcpStatus = $state<McpStatus | null>(null);
 
 	onMount(async () => {
 		try {
-			costs = await getCosts() as unknown as Record<string, number>;
+			const [c, mcp] = await Promise.all([getCosts(), getMcpStatus()]);
+			costs = c as unknown as Record<string, number>;
+			mcpStatus = mcp;
 		} catch {
 			// handled
 		}
@@ -247,6 +251,59 @@
 					</div>
 					<span class="ml-auto h-2 w-2 rounded-full bg-[var(--color-error)]"></span>
 				{/if}
+			</div>
+		</div>
+	</section>
+
+	<Separator class="mb-8" />
+
+	<!-- MCP Server -->
+	<section class="mb-8">
+		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">MCP Server</h2>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">Model Context Protocol server configuration</p>
+
+		<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+			<div class="flex items-center gap-3">
+				<div class="flex h-8 w-8 items-center justify-center rounded-md {mcpStatus?.enabled ? 'bg-[var(--color-success)]/10' : 'bg-[var(--bg-2)]'}">
+					<Server class="h-4 w-4 {mcpStatus?.enabled ? 'text-[var(--color-success)]' : 'text-[var(--text-tertiary)]'}" />
+				</div>
+				<div>
+					<p class="text-sm font-medium text-[var(--text-primary)]">{mcpStatus?.enabled ? 'Enabled' : 'Disabled'}</p>
+					<p class="text-[10px] text-[var(--text-tertiary)]">
+						{mcpStatus?.enabled ? `Port ${mcpStatus.port} · ${mcpStatus.transport} transport` : 'MCP server is not running'}
+					</p>
+				</div>
+				<span class="ml-auto h-2 w-2 rounded-full {mcpStatus?.enabled ? 'bg-[var(--color-success)]' : 'bg-[var(--text-tertiary)]'}"></span>
+			</div>
+			{#if mcpStatus?.enabled}
+				<div class="grid grid-cols-2 gap-3 pt-3 mt-3 border-t border-border-subtle">
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Port</p>
+						<p class="text-xs text-[var(--text-primary)] font-mono">{mcpStatus.port}</p>
+					</div>
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Transport</p>
+						<p class="text-xs text-[var(--text-primary)] font-mono">{mcpStatus.transport}</p>
+					</div>
+				</div>
+			{/if}
+		</div>
+	</section>
+
+	<Separator class="mb-8" />
+
+	<!-- MCP Connections -->
+	<section class="mb-8">
+		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">MCP Connections</h2>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">External MCP client connections</p>
+
+		<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+			<div class="flex items-center gap-3">
+				<Plug class="h-4 w-4 text-[var(--text-tertiary)]" />
+				<div>
+					<p class="text-sm text-[var(--text-tertiary)]">No MCP clients connected</p>
+					<p class="text-[10px] text-[var(--text-tertiary)]/60">Connect Claude Code, Cursor, or other MCP clients</p>
+				</div>
 			</div>
 		</div>
 	</section>

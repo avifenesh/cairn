@@ -47,6 +47,9 @@
 			<Badge variant={statusVariant[task.status] ?? 'outline'} class="h-4 px-1 text-[10px]">
 				{task.status}
 			</Badge>
+			{#if task.type === 'a2a'}
+				<Badge variant="outline" class="h-4 px-1 text-[10px] text-[var(--cairn-accent)]">a2a</Badge>
+			{/if}
 			<span class="text-[11px] text-[var(--text-tertiary)]">{task.type}</span>
 			<span class="text-[11px] text-[var(--text-tertiary)]">&middot;</span>
 			<time class="text-[11px] text-[var(--text-tertiary)]" datetime={task.createdAt}>{relativeTime(task.createdAt)}</time>

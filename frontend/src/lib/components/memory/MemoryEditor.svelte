@@ -6,14 +6,22 @@
 
 	let open = $state(false);
 	let content = $state('');
-	let category = $state('general');
+	let category = $state('fact');
+
+	const categories = [
+		{ value: 'fact', label: 'Fact' },
+		{ value: 'preference', label: 'Preference' },
+		{ value: 'hard_rule', label: 'Hard Rule' },
+		{ value: 'decision', label: 'Decision' },
+		{ value: 'writing_style', label: 'Writing Style' },
+	];
 
 	function handleCreate() {
 		const text = content.trim();
 		if (!text) return;
 		oncreate(text, category);
 		content = '';
-		category = 'general';
+		category = 'fact';
 		open = false;
 	}
 </script>
@@ -39,13 +47,12 @@
 		<div class="flex items-center gap-2">
 			<select
 				bind:value={category}
+				aria-label="Memory category"
 				class="rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 py-1.5 text-xs text-[var(--text-secondary)] focus:border-[var(--cairn-accent)] focus:outline-none transition-colors"
 			>
-				<option value="general">General</option>
-				<option value="preference">Preference</option>
-				<option value="project">Project</option>
-				<option value="person">Person</option>
-				<option value="process">Process</option>
+				{#each categories as cat}
+					<option value={cat.value}>{cat.label}</option>
+				{/each}
 			</select>
 			<Button size="sm" class="h-7 text-xs" onclick={handleCreate} disabled={!content.trim()}>
 				Create

@@ -3,6 +3,7 @@
 	import StreamingText from './StreamingText.svelte';
 	import ToolCallChip from './ToolCallChip.svelte';
 	import ReasoningBlock from './ReasoningBlock.svelte';
+	import QuickMemoryButton from './QuickMemoryButton.svelte';
 	import { relativeTime } from '$lib/utils/time';
 	import { Button } from '$lib/components/ui/button';
 	import { Bot, User, Copy, Check } from '@lucide/svelte';
@@ -42,20 +43,25 @@
 			<time class="text-[10px] text-[var(--text-tertiary)] tabular-nums font-mono" datetime={message.createdAt}>
 				{relativeTime(message.createdAt)}
 			</time>
-			<!-- Copy button — visible on hover -->
-			<Button
-				variant="ghost"
-				size="icon"
-				class="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-				onclick={copyContent}
-				aria-label="Copy message"
-			>
-				{#if copied}
-					<Check class="h-3 w-3 text-[var(--color-success)]" />
-				{:else}
-					<Copy class="h-3 w-3 text-[var(--text-tertiary)]" />
+			<!-- Action bar — visible on hover -->
+			<div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+				<Button
+					variant="ghost"
+					size="icon"
+					class="h-6 w-6"
+					onclick={copyContent}
+					aria-label="Copy message"
+				>
+					{#if copied}
+						<Check class="h-3 w-3 text-[var(--color-success)]" />
+					{:else}
+						<Copy class="h-3 w-3 text-[var(--text-tertiary)]" />
+					{/if}
+				</Button>
+				{#if message.role === 'assistant'}
+					<QuickMemoryButton content={message.content} />
 				{/if}
-			</Button>
+			</div>
 		</div>
 	</div>
 </div>

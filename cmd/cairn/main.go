@@ -19,6 +19,7 @@ import (
 	"github.com/avifenesh/cairn/internal/db"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
+	cairnmcp "github.com/avifenesh/cairn/internal/mcp"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/server"
@@ -335,9 +336,57 @@ func runServe(logger *slog.Logger) {
 		ToolSkills:     skillAdapt,
 	})
 
-	// Graceful shutdown on SIGINT/SIGTERM.
+	// Graceful shutdown context — created before MCP so all subsystems observe it.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// Start MCP server if enabled.
+	if cfg.MCPServerEnabled {
+		// Determine working directory for filesystem tools.
+		workDir, _ := os.Getwd()
+
+		mcpToolCtx := &tool.ToolContext{
+			Cancel:   ctx,
+			WorkDir:  workDir,
+			Memories: memAdapter,
+			Events:   eventAdapter,
+			Digest:   digestAdapt,
+			Journal:  journalAdapt,
+			Tasks:    taskAdapt,
+			Status:   statusAdapt,
+			Skills:   skillAdapt,
+		}
+		mcpSrv := cairnmcp.New(cairnmcp.Config{
+			Port:           cfg.MCPPort,
+			Transport:      cfg.MCPTransport,
+			WriteRateLimit: cfg.MCPWriteRateLimit,
+		}, toolRegistry, mcpToolCtx, logger)
+
+		transport := cfg.MCPTransport
+		switch transport {
+		case "http", "stdio", "both":
+			// valid
+		default:
+			logger.Error("invalid MCP_TRANSPORT, must be http/stdio/both", "value", transport)
+			os.Exit(1)
+		}
+
+		if transport == "http" || transport == "both" {
+			go func() {
+				if err := mcpSrv.ServeHTTP(); err != nil {
+					logger.Error("mcp http server error", "error", err)
+				}
+			}()
+		}
+		if transport == "stdio" || transport == "both" {
+			go func() {
+				if err := mcpSrv.ServeStdio(ctx); err != nil && ctx.Err() == nil {
+					logger.Error("mcp stdio server error", "error", err)
+				}
+			}()
+		}
+		logger.Info("mcp server started", "transport", transport, "port", cfg.MCPPort)
+	}
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)

@@ -65,6 +65,7 @@
 				type="text"
 				bind:value={searchQuery}
 				placeholder="Search skills..."
+				aria-label="Search skills"
 				class="w-full rounded-lg border border-border-subtle bg-[var(--bg-1)] pl-9 pr-8 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--cairn-accent)]/30"
 			/>
 			{#if searchQuery}
@@ -108,6 +109,7 @@
 						class="flex w-full items-center gap-3 p-3 text-left"
 						onclick={() => toggleExpanded(skill.name)}
 						type="button"
+						aria-expanded={expandedSkill === skill.name}
 					>
 						{#if isActive}
 							<ToggleRight class="h-5 w-5 flex-shrink-0 text-[var(--color-success)]" />
@@ -124,7 +126,7 @@
 									{skill.inclusion}
 								</Badge>
 							</div>
-							<p class="truncate text-xs text-[var(--text-secondary)]">{skill.description}</p>
+							<p class="truncate text-xs text-[var(--text-secondary)]">{expandedSkill !== skill.name ? skill.description : ''}</p>
 						</div>
 						<Badge variant="secondary" class="h-5 text-[10px] flex-shrink-0">
 							{skill.scope}

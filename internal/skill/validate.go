@@ -55,7 +55,7 @@ func Validate(sk *Skill, knownTools []string) []ValidationIssue {
 		known[t] = true
 	}
 
-	// Check allowed-tools entries exist in knownTools (only when knownTools is provided).
+	// Check allowed-tools entries exist in knownTools (only when knownTools is non-empty).
 	if len(knownTools) > 0 {
 		for _, t := range sk.AllowedTools {
 			if !known[t] {

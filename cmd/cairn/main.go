@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -565,6 +566,8 @@ func exitf(format string, args ...any) {
 // runInstallSkill installs a skill from a git URL or local directory path
 // into ~/.cairn/skills/{name}/.
 func runInstallSkill(logger *slog.Logger, source string) {
+	logger.Info("installing skill", "source", source)
+
 	// Determine install target directory.
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -587,7 +590,7 @@ func runInstallSkill(logger *slog.Logger, source string) {
 		}
 		defer os.RemoveAll(tmpDir)
 
-		fmt.Printf("Cloning %s...\n", source)
+		logger.Info("cloning repository", "url", source)
 		cmd := exec.Command("git", "clone", "--depth", "1", "--", source, tmpDir)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -606,6 +609,7 @@ func runInstallSkill(logger *slog.Logger, source string) {
 		if err != nil {
 			exitf("invalid path %q: %v", source, err)
 		}
+		logger.Debug("resolving local path", "source", source, "abs", absPath)
 
 		srcDir, err = findSkillDir(absPath)
 		if err != nil {
@@ -613,8 +617,20 @@ func runInstallSkill(logger *slog.Logger, source string) {
 		}
 	}
 
-	// Parse and validate the SKILL.md.
+	// Verify SKILL.md is a regular file (not a symlink) before parsing.
 	skillPath := filepath.Join(srcDir, "SKILL.md")
+	fi, err := os.Lstat(skillPath)
+	if err != nil {
+		exitf("cannot stat SKILL.md: %v", err)
+	}
+	if fi.Mode()&fs.ModeSymlink != 0 {
+		exitf("SKILL.md is a symlink — refusing to parse for security")
+	}
+	if !fi.Mode().IsRegular() {
+		exitf("SKILL.md is not a regular file")
+	}
+
+	// Parse and validate the SKILL.md.
 	sk, err := skill.Parse(skillPath)
 	if err != nil {
 		exitf("failed to parse SKILL.md: %v", err)
@@ -700,8 +716,11 @@ func findSkillDir(root string) (string, error) {
 	return "", fmt.Errorf("no SKILL.md found in %q or its subdirectories", root)
 }
 
-// copyDir recursively copies a directory tree, skipping .git directories
-// and rejecting symlinks to prevent dereferencing attacks.
+// maxCopyFileSize is the maximum file size (10 MB) allowed during skill copy.
+const maxCopyFileSize = 10 * 1024 * 1024
+
+// copyDir recursively copies a directory tree, skipping .git directories,
+// rejecting symlinks, and enforcing a per-file size limit.
 func copyDir(src, dst string) error {
 	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -729,17 +748,35 @@ func copyDir(src, dst string) error {
 			return os.MkdirAll(target, 0755)
 		}
 
-		// Copy regular file.
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
+		// Copy regular file using streaming I/O with size limit.
 		info, err := d.Info()
 		if err != nil {
 			return err
 		}
+		if info.Size() > maxCopyFileSize {
+			return fmt.Errorf("file %s exceeds maximum size (%d bytes)", rel, maxCopyFileSize)
+		}
 
-		return os.WriteFile(target, data, info.Mode())
+		return copyFile(path, target, info.Mode())
 	})
+}
+
+// copyFile streams a single file from src to dst using io.Copy.
+func copyFile(src, dst string, perm fs.FileMode) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Close()
 }

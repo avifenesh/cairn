@@ -45,14 +45,14 @@
 		memoryStore.resolveMemory(id, 'accepted');
 		selectedIds.delete(id);
 		selectedIds = new Set(selectedIds);
-		await acceptMemory(id);
+		try { await acceptMemory(id); } catch { /* optimistic — already resolved in store */ }
 	}
 
 	async function handleReject(id: string) {
 		memoryStore.resolveMemory(id, 'rejected');
 		selectedIds.delete(id);
 		selectedIds = new Set(selectedIds);
-		await rejectMemory(id);
+		try { await rejectMemory(id); } catch { /* optimistic — already resolved in store */ }
 	}
 
 	async function handleCreate(content: string, category: string) {
@@ -94,10 +94,6 @@
 		if (filter === 'all') return source;
 		return source.filter((m) => m.status === filter);
 	});
-
-	const proposedInView = $derived(
-		displayMemories().filter((m) => m.status === 'proposed'),
-	);
 
 	const filters: Array<{ key: typeof filter; label: string }> = [
 		{ key: 'all', label: 'All' },
@@ -143,7 +139,7 @@
 				class="h-7 text-xs gap-1 border-[var(--color-success)]/30 text-[var(--color-success)] hover:bg-[var(--color-success)]/10"
 				onclick={bulkAccept}
 			>
-				<Check class="h-3 w-3" /> Accept all
+				<Check class="h-3 w-3" /> Accept selected
 			</Button>
 			<Button
 				variant="outline"
@@ -151,7 +147,7 @@
 				class="h-7 text-xs gap-1 border-[var(--color-error)]/30 text-[var(--color-error)] hover:bg-[var(--color-error)]/10"
 				onclick={bulkReject}
 			>
-				<X class="h-3 w-3" /> Reject all
+				<X class="h-3 w-3" /> Reject selected
 			</Button>
 			<Button
 				variant="ghost"
@@ -189,6 +185,7 @@
 							onclick={() => toggleSelect(memory.id)}
 							type="button"
 							aria-label={selectedIds.has(memory.id) ? 'Deselect memory' : 'Select memory'}
+							aria-pressed={selectedIds.has(memory.id)}
 						>
 							{#if selectedIds.has(memory.id)}
 								<CheckSquare class="h-4 w-4 text-[var(--cairn-accent)]" />

@@ -1,0 +1,235 @@
+package channel
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"strings"
+
+	"github.com/mymmrac/telego"
+	tu "github.com/mymmrac/telego/telegoutil"
+)
+
+// TelegramConfig holds Telegram bot configuration.
+type TelegramConfig struct {
+	BotToken string // from BotFather
+	ChatID   int64  // single-user chat ID
+}
+
+// TelegramAdapter implements Channel for Telegram.
+type TelegramAdapter struct {
+	bot     *telego.Bot
+	chatID  int64
+	handler MessageHandler
+	logger  *slog.Logger
+}
+
+// NewTelegram creates a Telegram channel adapter.
+func NewTelegram(cfg TelegramConfig, handler MessageHandler, logger *slog.Logger) (*TelegramAdapter, error) {
+	if cfg.BotToken == "" {
+		return nil, fmt.Errorf("telegram: bot token is required")
+	}
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	bot, err := telego.NewBot(cfg.BotToken, telego.WithDiscardLogger())
+	if err != nil {
+		return nil, fmt.Errorf("telegram: create bot: %w", err)
+	}
+
+	return &TelegramAdapter{
+		bot:     bot,
+		chatID:  cfg.ChatID,
+		handler: handler,
+		logger:  logger,
+	}, nil
+}
+
+func (t *TelegramAdapter) Name() string { return "telegram" }
+
+// Start begins long-polling for updates. Blocks until ctx is cancelled.
+func (t *TelegramAdapter) Start(ctx context.Context) error {
+	updates, err := t.bot.UpdatesViaLongPolling(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("telegram: start polling: %w", err)
+	}
+
+	t.logger.Info("telegram polling started", "chatID", t.chatID)
+
+	for update := range updates {
+		if update.Message == nil {
+			// Handle callback queries (button clicks).
+			if update.CallbackQuery != nil {
+				t.handleCallback(ctx, update.CallbackQuery)
+			}
+			continue
+		}
+
+		msg := update.Message
+
+		// Single-user mode: ignore messages from other chats.
+		if t.chatID != 0 && msg.Chat.ID != t.chatID {
+			t.logger.Debug("telegram: ignoring message from unknown chat", "chat", msg.Chat.ID)
+			continue
+		}
+
+		incoming := parseMessage(msg)
+		t.logger.Info("telegram message received",
+			"from", msg.From.Username,
+			"text", truncate(incoming.Text, 100),
+			"command", incoming.Command,
+		)
+
+		if t.handler == nil {
+			continue
+		}
+
+		// Process message and send response.
+		go func(in *IncomingMessage, chatID int64) {
+			resp, err := t.handler(ctx, in)
+			if err != nil {
+				t.logger.Error("telegram: handler error", "error", err)
+				t.sendText(ctx, chatID, "Error: "+err.Error())
+				return
+			}
+			if resp != nil {
+				t.sendResponse(ctx, chatID, resp)
+			}
+		}(incoming, msg.Chat.ID)
+	}
+
+	return nil
+}
+
+// Send delivers a message to the configured chat.
+func (t *TelegramAdapter) Send(ctx context.Context, msg *OutgoingMessage) error {
+	if t.chatID == 0 {
+		return fmt.Errorf("telegram: no chat ID configured")
+	}
+	t.sendResponse(ctx, t.chatID, msg)
+	return nil
+}
+
+func (t *TelegramAdapter) Close() error {
+	return nil // long polling stops when context is cancelled
+}
+
+func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *OutgoingMessage) {
+	text := Normalize(msg.Text, "telegram")
+	if text == "" {
+		return
+	}
+
+	params := tu.Message(tu.ID(chatID), text).
+		WithParseMode(telego.ModeMarkdownV2)
+
+	// Add inline keyboard if there are actions.
+	if len(msg.Actions) > 0 {
+		var rows [][]telego.InlineKeyboardButton
+		for _, group := range msg.Actions {
+			var row []telego.InlineKeyboardButton
+			for _, action := range group.Actions {
+				row = append(row, telego.InlineKeyboardButton{
+					Text:         action.Label,
+					CallbackData: action.ID,
+				})
+			}
+			rows = append(rows, row)
+		}
+		params = params.WithReplyMarkup(&telego.InlineKeyboardMarkup{
+			InlineKeyboard: rows,
+		})
+	}
+
+	if _, err := t.bot.SendMessage(ctx, params); err != nil {
+		// Fallback: try without markdown if parse fails.
+		t.logger.Warn("telegram: markdown send failed, retrying plain", "error", err)
+		plain := tu.Message(tu.ID(chatID), stripMarkdown(msg.Text))
+		if _, err2 := t.bot.SendMessage(ctx, plain); err2 != nil {
+			t.logger.Error("telegram: send failed", "error", err2)
+		}
+	}
+}
+
+func (t *TelegramAdapter) sendText(ctx context.Context, chatID int64, text string) {
+	params := tu.Message(tu.ID(chatID), text)
+	if _, err := t.bot.SendMessage(ctx, params); err != nil {
+		t.logger.Error("telegram: send text failed", "error", err)
+	}
+}
+
+func (t *TelegramAdapter) handleCallback(ctx context.Context, cb *telego.CallbackQuery) {
+	t.logger.Info("telegram callback", "data", cb.Data, "from", cb.From.Username)
+
+	// Acknowledge the callback to remove the loading indicator.
+	t.bot.AnswerCallbackQuery(ctx, &telego.AnswerCallbackQueryParams{
+		CallbackQueryID: cb.ID,
+	})
+
+	if t.handler == nil {
+		return
+	}
+
+	incoming := &IncomingMessage{
+		ID:        fmt.Sprintf("cb_%s", cb.ID),
+		ChannelID: "telegram",
+		UserID:    fmt.Sprintf("%d", cb.From.ID),
+		ChatID:    fmt.Sprintf("%d", cb.Message.GetChat().ID),
+		Text:      cb.Data,
+		IsCommand: true,
+		Command:   "callback",
+		Args:      cb.Data,
+	}
+
+	go func() {
+		resp, err := t.handler(ctx, incoming)
+		if err != nil {
+			t.logger.Error("telegram: callback handler error", "error", err)
+			return
+		}
+		if resp != nil {
+			t.sendResponse(ctx, cb.Message.GetChat().ID, resp)
+		}
+	}()
+}
+
+// parseMessage converts a Telegram message to a canonical IncomingMessage.
+func parseMessage(msg *telego.Message) *IncomingMessage {
+	in := &IncomingMessage{
+		ID:        fmt.Sprintf("tg_%d", msg.MessageID),
+		ChannelID: "telegram",
+		UserID:    fmt.Sprintf("%d", msg.From.ID),
+		ChatID:    fmt.Sprintf("%d", msg.Chat.ID),
+		Text:      msg.Text,
+		Metadata:  make(map[string]string),
+	}
+
+	if msg.From != nil {
+		in.Metadata["username"] = msg.From.Username
+		in.Metadata["firstName"] = msg.From.FirstName
+	}
+
+	// Parse commands: /command args
+	if strings.HasPrefix(msg.Text, "/") {
+		in.IsCommand = true
+		parts := strings.SplitN(msg.Text, " ", 2)
+		in.Command = strings.TrimPrefix(parts[0], "/")
+		// Strip @botname from command (e.g. /status@cairn_bot → status)
+		if idx := strings.IndexByte(in.Command, '@'); idx >= 0 {
+			in.Command = in.Command[:idx]
+		}
+		if len(parts) > 1 {
+			in.Args = parts[1]
+		}
+	}
+
+	return in
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
+}

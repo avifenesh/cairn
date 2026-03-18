@@ -77,6 +77,11 @@ type Config struct {
 	WebFetchTimeout int    // Seconds (default: 30)
 	WebFetchMaxSize int64  // Bytes (default: 5MB)
 
+	// Channels
+	TelegramBotToken      string // TELEGRAM_BOT_TOKEN
+	TelegramChatID        int64  // TELEGRAM_CHAT_ID
+	ChannelSessionTimeout int    // CHANNEL_SESSION_TIMEOUT (minutes, default 240)
+
 	// Paths
 	SoulPath  string
 	SkillDirs []string
@@ -163,6 +168,9 @@ func Load() (*Config, error) {
 		MCPPort:               envInt("MCP_PORT", 3001),
 		MCPTransport:          envStr("MCP_TRANSPORT", "http"),
 		MCPWriteRateLimit:     envInt("MCP_WRITE_RATE_LIMIT", 100),
+		TelegramBotToken:      envStr("TELEGRAM_BOT_TOKEN", ""),
+		TelegramChatID:        envInt64("TELEGRAM_CHAT_ID", 0),
+		ChannelSessionTimeout: envInt("CHANNEL_SESSION_TIMEOUT", 240),
 		SearXNGURL:            envStr("SEARXNG_URL", ""),
 		WebFetchTimeout:       envInt("WEB_FETCH_TIMEOUT", 30),
 		WebFetchMaxSize:       envInt64("WEB_FETCH_MAX_SIZE", 5*1024*1024),

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
+	cairnchannel "github.com/avifenesh/cairn/internal/channel"
 	"github.com/avifenesh/cairn/internal/config"
 	"github.com/avifenesh/cairn/internal/db"
 	"github.com/avifenesh/cairn/internal/eventbus"
@@ -335,6 +336,119 @@ func runServe(logger *slog.Logger) {
 		ToolStatus:     statusAdapt,
 		ToolSkills:     skillAdapt,
 	})
+
+	// Start channel router if any channels are configured.
+	if cfg.TelegramBotToken != "" {
+		channelSessionStore := cairnchannel.NewSessionStore(database.DB)
+		sessionTimeout := time.Duration(cfg.ChannelSessionTimeout) * time.Minute
+
+		// Channel message handler: look up/create session, run agent.
+		channelHandler := func(ctx context.Context, msg *cairnchannel.IncomingMessage) (*cairnchannel.OutgoingMessage, error) {
+			// Handle /new command — reset session.
+			if msg.IsCommand && msg.Command == "new" {
+				channelSessionStore.Reset(ctx, msg.ChannelID, msg.ChatID)
+				return &cairnchannel.OutgoingMessage{Text: "New session started."}, nil
+			}
+
+			// Look up or create session.
+			sessionID, isNew, err := channelSessionStore.GetOrCreate(ctx, msg.ChannelID, msg.ChatID, sessionTimeout)
+			if err != nil {
+				return nil, fmt.Errorf("channel session: %w", err)
+			}
+
+			// Load or create agent session.
+			session, err := sessionStore.Get(ctx, sessionID)
+			if err != nil || session == nil || isNew {
+				session = &agent.Session{
+					ID:    sessionID,
+					Mode:  tool.ModeTalk,
+					State: map[string]any{"channel": msg.ChannelID, "chatID": msg.ChatID},
+				}
+				if err := sessionStore.Create(ctx, session); err != nil {
+					logger.Warn("channel: failed to create session", "error", err)
+				}
+			}
+
+			// Determine message text.
+			text := msg.Text
+			if msg.IsCommand {
+				text = "/" + msg.Command
+				if msg.Args != "" {
+					text += " " + msg.Args
+				}
+			}
+
+			// Build invocation context.
+			invCtx := &agent.InvocationContext{
+				Context:        ctx,
+				SessionID:      sessionID,
+				UserMessage:    text,
+				Mode:           tool.ModeTalk,
+				Session:        session,
+				Tools:          toolRegistry,
+				LLM:            provider,
+				Memory:         memService,
+				Soul:           soul,
+				Bus:            bus,
+				ContextBuilder: ctxBuilder,
+				Plugins:        pluginMgr,
+				ToolMemories:   memAdapter,
+				ToolEvents:     eventAdapter,
+				ToolDigest:     digestAdapt,
+				ToolJournal:    journalAdapt,
+				ToolTasks:      taskAdapt,
+				ToolStatus:     statusAdapt,
+				ToolSkills:     skillAdapt,
+				Config:         &agent.AgentConfig{Model: cfg.LLMModel},
+			}
+
+			// Run agent, collect response.
+			var response strings.Builder
+			for ev := range reactAgent.Run(invCtx) {
+				if ev.Err != nil {
+					return nil, ev.Err
+				}
+				if ev.Event == nil {
+					continue
+				}
+				for _, part := range ev.Event.Parts {
+					if tp, ok := part.(agent.TextPart); ok && ev.Event.Author != "user" {
+						response.WriteString(tp.Text)
+					}
+				}
+			}
+
+			// Persist conversation.
+			userEv := &agent.Event{Author: "user", Parts: []agent.Part{agent.TextPart{Text: text}}}
+			sessionStore.AppendEvent(ctx, sessionID, userEv)
+			if response.Len() > 0 {
+				assistantEv := &agent.Event{Author: cfg.LLMModel, Parts: []agent.Part{agent.TextPart{Text: response.String()}}}
+				sessionStore.AppendEvent(ctx, sessionID, assistantEv)
+			}
+
+			return &cairnchannel.OutgoingMessage{Text: response.String()}, nil
+		}
+
+		channelRouter := cairnchannel.NewRouter(channelHandler, logger)
+
+		tg, err := cairnchannel.NewTelegram(cairnchannel.TelegramConfig{
+			BotToken: cfg.TelegramBotToken,
+			ChatID:   cfg.TelegramChatID,
+		}, channelHandler, logger)
+		if err != nil {
+			logger.Error("telegram adapter failed", "error", err)
+		} else {
+			channelRouter.Register(tg)
+			logger.Info("telegram channel registered", "chatID", cfg.TelegramChatID)
+		}
+
+		// Start router in background (will be stopped by ctx cancel).
+		go func() {
+			if err := channelRouter.Start(context.Background()); err != nil && err != context.Canceled {
+				logger.Error("channel router error", "error", err)
+			}
+		}()
+	}
 
 	// Graceful shutdown context — created before MCP so all subsystems observe it.
 	ctx, cancel := context.WithCancel(context.Background())

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -49,12 +50,24 @@ func (s *JournalStore) Save(ctx context.Context, entry *JournalEntry) error {
 		entry.CreatedAt = time.Now().UTC()
 	}
 
-	decisions, _ := json.Marshal(entry.Decisions)
-	errors, _ := json.Marshal(entry.Errors)
-	learnings, _ := json.Marshal(entry.Learnings)
-	entities, _ := json.Marshal(entry.Entities)
+	decisions, err := json.Marshal(entry.Decisions)
+	if err != nil {
+		return fmt.Errorf("journal: marshal decisions: %w", err)
+	}
+	errors, err := json.Marshal(entry.Errors)
+	if err != nil {
+		return fmt.Errorf("journal: marshal errors: %w", err)
+	}
+	learnings, err := json.Marshal(entry.Learnings)
+	if err != nil {
+		return fmt.Errorf("journal: marshal learnings: %w", err)
+	}
+	entities, err := json.Marshal(entry.Entities)
+	if err != nil {
+		return fmt.Errorf("journal: marshal entities: %w", err)
+	}
 
-	_, err := s.db.ExecContext(ctx, `
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO session_journal (id, session_id, summary, decisions, errors, learnings, entities,
 			tool_count, round_count, mode, duration_ms, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -102,10 +115,18 @@ func scanJournalEntry(row journalScanner) (*JournalEntry, error) {
 		return nil, err
 	}
 
-	json.Unmarshal([]byte(decisions), &e.Decisions)
-	json.Unmarshal([]byte(errors), &e.Errors)
-	json.Unmarshal([]byte(learnings), &e.Learnings)
-	json.Unmarshal([]byte(entities), &e.Entities)
+	if err := json.Unmarshal([]byte(decisions), &e.Decisions); err != nil {
+		slog.Warn("journal: parse decisions", "id", e.ID, "error", err)
+	}
+	if err := json.Unmarshal([]byte(errors), &e.Errors); err != nil {
+		slog.Warn("journal: parse errors", "id", e.ID, "error", err)
+	}
+	if err := json.Unmarshal([]byte(learnings), &e.Learnings); err != nil {
+		slog.Warn("journal: parse learnings", "id", e.ID, "error", err)
+	}
+	if err := json.Unmarshal([]byte(entities), &e.Entities); err != nil {
+		slog.Warn("journal: parse entities", "id", e.ID, "error", err)
+	}
 
 	if t, err := time.Parse(journalTimeFormat, createdStr); err == nil {
 		e.CreatedAt = t
@@ -160,40 +181,33 @@ Respond with ONLY valid JSON, no markdown fences.`, session.Mode, len(session.Ev
 
 	result, err := j.callLLM(ctx, prompt)
 	if err != nil {
+		slog.Warn("journal: LLM summarization failed", "session", session.ID, "error", err)
 		return
 	}
 
 	entry := parseJournalResult(result, session, duration)
-	j.store.Save(ctx, entry)
+	if err := j.store.Save(ctx, entry); err != nil {
+		slog.Warn("journal: save failed", "session", session.ID, "error", err)
+	}
 }
 
 func buildTranscript(session *Session) string {
 	var b strings.Builder
-	toolCount, roundCount := 0, 0
 
 	for _, ev := range session.Events {
 		for _, part := range ev.Parts {
 			switch p := part.(type) {
 			case TextPart:
-				if len(p.Text) > 500 {
-					runes := []rune(p.Text)
-					if len(runes) > 500 {
-						fmt.Fprintf(&b, "[%s] %s...\n", ev.Author, string(runes[:500]))
-					} else {
-						fmt.Fprintf(&b, "[%s] %s\n", ev.Author, p.Text)
-					}
-				} else {
-					fmt.Fprintf(&b, "[%s] %s\n", ev.Author, p.Text)
+				text := p.Text
+				if runes := []rune(text); len(runes) > 500 {
+					text = string(runes[:500]) + "..."
 				}
+				fmt.Fprintf(&b, "[%s] %s\n", ev.Author, text)
 			case ToolPart:
 				if p.Status == ToolCompleted || p.Status == ToolFailed {
 					fmt.Fprintf(&b, "[tool:%s] status=%s\n", p.ToolName, p.Status)
-					toolCount++
 				}
 			}
-		}
-		if ev.Round > roundCount {
-			roundCount = ev.Round
 		}
 	}
 	return b.String()

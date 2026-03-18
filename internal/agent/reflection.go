@@ -65,7 +65,8 @@ func (r *ReflectionEngine) Reflect(ctx context.Context) (*ReflectionResult, erro
 	if err != nil {
 		return nil, fmt.Errorf("reflection: journal: %w", err)
 	}
-	if len(entries) < 2 {
+	const minEntriesForReflection = 2
+	if len(entries) < minEntriesForReflection {
 		return &ReflectionResult{}, nil // not enough data to reflect on
 	}
 

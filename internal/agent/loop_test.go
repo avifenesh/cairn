@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -204,10 +205,10 @@ func TestBuildTranscript(t *testing.T) {
 	if transcript == "" {
 		t.Fatal("expected non-empty transcript")
 	}
-	if !contains(transcript, "Fix the bug") {
+	if !strings.Contains(transcript, "Fix the bug") {
 		t.Error("missing user message")
 	}
-	if !contains(transcript, "readFile") {
+	if !strings.Contains(transcript, "readFile") {
 		t.Error("missing tool name")
 	}
 }
@@ -242,19 +243,6 @@ func TestParseJournalResult(t *testing.T) {
 }
 
 // helpers
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsString(s, substr))
-}
-
-func containsString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
 
 func slogDiscard() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))

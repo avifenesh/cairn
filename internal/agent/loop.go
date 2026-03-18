@@ -207,7 +207,12 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 		}
 	}
 
-	outputJSON, _ := json.Marshal(response)
+	outputJSON, err := json.Marshal(response)
+	if err != nil {
+		l.logger.Error("agent loop: marshal output", "task", t.ID, "error", err)
+		l.tasks.Fail(ctx, t.ID, err)
+		return true
+	}
 	l.tasks.Complete(ctx, t.ID, json.RawMessage(outputJSON))
 	l.logger.Info("agent loop: task completed", "task", t.ID, "duration", time.Since(taskStart))
 

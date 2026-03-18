@@ -4,7 +4,7 @@
 	import type { Skill } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Sparkles, ToggleLeft, ToggleRight, Search, X, ChevronDown, ChevronUp } from '@lucide/svelte';
+	import { Sparkles, Search, X, ChevronDown, ChevronUp } from '@lucide/svelte';
 
 	let skills = $state<Skill[]>([]);
 	let activeSkills = $state<string[]>([]);
@@ -112,9 +112,9 @@
 						aria-expanded={expandedSkill === skill.name}
 					>
 						{#if isActive}
-							<ToggleRight class="h-5 w-5 flex-shrink-0 text-[var(--color-success)]" />
+							<span class="h-2 w-2 rounded-full bg-[var(--color-success)]"></span>
 						{:else}
-							<ToggleLeft class="h-5 w-5 flex-shrink-0 text-[var(--text-tertiary)]" />
+							<span class="h-2 w-2 rounded-full bg-[var(--bg-3)]"></span>
 						{/if}
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center gap-2">

@@ -82,10 +82,19 @@ type Config struct {
 	WebFetchTimeout int    // Seconds (default: 30)
 	WebFetchMaxSize int64  // Bytes (default: 5MB)
 
-	// Channels
+	// Channels — Telegram
 	TelegramBotToken      string // TELEGRAM_BOT_TOKEN
 	TelegramChatID        int64  // TELEGRAM_CHAT_ID
 	ChannelSessionTimeout int    // CHANNEL_SESSION_TIMEOUT (minutes, default 240)
+
+	// Channels — Discord
+	DiscordBotToken  string // DISCORD_BOT_TOKEN
+	DiscordChannelID string // DISCORD_CHANNEL_ID
+
+	// Channels — Slack
+	SlackBotToken  string // SLACK_BOT_TOKEN
+	SlackAppToken  string // SLACK_APP_TOKEN (Socket Mode)
+	SlackChannelID string // SLACK_CHANNEL_ID
 
 	// Paths
 	SoulPath  string
@@ -179,6 +188,11 @@ func Load() (*Config, error) {
 		TelegramBotToken:      envStr("TELEGRAM_BOT_TOKEN", ""),
 		TelegramChatID:        envInt64("TELEGRAM_CHAT_ID", 0),
 		ChannelSessionTimeout: envInt("CHANNEL_SESSION_TIMEOUT", 240),
+		DiscordBotToken:       envStr("DISCORD_BOT_TOKEN", ""),
+		DiscordChannelID:      envStr("DISCORD_CHANNEL_ID", ""),
+		SlackBotToken:         envStr("SLACK_BOT_TOKEN", ""),
+		SlackAppToken:         envStr("SLACK_APP_TOKEN", ""),
+		SlackChannelID:        envStr("SLACK_CHANNEL_ID", ""),
 		SearXNGURL:            envStr("SEARXNG_URL", ""),
 		WebFetchTimeout:       envInt("WEB_FETCH_TIMEOUT", 30),
 		WebFetchMaxSize:       envInt64("WEB_FETCH_MAX_SIZE", 5*1024*1024),

@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/signal"
+	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 )
 
@@ -120,6 +123,35 @@ func (a *eventAdapter) MarkAllRead(ctx context.Context) (int, error) {
 	return a.store.MarkAllRead(ctx)
 }
 
+func (a *eventAdapter) Ingest(ctx context.Context, events []*tool.IngestEvent) ([]*tool.IngestEvent, error) {
+	raw := make([]*signal.RawEvent, len(events))
+	for i, ev := range events {
+		raw[i] = &signal.RawEvent{
+			Source:     ev.Source,
+			SourceID:   ev.SourceID,
+			Kind:       ev.Kind,
+			Title:      ev.Title,
+			Body:       ev.Body,
+			Actor:      ev.Actor,
+			OccurredAt: ev.OccurredAt,
+			Metadata:   ev.Metadata,
+		}
+	}
+	inserted, err := a.store.Ingest(ctx, raw)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*tool.IngestEvent, len(inserted))
+	for i, ev := range inserted {
+		out[i] = &tool.IngestEvent{
+			Source:   ev.Source,
+			SourceID: ev.SourceID,
+			Title:    ev.Title,
+		}
+	}
+	return out, nil
+}
+
 // digestAdapter bridges signal.DigestRunner to tool.DigestService.
 type digestAdapter struct {
 	runner *signal.DigestRunner
@@ -160,4 +192,98 @@ func (a *journalAdapter) Recent(ctx context.Context, dur time.Duration) ([]*tool
 		}
 	}
 	return out, nil
+}
+
+// taskAdapter bridges task.Engine to tool.TaskService.
+type taskAdapter struct {
+	engine *task.Engine
+}
+
+func (a *taskAdapter) Submit(ctx context.Context, req *tool.TaskSubmitRequest) (*tool.TaskItem, error) {
+	t, err := a.engine.Submit(ctx, &task.SubmitRequest{
+		Type:        task.TaskType(req.Type),
+		Priority:    task.Priority(req.Priority),
+		Description: req.Description,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &tool.TaskItem{
+		ID:          t.ID,
+		Type:        string(t.Type),
+		Status:      string(t.Status),
+		Description: t.Description,
+		Priority:    int(t.Priority),
+		CreatedAt:   t.CreatedAt,
+	}, nil
+}
+
+func (a *taskAdapter) List(ctx context.Context, status, taskType string, limit int) ([]*tool.TaskItem, error) {
+	opts := task.ListOpts{Limit: limit}
+	if status != "" {
+		opts.Status = task.TaskStatus(status)
+	}
+	if taskType != "" {
+		opts.Type = task.TaskType(taskType)
+	}
+	tasks, err := a.engine.List(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*tool.TaskItem, len(tasks))
+	for i, t := range tasks {
+		out[i] = &tool.TaskItem{
+			ID:          t.ID,
+			Type:        string(t.Type),
+			Status:      string(t.Status),
+			Description: t.Description,
+			Priority:    int(t.Priority),
+			Error:       t.Error,
+			CreatedAt:   t.CreatedAt,
+		}
+	}
+	return out, nil
+}
+
+func (a *taskAdapter) Complete(ctx context.Context, id string, output string) error {
+	var raw json.RawMessage
+	if output != "" {
+		raw, _ = json.Marshal(output)
+	}
+	return a.engine.Complete(ctx, id, raw)
+}
+
+// statusAdapter aggregates system status from multiple services.
+type statusAdapter struct {
+	tasks     *task.Engine
+	events    *signal.EventStore
+	memories  *memory.Service
+	startedAt time.Time
+}
+
+func (a *statusAdapter) GetStatus(ctx context.Context) (*tool.SystemStatus, error) {
+	activeTasks := 0
+	for _, s := range []task.TaskStatus{task.StatusQueued, task.StatusClaimed, task.StatusRunning} {
+		tasks, err := a.tasks.List(ctx, task.ListOpts{Status: s})
+		if err == nil {
+			activeTasks += len(tasks)
+		}
+	}
+
+	unreadEvents, _ := a.events.Count(ctx, signal.EventFilter{UnreadOnly: true})
+
+	memoryCount := 0
+	mems, err := a.memories.List(ctx, memory.ListOpts{Status: memory.StatusAccepted})
+	if err == nil {
+		memoryCount = len(mems)
+	}
+
+	uptime := fmt.Sprintf("%s", time.Since(a.startedAt).Truncate(time.Second))
+
+	return &tool.SystemStatus{
+		Uptime:       uptime,
+		ActiveTasks:  activeTasks,
+		UnreadEvents: unreadEvents,
+		MemoryCount:  memoryCount,
+	}, nil
 }

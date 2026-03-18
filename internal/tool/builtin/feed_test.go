@@ -41,6 +41,10 @@ func (m *mockEventService) MarkRead(_ context.Context, id string) error {
 	return nil
 }
 
+func (m *mockEventService) Ingest(_ context.Context, events []*tool.IngestEvent) ([]*tool.IngestEvent, error) {
+	return events, nil
+}
+
 func (m *mockEventService) MarkAllRead(_ context.Context) (int, error) {
 	count := 0
 	for _, ev := range m.events {

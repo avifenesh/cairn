@@ -44,6 +44,19 @@ type EventService interface {
 	List(ctx context.Context, f EventFilter) ([]*StoredEvent, error)
 	MarkRead(ctx context.Context, id string) error
 	MarkAllRead(ctx context.Context) (int, error)
+	Ingest(ctx context.Context, events []*IngestEvent) ([]*IngestEvent, error)
+}
+
+// IngestEvent is a tool-level event to insert into the signal plane.
+type IngestEvent struct {
+	Source     string
+	SourceID   string
+	Kind       string
+	Title      string
+	Body       string
+	Actor      string
+	OccurredAt time.Time
+	Metadata   map[string]any
 }
 
 // EventFilter controls which events to list.
@@ -95,6 +108,51 @@ type JournalEntry struct {
 	CreatedAt time.Time
 }
 
+// TaskService manages tasks.
+type TaskService interface {
+	Submit(ctx context.Context, req *TaskSubmitRequest) (*TaskItem, error)
+	List(ctx context.Context, status, taskType string, limit int) ([]*TaskItem, error)
+	Complete(ctx context.Context, id string, output string) error
+}
+
+// TaskSubmitRequest holds parameters for creating a task.
+type TaskSubmitRequest struct {
+	Description string
+	Type        string
+	Priority    int
+}
+
+// TaskItem is a tool-level representation of a task.
+type TaskItem struct {
+	ID          string
+	Type        string
+	Status      string
+	Description string
+	Priority    int
+	Error       string
+	CreatedAt   time.Time
+}
+
+// StatusService aggregates system status info.
+type StatusService interface {
+	GetStatus(ctx context.Context) (*SystemStatus, error)
+}
+
+// SystemStatus holds aggregated system state.
+type SystemStatus struct {
+	Uptime       string
+	ActiveTasks  int
+	UnreadEvents int
+	MemoryCount  int
+	PollerStatus []PollerInfo
+}
+
+// PollerInfo describes a signal poller's state.
+type PollerInfo struct {
+	Source string
+	Active bool
+}
+
 // Mode represents the agent interaction mode that determines which tools are available.
 type Mode string
 
@@ -128,6 +186,8 @@ type ToolContext struct {
 	Events   EventService
 	Digest   DigestService
 	Journal  JournalService
+	Tasks    TaskService
+	Status   StatusService
 }
 
 // ToolResult holds the output of a tool execution.

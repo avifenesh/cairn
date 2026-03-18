@@ -32,5 +32,12 @@ func All() []tool.Tool {
 		// Web tools.
 		webSearch,
 		webFetch,
+		// Task tools.
+		createTask,
+		listTasks,
+		completeTask,
+		// Communication + status tools.
+		compose,
+		getStatus,
 	}
 }

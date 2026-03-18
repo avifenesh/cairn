@@ -211,6 +211,13 @@ func runServe(logger *slog.Logger) {
 		digestAdapt = &digestAdapter{runner: digestRunner}
 	}
 	journalAdapt := &journalAdapter{store: journalStore}
+	taskAdapt := &taskAdapter{engine: taskEngine}
+	statusAdapt := &statusAdapter{
+		tasks:     taskEngine,
+		events:    eventStore,
+		memories:  memService,
+		startedAt: time.Now(),
+	}
 
 	// Initialize webhook handler.
 	var webhookHandler *signalplane.WebhookHandler
@@ -247,6 +254,8 @@ func runServe(logger *slog.Logger) {
 			ToolEvents:   eventAdapter,
 			ToolDigest:   digestAdapt,
 			ToolJournal:  journalAdapt,
+			ToolTasks:    taskAdapt,
+			ToolStatus:   statusAdapt,
 		})
 		agentLoop.Start()
 		defer agentLoop.Close()
@@ -273,6 +282,8 @@ func runServe(logger *slog.Logger) {
 		ToolEvents:     eventAdapter,
 		ToolDigest:     digestAdapt,
 		ToolJournal:    journalAdapt,
+		ToolTasks:      taskAdapt,
+		ToolStatus:     statusAdapt,
 	})
 
 	// Graceful shutdown on SIGINT/SIGTERM.

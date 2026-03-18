@@ -19,7 +19,7 @@ Build, test, and deploy workflow:
 3. **Stop** — Stop the running service:
    - `pub.shell` with `pkill -f './cairn serve'`
 4. **Start** — Restart with env:
-   - `pub.shell` with `source .env.cairn && ./cairn serve &`
+   - `pub.shell` with `. .env.cairn && ./cairn serve &`
 5. **Verify** — Health check:
    - `pub.shell` with `curl -s http://localhost:8788/health`
 

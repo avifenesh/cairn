@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/avifenesh/cairn/internal/tool"
@@ -54,6 +55,11 @@ var listSkills = tool.Define("cairn.listSkills",
 		if len(skills) == 0 {
 			return &tool.ToolResult{Output: "No skills available."}, nil
 		}
+
+		// Sort by name for deterministic output.
+		sort.Slice(skills, func(i, j int) bool {
+			return skills[i].Name < skills[j].Name
+		})
 
 		var b strings.Builder
 		fmt.Fprintf(&b, "Skills: %d available\n\n", len(skills))

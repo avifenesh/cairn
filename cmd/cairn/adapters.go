@@ -330,24 +330,23 @@ func (a *skillAdapter) Get(name string) *tool.SkillItem {
 	if sk == nil {
 		return nil
 	}
-	return &tool.SkillItem{
-		Name:        sk.Name,
-		Description: sk.Description,
-		Inclusion:   string(sk.Inclusion),
-		Content:     sk.Content,
-	}
+	return skillToItem(sk)
 }
 
 func (a *skillAdapter) List() []*tool.SkillItem {
 	skills := a.svc.List()
 	out := make([]*tool.SkillItem, len(skills))
 	for i, sk := range skills {
-		out[i] = &tool.SkillItem{
-			Name:        sk.Name,
-			Description: sk.Description,
-			Inclusion:   string(sk.Inclusion),
-			Content:     sk.Content,
-		}
+		out[i] = skillToItem(sk)
 	}
 	return out
+}
+
+func skillToItem(sk *skill.Skill) *tool.SkillItem {
+	return &tool.SkillItem{
+		Name:        sk.Name,
+		Description: sk.Description,
+		Inclusion:   string(sk.Inclusion),
+		Content:     sk.Content,
+	}
 }

@@ -245,7 +245,14 @@ var zaiWebSearch = tool.Define("cairn.webSearch",
 			return &tool.ToolResult{Error: "query is required"}, nil
 		}
 
-		args := map[string]any{"search_query": p.Query}
+		args := map[string]any{
+			"search_query": p.Query,
+			"location":     "us",
+			"content_size":  "high",
+		}
+		if p.NumResults != nil && *p.NumResults > 0 {
+			// No count param in web_search_prime, but we pass it in case the API supports it
+		}
 
 		text, err := callZaiMCP(safeCtx(ctx.Cancel), "web_search_prime", "web_search_prime", args)
 		if err != nil {

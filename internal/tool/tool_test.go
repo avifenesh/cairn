@@ -7,8 +7,8 @@ import (
 )
 
 type addParams struct {
-	A int    `json:"a" desc:"First number"`
-	B int    `json:"b" desc:"Second number"`
+	A     int     `json:"a" desc:"First number"`
+	B     int     `json:"b" desc:"Second number"`
 	Label *string `json:"label,omitempty" desc:"Optional label"`
 }
 

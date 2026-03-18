@@ -9,9 +9,9 @@ import (
 
 func TestEmbeddedStaticHandler_ServesFile(t *testing.T) {
 	dist := fstest.MapFS{
-		"index.html":         {Data: []byte("<html>home</html>")},
-		"_app/main.js":       {Data: []byte("console.log('hi')")},
-		"chat.html":          {Data: []byte("<html>chat</html>")},
+		"index.html":   {Data: []byte("<html>home</html>")},
+		"_app/main.js": {Data: []byte("console.log('hi')")},
+		"chat.html":    {Data: []byte("<html>chat</html>")},
 	}
 
 	s := &Server{}
@@ -23,12 +23,12 @@ func TestEmbeddedStaticHandler_ServesFile(t *testing.T) {
 		wantBody   string
 	}{
 		{"/", 200, "<html>home</html>"},
-		{"/index.html", 301, ""},                     // FileServer redirects to /
+		{"/index.html", 301, ""}, // FileServer redirects to /
 		{"/chat.html", 200, "<html>chat</html>"},
 		{"/_app/main.js", 200, "console.log('hi')"},
 		{"/nonexistent", 200, "<html>home</html>"}, // SPA fallback
-		{"/v1/feed", 404, ""},                       // API path excluded
-		{"/v1", 404, ""},                             // Bare /v1 excluded
+		{"/v1/feed", 404, ""},                      // API path excluded
+		{"/v1", 404, ""},                           // Bare /v1 excluded
 	}
 
 	for _, tt := range tests {
@@ -61,8 +61,8 @@ func TestEmbeddedStaticHandler_MethodNotAllowed(t *testing.T) {
 
 func TestEmbeddedStaticHandler_DirFallsBackToIndex(t *testing.T) {
 	dist := fstest.MapFS{
-		"index.html":     {Data: []byte("<html>home</html>")},
-		"_app/main.js":   {Data: []byte("js")},
+		"index.html":   {Data: []byte("<html>home</html>")},
+		"_app/main.js": {Data: []byte("js")},
 	}
 	s := &Server{}
 	handler := s.embeddedStaticHandler(dist)

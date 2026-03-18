@@ -294,10 +294,10 @@ func (s *Server) handleSearchMemories(w http.ResponseWriter, r *http.Request) {
 }
 
 type createMemoryRequest struct {
-	Content    string `json:"content"`
-	Category   string `json:"category"`
-	Scope      string `json:"scope"`
-	Source     string `json:"source"`
+	Content    string   `json:"content"`
+	Category   string   `json:"category"`
+	Scope      string   `json:"scope"`
+	Source     string   `json:"source"`
 	Confidence *float64 `json:"confidence,omitempty"`
 }
 

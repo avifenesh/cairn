@@ -54,7 +54,7 @@ func (n *NPMPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, err
 }
 
 type npmPackageInfo struct {
-	Name    string `json:"name"`
+	Name     string `json:"name"`
 	DistTags struct {
 		Latest string `json:"latest"`
 	} `json:"dist-tags"`

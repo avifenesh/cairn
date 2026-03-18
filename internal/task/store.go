@@ -51,13 +51,13 @@ func (s *Store) Create(ctx context.Context, t *Task) error {
 	metadata := "{}"
 	// Pack extra fields not in the base schema into metadata.
 	meta := map[string]any{
-		"parent_id":   t.ParentID,
-		"session_id":  t.SessionID,
-		"mode":        t.Mode,
+		"parent_id":    t.ParentID,
+		"session_id":   t.SessionID,
+		"mode":         t.Mode,
 		"worktree_dir": t.WorktreeDir,
-		"retries":     t.Retries,
-		"max_retries": t.MaxRetries,
-		"cost_usd":    t.CostUSD,
+		"retries":      t.Retries,
+		"max_retries":  t.MaxRetries,
+		"cost_usd":     t.CostUSD,
 	}
 	metaBytes, err := json.Marshal(meta)
 	if err != nil {
@@ -152,13 +152,13 @@ func (s *Store) List(ctx context.Context, opts ListOpts) ([]*Task, error) {
 // Update persists changes to an existing task.
 func (s *Store) Update(ctx context.Context, t *Task) error {
 	meta := map[string]any{
-		"parent_id":   t.ParentID,
-		"session_id":  t.SessionID,
-		"mode":        t.Mode,
+		"parent_id":    t.ParentID,
+		"session_id":   t.SessionID,
+		"mode":         t.Mode,
 		"worktree_dir": t.WorktreeDir,
-		"retries":     t.Retries,
-		"max_retries": t.MaxRetries,
-		"cost_usd":    t.CostUSD,
+		"retries":      t.Retries,
+		"max_retries":  t.MaxRetries,
+		"cost_usd":     t.CostUSD,
 	}
 	metaBytes, err := json.Marshal(meta)
 	if err != nil {
@@ -292,15 +292,15 @@ type scannable interface {
 
 func scanTask(row scannable) (*Task, error) {
 	var (
-		id, typ, status       string
-		description           string
-		input, metadata       string
-		output, taskErr       sql.NullString
-		priority              int
-		createdAt             string
+		id, typ, status        string
+		description            string
+		input, metadata        string
+		output, taskErr        sql.NullString
+		priority               int
+		createdAt              string
 		startedAt, completedAt sql.NullString
-		leaseOwner            sql.NullString
-		leaseExpiresAt        sql.NullString
+		leaseOwner             sql.NullString
+		leaseExpiresAt         sql.NullString
 	)
 
 	err := row.Scan(
@@ -317,8 +317,8 @@ func scanTask(row scannable) (*Task, error) {
 		Status:      TaskStatus(status),
 		Description: description,
 		Priority:    Priority(priority),
-		Input:     json.RawMessage(input),
-		CreatedAt: parseTime(createdAt),
+		Input:       json.RawMessage(input),
+		CreatedAt:   parseTime(createdAt),
 	}
 
 	if output.Valid {
@@ -382,4 +382,3 @@ func nullStr(s string) sql.NullString {
 	}
 	return sql.NullString{String: s, Valid: true}
 }
-

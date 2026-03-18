@@ -285,7 +285,9 @@ func nullJSON(data []byte) sql.NullString {
 
 func newID() string {
 	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil { panic("crypto/rand failed: " + err.Error()) }
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return fmt.Sprintf("%x", b)
 }
 

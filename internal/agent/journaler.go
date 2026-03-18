@@ -15,17 +15,17 @@ import (
 
 // JournalEntry represents a single episodic memory from a session or tick.
 type JournalEntry struct {
-	ID         string   `json:"id"`
-	SessionID  string   `json:"sessionId"`
-	Summary    string   `json:"summary"`
-	Decisions  []string `json:"decisions"`
-	Errors     []string `json:"errors"`
-	Learnings  []string `json:"learnings"`
-	Entities   []string `json:"entities"`
-	ToolCount  int      `json:"toolCount"`
-	RoundCount int      `json:"roundCount"`
-	Mode       string   `json:"mode"`
-	DurationMs int64    `json:"durationMs"`
+	ID         string    `json:"id"`
+	SessionID  string    `json:"sessionId"`
+	Summary    string    `json:"summary"`
+	Decisions  []string  `json:"decisions"`
+	Errors     []string  `json:"errors"`
+	Learnings  []string  `json:"learnings"`
+	Entities   []string  `json:"entities"`
+	ToolCount  int       `json:"toolCount"`
+	RoundCount int       `json:"roundCount"`
+	Mode       string    `json:"mode"`
+	DurationMs int64     `json:"durationMs"`
 	CreatedAt  time.Time `json:"createdAt"`
 }
 

@@ -47,16 +47,16 @@ type Poller interface {
 // RawEvent is a normalized event from any source before storage.
 type RawEvent struct {
 	Source     string         `json:"source"`
-	SourceID  string         `json:"sourceId"`  // dedup key within source
-	Kind      string         `json:"kind"`      // pr, issue, comment, email, post, release, story
-	Title     string         `json:"title"`
-	Body      string         `json:"body"`
-	URL       string         `json:"url"`
-	Actor     string         `json:"actor"`
-	Repo      string         `json:"repo"`
-	GroupKey  string         `json:"groupKey"`  // for grouping related events
-	Metadata  map[string]any `json:"metadata"`
-	OccurredAt time.Time    `json:"occurredAt"`
+	SourceID   string         `json:"sourceId"` // dedup key within source
+	Kind       string         `json:"kind"`     // pr, issue, comment, email, post, release, story
+	Title      string         `json:"title"`
+	Body       string         `json:"body"`
+	URL        string         `json:"url"`
+	Actor      string         `json:"actor"`
+	Repo       string         `json:"repo"`
+	GroupKey   string         `json:"groupKey"` // for grouping related events
+	Metadata   map[string]any `json:"metadata"`
+	OccurredAt time.Time      `json:"occurredAt"`
 }
 
 // StoredEvent is a persisted event with DB-assigned fields.

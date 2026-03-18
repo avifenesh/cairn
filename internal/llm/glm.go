@@ -12,18 +12,18 @@ import (
 )
 
 const (
-	defaultGLMModel      = "glm-5-turbo"
-	defaultGLMBaseURL    = "https://api.z.ai/api/coding/paas/v4"
-	defaultGLMMaxTokens  = 8192
-	defaultGLMTemp       = 0.7
+	defaultGLMModel     = "glm-5-turbo"
+	defaultGLMBaseURL   = "https://api.z.ai/api/coding/paas/v4"
+	defaultGLMMaxTokens = 8192
+	defaultGLMTemp      = 0.7
 )
 
 // GLMProvider implements Provider for Z.ai's GLM API (OpenAI-compatible with extensions).
 type GLMProvider struct {
-	apiKey     string       // format: "id.secret", sent as Bearer token
-	baseURL    string       // e.g. https://api.z.ai/api/coding/paas/v4
+	apiKey     string // format: "id.secret", sent as Bearer token
+	baseURL    string // e.g. https://api.z.ai/api/coding/paas/v4
 	httpClient *http.Client
-	model      string       // default: "glm-5-turbo"
+	model      string // default: "glm-5-turbo"
 	logger     *slog.Logger
 }
 
@@ -76,14 +76,14 @@ func (p *GLMProvider) Models() []ModelInfo {
 
 // glmRequest is the JSON body sent to the GLM chat completions endpoint.
 type glmRequest struct {
-	Model       string           `json:"model"`
-	Messages    []glmMessage     `json:"messages"`
-	Stream      bool             `json:"stream"`
-	MaxTokens   int              `json:"max_tokens,omitempty"`
-	Temperature *float64         `json:"temperature,omitempty"`
-	Stop        []string         `json:"stop,omitempty"`
-	Tools       []glmToolDef     `json:"tools,omitempty"`
-	Thinking    *bool            `json:"thinking,omitempty"`
+	Model       string       `json:"model"`
+	Messages    []glmMessage `json:"messages"`
+	Stream      bool         `json:"stream"`
+	MaxTokens   int          `json:"max_tokens,omitempty"`
+	Temperature *float64     `json:"temperature,omitempty"`
+	Stop        []string     `json:"stop,omitempty"`
+	Tools       []glmToolDef `json:"tools,omitempty"`
+	Thinking    *bool        `json:"thinking,omitempty"`
 }
 
 type glmMessage struct {
@@ -118,10 +118,10 @@ type glmToolCallFunc struct {
 
 // glmChunk represents a single SSE chunk from the GLM streaming response.
 type glmChunk struct {
-	ID      string       `json:"id"`
-	Model   string       `json:"model"`
-	Choices []glmChoice  `json:"choices"`
-	Usage   *glmUsage    `json:"usage,omitempty"`
+	ID      string      `json:"id"`
+	Model   string      `json:"model"`
+	Choices []glmChoice `json:"choices"`
+	Usage   *glmUsage   `json:"usage,omitempty"`
 }
 
 type glmChoice struct {

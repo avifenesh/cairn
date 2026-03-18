@@ -16,12 +16,12 @@ import (
 // SSEBroadcaster manages SSE client connections, subscribes to bus events,
 // and fans out formatted SSE messages to all connected clients.
 type SSEBroadcaster struct {
-	clients  sync.Map // clientID -> *sseClient
-	replay   *replayBuffer
-	bus      *eventbus.Bus
-	logger   *slog.Logger
-	unsubs   []func() // bus unsubscribe functions
-	closed   atomic.Bool
+	clients sync.Map // clientID -> *sseClient
+	replay  *replayBuffer
+	bus     *eventbus.Bus
+	logger  *slog.Logger
+	unsubs  []func() // bus unsubscribe functions
+	closed  atomic.Bool
 }
 
 // sseClient represents a single SSE connection.

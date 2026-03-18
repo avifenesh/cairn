@@ -52,7 +52,7 @@ var journalSearch = tool.Define("cairn.journalSearch",
 		fmt.Fprintf(&b, "Journal: %d entries (last %dh)\n\n", len(entries), hours)
 		for i, e := range entries {
 			fmt.Fprintf(&b, "%d. [%s] %s (at %s)\n",
-				i+1, e.Mode, e.Summary, e.CreatedAt.Format("2006-01-02 15:04"))
+				i+1, e.Mode, e.Summary, e.CreatedAt.Format(displayTimeFormat))
 			if len(e.Decisions) > 0 {
 				fmt.Fprintf(&b, "   Decisions: %s\n", strings.Join(e.Decisions, "; "))
 			}

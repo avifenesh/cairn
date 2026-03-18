@@ -4,6 +4,9 @@ import (
 	"github.com/avifenesh/cairn/internal/tool"
 )
 
+// displayTimeFormat is the human-readable time format used in tool output.
+const displayTimeFormat = "2006-01-02 15:04"
+
 // All returns every built-in tool.
 func All() []tool.Tool {
 	return []tool.Tool{

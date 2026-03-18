@@ -57,9 +57,9 @@ var readFeed = tool.Define("cairn.readFeed",
 				fmt.Fprintf(&b, "   %s\n", ev.URL)
 			}
 			if ev.Actor != "" {
-				fmt.Fprintf(&b, "   by %s at %s\n", ev.Actor, ev.CreatedAt.Format("2006-01-02 15:04"))
+				fmt.Fprintf(&b, "   by %s at %s\n", ev.Actor, ev.CreatedAt.Format(displayTimeFormat))
 			} else {
-				fmt.Fprintf(&b, "   at %s\n", ev.CreatedAt.Format("2006-01-02 15:04"))
+				fmt.Fprintf(&b, "   at %s\n", ev.CreatedAt.Format(displayTimeFormat))
 			}
 			fmt.Fprintf(&b, "   id: %s\n\n", ev.ID)
 		}

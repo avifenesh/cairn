@@ -48,6 +48,8 @@ type Server struct {
 	toolEvents   tool.EventService
 	toolDigest   tool.DigestService
 	toolJournal  tool.JournalService
+	toolTasks    tool.TaskService
+	toolStatus   tool.StatusService
 }
 
 // ServerConfig carries all dependencies needed to construct a Server.
@@ -72,6 +74,8 @@ type ServerConfig struct {
 	ToolEvents   tool.EventService
 	ToolDigest   tool.DigestService
 	ToolJournal  tool.JournalService
+	ToolTasks    tool.TaskService
+	ToolStatus   tool.StatusService
 }
 
 // New creates a fully wired Server with all routes and middleware registered.
@@ -103,6 +107,8 @@ func New(cfg ServerConfig) *Server {
 		toolEvents:     cfg.ToolEvents,
 		toolDigest:     cfg.ToolDigest,
 		toolJournal:    cfg.ToolJournal,
+		toolTasks:      cfg.ToolTasks,
+		toolStatus:     cfg.ToolStatus,
 	}
 
 	// Create SSE broadcaster.

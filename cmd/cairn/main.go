@@ -211,6 +211,31 @@ func runServe(logger *slog.Logger) {
 		digestAdapt = &digestAdapter{runner: digestRunner}
 	}
 	journalAdapt := &journalAdapter{store: journalStore}
+	taskAdapt := &taskAdapter{engine: taskEngine}
+	// Collect active poller names for status display.
+	var pollerNames []string
+	if cfg.GHToken != "" {
+		pollerNames = append(pollerNames, "github")
+	}
+	if len(cfg.HNKeywords) > 0 || cfg.HNMinScore > 0 {
+		pollerNames = append(pollerNames, "hn")
+	}
+	if len(cfg.RedditSubs) > 0 {
+		pollerNames = append(pollerNames, "reddit")
+	}
+	if len(cfg.NPMPackages) > 0 {
+		pollerNames = append(pollerNames, "npm")
+	}
+	if len(cfg.CratesPackages) > 0 {
+		pollerNames = append(pollerNames, "crates")
+	}
+	statusAdapt := &statusAdapter{
+		tasks:       taskEngine,
+		events:      eventStore,
+		memories:    memService,
+		startedAt:   time.Now(),
+		pollerNames: pollerNames,
+	}
 
 	// Initialize webhook handler.
 	var webhookHandler *signalplane.WebhookHandler
@@ -247,6 +272,8 @@ func runServe(logger *slog.Logger) {
 			ToolEvents:   eventAdapter,
 			ToolDigest:   digestAdapt,
 			ToolJournal:  journalAdapt,
+			ToolTasks:    taskAdapt,
+			ToolStatus:   statusAdapt,
 		})
 		agentLoop.Start()
 		defer agentLoop.Close()
@@ -273,6 +300,8 @@ func runServe(logger *slog.Logger) {
 		ToolEvents:     eventAdapter,
 		ToolDigest:     digestAdapt,
 		ToolJournal:    journalAdapt,
+		ToolTasks:      taskAdapt,
+		ToolStatus:     statusAdapt,
 	})
 
 	// Graceful shutdown on SIGINT/SIGTERM.

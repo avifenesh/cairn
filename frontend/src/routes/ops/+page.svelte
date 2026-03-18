@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getTasks, getApprovals, cancelTask, approve, deny } from '$lib/api/client';
+	import { getTasks, getApprovals, cancelTask, createTask, approve, deny } from '$lib/api/client';
 	import { taskStore } from '$lib/stores/tasks.svelte';
 	import TaskCard from '$lib/components/tasks/TaskCard.svelte';
+	import TaskCreateForm from '$lib/components/tasks/TaskCreateForm.svelte';
 	import ApprovalCard from '$lib/components/tasks/ApprovalCard.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -69,6 +70,15 @@
 		ids.forEach((id) => taskStore.resolveApproval(id, 'denied'));
 		selectedIds = new Set();
 		await Promise.all(ids.map((id) => deny(id)));
+	}
+
+	async function handleCreateTask(description: string, type: string, priority: number) {
+		try {
+			const task = await createTask(description, type, priority);
+			taskStore.upsertTask(task);
+		} catch (err) {
+			console.error('[ops] Failed to create task:', err);
+		}
 	}
 </script>
 
@@ -156,6 +166,9 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="tasks">
+			<div class="mb-4">
+				<TaskCreateForm oncreate={handleCreateTask} />
+			</div>
 			{#if taskStore.loading}
 				<div class="flex flex-col gap-2">
 					{#each Array(3) as _, i}

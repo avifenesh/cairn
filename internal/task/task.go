@@ -13,6 +13,7 @@ import (
 type TaskType string
 
 const (
+	TypeGeneral  TaskType = "general"
 	TypeChat     TaskType = "chat"
 	TypeCoding   TaskType = "coding"
 	TypeDigest   TaskType = "digest"

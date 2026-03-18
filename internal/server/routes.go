@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -34,6 +35,7 @@ func (s *Server) registerRoutes() {
 
 	// Tasks.
 	s.mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
+	s.mux.HandleFunc("POST /v1/tasks", s.handleCreateTask)
 	s.mux.HandleFunc("POST /v1/tasks/{id}/cancel", s.handleCancelTask)
 
 	// Approvals.
@@ -176,6 +178,55 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"tasks": marshalTasks(tasks)})
+}
+
+func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
+	if s.tasks == nil {
+		writeError(w, http.StatusServiceUnavailable, "task engine not available")
+		return
+	}
+
+	var req struct {
+		Description string `json:"description"`
+		Type        string `json:"type"`
+		Priority    int    `json:"priority"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	req.Description = strings.TrimSpace(req.Description)
+	if req.Description == "" {
+		writeError(w, http.StatusBadRequest, "description is required")
+		return
+	}
+	if req.Type == "" {
+		req.Type = "general"
+	}
+	if req.Priority < 0 || req.Priority > 4 {
+		writeError(w, http.StatusBadRequest, "priority must be 0-4")
+		return
+	}
+
+	input, _ := json.Marshal(map[string]string{"description": req.Description})
+
+	t, err := s.tasks.Submit(r.Context(), &task.SubmitRequest{
+		Type:        task.TaskType(req.Type),
+		Priority:    task.Priority(req.Priority),
+		Description: req.Description,
+		Input:       input,
+	})
+	if err != nil {
+		if errors.Is(err, task.ErrDuplicate) {
+			writeError(w, http.StatusConflict, "duplicate task")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, marshalTask(t))
 }
 
 func (s *Server) handleCancelTask(w http.ResponseWriter, r *http.Request) {

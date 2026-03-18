@@ -146,6 +146,14 @@ export const getTasks = async (params?: { status?: string; type?: string }) => {
 };
 
 export const cancelTask = (id: string) => post<{ ok: boolean }>(`/v1/tasks/${id}/cancel`);
+export const createTask = async (description: string, type = 'general', priority = 2) => {
+	const raw = await post<Record<string, unknown>>('/v1/tasks', { description, type, priority });
+	return {
+		...raw,
+		title: (raw.title ?? raw.description ?? description) as string,
+		status: raw.status === 'queued' ? 'pending' : raw.status,
+	} as Task;
+};
 
 // Approvals
 export const getApprovals = async (params?: { status?: string }) => {
@@ -205,8 +213,11 @@ export const getMemories = async (params?: { status?: string; category?: string 
 	return { items: (raw.memories ?? raw.items ?? []) as Memory[], hasMore: (raw.hasMore ?? false) as boolean };
 };
 
-export const searchMemories = (query: string, limit = 10) =>
-	get<{ items: Memory[] }>(`/v1/memories/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+export const searchMemories = async (query: string, limit = 10) => {
+	const raw = await get<Record<string, unknown>>(`/v1/memories/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+	const results = (raw.results ?? []) as Array<{ memory: Memory; score: number }>;
+	return { items: results.map((r) => ({ ...r.memory, confidence: r.score })) as Memory[] };
+};
 
 export const createMemory = (content: string, category: string) =>
 	post<Memory>('/v1/memories', { content, category });

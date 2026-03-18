@@ -154,10 +154,12 @@
 		<main class="flex-1 overflow-y-auto pb-[var(--bottom-nav-h)] md:pb-0">
 			{@render children()}
 		</main>
-		<ContextPanel
-			open={appStore.contextPanelOpen}
-			onclose={() => appStore.closeContextPanel()}
-		/>
+		{#if page.url.pathname === '/chat'}
+			<ContextPanel
+				open={appStore.contextPanelOpen}
+				onclose={() => appStore.closeContextPanel()}
+			/>
+		{/if}
 	</div>
 
 	<StatusBar />

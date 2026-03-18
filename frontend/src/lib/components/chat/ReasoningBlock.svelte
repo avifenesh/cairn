@@ -11,11 +11,16 @@
 	} = $props();
 
 	let expanded = $state(false);
+	let wasStreaming = $state(false);
 
-	// Auto-expand during streaming, collapse when done
+	// Auto-expand during streaming, auto-collapse when done
 	$effect(() => {
-		if (isStreaming && steps.length > 0) {
+		if (isStreaming && steps.length > 0 && !wasStreaming) {
 			expanded = true;
+			wasStreaming = true;
+		} else if (!isStreaming && wasStreaming) {
+			expanded = false;
+			wasStreaming = false;
 		}
 	});
 

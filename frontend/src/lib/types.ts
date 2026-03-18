@@ -85,6 +85,8 @@ export interface ToolCall {
 	phase: 'start' | 'result';
 	args?: Record<string, unknown>;
 	result?: string;
+	error?: string;
+	durationMs?: number;
 }
 
 export interface ReasoningStep {

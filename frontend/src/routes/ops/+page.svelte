@@ -9,6 +9,7 @@
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { ShieldCheck, ShieldX, X } from '@lucide/svelte';
+	import SystemStatus from '$lib/components/shared/SystemStatus.svelte';
 
 	let tab = $state<string>('approvals');
 	let selectedIds = $state<Set<string>>(new Set());
@@ -73,6 +74,10 @@
 
 <div class="mx-auto max-w-5xl p-6">
 	<h1 class="mb-6 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Ops</h1>
+
+	<div class="mb-6">
+		<SystemStatus />
+	</div>
 
 	<Tabs.Root bind:value={tab}>
 		<Tabs.List class="mb-6">

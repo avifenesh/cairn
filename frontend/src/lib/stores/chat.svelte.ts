@@ -91,11 +91,11 @@ export const chatStore = {
 		messages = [...messages, msg];
 	},
 
-	appendToolCall(taskId: string, toolName: string, phase: string, args?: Record<string, unknown>, result?: string) {
+	appendToolCall(taskId: string, toolName: string, phase: string, args?: Record<string, unknown>, result?: string, error?: string, durationMs?: number) {
 		const updated = new Map(streamingMessages);
 		const existing = updated.get(taskId);
 		if (!existing) return;
-		const tc: ToolCall = { toolName, phase: phase as 'start' | 'result', args, result };
+		const tc: ToolCall = { toolName, phase: phase as 'start' | 'result', args, result, error, durationMs };
 		updated.set(taskId, { ...existing, toolCalls: [...existing.toolCalls, tc] });
 		streamingMessages = updated;
 	},

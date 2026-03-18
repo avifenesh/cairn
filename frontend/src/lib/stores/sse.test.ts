@@ -274,7 +274,7 @@ describe('sseStore', () => {
 	it('routes assistant_tool_call to chatStore.appendToolCall', () => {
 		sseStore.connect();
 		mockEventSource.simulateEvent('assistant_tool_call', '{"taskId":"t1","toolName":"shell","phase":"start"}');
-		expect(chatStore.appendToolCall).toHaveBeenCalledWith('t1', 'shell', 'start', undefined, undefined);
+		expect(chatStore.appendToolCall).toHaveBeenCalledWith('t1', 'shell', 'start', undefined, undefined, undefined, undefined);
 	});
 
 	it('routes agent_progress to appStore.setAgentProgress', () => {

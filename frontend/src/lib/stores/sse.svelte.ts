@@ -164,7 +164,7 @@ export const sseStore = {
 			chatStore.completeMessage(taskId, text);
 		});
 		handle('assistant_reasoning', source, (d) => chatStore.appendReasoning(d.taskId, d.round, d.thought));
-		handle('assistant_tool_call', source, (d) => chatStore.appendToolCall(d.taskId, d.toolName, d.phase, d.args, d.result));
+		handle('assistant_tool_call', source, (d) => chatStore.appendToolCall(d.taskId, d.toolName, d.phase, d.args, d.result, d.error, d.durationMs));
 
 		// Memory
 		handle('memory_proposed', source, (d) => appStore.addNotification('memory', `New memory proposed: ${d.memory?.content?.slice(0, 50)}...`));

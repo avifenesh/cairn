@@ -80,7 +80,7 @@ go test -v ./internal/signal/...
 See `docs/design/` for detailed specs:
 - `VISION.md` - architecture and differentiators
 - `PHASES.md` - implementation phases
-- `pieces/01-11` - per-module design docs
+- `pieces/01-event-bus.md` through `pieces/11-channel-adapters.md` - per-module design docs
 
 The main entry point is `cmd/cairn/main.go`. It wires together all subsystems
 (event bus, LLM, tools, tasks, memory, agent, signal plane, server) and starts

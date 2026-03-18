@@ -10,12 +10,17 @@ Cairn watches your world (GitHub, HN, Reddit, npm, crates.io, webhooks), acts on
 # Build
 make build
 
-# Chat (requires LLM_API_KEY)
-export LLM_API_KEY=your-key
+# Chat (requires an LLM API key)
+export LLM_API_KEY=your-key   # or GLM_API_KEY / OPENAI_API_KEY
 ./cairn chat "what's in package.json?"
 
-# Serve (HTTP API + SSE + frontend)
+# Serve (HTTP API + SSE)
 ./cairn serve
+
+# With frontend (build frontend first, then embed)
+cd frontend && pnpm install && pnpm build && cd ..
+make build-prod
+./cairn serve   # serves embedded frontend on :8787
 ```
 
 ## What It Does
@@ -91,7 +96,7 @@ Set via environment variables. Only `LLM_API_KEY` is required.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `LLM_API_KEY` | - | LLM provider API key (or `GLM_API_KEY` / `OPENAI_API_KEY`) |
-| `LLM_PROVIDER` | auto | `glm` or `openai` (auto-detected from key variable) |
+| `LLM_PROVIDER` | glm | `glm` or `openai` (defaults to `glm` unless `OPENAI_API_KEY` is set) |
 | `LLM_MODEL` | provider default | Model ID |
 | `PORT` | 8787 | HTTP server port |
 | `DATABASE_PATH` | ./data/cairn.db | SQLite database path |
@@ -110,7 +115,7 @@ Set via environment variables. Only `LLM_API_KEY` is required.
 
 - **Go 1.25** - single binary, no CGO
 - **SQLite** via [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) - pure Go, WAL mode
-- **SvelteKit 5** frontend - Svelte 5 runes, Tailwind v4, embedded via `embed.FS`
+- **SvelteKit 2 + Svelte 5** frontend - Svelte 5 runes, Tailwind v4, embedded via `embed.FS`
 - **LLM providers** - GLM (Z.ai) and OpenAI-compatible APIs
 
 ## Project Structure

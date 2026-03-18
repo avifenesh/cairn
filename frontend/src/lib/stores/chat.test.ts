@@ -46,9 +46,9 @@ describe('chatStore', () => {
 			expect(chatStore.streamingMessages.get('task-1')?.content).toBe('Hello world');
 		});
 
-		it('appendDelta creates entry if not started', () => {
+		it('appendDelta ignores delta if streaming not started', () => {
 			chatStore.appendDelta('task-new', 'surprise');
-			expect(chatStore.streamingMessages.get('task-new')?.content).toBe('surprise');
+			expect(chatStore.streamingMessages.get('task-new')).toBeUndefined();
 		});
 
 		it('completeMessage moves streaming to committed messages', () => {

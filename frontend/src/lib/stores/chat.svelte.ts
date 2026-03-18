@@ -63,19 +63,11 @@ export const chatStore = {
 	},
 
 	appendDelta(taskId: string, delta: string) {
+		const existing = streamingMessages.get(taskId);
+		// Only append to an existing streaming entry — never create orphan entries
+		if (!existing) return;
 		const updated = new Map(streamingMessages);
-		const existing = updated.get(taskId);
-		if (existing) {
-			updated.set(taskId, { ...existing, content: existing.content + delta });
-		} else {
-			updated.set(taskId, {
-				taskId,
-				content: delta,
-				toolCalls: [],
-				reasoning: [],
-				isStreaming: true,
-			});
-		}
+		updated.set(taskId, { ...existing, content: existing.content + delta });
 		streamingMessages = updated;
 	},
 

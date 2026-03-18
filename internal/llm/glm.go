@@ -14,7 +14,7 @@ import (
 const (
 	defaultGLMModel     = "glm-5-turbo"
 	defaultGLMBaseURL   = "https://api.z.ai/api/coding/paas/v4"
-	defaultGLMMaxTokens = 8192
+	defaultGLMMaxTokens = 16384
 	defaultGLMTemp      = 0.7
 )
 

@@ -71,8 +71,8 @@ func initSession(ctx context.Context, endpoint string) (string, error) {
 		ID:      1,
 		Params: map[string]any{
 			"protocolVersion": "2024-11-05",
-			"capabilities":   map[string]any{},
-			"clientInfo":     map[string]any{"name": "cairn", "version": "0.1.0"},
+			"capabilities":    map[string]any{},
+			"clientInfo":      map[string]any{"name": "cairn", "version": "0.1.0"},
 		},
 	}
 	data, _ := json.Marshal(body)

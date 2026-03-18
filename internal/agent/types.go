@@ -124,6 +124,7 @@ type Session struct {
 	Events       []*Event
 	State        map[string]any
 	ActiveSkills []ActiveSkill // Skills loaded in this session
+	MessageCount int           // Number of messages (populated by List)
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

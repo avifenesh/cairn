@@ -15,6 +15,7 @@ import (
 
 	"github.com/avifenesh/cairn/internal/agent"
 	"github.com/avifenesh/cairn/internal/eventbus"
+	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
@@ -559,6 +560,17 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Persist the user message in the session.
+	if s.sessions != nil {
+		userEvent := &agent.Event{
+			SessionID: session.ID,
+			Timestamp: time.Now(),
+			Author:    "user",
+			Parts:     []agent.Part{agent.TextPart{Text: req.Message}},
+		}
+		s.sessions.AppendEvent(ctx, session.ID, userEvent)
+	}
+
 	// Run the agent asynchronously.
 	go s.runAgent(session, t, req.Message, mode)
 
@@ -666,7 +678,7 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 		}
 
 		// Persist events to session store.
-		if s.sessions != nil && ev.Event.Author != "user" {
+		if s.sessions != nil {
 			s.sessions.AppendEvent(ctx, session.ID, ev.Event)
 		}
 	}
@@ -675,6 +687,57 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 	output, _ := json.Marshal(map[string]string{"text": fullText.String()})
 	if err := s.tasks.Complete(ctx, t.ID, output); err != nil {
 		slog.Error("failed to complete task", "task", t.ID, "error", err)
+	}
+
+	// Generate session title if empty (async, best-effort).
+	if s.sessions != nil && s.llm != nil && session.Title == "" {
+		go s.generateSessionTitle(session.ID, message, fullText.String())
+	}
+}
+
+// generateSessionTitle uses a cheap LLM call to create a short title.
+func (s *Server) generateSessionTitle(sessionID, userMsg, assistantMsg string) {
+	s.logger.Info("generating session title", "session", sessionID, "userMsg", truncate(userMsg, 50))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	req := &llm.Request{
+		Model:     "glm-5-turbo",
+		System:    "You generate very short conversation titles (3-6 words). Reply with ONLY the title text, nothing else.",
+		MaxTokens: 200,
+		Messages: []llm.Message{
+			{Role: "user", Content: []llm.ContentBlock{llm.TextBlock{Text: fmt.Sprintf("User: %s\nAssistant: %s", truncate(userMsg, 150), truncate(assistantMsg, 150))}}},
+		},
+	}
+
+	ch, err := s.llm.Stream(ctx, req)
+	if err != nil {
+		s.logger.Warn("title generation failed", "session", sessionID, "error", err)
+		return
+	}
+
+	var title strings.Builder
+	for ev := range ch {
+		switch e := ev.(type) {
+		case llm.TextDelta:
+			title.WriteString(e.Text)
+		case llm.StreamError:
+			s.logger.Warn("title generation stream error", "session", sessionID, "error", e.Err)
+		}
+	}
+	s.logger.Info("title generation completed", "session", sessionID, "title", title.String())
+
+	t := strings.TrimSpace(title.String())
+	if t == "" {
+		return
+	}
+	// Cap at 60 chars
+	if len(t) > 60 {
+		t = t[:60]
+	}
+
+	if err := s.sessions.UpdateTitle(ctx, sessionID, t); err != nil {
+		s.logger.Warn("failed to update session title", "session", sessionID, "error", err)
 	}
 }
 
@@ -916,11 +979,12 @@ func marshalSessions(sessions []*agent.Session) []map[string]any {
 	result := make([]map[string]any, len(sessions))
 	for i, s := range sessions {
 		result[i] = map[string]any{
-			"id":        s.ID,
-			"title":     s.Title,
-			"mode":      string(s.Mode),
-			"createdAt": s.CreatedAt.UTC().Format(time.RFC3339),
-			"updatedAt": s.UpdatedAt.UTC().Format(time.RFC3339),
+			"id":           s.ID,
+			"title":        s.Title,
+			"mode":         string(s.Mode),
+			"messageCount": s.MessageCount,
+			"createdAt":    s.CreatedAt.UTC().Format(time.RFC3339),
+			"updatedAt":    s.UpdatedAt.UTC().Format(time.RFC3339),
 		}
 	}
 	return result

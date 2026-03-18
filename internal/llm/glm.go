@@ -83,7 +83,13 @@ type glmRequest struct {
 	Temperature *float64     `json:"temperature,omitempty"`
 	Stop        []string     `json:"stop,omitempty"`
 	Tools       []glmToolDef `json:"tools,omitempty"`
-	Thinking    *bool        `json:"thinking,omitempty"`
+	Thinking    *glmThinking `json:"thinking,omitempty"`
+}
+
+// glmThinking represents the thinking/reasoning parameter for GLM models.
+// Must be {"type": "enabled"}, NOT a boolean — boolean causes HTTP 400.
+type glmThinking struct {
+	Type string `json:"type"`
 }
 
 type glmMessage struct {
@@ -194,14 +200,13 @@ func (p *GLMProvider) buildRequestBody(req *Request) ([]byte, error) {
 		temp = &t
 	}
 
-	thinking := true
 	glmReq := glmRequest{
 		Model:       model,
 		Stream:      true,
 		MaxTokens:   maxTokens,
 		Temperature: temp,
 		Stop:        req.Stop,
-		Thinking:    &thinking, // Enable reasoning by default for GLM-5 Turbo
+		Thinking:    &glmThinking{Type: "enabled"},
 	}
 
 	// Build messages.

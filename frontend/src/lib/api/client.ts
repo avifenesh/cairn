@@ -177,7 +177,39 @@ export const getSessions = async () => {
 
 export const getSessionMessages = async (sessionId: string) => {
 	const raw = await get<Record<string, unknown>>(`/v1/assistant/sessions/${sessionId}`);
-	return { items: (raw.messages ?? raw.events ?? raw.items ?? []) as ChatMessage[] };
+	// If backend returns pre-formatted messages, use them directly
+	if (raw.messages) return { items: raw.messages as ChatMessage[] };
+	// Otherwise normalize events (parts-based format) into ChatMessage
+	const events = (raw.events ?? raw.items ?? []) as Array<Record<string, unknown>>;
+	const messages: ChatMessage[] = [];
+	let currentText = '';
+	let currentAuthor = '';
+	let currentTimestamp = '';
+	let currentId = '';
+	for (const ev of events) {
+		const author = (ev.author as string) ?? '';
+		const parts = (ev.parts as Array<{ type: string; text?: string }>) ?? [];
+		const timestamp = (ev.timestamp as string) ?? (ev.createdAt as string) ?? '';
+		const textParts = parts.filter((p) => p.type === 'text').map((p) => p.text ?? '');
+		if (textParts.length === 0) continue;
+		// Aggregate consecutive events from the same author
+		if (author === currentAuthor && currentText) {
+			currentText += textParts.join('');
+			currentTimestamp = timestamp || currentTimestamp;
+		} else {
+			if (currentText) {
+				messages.push({ id: currentId, role: currentAuthor === 'user' ? 'user' : 'assistant', content: currentText, createdAt: currentTimestamp });
+			}
+			currentText = textParts.join('');
+			currentAuthor = author;
+			currentTimestamp = timestamp;
+			currentId = (ev.id as string) ?? crypto.randomUUID();
+		}
+	}
+	if (currentText) {
+		messages.push({ id: currentId, role: currentAuthor === 'user' ? 'user' : 'assistant', content: currentText, createdAt: currentTimestamp });
+	}
+	return { items: messages };
 };
 
 export const sendMessage = (message: string, mode?: ChatMode, sessionId?: string) =>

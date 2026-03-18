@@ -165,7 +165,7 @@ export const sseStore = {
 			const text = d.messageText ?? d.text ?? fullContent;
 			chatStore.completeMessage(taskId, text);
 		});
-		handle('assistant_reasoning', source, (d) => chatStore.appendReasoning(d.taskId, d.round, d.thought));
+		handle('assistant_reasoning', source, (d) => chatStore.appendReasoning(d.taskId, d.round ?? 1, d.thought ?? d.text));
 		handle('assistant_tool_call', source, (d) => chatStore.appendToolCall(d.taskId, d.toolName, d.phase, d.args, d.result, d.error, d.durationMs));
 
 		// Memory

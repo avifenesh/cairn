@@ -10,7 +10,8 @@
 	import VoiceButton from './VoiceButton.svelte';
 	import ActiveSkillChip from './ActiveSkillChip.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Bot, Send, Loader2, Brain } from '@lucide/svelte';
+	import ReasoningBlock from './ReasoningBlock.svelte';
+	import { Bot, Send, Loader2 } from '@lucide/svelte';
 
 	let inputText = $state('');
 	let messagesEnd: HTMLDivElement;
@@ -147,17 +148,7 @@
 							</div>
 						{/if}
 						{#if sm.reasoning.length > 0}
-							<details class="mb-2" open>
-								<summary class="flex items-center gap-1.5 text-[10px] text-[var(--text-tertiary)] cursor-pointer hover:text-[var(--text-secondary)]">
-									<Brain class="h-3 w-3" />
-									<span>Thinking ({sm.reasoning.length} step{sm.reasoning.length !== 1 ? 's' : ''})</span>
-								</summary>
-								<div class="mt-1.5 border-l-2 border-[var(--cairn-accent)]/20 pl-3 text-xs text-[var(--text-secondary)] space-y-1">
-									{#each sm.reasoning as step}
-										<p><span class="font-mono text-[var(--cairn-accent)]">R{step.round}</span> {step.thought}</p>
-									{/each}
-								</div>
-							</details>
+							<ReasoningBlock steps={sm.reasoning} isStreaming={sm.isStreaming} />
 						{/if}
 						{#if sm.content}
 							<StreamingText content={sm.content} isStreaming={sm.isStreaming} />

@@ -2,8 +2,10 @@ const MINUTE = 60;
 const HOUR = 3600;
 const DAY = 86400;
 
-export function relativeTime(date: string | Date): string {
+export function relativeTime(date: string | Date | undefined | null): string {
+	if (!date) return '';
 	const d = typeof date === 'string' ? new Date(date) : date;
+	if (isNaN(d.getTime())) return '';
 	const seconds = Math.floor((Date.now() - d.getTime()) / 1000);
 
 	if (seconds < 10) return 'just now';

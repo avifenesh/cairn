@@ -1,20 +1,77 @@
 <script lang="ts">
 	import type { ReasoningStep } from '$lib/types';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Brain } from '@lucide/svelte';
+	import { Brain, ChevronRight } from '@lucide/svelte';
 
-	let { steps }: { steps: ReasoningStep[] } = $props();
+	let {
+		steps,
+		isStreaming = false,
+	}: {
+		steps: ReasoningStep[];
+		isStreaming?: boolean;
+	} = $props();
+
+	const contentId = `reasoning-${crypto.randomUUID().slice(0, 8)}`;
+
+	let expanded = $state(false);
+	let wasStreaming = $state(false);
+
+	// Auto-expand during streaming, auto-collapse when done
+	$effect(() => {
+		if (isStreaming && steps.length > 0 && !wasStreaming) {
+			expanded = true;
+			wasStreaming = true;
+		} else if (!isStreaming && wasStreaming) {
+			expanded = false;
+			wasStreaming = false;
+		}
+	});
+
+	const totalText = $derived(steps.map((s) => s.thought).join(' '));
+	const wordCount = $derived(totalText.split(/\s+/).filter(Boolean).length);
 </script>
 
-<details class="mb-2 group">
-	<summary class="flex cursor-pointer items-center gap-1.5 text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">
-		<Brain class="h-3 w-3" />
-		<span>{steps.length} reasoning step{steps.length !== 1 ? 's' : ''}</span>
-		<Badge variant="outline" class="h-3.5 px-1 text-[9px]">expand</Badge>
-	</summary>
-	<div class="mt-2 border-l-2 border-[var(--cairn-accent)]/20 pl-3 text-xs text-[var(--text-secondary)] space-y-1.5">
-		{#each steps as step}
-			<p><span class="font-mono text-[var(--cairn-accent)]">R{step.round}</span> {step.thought}</p>
-		{/each}
-	</div>
-</details>
+<div class="mb-2 rounded-lg border border-border-subtle bg-[var(--bg-0)]/50 overflow-hidden">
+	<button
+		class="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] transition-colors hover:bg-[var(--bg-2)]/50"
+		onclick={() => { expanded = !expanded; }}
+		aria-expanded={expanded}
+		aria-controls={contentId}
+		type="button"
+	>
+		<Brain class="h-3.5 w-3.5 text-[var(--cairn-accent)] flex-shrink-0" />
+		{#if isStreaming}
+			<span class="text-[var(--text-secondary)]">
+				Thinking
+				<span class="thinking-dots inline-flex gap-0.5 ml-0.5">
+					<span class="inline-block h-1 w-1 rounded-full bg-[var(--cairn-accent)]"></span>
+					<span class="inline-block h-1 w-1 rounded-full bg-[var(--cairn-accent)]"></span>
+					<span class="inline-block h-1 w-1 rounded-full bg-[var(--cairn-accent)]"></span>
+				</span>
+			</span>
+		{:else}
+			<span class="text-[var(--text-tertiary)]">
+				Thought ({steps.length} step{steps.length !== 1 ? 's' : ''}, ~{wordCount} words)
+			</span>
+		{/if}
+		<ChevronRight class="h-3 w-3 ml-auto flex-shrink-0 text-[var(--text-tertiary)] transition-transform {expanded ? 'rotate-90' : ''}" />
+	</button>
+
+	{#if expanded}
+		<div
+			id={contentId}
+			class="border-t border-border-subtle px-3 py-2 text-xs text-[var(--text-secondary)] leading-relaxed max-h-64 overflow-y-auto"
+		>
+			{#each steps as step}
+				<p class="mb-1.5 last:mb-0">
+					{#if steps.length > 1}
+						<span class="font-mono text-[var(--cairn-accent)] text-[10px] mr-1">R{step.round}</span>
+					{/if}
+					{step.thought}
+				</p>
+			{/each}
+			{#if isStreaming}
+				<span class="inline-block h-3 w-0.5 animate-pulse bg-[var(--cairn-accent)] ml-0.5 rounded-full"></span>
+			{/if}
+		</div>
+	{/if}
+</div>

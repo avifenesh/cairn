@@ -1,0 +1,353 @@
+{
+  "topic": "Z.ai (Zhipu AI) GLM API",
+  "slug": "zai-glm-api",
+  "generated": "2026-03-18T00:00:00Z",
+  "depth": "medium",
+  "totalSources": 21,
+  "sources": [
+    {
+      "url": "https://github.com/MetaGLM/zhipuai-sdk-python-v4/blob/main/zhipuai/api_resource/chat/completions.py",
+      "title": "Zhipu AI Python SDK - Chat Completions Source Code",
+      "qualityScore": 95,
+      "authority": 10,
+      "recency": 9,
+      "depth": 10,
+      "examples": 8,
+      "uniqueness": 9,
+      "keyInsights": [
+        "thinking parameter type is 'object | None', passed directly to API body without transformation",
+        "Temperature auto-clamped to (0.01, 0.99) range",
+        "top_p auto-clamped to (0.01, 0.99) range",
+        "do_sample set to False when temperature <= 0",
+        "Endpoint path is /chat/completions",
+        "Default base URL: https://open.bigmodel.cn/api/paas/v4/"
+      ]
+    },
+    {
+      "url": "/home/ubuntu/cairn/internal/llm/glm.go",
+      "title": "Cairn GLM Provider - Production Go Implementation",
+      "qualityScore": 95,
+      "authority": 9,
+      "recency": 10,
+      "depth": 10,
+      "examples": 10,
+      "uniqueness": 10,
+      "keyInsights": [
+        "thinking parameter is object {type: 'enabled' | 'disabled'}, NOT boolean",
+        "reasoning_content is separate field from content in streaming delta",
+        "finish_reason 'network_error' is GLM-specific and retryable",
+        "Tool call arguments stream as fragments, must be concatenated by index",
+        "Default base URL: https://api.z.ai/api/coding/paas/v4",
+        "Auth: Bearer token (id.secret format)",
+        "Models: glm-5-turbo, glm-4.7 with 128K context"
+      ]
+    },
+    {
+      "url": "/home/ubuntu/cairn/internal/llm/glm_test.go",
+      "title": "Cairn GLM Provider Tests",
+      "qualityScore": 92,
+      "authority": 9,
+      "recency": 10,
+      "depth": 9,
+      "examples": 10,
+      "uniqueness": 8,
+      "keyInsights": [
+        "SSE format: data: {json}\\n\\n with [DONE] sentinel",
+        "Reasoning content streams before main content",
+        "Tool calls assembled from fragmented chunks by index",
+        "HTTP 429 returns error with status code",
+        "System message is first in messages array",
+        "Multiple parallel tool calls supported"
+      ]
+    },
+    {
+      "url": "/home/ubuntu/cairn/internal/llm/types.go",
+      "title": "Cairn LLM Types - Provider-Agnostic Event Model",
+      "qualityScore": 88,
+      "authority": 9,
+      "recency": 10,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Event types: TextDelta, ReasoningDelta, ToolCallDelta, MessageEnd, StreamError",
+        "ReasoningBlock is a first-class content block type",
+        "StreamError has Retryable flag for GLM network_error handling"
+      ]
+    },
+    {
+      "url": "/home/ubuntu/cairn/internal/llm/openai.go",
+      "title": "Cairn OpenAI Provider - Comparison Implementation",
+      "qualityScore": 85,
+      "authority": 9,
+      "recency": 10,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 7,
+      "keyInsights": [
+        "GLM and OpenAI share identical request format for messages, tools, and basic params",
+        "GLM adds: thinking parameter, reasoning_content in delta, network_error finish reason",
+        "OpenAI delta does NOT have reasoning_content field",
+        "Comment in code: 'This is identical to GLM's format since GLM is OpenAI-compatible'"
+      ]
+    },
+    {
+      "url": "/home/ubuntu/cairn/internal/llm/sse.go",
+      "title": "Cairn SSE Parser - Shared by GLM and OpenAI",
+      "qualityScore": 85,
+      "authority": 9,
+      "recency": 10,
+      "depth": 8,
+      "examples": 6,
+      "uniqueness": 7,
+      "keyInsights": [
+        "SSE spec: data: lines, empty line dispatches, [DONE] sentinel, : comments ignored",
+        "Same parser works for both GLM and OpenAI - identical SSE format",
+        "Multiple data: lines joined with newline per SSE spec"
+      ]
+    },
+    {
+      "url": "/home/ubuntu/cairn/internal/config/config.go",
+      "title": "Cairn Config - GLM Provider Configuration",
+      "qualityScore": 80,
+      "authority": 9,
+      "recency": 10,
+      "depth": 6,
+      "examples": 7,
+      "uniqueness": 6,
+      "keyInsights": [
+        "API key env vars: LLM_API_KEY > GLM_API_KEY > ZHIPU_API_KEY > OPENAI_API_KEY",
+        "Provider auto-detected from key env var name",
+        "Default GLM model: glm-5-turbo",
+        "Default GLM base URL: https://api.z.ai/api/coding/paas/v4",
+        "'zhipu' provider name normalized to 'glm'"
+      ]
+    },
+    {
+      "url": "/home/ubuntu/cairn/docs/design/pieces/02-llm-client.md",
+      "title": "Cairn LLM Client Design Doc",
+      "qualityScore": 82,
+      "authority": 8,
+      "recency": 10,
+      "depth": 9,
+      "examples": 6,
+      "uniqueness": 7,
+      "keyInsights": [
+        "GLM provider: raw HTTP + SSE parsing approach (no SDK dependency)",
+        "reasoning_content field maps to ReasoningDelta events",
+        "network_error finish_reason: auto-retry then fallback",
+        "thinking parameter enabled by default",
+        "Retry config: 429, 500, 502, 503 are retryable",
+        "Fallback chain: glm-5-turbo -> glm-4.7 -> error"
+      ]
+    },
+    {
+      "url": "https://github.com/MetaGLM/zhipuai-sdk-python-v4",
+      "title": "Zhipu AI Python SDK - GitHub Repository",
+      "qualityScore": 88,
+      "authority": 10,
+      "recency": 9,
+      "depth": 7,
+      "examples": 8,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Default base URL: https://open.bigmodel.cn/api/paas/v4/",
+        "Auth via api_key param or ZHIPUAI_API_KEY env var",
+        "Streaming: stream=True, iterate chunks with delta.content",
+        "Tools: web_search type with search_query and search_result",
+        "Character models: meta param with user_info, bot_info"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/zhipuai/zhipuai-sdk-python-v4/main/zhipuai/types/chat/chat_completion_chunk.py",
+      "title": "Python SDK - Streaming Chunk Type Definitions",
+      "qualityScore": 90,
+      "authority": 10,
+      "recency": 9,
+      "depth": 9,
+      "examples": 7,
+      "uniqueness": 8,
+      "keyInsights": [
+        "ChoiceDelta has reasoning_content: Optional[str] alongside content",
+        "ChoiceDelta also has audio: Optional[AudioCompletionChunk]",
+        "CompletionUsage tracks prompt_tokens_details (cached_tokens) and completion_tokens_details (reasoning_tokens)",
+        "Tool calls in delta: index, id, function (name + arguments), type"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/zhipuai/zhipuai-sdk-python-v4/main/zhipuai/types/chat/chat_completion.py",
+      "title": "Python SDK - Non-Streaming Response Type Definitions",
+      "qualityScore": 88,
+      "authority": 10,
+      "recency": 9,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 7,
+      "keyInsights": [
+        "CompletionMessage has reasoning_content: Optional[str] alongside content",
+        "Non-streaming also returns reasoning separately from content",
+        "Response includes request_id for tracking"
+      ]
+    },
+    {
+      "url": "https://github.com/zhipuai/zhipuai-sdk-python-v4/blob/main/zhipuai/core/_errors.py",
+      "title": "Python SDK - Error Types",
+      "qualityScore": 78,
+      "authority": 10,
+      "recency": 9,
+      "depth": 7,
+      "examples": 5,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Error hierarchy: ZhipuAIError -> APIStatusError -> specific errors",
+        "Specific errors: APIAuthenticationError, APIReachLimitError, APIInternalError, APIServerFlowExceedError",
+        "APIResponseValidationError for schema mismatches",
+        "Status code available via APIStatusError.status_code"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/MetaGLM/glm-cookbook/main/basic/glm_function_call.ipynb",
+      "title": "GLM Cookbook - Function Calling Tutorial",
+      "qualityScore": 86,
+      "authority": 9,
+      "recency": 8,
+      "depth": 8,
+      "examples": 10,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Tool definition format identical to OpenAI",
+        "tool_choice: 'auto' supported",
+        "finish_reason: 'tool_calls' when model requests function execution",
+        "Tool results sent back as role: 'tool' with tool_call_id"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/MetaGLM/glm-cookbook/main/basic/glm_multi_functions_call.ipynb",
+      "title": "GLM Cookbook - Multiple Function Calls Tutorial",
+      "qualityScore": 84,
+      "authority": 9,
+      "recency": 8,
+      "depth": 8,
+      "examples": 9,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Parallel tool calls supported - multiple tool_calls in one response",
+        "tool_choice: 'required' forces tool usage",
+        "'strict': True supported in tool definitions",
+        "Tool call IDs and order must match exactly"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/MetaGLM/glm-cookbook/main/basic/glm_openai_sdk.ipynb",
+      "title": "GLM Cookbook - OpenAI SDK Compatibility Guide",
+      "qualityScore": 88,
+      "authority": 9,
+      "recency": 8,
+      "depth": 7,
+      "examples": 9,
+      "uniqueness": 8,
+      "keyInsights": [
+        "OpenAI client works with base_url='https://open.bigmodel.cn/api/paas/v4/'",
+        "All standard OpenAI features work: chat, images, embeddings, tool calls",
+        "Model name: 'glm-4.5' used in example",
+        "Quote: 'Other examples (such as tool calls) can also be called in the same way as OpenAI'"
+      ]
+    },
+    {
+      "url": "https://raw.githubusercontent.com/MetaGLM/glm-cookbook/main/basic/glm_http_request.ipynb",
+      "title": "GLM Cookbook - Raw HTTP Request Tutorial",
+      "qualityScore": 85,
+      "authority": 9,
+      "recency": 8,
+      "depth": 7,
+      "examples": 9,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Standard endpoint: https://open.bigmodel.cn/api/paas/v4/chat/completions",
+        "JWT auth: split api_key into id+secret, create HS256 JWT",
+        "Request body: model, messages, max_tokens, temperature, stream",
+        "Streaming returns chunked data with delta.content"
+      ]
+    },
+    {
+      "url": "https://chat.z.ai/",
+      "title": "Z.ai Chat Interface",
+      "qualityScore": 65,
+      "authority": 10,
+      "recency": 10,
+      "depth": 3,
+      "examples": 2,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Z.ai is the consumer product by Zhipu AI",
+        "Powered by GLM-5 and GLM-4.7 models",
+        "Positioned as 'free and open-source ChatGPT alternative'",
+        "Supports text generation, reasoning, and deep research"
+      ]
+    },
+    {
+      "url": "https://huggingface.co/THUDM/glm-4-9b-chat",
+      "title": "GLM-4-9B-Chat Model Card on HuggingFace",
+      "qualityScore": 80,
+      "authority": 9,
+      "recency": 7,
+      "depth": 8,
+      "examples": 8,
+      "uniqueness": 5,
+      "keyInsights": [
+        "128K context length, 9B parameters, BF16",
+        "Function calling: 81% accuracy on Berkeley Function Calling Leaderboard",
+        "26 languages supported",
+        "Available for local deployment via transformers and vLLM"
+      ]
+    },
+    {
+      "url": "https://github.com/THUDM/GLM-4",
+      "title": "GLM-4 Open Source Repository",
+      "qualityScore": 82,
+      "authority": 9,
+      "recency": 8,
+      "depth": 7,
+      "examples": 7,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Model variants: GLM-4-9B, GLM-4-32B, GLM-Z1 (reasoning), GLM-Z1-Rumination (deep reasoning)",
+        "YaRN rope scaling: 32K native extended to 128K",
+        "GLM-Z1-Rumination: deep thinking with search, no custom tools/system prompts",
+        "Tools prepended to message list in fixed template"
+      ]
+    },
+    {
+      "url": "https://pypi.org/project/zhipuai/",
+      "title": "Zhipu AI Python SDK on PyPI",
+      "qualityScore": 70,
+      "authority": 8,
+      "recency": 9,
+      "depth": 5,
+      "examples": 6,
+      "uniqueness": 4,
+      "keyInsights": [
+        "Latest version: 2.1.5.20250825",
+        "Python 3.8+ required",
+        "Dependencies: httpx, pydantic, typing-extensions",
+        "Active maintenance since 2020"
+      ]
+    },
+    {
+      "url": "https://github.com/MetaGLM/glm-cookbook",
+      "title": "GLM Cookbook Repository",
+      "qualityScore": 75,
+      "authority": 9,
+      "recency": 8,
+      "depth": 6,
+      "examples": 7,
+      "uniqueness": 5,
+      "keyInsights": [
+        "Official tutorial repository by MetaGLM",
+        "Examples: function calling, HTTP requests, OpenAI SDK, embeddings, retrieval",
+        "SDKs available for Python, Java, C#, Node.js",
+        "GLM-4.5 integrated with Claude Code"
+      ]
+    }
+  ]
+}

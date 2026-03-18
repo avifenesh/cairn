@@ -1,0 +1,404 @@
+{
+  "topic": "AI Chat Thinking/Reasoning UI Patterns",
+  "slug": "ai-thinking-ui-patterns",
+  "generated": "2026-03-18T00:00:00Z",
+  "depth": "medium",
+  "totalSources": 24,
+  "sources": [
+    {
+      "url": "https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking",
+      "title": "Anthropic Extended Thinking Documentation",
+      "qualityScore": 98,
+      "authority": 10,
+      "recency": 10,
+      "depth": 10,
+      "examples": 10,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Thinking blocks have type 'thinking' with separate signature field",
+        "Streaming emits thinking_delta events before text_delta",
+        "display: 'summarized' (default) vs 'omitted' for hiding thinking",
+        "Signature field enables multi-turn thinking continuity",
+        "Budget tokens control reasoning depth",
+        "Thinking blocks must be preserved unmodified in multi-turn tool use"
+      ]
+    },
+    {
+      "url": "https://api-docs.deepseek.com/guides/reasoning_model",
+      "title": "DeepSeek Reasoning Model API Documentation",
+      "qualityScore": 90,
+      "authority": 10,
+      "recency": 9,
+      "depth": 8,
+      "examples": 8,
+      "uniqueness": 9,
+      "keyInsights": [
+        "reasoning_content field is separate from content in response",
+        "CoT from previous rounds must NOT be concatenated into context",
+        "Streaming sends reasoning tokens and content tokens separately",
+        "max_tokens includes CoT length",
+        "Temperature/top_p parameters are not supported"
+      ]
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/thinking",
+      "title": "Google Gemini Thinking Documentation",
+      "qualityScore": 88,
+      "authority": 10,
+      "recency": 9,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Returns thought summaries not raw thoughts via includeThoughts flag",
+        "thought boolean property on response parts identifies thinking",
+        "Rolling incremental summaries during streaming",
+        "thinkingLevel (Gemini 3) vs thinkingBudget (Gemini 2.5)",
+        "thoughtsTokenCount in usage metadata for billing"
+      ]
+    },
+    {
+      "url": "https://www.anthropic.com/news/visible-extended-thinking",
+      "title": "Anthropic - Visible Extended Thinking Announcement",
+      "qualityScore": 85,
+      "authority": 10,
+      "recency": 8,
+      "depth": 7,
+      "examples": 5,
+      "uniqueness": 10,
+      "keyInsights": [
+        "Thinking content appears 'less polished' and 'more detached' by design",
+        "No standard character training applied to thinking content",
+        "Harmful thinking content is encrypted with user notification",
+        "Faithfulness of displayed thoughts is uncertain",
+        "Available to Pro, Team, Enterprise, API users"
+      ]
+    },
+    {
+      "url": "https://ai-sdk.dev/docs/ai-sdk-ui/chatbot",
+      "title": "Vercel AI SDK - Chatbot UI Documentation",
+      "qualityScore": 87,
+      "authority": 9,
+      "recency": 9,
+      "depth": 8,
+      "examples": 9,
+      "uniqueness": 7,
+      "keyInsights": [
+        "sendReasoning: true in toUIMessageStreamResponse enables reasoning forwarding",
+        "message.parts array contains reasoning parts with type 'reasoning'",
+        "Reasoning parts stream separately from text content",
+        "Supports DeepSeek, Anthropic, and other reasoning providers uniformly"
+      ]
+    },
+    {
+      "url": "https://github.com/vercel/ai-chatbot",
+      "title": "Vercel AI Chatbot Template (Next.js)",
+      "qualityScore": 85,
+      "authority": 8,
+      "recency": 9,
+      "depth": 8,
+      "examples": 9,
+      "uniqueness": 7,
+      "keyInsights": [
+        "MessageReasoning component wraps Reasoning/ReasoningTrigger/ReasoningContent",
+        "hasBeenStreaming state tracks whether to default-expand reasoning",
+        "ThinkingMessage shows pulsing label with staggered bouncing dots",
+        "isStreaming prop enables animation during active generation",
+        "Built on shadcn/ui and Radix primitives"
+      ]
+    },
+    {
+      "url": "https://github.com/danny-avila/LibreChat/pull/11927",
+      "title": "LibreChat - Hide Collapsed Thinking from Screen Readers",
+      "qualityScore": 92,
+      "authority": 8,
+      "recency": 9,
+      "depth": 9,
+      "examples": 9,
+      "uniqueness": 10,
+      "keyInsights": [
+        "aria-hidden={!isExpanded} dynamically hides collapsed content from assistive tech",
+        "role='group' with useId() for semantic grouping without polluting landmarks",
+        "aria-controls wired to content region id via contentId prop",
+        "Applied to both legacy Thinking and modern Reasoning components",
+        "FloatingThinkingBar collapse button also has full ARIA wiring"
+      ]
+    },
+    {
+      "url": "https://github.com/danny-avila/LibreChat/pull/11142",
+      "title": "LibreChat - Expanded Thinking UI Polish",
+      "qualityScore": 88,
+      "authority": 8,
+      "recency": 9,
+      "depth": 8,
+      "examples": 8,
+      "uniqueness": 9,
+      "keyInsights": [
+        "FloatingThinkingBar uses absolute positioning, appears on hover/focus",
+        "Prevents layout expansion during message streaming",
+        "Copy Thoughts button with aria-label for screen readers",
+        "Dynamic icons for expand/collapse state with tooltip anchors",
+        "Full keyboard navigation support"
+      ]
+    },
+    {
+      "url": "https://github.com/danny-avila/LibreChat/blob/main/client/src/components/Chat/Messages/Content/Part.tsx",
+      "title": "LibreChat - Part Component (Content Type Router)",
+      "qualityScore": 86,
+      "authority": 8,
+      "recency": 9,
+      "depth": 8,
+      "examples": 9,
+      "uniqueness": 7,
+      "keyInsights": [
+        "ContentTypes.THINK routes to Reasoning component",
+        "Handles both string and object formats for think content",
+        "isLast prop indicates streaming state for animation control",
+        "Cascading conditional pattern for content type routing"
+      ]
+    },
+    {
+      "url": "https://github.com/danny-avila/LibreChat/blob/main/client/src/components/Chat/Messages/Content/MessageContent.tsx",
+      "title": "LibreChat - MessageContent Component",
+      "qualityScore": 84,
+      "authority": 8,
+      "recency": 9,
+      "depth": 7,
+      "examples": 8,
+      "uniqueness": 7,
+      "keyInsights": [
+        "parseThinkingContent() extracts :::thinking...:::  blocks via regex",
+        "Separates thinking content from regular content before rendering",
+        "Thinking component imported from Parts/Thinking",
+        "Uses memoization to optimize re-renders during streaming"
+      ]
+    },
+    {
+      "url": "https://github.com/open-webui/open-webui/issues/21348",
+      "title": "Open WebUI - Reasoning Trace Fragmentation Bug",
+      "qualityScore": 82,
+      "authority": 7,
+      "recency": 9,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 9,
+      "keyInsights": [
+        "v0.8.0 had reasoning traces split at each token output causing browser hangs",
+        "Different API providers stream responses differently",
+        "Fix involved restoring proper <think> tag interpretation",
+        "Fragmentation linked to connection latency and server config",
+        "Critical lesson: never create new DOM nodes per token"
+      ]
+    },
+    {
+      "url": "https://github.com/open-webui/open-webui/issues",
+      "title": "Open WebUI - Thinking Block Issues (Multiple)",
+      "qualityScore": 80,
+      "authority": 7,
+      "recency": 9,
+      "depth": 7,
+      "examples": 6,
+      "uniqueness": 8,
+      "keyInsights": [
+        "#22267: HTML preview renders code blocks inside thinking blocks incorrectly",
+        "#22237: TTS reads thinking content with code blocks (fixed)",
+        "#20286: Duplicated responses for thinking models during streaming (fixed)",
+        "Uses details HTML elements for collapsible thinking sections",
+        "Markdown component handles <think> tag parsing"
+      ]
+    },
+    {
+      "url": "https://github.com/lobehub/lobe-chat/issues",
+      "title": "LobeChat - Thinking/Reasoning Issues (Multiple)",
+      "qualityScore": 78,
+      "authority": 7,
+      "recency": 9,
+      "depth": 6,
+      "examples": 6,
+      "uniqueness": 7,
+      "keyInsights": [
+        "#12829: Working on reasoning summaries in non-streaming responses",
+        "#13067: Filters internal thinking content in OpenAI-compatible payloads",
+        "#12589: Combining thinking models with web search causes issues",
+        "Provider-specific thinking toggles needed (enable_thinking for Qwen)"
+      ]
+    },
+    {
+      "url": "https://github.com/danny-avila/LibreChat/issues/11381",
+      "title": "LibreChat - TTS Reads Thinking/Reasoning Blocks",
+      "qualityScore": 75,
+      "authority": 7,
+      "recency": 8,
+      "depth": 6,
+      "examples": 5,
+      "uniqueness": 8,
+      "keyInsights": [
+        "TTS should optionally include or exclude thinking content",
+        "User toggle requested for thinking in speech output",
+        "Thinking with code blocks produces garbled TTS"
+      ]
+    },
+    {
+      "url": "https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/",
+      "title": "WAI-ARIA Disclosure Pattern Specification",
+      "qualityScore": 95,
+      "authority": 10,
+      "recency": 7,
+      "depth": 9,
+      "examples": 8,
+      "uniqueness": 10,
+      "keyInsights": [
+        "Control must have role='button' with aria-expanded",
+        "Enter and Space keys activate the disclosure control",
+        "aria-controls optional but recommended for explicit association",
+        "Five example implementations including FAQ accordion patterns"
+      ]
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTML/Element/details",
+      "title": "MDN - HTML details Element Reference",
+      "qualityScore": 92,
+      "authority": 10,
+      "recency": 8,
+      "depth": 9,
+      "examples": 8,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Native HTML disclosure widget with built-in accessibility",
+        "open boolean attribute controls state",
+        "name attribute for exclusive accordion behavior",
+        "toggle event fires after state changes (coalesced for rapid changes)",
+        "Widely available since January 2020"
+      ]
+    },
+    {
+      "url": "https://ui.shadcn.com/docs/components/collapsible",
+      "title": "shadcn/ui - Collapsible Component Documentation",
+      "qualityScore": 86,
+      "authority": 8,
+      "recency": 9,
+      "depth": 7,
+      "examples": 8,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Wraps Radix UI Collapsible primitive",
+        "Collapsible, CollapsibleContent, CollapsibleTrigger API",
+        "Controlled state via open/onOpenChange props",
+        "Full RTL support"
+      ]
+    },
+    {
+      "url": "https://www.radix-ui.com/primitives/docs/components/collapsible",
+      "title": "Radix UI - Collapsible Primitive API Reference",
+      "qualityScore": 90,
+      "authority": 9,
+      "recency": 8,
+      "depth": 9,
+      "examples": 7,
+      "uniqueness": 7,
+      "keyInsights": [
+        "CSS variables --radix-collapsible-content-width/height for animations",
+        "data-state attribute ('open'/'closed') for CSS targeting",
+        "forceMount prop for animation control",
+        "Adheres to WAI-ARIA Disclosure pattern"
+      ]
+    },
+    {
+      "url": "https://www.nngroup.com/articles/progress-indicators/",
+      "title": "NNGroup - Progress Indicators UX Guidelines",
+      "qualityScore": 88,
+      "authority": 10,
+      "recency": 7,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Looped indicator for 2-10 second delays",
+        "Percent-done indicator for 10+ second delays",
+        "Progressive animation: start slower, accelerate toward completion",
+        "Include text explanations and time estimates",
+        "Users willing to wait 3x longer with visual feedback"
+      ]
+    },
+    {
+      "url": "https://www.nngroup.com/articles/skeleton-screens/",
+      "title": "NNGroup - Skeleton Screens and Shimmer Patterns",
+      "qualityScore": 85,
+      "authority": 10,
+      "recency": 7,
+      "depth": 8,
+      "examples": 6,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Skeleton screens best for full-page loads under 10 seconds",
+        "Animated skeletons (shimmer) create perception of shorter waits",
+        "Spinners better for single modules under 10 seconds",
+        "Avoid skeleton screens for loads under 1 second (flashing is annoying)",
+        "Animated skeletons can cause accessibility issues"
+      ]
+    },
+    {
+      "url": "https://developer.chrome.com/docs/css-ui/animate-to-height-auto",
+      "title": "Chrome Developers - Animate to height:auto with CSS",
+      "qualityScore": 82,
+      "authority": 9,
+      "recency": 8,
+      "depth": 7,
+      "examples": 8,
+      "uniqueness": 7,
+      "keyInsights": [
+        "interpolate-size: allow-keywords enables height:auto transitions",
+        "calc-size() function for mathematical operations on intrinsic sizes",
+        "Chrome 129+ and Edge 129+ support",
+        "One endpoint must be a length/percentage for interpolation"
+      ]
+    },
+    {
+      "url": "https://developer.chrome.com/docs/css-ui/exclusive-accordion",
+      "title": "Chrome Developers - CSS Native Exclusive Accordion",
+      "qualityScore": 80,
+      "authority": 9,
+      "recency": 8,
+      "depth": 6,
+      "examples": 7,
+      "uniqueness": 7,
+      "keyInsights": [
+        "name attribute on details elements creates exclusive accordion",
+        "Browser support: Chrome 120+, Edge 120+, Firefox 130+, Safari 17.2+",
+        "Progressive enhancement possible with toggle event polyfill"
+      ]
+    },
+    {
+      "url": "https://react.dev/reference/react/useTransition",
+      "title": "React - useTransition Hook Documentation",
+      "qualityScore": 84,
+      "authority": 9,
+      "recency": 9,
+      "depth": 8,
+      "examples": 8,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Enables non-blocking UI updates for streaming content",
+        "isPending flag for showing loading states",
+        "Prevents jarring loading indicators by keeping revealed content visible",
+        "Interruptible: new user interactions cancel in-progress transitions"
+      ]
+    },
+    {
+      "url": "https://web.dev/articles/building/a-loading-bar-component",
+      "title": "web.dev - Building a Loading Bar Component",
+      "qualityScore": 78,
+      "authority": 8,
+      "recency": 7,
+      "depth": 7,
+      "examples": 8,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Indeterminate animation with gradient-based shimmer at 225% background-size",
+        "color-scheme property for automatic dark/light adaptation",
+        "Browser-specific selectors for progress element styling",
+        "2-second animation cycle for indeterminate state"
+      ]
+    }
+  ]
+}

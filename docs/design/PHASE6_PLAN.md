@@ -5,13 +5,13 @@
 
 ## Current State (updated 2026-03-18)
 
-326+ backend tests, 221 frontend tests, 14 packages, ~24,000+ lines of Go.
-25 built-in tools. 5 bundled SKILL.md files.
+337 backend tests, ~250 frontend tests, 14 packages, ~25,200 lines of Go.
+24 built-in tools. 5 bundled SKILL.md files.
 
 **Phase 6 backend COMPLETE** (PRs #21, #24, #26 — all merged).
-**Phase 6.5 PR A COMPLETE** (PR #37 — skill activation, session scoping).
-**Phase 6 frontend NEAR COMPLETE** — 13/15 items done (PRs #28-40). Remaining: 6f.3 (feed actions), 6f.9 (skill detail — needs backend GET /v1/skills/:name).
-Phase 6.5 PR B (skill install), Phase 7, and Phase 8 remain.
+**Phase 6.5 COMPLETE** — PR A (#37, skill activation + session scoping), PR B (#39, skill install + multi-dir discovery + validation).
+**Phase 6 frontend NEAR COMPLETE** — 13/15 items done (PRs #28-40). Remaining: 6f.3 (feed actions), 6f.9 (skill detail).
+Phase 7 and Phase 8 remain.
 
 ---
 
@@ -112,7 +112,7 @@ Phase 6.5 PR B (skill install), Phase 7, and Phase 8 remain.
 
 ---
 
-## Phase 6.5: Skill Activation System (NEW)
+## Phase 6.5: Skill Activation System (COMPLETE)
 
 > Research finding: Skills are prompt injection, NOT tool declaration (OpenCode pattern).
 > `allowed-tools` in SKILL.md frontmatter SCOPES which tools are available, doesn't create new ones.
@@ -120,7 +120,7 @@ Phase 6.5 PR B (skill install), Phase 7, and Phase 8 remain.
 > This matches Claude Code's architecture: skills/slash commands are the primary extensibility;
 > MCP servers are secondary, for specific external service bridges.
 
-### PR A — Backend: Skill Activation + Session Scoping
+### PR A — Backend: Skill Activation + Session Scoping ✅ MERGED (#37)
 
 | # | What | Details | Pattern |
 |---|------|---------|---------|
@@ -131,7 +131,7 @@ Phase 6.5 PR B (skill install), Phase 7, and Phase 8 remain.
 | 6.5a.5 | Permission gate | `disable-model-invocation: true` skills require approval before activation. | OpenCode: `ctx.ask({ permission: "skill" })` |
 | 6.5a.6 | Tests | | |
 
-### PR B — Backend: Skill Install + Discovery
+### PR B — Backend: Skill Install + Discovery ✅ MERGED (#39)
 
 | # | What | Details | Pattern |
 |---|------|---------|---------|
@@ -252,10 +252,10 @@ Phase 6 (DONE):
   PR 3 (Skill tools+bundles)    ─── merged #26
   PR 4 (Frontend Phase 6)       ─── needs PR1-3, for FE agent
 
-Phase 6.5 (NEXT):
-  PR A (Skill activation)       ─── needs Phase 6
-  PR B (Skill install)          ─── needs PR A
-  PR C (Plugin tools)           ─── optional, independent
+Phase 6.5 (DONE):
+  PR A (Skill activation)       ─── merged #37
+  PR B (Skill install)          ─── merged #39
+  PR C (Plugin tools)           ─── optional, deferred
 
 Phase 7:
   PR 5 (MCP Server) ──┐
@@ -275,7 +275,7 @@ Phase 8:
 | Phase | Backend | Frontend | New capabilities |
 |-------|---------|----------|-----------------|
 | 6 | 3 PRs ✅ DONE (16 tools + 5 skills) | 1 PR (22 subphases) | Web, memory, feed, tasks, skills |
-| 6.5 | 2-3 PRs (activation, install, plugin tools) | — (uses Phase 6 FE) | Skill activation, session scoping, install |
+| 6.5 | 2 PRs ✅ DONE (activation, install) | — (uses Phase 6 FE) | Skill activation, session scoping, install, validation |
 | 7 | 3 PRs (MCP + A2A) | 1 PR (6 subphases) | External agents, external tools |
 | 8 | 2 PRs (channels + intelligence) | 2 PRs (10 subphases) | Telegram, embeddings, Gmail, voice |
 | **Total** | **10-11 PRs** | **4 PRs** | |

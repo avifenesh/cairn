@@ -50,7 +50,7 @@ Keep the first line under 72 characters. Use the body for details.
 - `go vet` and `gofmt` must pass (CI enforces this)
 - Tests use the standard `testing` package
 - Test files live alongside source: `foo.go` / `foo_test.go`
-- ES-style imports: stdlib, blank line, external deps
+- Imports grouped: standard library, blank line, then third-party/internal packages
 - Error handling: wrap with context via `fmt.Errorf("component: %w", err)`
 - SQLite columns: snake_case. Go fields: CamelCase
 - Zod-style validation: validate at boundaries, trust internal types

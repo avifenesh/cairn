@@ -11,7 +11,7 @@ Cairn watches your world (GitHub, HN, Reddit, npm, crates.io, webhooks), acts on
 make build
 
 # Chat (requires LLM_API_KEY)
-export GLM_API_KEY=your-key
+export LLM_API_KEY=your-key
 ./cairn chat "what's in package.json?"
 
 # Serve (HTTP API + SSE + frontend)

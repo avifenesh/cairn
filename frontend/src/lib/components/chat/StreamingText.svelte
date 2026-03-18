@@ -16,9 +16,21 @@
 			renderedContent = renderMarkdown(content);
 		}, 80);
 	});
+
+	// Event delegation for code block copy buttons (no inline onclick)
+	function handleClick(e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		if (target.dataset.copy !== 'true') return;
+		const block = target.closest('.cairn-code-block');
+		const code = block?.querySelector('code')?.textContent ?? '';
+		navigator.clipboard.writeText(code);
+		target.textContent = 'Copied';
+		setTimeout(() => { target.textContent = 'Copy'; }, 2000);
+	}
 </script>
 
-<div class="streaming-text">
+<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+<div class="streaming-text" onclick={handleClick}>
 	<div class="cairn-prose text-sm text-[var(--text-primary)] leading-relaxed">
 		{@html renderedContent}
 		{#if isStreaming}

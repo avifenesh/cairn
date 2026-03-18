@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { chatStore } from '$lib/stores/chat.svelte';
 	import { getSessionMessages } from '$lib/api/client';
-	import { relativeTime } from '$lib/utils/time';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { MessageSquare, Plus, Loader2 } from '@lucide/svelte';

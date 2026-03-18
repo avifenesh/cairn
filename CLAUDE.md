@@ -34,8 +34,13 @@ Phase 1: Foundation (event bus + LLM + SQLite)                [DONE]
 Phase 2: Core Systems (tools | tasks | memory) in parallel    [DONE]
 Phase 3: Agent Core (ReAct loop wires all together)           [DONE]
 Phase 4: Server + Skills + Signal Plane (4a+4b+4c)             [DONE]
-Phase 5: Integration, always-on loop, open-source release      [IN PROGRESS]
+Phase 5: Always-on, CI/CD, docs, open-source                   [DONE]
+Phase 6: Protocols (MCP server/client, A2A)
+Phase 7: Channels (Telegram, router, notifications)
+Phase 8: Intelligence (embeddings, compaction, Gmail, voice)
 ```
+
+Full plan: `docs/design/PHASE6_PLAN.md`
 
 ## Architecture
 

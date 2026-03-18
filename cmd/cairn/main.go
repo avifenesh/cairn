@@ -126,10 +126,16 @@ func runServe(logger *slog.Logger) {
 		}
 	}
 
-	// Initialize tool registry and configure web tools.
+	// Configure web tool backends BEFORE registering tools (All() checks ZaiEnabled).
+	if cfg.ZaiWebEnabled && cfg.LLMAPIKey != "" {
+		builtin.SetZaiConfig(cfg.LLMAPIKey, cfg.ZaiBaseURL)
+		logger.Info("zai web tools enabled", "baseURL", cfg.ZaiBaseURL)
+	}
+	builtin.SetWebConfig(cfg.SearXNGURL, time.Duration(cfg.WebFetchTimeout)*time.Second, cfg.WebFetchMaxSize)
+
+	// Initialize tool registry.
 	toolRegistry := tool.NewRegistry()
 	toolRegistry.Register(builtin.All()...)
-	builtin.SetWebConfig(cfg.SearXNGURL, time.Duration(cfg.WebFetchTimeout)*time.Second, cfg.WebFetchMaxSize)
 
 	// Initialize memory service.
 	memStore := memory.NewStore(database)

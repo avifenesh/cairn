@@ -72,7 +72,11 @@ type Config struct {
 	MCPTransport      string // MCP_TRANSPORT ("stdio"/"http"/"both", default "http")
 	MCPWriteRateLimit int    // MCP_WRITE_RATE_LIMIT (default 100 per minute)
 
-	// Web tools
+	// Z.ai MCP tools (default for GLM provider)
+	ZaiWebEnabled bool   // ZAI_WEB_ENABLED (default true when LLM_PROVIDER=glm)
+	ZaiBaseURL    string // ZAI_BASE_URL (default https://api.z.ai/api/mcp)
+
+	// Web tools (fallback when Z.ai disabled)
 	SearXNGURL      string // SearXNG instance URL for web search
 	WebFetchTimeout int    // Seconds (default: 30)
 	WebFetchMaxSize int64  // Bytes (default: 5MB)
@@ -168,6 +172,8 @@ func Load() (*Config, error) {
 		MCPPort:               envInt("MCP_PORT", 3001),
 		MCPTransport:          envStr("MCP_TRANSPORT", "http"),
 		MCPWriteRateLimit:     envInt("MCP_WRITE_RATE_LIMIT", 100),
+		ZaiWebEnabled:         envBool("ZAI_WEB_ENABLED", provider == "glm"),
+		ZaiBaseURL:            envStr("ZAI_BASE_URL", "https://api.z.ai/api/mcp"),
 		TelegramBotToken:      envStr("TELEGRAM_BOT_TOKEN", ""),
 		TelegramChatID:        envInt64("TELEGRAM_CHAT_ID", 0),
 		ChannelSessionTimeout: envInt("CHANNEL_SESSION_TIMEOUT", 240),

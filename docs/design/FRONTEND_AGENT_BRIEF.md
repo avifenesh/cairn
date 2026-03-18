@@ -267,11 +267,11 @@ The Go backend embeds `frontend/dist/` via `embed.FS` and serves it at `/`.
 3. Unit tests for utilities: markdown (rendering, XSS sanitization), time (relative formatting), touch (pull-to-refresh, swipe-to-dismiss)
 4. API client tests: ApiError, fetch behavior, credentials
 5. Test script: `pnpm test` (vitest run), `pnpm test:watch` (vitest)
-6. 213 tests across 25 test files (stores, utils, API, components)
+6. 221 tests across 27 test files (stores, utils, API, components)
 
 ## Completion Status
 
-All frontend phases (1-5), subphases (10.1-10.12), Phase 6 hardening (10/10 items), full redesign, and Phase 6 frontend partial complete. 193 tests across 21 files, 14 shadcn-svelte components, Cairn design system (emerald accent, zinc backgrounds, Geist font). Token gate, SSE chat integration, API normalization layer, message split bug fix, tool call upgrade, system status card, skill browser, chat empty state all done.
+All frontend phases (1-5), subphases (10.1-10.12), Phase 6 hardening, full redesign, and Phase 6 frontend near complete (13/15 items). 221 tests across 27 files. 14 shadcn-svelte components. Cairn design system (emerald accent, zinc backgrounds, Geist font). 10 reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav, skills, status). Shared constants in `$lib/constants.ts`.
 
 ### Full Redesign (merged)
 
@@ -288,14 +288,14 @@ Design system rewrite: `--pub-*` → `--cairn-*`, emerald `#10B981` accent, zinc
 | C.5 | Mode-specific styling | medium | Visual distinction per mode (talk/work/coding) — accent color, icon, border |
 | C.6 | File attachment | medium | Attach files to messages, preview, send as multipart |
 | C.7 | Voice input/output | medium | Wire VoiceButton to backend whisper endpoint, TTS playback |
-| C.8 | Message actions bar | medium | Hover actions: copy, remember, create task, share |
+| C.8 | Message actions bar | medium | **DONE PR #34** — hover bar: copy, remember this, create task |
 | C.9 | Streaming improvements | medium | **DONE PR #28** — completedTaskIds guard, appendDelta no auto-create, split bug fixed |
 | C.10 | Chat empty state | low | **DONE PR #30** — mode-aware suggestion chips, textarea focus on click |
 
 ### Frontend Tool/Skill UI (from PHASE6_PLAN.md items 6f.1-6f.22 — UNBLOCKED, backend done)
 
-**Done (11/13):** 6f.1 (PR #29), 6f.2 (PR #34), 6f.4 (PR #38), 6f.5 (PR #34), 6f.6 (PR #38), 6f.7 (PR #35), 6f.8 (PR #32), 6f.11 (PR #29), 6f.12 (PR #38), 6f.13 (PR #36). Also: C.8 (PR #34), C.9 (PR #28), C.10 (PR #30).
-**Remaining:** 6f.3 (feed actions — low priority, chat doesn't render feed inline yet), 6f.9 (skill detail — needs GET /v1/skills/:name), 6f.10 (active skill indicator — needs Phase 6.5), 6f.14-18 (infra: stores, SSE events).
+**Done (13/15):** 6f.1 (#29), 6f.2 (#34), 6f.4 (#38), 6f.5 (#34), 6f.6 (#38), 6f.7 (#35), 6f.8 (#32), 6f.10 (#40), 6f.11 (#29), 6f.12 (#38), 6f.13 (#36), 6f.14-17 (#40). Also: C.8 (#34), C.9 (#28), C.10 (#30).
+**Remaining:** 6f.3 (feed actions — low priority), 6f.9 (skill detail — needs backend to wire handleListSkills + GET /v1/skills/:name). 6f.18 (SSE tool_executed) pending backend event.
 
 ### Phase 6: Hardening (approved improvements, independent of backend)
 

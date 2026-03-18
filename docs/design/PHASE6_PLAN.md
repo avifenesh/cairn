@@ -9,9 +9,9 @@
 24 built-in tools. 5 bundled SKILL.md files.
 
 **Phase 6 backend COMPLETE** (PRs #21, #24, #26 — all merged).
-**Phase 6.5 COMPLETE** — PR A (#37, skill activation + session scoping), PR B (#39, skill install + multi-dir discovery + validation).
-**Phase 6 frontend NEAR COMPLETE** — 13/15 items done (PRs #28-40). Remaining: 6f.3 (feed actions), 6f.9 (skill detail).
-Phase 7 and Phase 8 remain.
+**Phase 6.5 COMPLETE** — PR A (#37 skill activation + session scoping), PR B (#39 skill install + validation).
+**Phase 6 frontend NEAR COMPLETE** — 13/15 items done (PRs #28-40). Remaining: 6f.3 (feed actions — low priority), 6f.9 (skill detail — needs backend to wire handleListSkills + GET /v1/skills/:name).
+Phase 7 (MCP/A2A) and Phase 8 (Channels/Intelligence) remain.
 
 ---
 
@@ -247,17 +247,17 @@ Phase 7 and Phase 8 remain.
 
 ```
 Phase 6 (DONE):
-  PR 1 (Web+Memory+Feed tools) ─── merged #21
+  PR 1 (Web+Memory+Feed tools)  ─── merged #21
   PR 2 (Task+Comm tools)        ─── merged #24
   PR 3 (Skill tools+bundles)    ─── merged #26
-  PR 4 (Frontend Phase 6)       ─── needs PR1-3, for FE agent
+  PR 4 (Frontend Phase 6)       ─── 13/15 done (PRs #28-40), 2 remaining
 
 Phase 6.5 (DONE):
   PR A (Skill activation)       ─── merged #37
   PR B (Skill install)          ─── merged #39
   PR C (Plugin tools)           ─── optional, deferred
 
-Phase 7:
+Phase 7 (NEXT):
   PR 5 (MCP Server) ──┐
   PR 6 (MCP Client) ──┤ parallel, needs Phase 6
   PR 7 (A2A Server) ──┘
@@ -274,8 +274,8 @@ Phase 8:
 
 | Phase | Backend | Frontend | New capabilities |
 |-------|---------|----------|-----------------|
-| 6 | 3 PRs ✅ DONE (16 tools + 5 skills) | 1 PR (22 subphases) | Web, memory, feed, tasks, skills |
-| 6.5 | 2 PRs ✅ DONE (activation, install) | — (uses Phase 6 FE) | Skill activation, session scoping, install, validation |
+| 6 | 3 PRs ✅ DONE (16 tools + 5 skills) | 13/15 items ✅ (PRs #28-40) | Web, memory, feed, tasks, skills |
+| 6.5 | 2 PRs ✅ DONE (#37, #39) | Uses Phase 6 FE | Skill activation, install, validation |
 | 7 | 3 PRs (MCP + A2A) | 1 PR (6 subphases) | External agents, external tools |
 | 8 | 2 PRs (channels + intelligence) | 2 PRs (10 subphases) | Telegram, embeddings, Gmail, voice |
-| **Total** | **10-11 PRs** | **4 PRs** | |
+| **Total** | **8 merged + 3 remaining** | **13 done + 2 remaining** | |

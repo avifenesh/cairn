@@ -80,6 +80,13 @@
 	const modeColor = $derived(modeColors[chatStore.mode] ?? 'var(--cairn-accent)');
 	const modePlaceholder = $derived(modePlaceholders[chatStore.mode] ?? 'Send a message...');
 
+	const modeSuggestions: Record<string, string[]> = {
+		talk: ['Summarize my unread feed', 'What do you remember about me?', 'Plan a weekend trip', 'Triage my notifications'],
+		work: ['Show my pending tasks', 'Create a daily digest', 'Draft a status update', 'What needs attention?'],
+		coding: ['Review the latest diff', 'Find TODOs in the codebase', 'Write tests for...', 'Explain this error...'],
+	};
+	const suggestions = $derived(modeSuggestions[chatStore.mode] ?? modeSuggestions.talk);
+
 	// Auto-scroll when messages change (new message or session loaded)
 	$effect(() => {
 		// Track message count to trigger scroll
@@ -95,7 +102,7 @@
 	<div class="flex-1 overflow-y-auto">
 		<div class="mx-auto max-w-3xl flex flex-col gap-4 p-4">
 			{#if !hasMessages}
-				<div class="flex flex-col items-center justify-center py-24 text-center">
+				<div class="flex flex-col items-center justify-center py-16 text-center">
 					<div class="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent-dim)] mb-4">
 						<Bot class="h-6 w-6 text-[var(--cairn-accent)]" />
 					</div>
@@ -103,6 +110,17 @@
 					<p class="text-sm text-[var(--text-tertiary)] max-w-sm">
 						I can write code, manage tasks, search your memory, plan trips, triage emails, and more.
 					</p>
+					<div class="flex flex-wrap justify-center gap-2 max-w-md mt-6">
+						{#each suggestions as suggestion}
+							<button
+								class="rounded-lg border border-border-subtle bg-[var(--bg-1)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-2)] hover:text-[var(--text-primary)] transition-colors"
+								onclick={() => { inputText = suggestion; }}
+								type="button"
+							>
+								{suggestion}
+							</button>
+						{/each}
+					</div>
 				</div>
 			{/if}
 

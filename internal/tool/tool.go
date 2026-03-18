@@ -7,9 +7,93 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/avifenesh/cairn/internal/eventbus"
 )
+
+// MemoryService is the interface tools use to interact with the memory system.
+type MemoryService interface {
+	Create(ctx context.Context, m *MemoryItem) error
+	Search(ctx context.Context, query string, limit int) ([]MemorySearchResult, error)
+	Get(ctx context.Context, id string) (*MemoryItem, error)
+	Accept(ctx context.Context, id string) error
+	Reject(ctx context.Context, id string) error
+	Delete(ctx context.Context, id string) error
+}
+
+// MemoryItem is a tool-level representation of a memory (avoids import cycle).
+type MemoryItem struct {
+	ID         string
+	Content    string
+	Category   string
+	Scope      string
+	Status     string
+	Confidence float64
+	Source     string
+}
+
+// MemorySearchResult pairs a memory with its relevance score.
+type MemorySearchResult struct {
+	Memory *MemoryItem
+	Score  float64
+}
+
+// EventService is the interface tools use to interact with the signal plane.
+type EventService interface {
+	List(ctx context.Context, f EventFilter) ([]*StoredEvent, error)
+	MarkRead(ctx context.Context, id string) error
+	MarkAllRead(ctx context.Context) (int, error)
+}
+
+// EventFilter controls which events to list.
+type EventFilter struct {
+	Source     string
+	Kind       string
+	UnreadOnly bool
+	Limit      int
+}
+
+// StoredEvent is a tool-level representation of a signal event.
+type StoredEvent struct {
+	ID        string
+	Source    string
+	Kind      string
+	Title     string
+	Body      string
+	URL       string
+	Actor     string
+	CreatedAt time.Time
+	ReadAt    *time.Time
+}
+
+// DigestService generates feed digests.
+type DigestService interface {
+	Generate(ctx context.Context) (*DigestResult, error)
+}
+
+// DigestResult holds a generated summary.
+type DigestResult struct {
+	Summary    string
+	Highlights []string
+	EventCount int
+}
+
+// JournalService queries the session journal.
+type JournalService interface {
+	Recent(ctx context.Context, dur time.Duration) ([]*JournalEntry, error)
+}
+
+// JournalEntry is a tool-level representation of a journal entry.
+type JournalEntry struct {
+	ID        string
+	Summary   string
+	Decisions []string
+	Errors    []string
+	Learnings []string
+	Mode      string
+	CreatedAt time.Time
+}
 
 // Mode represents the agent interaction mode that determines which tools are available.
 type Mode string
@@ -38,6 +122,12 @@ type ToolContext struct {
 	Permissions *PermissionSet
 	Bus         *eventbus.Bus
 	Cancel      context.Context
+
+	// Service dependencies for non-filesystem tools.
+	Memories MemoryService
+	Events   EventService
+	Digest   DigestService
+	Journal  JournalService
 }
 
 // ToolResult holds the output of a tool execution.

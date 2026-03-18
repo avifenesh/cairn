@@ -45,6 +45,12 @@ type InvocationContext struct {
 	ContextBuilder *memory.ContextBuilder      // Token-budgeted context assembly (nil = fallback)
 	JournalEntries []memory.JournalDigestEntry // Last 48h journal for context
 	Plugins        *plugin.Manager             // Lifecycle hooks (nil = no plugins)
+
+	// Tool service adapters — passed through to ToolContext during execution.
+	ToolMemories tool.MemoryService
+	ToolEvents   tool.EventService
+	ToolDigest   tool.DigestService
+	ToolJournal  tool.JournalService
 }
 
 // AgentConfig holds per-invocation agent configuration.

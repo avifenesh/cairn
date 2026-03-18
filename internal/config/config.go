@@ -65,6 +65,11 @@ type Config struct {
 	AgentTickInterval  int // Seconds (default: 60)
 	ReflectionInterval int // Seconds (default: 1800)
 
+	// Web tools
+	SearXNGURL      string // SearXNG instance URL for web search
+	WebFetchTimeout int    // Seconds (default: 30)
+	WebFetchMaxSize int64  // Bytes (default: 5MB)
+
 	// Paths
 	SoulPath  string
 	SkillDirs []string
@@ -147,6 +152,9 @@ func Load() (*Config, error) {
 		BudgetWeeklyCap:       envFloat("BUDGET_WEEKLY_CAP", envFloat("BEDROCK_WEEKLY_BUDGET_USD", 0)),
 		AgentTickInterval:     envInt("AGENT_TICK_INTERVAL", 60),
 		ReflectionInterval:    envInt("REFLECTION_INTERVAL", 1800),
+		SearXNGURL:            envStr("SEARXNG_URL", ""),
+		WebFetchTimeout:       envInt("WEB_FETCH_TIMEOUT", 30),
+		WebFetchMaxSize:       envInt64("WEB_FETCH_MAX_SIZE", 5*1024*1024),
 		SoulPath:              envStr("SOUL_PATH", "./SOUL.md"),
 		SkillDirs:             envSlice("SKILL_DIRS", []string{"./.pub/skills"}),
 		DataDir:               envStr("DATA_DIR", "./data"),
@@ -207,6 +215,15 @@ func envBool(key string, fallback bool) bool {
 func envSlice(key string, fallback []string) []string {
 	if v := os.Getenv(key); v != "" {
 		return strings.Split(v, ",")
+	}
+	return fallback
+}
+
+func envInt64(key string, fallback int64) int64 {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return n
+		}
 	}
 	return fallback
 }

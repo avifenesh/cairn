@@ -146,8 +146,14 @@ export const getTasks = async (params?: { status?: string; type?: string }) => {
 };
 
 export const cancelTask = (id: string) => post<{ ok: boolean }>(`/v1/tasks/${id}/cancel`);
-export const createTask = (description: string, type = 'general', priority = 2) =>
-	post<Task>('/v1/tasks', { description, type, priority });
+export const createTask = async (description: string, type = 'general', priority = 2) => {
+	const raw = await post<Record<string, unknown>>('/v1/tasks', { description, type, priority });
+	return {
+		...raw,
+		title: (raw.title ?? raw.description ?? description) as string,
+		status: raw.status === 'queued' ? 'pending' : raw.status,
+	} as Task;
+};
 
 // Approvals
 export const getApprovals = async (params?: { status?: string }) => {

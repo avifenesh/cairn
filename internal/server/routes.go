@@ -204,8 +204,8 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	if req.Type == "" {
 		req.Type = "general"
 	}
-	if req.Priority < 0 || req.Priority > 9 {
-		writeError(w, http.StatusBadRequest, "priority must be 0-9")
+	if req.Priority < 0 || req.Priority > 4 {
+		writeError(w, http.StatusBadRequest, "priority must be 0-4")
 		return
 	}
 

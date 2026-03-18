@@ -8,6 +8,7 @@
 	import ContextPanel from '$lib/components/layout/ContextPanel.svelte';
 	import CommandPalette from '$lib/components/layout/CommandPalette.svelte';
 	import HelpModal from '$lib/components/layout/HelpModal.svelte';
+	import TokenGate from '$lib/components/layout/TokenGate.svelte';
 	import { appStore } from '$lib/stores/app.svelte';
 	import { sseStore } from '$lib/stores/sse.svelte';
 	import { feedStore } from '$lib/stores/feed.svelte';
@@ -19,6 +20,12 @@
 	import { page } from '$app/state';
 
 	let { children } = $props();
+
+	// Token gate: check once on mount, reload on auth
+	let isAuthed = false;
+	try {
+		isAuthed = !!localStorage.getItem('cairn_api_token');
+	} catch {}
 
 	// Derive item count from active view so j/k/o/r/a/d shortcuts work
 	$effect(() => {
@@ -45,7 +52,7 @@
 
 	onMount(() => {
 		appStore.initTheme();
-		sseStore.connect();
+		if (isAuthed) sseStore.connect();
 
 		function handleKeydown(e: KeyboardEvent) {
 			if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -145,6 +152,9 @@
 	});
 </script>
 
+{#if !isAuthed}
+	<TokenGate />
+{:else}
 <Tooltip.Provider>
 <div class="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
 	<Header />
@@ -187,4 +197,5 @@
 			</div>
 		{/each}
 	</div>
+{/if}
 {/if}

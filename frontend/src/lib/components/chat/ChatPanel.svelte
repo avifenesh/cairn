@@ -66,13 +66,19 @@
 	const streamingList = $derived([...chatStore.streamingMessages.values()]);
 	const hasMessages = $derived(chatStore.messages.length > 0 || streamingList.length > 0);
 
-	// Mode-specific accent colors
+	// Mode-specific accent colors and placeholders
 	const modeColors: Record<string, string> = {
 		talk: 'var(--cairn-accent)',
-		work: '#F59E0B',
-		coding: '#06B6D4',
+		work: 'var(--color-warning)',
+		coding: 'var(--src-x)',
+	};
+	const modePlaceholders: Record<string, string> = {
+		talk: 'Send a message...',
+		work: 'What needs to get done?',
+		coding: 'Describe a coding task...',
 	};
 	const modeColor = $derived(modeColors[chatStore.mode] ?? 'var(--cairn-accent)');
+	const modePlaceholder = $derived(modePlaceholders[chatStore.mode] ?? 'Send a message...');
 
 	// Auto-scroll when messages change (new message or session loaded)
 	$effect(() => {
@@ -166,13 +172,13 @@
 
 			<div class="flex items-end gap-2">
 				<div
-					class="flex-1 rounded-lg border bg-[var(--bg-0)] transition-colors"
-					style="border-color: color-mix(in srgb, {modeColor} 25%, transparent)"
+					class="flex-1 rounded-lg border bg-[var(--bg-0)] transition-colors focus-within:ring-1"
+					style="border-color: color-mix(in srgb, {modeColor} 25%, transparent); --tw-ring-color: color-mix(in srgb, {modeColor} 30%, transparent)"
 				>
 					<textarea
 						bind:value={inputText}
 						onkeydown={handleKeydown}
-						placeholder="{chatStore.mode === 'coding' ? 'Describe a coding task...' : chatStore.mode === 'work' ? 'What needs to get done?' : 'Send a message...'}"
+						placeholder={modePlaceholder}
 						rows="1"
 						class="w-full resize-none bg-transparent px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
 					></textarea>

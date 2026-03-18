@@ -21,16 +21,11 @@
 
 	let { children } = $props();
 
-	// Token gate: check if user has a stored API token
-	let authenticated = $state(false);
-	function checkAuth() {
-		try {
-			const token = localStorage.getItem('cairn_api_token');
-			authenticated = !!token;
-		} catch {
-			authenticated = false;
-		}
-	}
+	// Token gate: check once on mount, reload on auth
+	let isAuthed = false;
+	try {
+		isAuthed = !!localStorage.getItem('cairn_api_token');
+	} catch {}
 
 	// Derive item count from active view so j/k/o/r/a/d shortcuts work
 	$effect(() => {
@@ -56,9 +51,8 @@
 	});
 
 	onMount(() => {
-		checkAuth();
 		appStore.initTheme();
-		if (authenticated) sseStore.connect();
+		if (isAuthed) sseStore.connect();
 
 		function handleKeydown(e: KeyboardEvent) {
 			if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -158,8 +152,8 @@
 	});
 </script>
 
-{#if !authenticated}
-	<TokenGate onauth={() => { authenticated = true; sseStore.connect(); }} />
+{#if !isAuthed}
+	<TokenGate onauth={() => {}} />
 {:else}
 <Tooltip.Provider>
 <div class="flex h-dvh flex-col overflow-hidden bg-background text-foreground">

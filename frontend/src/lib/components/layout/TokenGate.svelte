@@ -20,7 +20,8 @@
 			});
 			if (res.ok) {
 				localStorage.setItem('cairn_api_token', t);
-				onauth();
+				window.location.reload();
+				return;
 			} else {
 				error = 'Invalid token';
 			}

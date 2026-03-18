@@ -263,6 +263,59 @@ Phase 6c (A2A Server)  ← needs both: context for agent card, hooks for task li
 
 **PR A and PR B are independent** — can be built in parallel. Both must be done before Phase 6.
 
+---
+
+## PR C: Frontend — Plugin & Budget Visibility
+
+**Depends on**: PR B (plugin hooks + API endpoints)
+
+After the backend ships `GET /v1/plugins` and plugin metrics, the frontend surfaces them.
+
+### Subphases
+
+| # | What | View | Details |
+|---|------|------|---------|
+| C.1 | Plugin list in Settings | Settings | Active plugins with name, status (enabled/disabled), description. Toggle if configurable. |
+| C.2 | Plugin metrics in Ops | Ops | Per-plugin stats: total calls intercepted, errors caught, avg latency. Table or card layout. |
+| C.3 | Budget indicator | Header / Chat | Remaining daily/weekly spend vs cap. Progress bar or compact text. Color: green/yellow/red. Updates via SSE. |
+| C.4 | Budget plugin detail | Settings | Daily/weekly spend history, per-model breakdown, cap configuration. |
+| C.5 | Memory context stats | Chat (debug) | Optional debug panel: how many memories injected, token budget used, hard rules included. Visible via toggle or dev mode. |
+| C.6 | Plugin error alerts | Toast / Ops | When a plugin's OnError fires for something user-relevant (budget exceeded, tool blocked), surface as toast notification. |
+
+### New API Endpoints (backend provides)
+
+| Method | Path | Returns |
+|--------|------|---------|
+| GET | /v1/plugins | List of active plugins with name, status, description |
+| GET | /v1/plugins/stats | Per-plugin metrics (calls, errors, latency) |
+| GET | /v1/budget | Current spend, caps, remaining, per-model breakdown |
+
+### SSE Events (new)
+
+| Event | When | Data |
+|-------|------|------|
+| `plugin:error` | Plugin OnError fires | `{plugin, hook, error, severity}` |
+| `budget:update` | After each LLM call | `{dailySpend, dailyCap, weeklySpend, weeklyCap, model}` |
+
+### Frontend Store
+
+```typescript
+// New store: src/lib/stores/plugins.svelte.ts
+let plugins = $state<Plugin[]>([]);
+let budget = $state<Budget>({ daily: 0, dailyCap: 0, weekly: 0, weeklyCap: 0 });
+
+// SSE integration: update budget on budget:update events
+// Fetch plugins on Settings view mount
+```
+
+### Design Notes
+- Budget indicator follows the existing header pattern (compact, non-intrusive)
+- Plugin metrics use the same card layout as Ops task cards
+- Memory context debug panel is opt-in (localStorage toggle or Settings switch)
+- No new routes/pages needed — extends Settings and Ops views
+
+---
+
 ## Quality Bar
 
 These are core infrastructure. The standard is:

@@ -29,7 +29,7 @@
 	<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 mb-4">
 		<div class="mb-3 flex items-center justify-between">
 			<span class="text-sm font-medium text-[var(--text-primary)]">Create Task</span>
-			<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => (open = false)}>
+			<Button variant="ghost" size="icon" class="h-7 w-7" onclick={() => (open = false)} aria-label="Close create task">
 				<X class="h-4 w-4 text-[var(--text-tertiary)]" />
 			</Button>
 		</div>

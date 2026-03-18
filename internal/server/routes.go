@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -190,10 +191,12 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		Type        string `json:"type"`
 		Priority    int    `json:"priority"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := readJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+
+	req.Description = strings.TrimSpace(req.Description)
 	if req.Description == "" {
 		writeError(w, http.StatusBadRequest, "description is required")
 		return
@@ -201,14 +204,24 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	if req.Type == "" {
 		req.Type = "general"
 	}
+	if req.Priority < 0 || req.Priority > 9 {
+		writeError(w, http.StatusBadRequest, "priority must be 0-9")
+		return
+	}
+
+	input, _ := json.Marshal(map[string]string{"description": req.Description})
 
 	t, err := s.tasks.Submit(r.Context(), &task.SubmitRequest{
 		Type:        task.TaskType(req.Type),
 		Priority:    task.Priority(req.Priority),
 		Description: req.Description,
-		Input:       json.RawMessage(`{}`),
+		Input:       input,
 	})
 	if err != nil {
+		if errors.Is(err, task.ErrDuplicate) {
+			writeError(w, http.StatusConflict, "duplicate task")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

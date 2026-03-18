@@ -53,6 +53,7 @@ type InvocationContext struct {
 	ToolJournal  tool.JournalService
 	ToolTasks    tool.TaskService
 	ToolStatus   tool.StatusService
+	ToolSkills   tool.SkillService
 }
 
 // AgentConfig holds per-invocation agent configuration.

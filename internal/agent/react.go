@@ -278,6 +278,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			Journal:   invCtx.ToolJournal,
 			Tasks:     invCtx.ToolTasks,
 			Status:    invCtx.ToolStatus,
+			Skills:    invCtx.ToolSkills,
 		}
 
 		for _, tc := range toolCalls {

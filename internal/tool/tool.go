@@ -153,6 +153,20 @@ type PollerInfo struct {
 	Active bool
 }
 
+// SkillService provides access to the skill system.
+type SkillService interface {
+	Get(name string) *SkillItem
+	List() []*SkillItem
+}
+
+// SkillItem is a tool-level representation of a skill.
+type SkillItem struct {
+	Name        string
+	Description string
+	Inclusion   string // "always" or "on-demand"
+	Content     string
+}
+
 // Mode represents the agent interaction mode that determines which tools are available.
 type Mode string
 
@@ -188,6 +202,7 @@ type ToolContext struct {
 	Journal  JournalService
 	Tasks    TaskService
 	Status   StatusService
+	Skills   SkillService
 }
 
 // ToolResult holds the output of a tool execution.

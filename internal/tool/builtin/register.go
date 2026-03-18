@@ -39,5 +39,8 @@ func All() []tool.Tool {
 		// Communication + status tools.
 		compose,
 		getStatus,
+		// Skill tools.
+		loadSkill,
+		listSkills,
 	}
 }

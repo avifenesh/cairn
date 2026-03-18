@@ -54,6 +54,16 @@ func (s *Server) embeddedStaticHandler(dist fs.FS) http.Handler {
 
 // fsStaticHandler serves from the filesystem with SPA fallback (dev mode).
 func (s *Server) fsStaticHandler(distDir string) http.Handler {
+	// Resolve distDir to absolute once at init time (not per-request).
+	absDistDir, err := filepath.Abs(distDir)
+	if err != nil {
+		// If we can't resolve the dist dir, return a handler that always 404s.
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			writeError(w, http.StatusNotFound, "static files not available")
+		})
+	}
+	indexPath := filepath.Join(absDistDir, "index.html")
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -64,43 +74,45 @@ func (s *Server) fsStaticHandler(distDir string) http.Handler {
 			return
 		}
 
-		reqPath := filepath.Clean(r.URL.Path)
-		if reqPath == "/" || reqPath == "." {
-			reqPath = "index.html"
-		} else {
-			reqPath = strings.TrimPrefix(reqPath, "/")
-		}
-
-		filePath := filepath.Join(distDir, reqPath)
-
-		// Path traversal protection: resolved path must be within distDir.
-		absFilePath, err := filepath.Abs(filePath)
-		if err != nil {
-			writeError(w, http.StatusForbidden, "forbidden")
-			return
-		}
-		absDistDir, err := filepath.Abs(distDir)
-		if err != nil {
-			writeError(w, http.StatusForbidden, "forbidden")
-			return
-		}
-		if !strings.HasPrefix(absFilePath, absDistDir+string(filepath.Separator)) && absFilePath != absDistDir {
+		// Resolve the safe path within the dist directory.
+		safePath, ok := safeFSPath(absDistDir, r.URL.Path)
+		if !ok {
 			writeError(w, http.StatusForbidden, "forbidden")
 			return
 		}
 
-		// Use the validated absolute path for all file operations.
-		info, statErr := os.Stat(absFilePath)
+		info, statErr := os.Stat(safePath)
 		if statErr != nil || info.IsDir() {
-			absIndexPath := filepath.Join(absDistDir, "index.html")
-			if _, err := os.Stat(absIndexPath); err == nil {
-				http.ServeFile(w, r, absIndexPath)
+			if _, err := os.Stat(indexPath); err == nil {
+				http.ServeFile(w, r, indexPath)
 				return
 			}
 			writeError(w, http.StatusNotFound, "not found")
 			return
 		}
 
-		http.ServeFile(w, r, absFilePath)
+		http.ServeFile(w, r, safePath)
 	})
+}
+
+// safeFSPath resolves a URL path to a safe filesystem path within baseDir.
+// Returns the absolute path and true if safe, or empty string and false if
+// the path would escape baseDir.
+func safeFSPath(absBaseDir, urlPath string) (string, bool) {
+	// Clean the URL path and strip leading slash.
+	cleaned := filepath.Clean(urlPath)
+	if cleaned == "/" || cleaned == "." {
+		cleaned = "index.html"
+	} else {
+		cleaned = strings.TrimPrefix(cleaned, "/")
+	}
+
+	// Join with the pre-resolved absolute base dir.
+	candidate := filepath.Join(absBaseDir, cleaned)
+
+	// Verify the candidate is within baseDir.
+	if !strings.HasPrefix(candidate, absBaseDir+string(filepath.Separator)) && candidate != absBaseDir {
+		return "", false
+	}
+	return candidate, true
 }

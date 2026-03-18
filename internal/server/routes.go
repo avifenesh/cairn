@@ -528,17 +528,38 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 		TaskID:    t.ID,
 	})
 
+	// Build journal entries for context (last 48h).
+	var journalEntries []memory.JournalDigestEntry
+	if s.journalStore != nil {
+		if entries, err := s.journalStore.Recent(ctx, 48*time.Hour); err != nil {
+			s.logger.Warn("journal entries failed, proceeding without", "error", err)
+		} else {
+			for _, e := range entries {
+				journalEntries = append(journalEntries, memory.JournalDigestEntry{
+					Summary:   e.Summary,
+					Mode:      e.Mode,
+					CreatedAt: e.CreatedAt,
+					Learnings: e.Learnings,
+					Errors:    e.Errors,
+				})
+			}
+		}
+	}
+
 	invCtx := &agent.InvocationContext{
-		Context:     ctx,
-		SessionID:   session.ID,
-		UserMessage: message,
-		Mode:        mode,
-		Session:     session,
-		Tools:       s.tools,
-		LLM:         s.llm,
-		Memory:      s.memories,
-		Soul:        s.soul,
-		Bus:         s.bus,
+		Context:        ctx,
+		SessionID:      session.ID,
+		UserMessage:    message,
+		Mode:           mode,
+		Session:        session,
+		Tools:          s.tools,
+		LLM:            s.llm,
+		Memory:         s.memories,
+		Soul:           s.soul,
+		Bus:            s.bus,
+		ContextBuilder: s.contextBuilder,
+		JournalEntries: journalEntries,
+		Plugins:        s.plugins,
 		Config: &agent.AgentConfig{
 			Model: s.config.LLMModel,
 		},

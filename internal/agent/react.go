@@ -9,6 +9,7 @@ import (
 
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
+	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/tool"
 )
 
@@ -101,6 +102,25 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 		})
 	}
 
+	// Plugin: BeforeAgentRun.
+	agentStart := time.Now()
+	inv := &plugin.Invocation{
+		SessionID:   invCtx.SessionID,
+		UserMessage: invCtx.UserMessage,
+		Mode:        mode,
+		Model:       model,
+		StartedAt:   agentStart,
+	}
+	if invCtx.Plugins != nil {
+		var hookErr error
+		invCtx.Context, hookErr = invCtx.Plugins.RunBeforeAgentRun(invCtx.Context, inv)
+		if hookErr != nil {
+			emit(invCtx.Context, ch, RunEvent{Err: fmt.Errorf("plugin: %w", hookErr)})
+			return
+		}
+	}
+
+	var totalToolCalls int
 	for round := 0; round < maxRounds; round++ {
 		// Check context cancellation.
 		if invCtx.Context.Err() != nil {
@@ -118,8 +138,26 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			Tools:    toolDefs,
 		}
 
+		// Plugin: BeforeLLMCall.
+		llmCall := &plugin.LLMCall{Model: model, Round: round}
+		if invCtx.Plugins != nil {
+			var hookErr error
+			invCtx.Context, hookErr = invCtx.Plugins.RunBeforeLLMCall(invCtx.Context, llmCall)
+			if hookErr != nil {
+				emit(invCtx.Context, ch, RunEvent{Err: fmt.Errorf("plugin: %w", hookErr)})
+				if invCtx.Plugins != nil {
+					invCtx.Plugins.RunOnAgentError(invCtx.Context, inv, hookErr)
+				}
+				return
+			}
+		}
+
 		llmCh, err := invCtx.LLM.Stream(invCtx.Context, req)
 		if err != nil {
+			if invCtx.Plugins != nil {
+				invCtx.Context = invCtx.Plugins.RunOnLLMError(invCtx.Context, llmCall, err)
+				invCtx.Plugins.RunOnAgentError(invCtx.Context, inv, err)
+			}
 			emit(invCtx.Context, ch, RunEvent{Err: fmt.Errorf("llm stream: %w", err)})
 			return
 		}
@@ -172,6 +210,15 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			}})
 		}
 
+		// Plugin: AfterLLMCall.
+		if invCtx.Plugins != nil {
+			invCtx.Context = invCtx.Plugins.RunAfterLLMCall(invCtx.Context, llmCall, &plugin.TokenUsage{
+				InputTokens:  inputTokens,
+				OutputTokens: outputTokens,
+				Model:        model,
+			})
+		}
+
 		a.logger.Debug("round complete",
 			"round", round,
 			"text_len", roundText.Len(),
@@ -182,13 +229,20 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 
 		// 3. If no tool calls, we're done.
 		if len(toolCalls) == 0 {
-			// Publish stream ended.
 			if invCtx.Bus != nil {
 				eventbus.Publish(invCtx.Bus, eventbus.StreamEnded{
 					EventMeta:    eventbus.NewMeta("agent"),
 					InputTokens:  inputTokens,
 					OutputTokens: outputTokens,
 					FinishReason: "stop",
+				})
+			}
+			// Plugin: AfterAgentRun.
+			if invCtx.Plugins != nil {
+				invCtx.Plugins.RunAfterAgentRun(invCtx.Context, inv, &plugin.RunResult{
+					Rounds:     round + 1,
+					ToolCalls:  totalToolCalls,
+					DurationMs: time.Since(agentStart).Milliseconds(),
 				})
 			}
 			return
@@ -236,21 +290,54 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 				}},
 			}})
 
+			// Plugin: BeforeToolCall.
+			toolCallInfo := &plugin.ToolCall{Name: tc.Name, Input: tc.Input}
+			if invCtx.Plugins != nil {
+				var hookErr error
+				invCtx.Context, hookErr = invCtx.Plugins.RunBeforeToolCall(invCtx.Context, toolCallInfo)
+				if hookErr != nil {
+					// Plugin blocked the tool call.
+					emit(invCtx.Context, ch, RunEvent{Event: &Event{
+						ID: newID(), SessionID: invCtx.SessionID, Timestamp: time.Now(),
+						Author: a.name, Round: round,
+						Parts: []Part{ToolPart{ToolName: tc.Name, CallID: tc.ID, Status: ToolFailed, Error: hookErr.Error()}},
+					}})
+					messages = append(messages, llm.Message{
+						Role:    llm.RoleTool,
+						Content: []llm.ContentBlock{llm.ToolResultBlock{ToolUseID: tc.ID, Content: hookErr.Error(), IsError: true}},
+					})
+					continue
+				}
+			}
+
 			// Execute.
 			start := time.Now()
 			result, execErr := invCtx.Tools.Execute(toolCtx, tc.Name, tc.Input)
 			duration := time.Since(start)
+			totalToolCalls++
 
 			var output, errStr string
 			status := ToolCompleted
 			if execErr != nil {
 				status = ToolFailed
 				errStr = execErr.Error()
+				if invCtx.Plugins != nil {
+					invCtx.Context = invCtx.Plugins.RunOnToolError(invCtx.Context, toolCallInfo, execErr)
+				}
 			} else if result.Error != "" {
 				status = ToolFailed
 				errStr = result.Error
+				if invCtx.Plugins != nil {
+					invCtx.Context = invCtx.Plugins.RunOnToolError(invCtx.Context, toolCallInfo, fmt.Errorf("%s", result.Error))
+				}
 			} else {
 				output = result.Output
+				if invCtx.Plugins != nil {
+					invCtx.Context = invCtx.Plugins.RunAfterToolCall(invCtx.Context, toolCallInfo, &plugin.ToolResult{
+						Output:   output,
+						Duration: duration,
+					})
+				}
 			}
 
 			// Emit tool result.
@@ -299,7 +386,10 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 		// 6. Loop continues — LLM will see tool results.
 	}
 
-	// Max rounds exhausted.
+	// Max rounds exhausted — treat as abnormal termination.
+	if invCtx.Plugins != nil {
+		invCtx.Plugins.RunOnAgentError(invCtx.Context, inv, fmt.Errorf("max rounds exhausted (%d)", maxRounds))
+	}
 	a.logger.Warn("max rounds exhausted", "maxRounds", maxRounds, "mode", mode)
 	emit(invCtx.Context, ch, RunEvent{Event: &Event{
 		ID:        newID(),

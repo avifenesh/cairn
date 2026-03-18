@@ -2,6 +2,7 @@ package skill
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -43,7 +44,7 @@ func TestValidate_UnknownTool(t *testing.T) {
 
 	found := false
 	for _, iss := range issues {
-		if iss.Severity == SeverityWarning && contains(iss.Message, "pub.nonExistent") {
+		if iss.Severity == SeverityWarning && strings.Contains(iss.Message, "pub.nonExistent") {
 			found = true
 		}
 	}
@@ -65,7 +66,7 @@ func TestValidate_ShellWithoutDisableModel(t *testing.T) {
 
 	found := false
 	for _, iss := range issues {
-		if iss.Severity == SeverityWarning && contains(iss.Message, "pub.shell") && contains(iss.Message, "disable-model-invocation") {
+		if iss.Severity == SeverityWarning && strings.Contains(iss.Message, "pub.shell") && strings.Contains(iss.Message, "disable-model-invocation") && strings.Contains(iss.Message, "security risk") {
 			found = true
 		}
 	}
@@ -85,7 +86,7 @@ func TestValidate_ShortDescription(t *testing.T) {
 
 	found := false
 	for _, iss := range issues {
-		if iss.Severity == SeverityWarning && contains(iss.Message, "too short") {
+		if iss.Severity == SeverityWarning && strings.Contains(iss.Message, "too short") {
 			found = true
 		}
 	}
@@ -106,7 +107,7 @@ func TestValidate_NameMismatch(t *testing.T) {
 
 	found := false
 	for _, iss := range issues {
-		if iss.Severity == SeverityWarning && contains(iss.Message, "does not match directory") {
+		if iss.Severity == SeverityWarning && strings.Contains(iss.Message, "does not match directory") {
 			found = true
 		}
 	}
@@ -125,7 +126,7 @@ func TestValidate_NoIssuesWhenNameMatchesDir(t *testing.T) {
 	issues := Validate(sk, testKnownTools)
 
 	for _, iss := range issues {
-		if contains(iss.Message, "does not match directory") {
+		if strings.Contains(iss.Message, "does not match directory") {
 			t.Error("should not warn about name mismatch when name equals directory basename")
 		}
 	}
@@ -144,7 +145,7 @@ func TestValidate_ShellWithDisableModel(t *testing.T) {
 	issues := Validate(sk, testKnownTools)
 
 	for _, iss := range issues {
-		if contains(iss.Message, "pub.shell") && contains(iss.Message, "disable-model-invocation") {
+		if strings.Contains(iss.Message, "pub.shell") && strings.Contains(iss.Message, "disable-model-invocation") && strings.Contains(iss.Message, "security risk") {
 			t.Error("should not warn about pub.shell when disable-model-invocation is true")
 		}
 	}
@@ -164,7 +165,7 @@ func TestValidate_EmptyKnownTools(t *testing.T) {
 
 	warnCount := 0
 	for _, iss := range issues {
-		if contains(iss.Message, "unknown tool") {
+		if strings.Contains(iss.Message, "unknown tool") {
 			warnCount++
 		}
 	}

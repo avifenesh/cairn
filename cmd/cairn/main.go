@@ -556,21 +556,25 @@ func runChat(logger *slog.Logger) {
 	}
 }
 
+// exitf prints an error message to stderr and exits with code 1.
+func exitf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", args...)
+	os.Exit(1)
+}
+
 // runInstallSkill installs a skill from a git URL or local directory path
 // into ~/.cairn/skills/{name}/.
 func runInstallSkill(logger *slog.Logger, source string) {
 	// Determine install target directory.
 	home, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: cannot determine home directory: %v\n", err)
-		os.Exit(1)
+		exitf("cannot determine home directory: %v", err)
 	}
 	installBase := filepath.Join(home, ".cairn", "skills")
 
 	// Ensure the install directory exists.
 	if err := os.MkdirAll(installBase, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: cannot create skill directory %s: %v\n", installBase, err)
-		os.Exit(1)
+		exitf("cannot create skill directory %s: %v", installBase, err)
 	}
 
 	var srcDir string // directory containing the SKILL.md
@@ -579,8 +583,7 @@ func runInstallSkill(logger *slog.Logger, source string) {
 		// Clone to a temp directory.
 		tmpDir, err := os.MkdirTemp("", "cairn-skill-install-*")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: cannot create temp dir: %v\n", err)
-			os.Exit(1)
+			exitf("cannot create temp dir: %v", err)
 		}
 		defer os.RemoveAll(tmpDir)
 
@@ -589,27 +592,23 @@ func runInstallSkill(logger *slog.Logger, source string) {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: git clone failed: %v\n", err)
-			os.Exit(1)
+			exitf("git clone failed: %v", err)
 		}
 
 		srcDir, err = findSkillDir(tmpDir)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			exitf("%v", err)
 		}
 	} else {
 		// Local path — resolve and verify.
 		absPath, err := filepath.Abs(source)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: invalid path %q: %v\n", source, err)
-			os.Exit(1)
+			exitf("invalid path %q: %v", source, err)
 		}
 
 		srcDir, err = findSkillDir(absPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			exitf("%v", err)
 		}
 	}
 
@@ -617,8 +616,7 @@ func runInstallSkill(logger *slog.Logger, source string) {
 	skillPath := filepath.Join(srcDir, "SKILL.md")
 	sk, err := skill.Parse(skillPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to parse SKILL.md: %v\n", err)
-		os.Exit(1)
+		exitf("failed to parse SKILL.md: %v", err)
 	}
 
 	// Validate.
@@ -633,8 +631,7 @@ func runInstallSkill(logger *slog.Logger, source string) {
 		}
 	}
 	if hasErrors {
-		fmt.Fprintln(os.Stderr, "Error: skill has validation errors, aborting install")
-		os.Exit(1)
+		exitf("skill has validation errors, aborting install")
 	}
 
 	// Copy the skill directory to ~/.cairn/skills/{name}/.
@@ -644,14 +641,12 @@ func runInstallSkill(logger *slog.Logger, source string) {
 	if _, err := os.Stat(destDir); err == nil {
 		fmt.Printf("Replacing existing skill %q...\n", sk.Name)
 		if err := os.RemoveAll(destDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: cannot remove existing skill: %v\n", err)
-			os.Exit(1)
+			exitf("cannot remove existing skill: %v", err)
 		}
 	}
 
 	if err := copyDir(srcDir, destDir); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to copy skill: %v\n", err)
-		os.Exit(1)
+		exitf("failed to copy skill: %v", err)
 	}
 
 	fmt.Printf("Installed skill %q to %s\n", sk.Name, destDir)
@@ -664,8 +659,11 @@ func runInstallSkill(logger *slog.Logger, source string) {
 }
 
 // isGitURL returns true if source looks like a git URL.
+// Handles HTTPS (contains "://"), bare .git suffix, and SCP-like URLs (git@host:user/repo).
 func isGitURL(source string) bool {
-	return strings.Contains(source, "://") || strings.HasSuffix(source, ".git")
+	return strings.Contains(source, "://") ||
+		strings.HasSuffix(source, ".git") ||
+		(strings.Contains(source, "@") && strings.Contains(source, ":"))
 }
 
 // findSkillDir locates the directory containing SKILL.md within root.

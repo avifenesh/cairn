@@ -22,6 +22,9 @@ type ValidationIssue struct {
 	Message  string
 }
 
+// minDescriptionLength is the minimum recommended character count for a skill description.
+const minDescriptionLength = 10
+
 // Validate checks a parsed skill for common issues and returns any problems found.
 // knownTools is the list of registered tool names used to verify allowed-tools references.
 func Validate(sk *Skill, knownTools []string) []ValidationIssue {
@@ -49,7 +52,7 @@ func Validate(sk *Skill, knownTools []string) []ValidationIssue {
 			if t == "pub.shell" {
 				issues = append(issues, ValidationIssue{
 					Severity: SeverityWarning,
-					Message:  "skill allows pub.shell without disable-model-invocation: true",
+					Message:  "skill allows 'pub.shell' without 'disable-model-invocation' being set to 'true', which is a security risk",
 				})
 				break
 			}
@@ -57,10 +60,10 @@ func Validate(sk *Skill, knownTools []string) []ValidationIssue {
 	}
 
 	// Check empty or short description.
-	if len(strings.TrimSpace(sk.Description)) < 10 {
+	if len(strings.TrimSpace(sk.Description)) < minDescriptionLength {
 		issues = append(issues, ValidationIssue{
 			Severity: SeverityWarning,
-			Message:  fmt.Sprintf("description is too short (%d chars, minimum recommended: 10)", len(strings.TrimSpace(sk.Description))),
+			Message:  fmt.Sprintf("description is too short (%d chars, minimum recommended: %d)", len(strings.TrimSpace(sk.Description)), minDescriptionLength),
 		})
 	}
 

@@ -8,9 +8,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Brain } from '@lucide/svelte';
+	import { Brain, Check, X, Square, CheckSquare } from '@lucide/svelte';
 
 	let filter = $state<'all' | 'proposed' | 'accepted'>('all');
+	let selectedIds = $state<Set<string>>(new Set());
 
 	onMount(async () => {
 		memoryStore.setLoading(true);
@@ -42,12 +43,16 @@
 
 	async function handleAccept(id: string) {
 		memoryStore.resolveMemory(id, 'accepted');
-		await acceptMemory(id);
+		selectedIds.delete(id);
+		selectedIds = new Set(selectedIds);
+		try { await acceptMemory(id); } catch { /* optimistic — already resolved in store */ }
 	}
 
 	async function handleReject(id: string) {
 		memoryStore.resolveMemory(id, 'rejected');
-		await rejectMemory(id);
+		selectedIds.delete(id);
+		selectedIds = new Set(selectedIds);
+		try { await rejectMemory(id); } catch { /* optimistic — already resolved in store */ }
 	}
 
 	async function handleCreate(content: string, category: string) {
@@ -57,6 +62,29 @@
 		} catch {
 			// handled
 		}
+	}
+
+	function toggleSelect(id: string) {
+		if (selectedIds.has(id)) {
+			selectedIds.delete(id);
+		} else {
+			selectedIds.add(id);
+		}
+		selectedIds = new Set(selectedIds);
+	}
+
+	async function bulkAccept() {
+		const ids = [...selectedIds];
+		ids.forEach((id) => memoryStore.resolveMemory(id, 'accepted'));
+		selectedIds = new Set();
+		await Promise.all(ids.map((id) => acceptMemory(id)));
+	}
+
+	async function bulkReject() {
+		const ids = [...selectedIds];
+		ids.forEach((id) => memoryStore.resolveMemory(id, 'rejected'));
+		selectedIds = new Set();
+		await Promise.all(ids.map((id) => rejectMemory(id)));
 	}
 
 	const displayMemories = $derived(() => {
@@ -101,6 +129,37 @@
 		{/each}
 	</div>
 
+	<!-- Batch actions bar -->
+	{#if selectedIds.size > 0}
+		<div class="mb-4 flex items-center gap-2 rounded-lg border border-border-subtle bg-[var(--bg-1)] px-4 py-2">
+			<span class="text-xs text-[var(--text-secondary)] font-medium">{selectedIds.size} selected</span>
+			<Button
+				variant="outline"
+				size="sm"
+				class="h-7 text-xs gap-1 border-[var(--color-success)]/30 text-[var(--color-success)] hover:bg-[var(--color-success)]/10"
+				onclick={bulkAccept}
+			>
+				<Check class="h-3 w-3" /> Accept selected
+			</Button>
+			<Button
+				variant="outline"
+				size="sm"
+				class="h-7 text-xs gap-1 border-[var(--color-error)]/30 text-[var(--color-error)] hover:bg-[var(--color-error)]/10"
+				onclick={bulkReject}
+			>
+				<X class="h-3 w-3" /> Reject selected
+			</Button>
+			<Button
+				variant="ghost"
+				size="sm"
+				class="h-7 text-xs ml-auto"
+				onclick={() => (selectedIds = new Set())}
+			>
+				Clear
+			</Button>
+		</div>
+	{/if}
+
 	{#if memoryStore.loading}
 		<div class="flex flex-col gap-3">
 			{#each Array(5) as _, i}
@@ -119,8 +178,25 @@
 	{:else}
 		<div class="flex flex-col gap-3">
 			{#each displayMemories() as memory, i (memory.id)}
-				<div class="animate-in" style="animation-delay: {Math.min(i * 30, 300)}ms">
-					<MemoryCard {memory} onaccept={handleAccept} onreject={handleReject} />
+				<div class="flex gap-2 animate-in" style="animation-delay: {Math.min(i * 30, 300)}ms">
+					{#if memory.status === 'proposed'}
+						<button
+							class="mt-4 flex-shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+							onclick={() => toggleSelect(memory.id)}
+							type="button"
+							aria-label={selectedIds.has(memory.id) ? 'Deselect memory' : 'Select memory'}
+							aria-pressed={selectedIds.has(memory.id)}
+						>
+							{#if selectedIds.has(memory.id)}
+								<CheckSquare class="h-4 w-4 text-[var(--cairn-accent)]" />
+							{:else}
+								<Square class="h-4 w-4" />
+							{/if}
+						</button>
+					{/if}
+					<div class="flex-1">
+						<MemoryCard {memory} onaccept={handleAccept} onreject={handleReject} />
+					</div>
 				</div>
 			{/each}
 		</div>

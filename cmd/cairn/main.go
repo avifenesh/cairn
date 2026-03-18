@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -47,6 +50,19 @@ func main() {
 		case "version":
 			fmt.Printf("cairn %s (%s) built %s\n", version, commit, date)
 			return
+		case "install":
+			if len(os.Args) > 2 && os.Args[2] == "skill" {
+				if len(os.Args) < 4 {
+					fmt.Fprintln(os.Stderr, "Usage: cairn install skill <source>")
+					fmt.Fprintln(os.Stderr, "  source: git URL (https://... or *.git) or local directory path")
+					os.Exit(1)
+				}
+				runInstallSkill(logger, os.Args[3])
+				return
+			}
+			fmt.Fprintln(os.Stderr, "Usage: cairn install skill <source>")
+			os.Exit(1)
+			return
 		}
 	}
 
@@ -54,8 +70,9 @@ func main() {
 	fmt.Printf("version %s (%s)\n\n", version, commit)
 	fmt.Println("Usage: cairn chat \"your message here\"")
 	fmt.Println("       cairn chat --mode coding \"your message\"")
-	fmt.Println("       cairn serve               # start HTTP server")
-	fmt.Println("       cairn version             # show version info")
+	fmt.Println("       cairn serve                      # start HTTP server")
+	fmt.Println("       cairn install skill <source>     # install a skill from git URL or local path")
+	fmt.Println("       cairn version                    # show version info")
 }
 
 // runServe starts the HTTP server with all subsystems initialized.
@@ -537,4 +554,176 @@ func runChat(logger *slog.Logger) {
 			sessionStore.AppendEvent(ctx, session.ID, assistantEv)
 		}
 	}
+}
+
+// runInstallSkill installs a skill from a git URL or local directory path
+// into ~/.cairn/skills/{name}/.
+func runInstallSkill(logger *slog.Logger, source string) {
+	// Determine install target directory.
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: cannot determine home directory: %v\n", err)
+		os.Exit(1)
+	}
+	installBase := filepath.Join(home, ".cairn", "skills")
+
+	// Ensure the install directory exists.
+	if err := os.MkdirAll(installBase, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: cannot create skill directory %s: %v\n", installBase, err)
+		os.Exit(1)
+	}
+
+	var srcDir string // directory containing the SKILL.md
+
+	if isGitURL(source) {
+		// Clone to a temp directory.
+		tmpDir, err := os.MkdirTemp("", "cairn-skill-install-*")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: cannot create temp dir: %v\n", err)
+			os.Exit(1)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		fmt.Printf("Cloning %s...\n", source)
+		cmd := exec.Command("git", "clone", "--depth", "1", source, tmpDir)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: git clone failed: %v\n", err)
+			os.Exit(1)
+		}
+
+		srcDir, err = findSkillDir(tmpDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		// Local path — resolve and verify.
+		absPath, err := filepath.Abs(source)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: invalid path %q: %v\n", source, err)
+			os.Exit(1)
+		}
+
+		srcDir, err = findSkillDir(absPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	// Parse and validate the SKILL.md.
+	skillPath := filepath.Join(srcDir, "SKILL.md")
+	sk, err := skill.Parse(skillPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to parse SKILL.md: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Validate.
+	issues := skill.Validate(sk, nil) // no known tools at CLI time
+	for _, iss := range issues {
+		fmt.Printf("  [%s] %s\n", iss.Severity, iss.Message)
+	}
+	hasErrors := false
+	for _, iss := range issues {
+		if iss.Severity == skill.SeverityError {
+			hasErrors = true
+		}
+	}
+	if hasErrors {
+		fmt.Fprintln(os.Stderr, "Error: skill has validation errors, aborting install")
+		os.Exit(1)
+	}
+
+	// Copy the skill directory to ~/.cairn/skills/{name}/.
+	destDir := filepath.Join(installBase, sk.Name)
+
+	// Remove existing if present.
+	if _, err := os.Stat(destDir); err == nil {
+		fmt.Printf("Replacing existing skill %q...\n", sk.Name)
+		if err := os.RemoveAll(destDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: cannot remove existing skill: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	if err := copyDir(srcDir, destDir); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to copy skill: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Installed skill %q to %s\n", sk.Name, destDir)
+	fmt.Printf("  Name:        %s\n", sk.Name)
+	fmt.Printf("  Description: %s\n", sk.Description)
+	fmt.Printf("  Inclusion:   %s\n", sk.Inclusion)
+	if len(sk.AllowedTools) > 0 {
+		fmt.Printf("  Tools:       %s\n", strings.Join(sk.AllowedTools, ", "))
+	}
+}
+
+// isGitURL returns true if source looks like a git URL.
+func isGitURL(source string) bool {
+	return strings.Contains(source, "://") || strings.HasSuffix(source, ".git")
+}
+
+// findSkillDir locates the directory containing SKILL.md within root.
+// It checks root itself first, then immediate subdirectories.
+func findSkillDir(root string) (string, error) {
+	// Check root directly.
+	if _, err := os.Stat(filepath.Join(root, "SKILL.md")); err == nil {
+		return root, nil
+	}
+
+	// Check immediate subdirectories.
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return "", fmt.Errorf("cannot read directory %q: %w", root, err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		candidate := filepath.Join(root, entry.Name(), "SKILL.md")
+		if _, err := os.Stat(candidate); err == nil {
+			return filepath.Join(root, entry.Name()), nil
+		}
+	}
+
+	return "", fmt.Errorf("no SKILL.md found in %q or its subdirectories", root)
+}
+
+// copyDir recursively copies a directory tree.
+func copyDir(src, dst string) error {
+	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Compute relative path.
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+
+		if d.IsDir() {
+			return os.MkdirAll(target, 0755)
+		}
+
+		// Copy file.
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+
+		return os.WriteFile(target, data, info.Mode())
+	})
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -156,7 +157,7 @@ func Load() (*Config, error) {
 		WebFetchTimeout:       envInt("WEB_FETCH_TIMEOUT", 30),
 		WebFetchMaxSize:       envInt64("WEB_FETCH_MAX_SIZE", 5*1024*1024),
 		SoulPath:              envStr("SOUL_PATH", "./SOUL.md"),
-		SkillDirs:             envSlice("SKILL_DIRS", []string{"./.pub/skills"}),
+		SkillDirs:             skillDirs(),
 		DataDir:               envStr("DATA_DIR", "./data"),
 	}
 
@@ -179,7 +180,7 @@ func LoadOptional() *Config {
 			DatabasePath: envStr("DATABASE_PATH", "./data/cairn.db"),
 			LLMProvider:  envStr("LLM_PROVIDER", "glm"),
 			SoulPath:     envStr("SOUL_PATH", "./SOUL.md"),
-			SkillDirs:    envSlice("SKILL_DIRS", []string{"./.pub/skills"}),
+			SkillDirs:    skillDirs(),
 			DataDir:      envStr("DATA_DIR", "./data"),
 		}
 	}
@@ -246,6 +247,28 @@ func pollIntervalSeconds() int {
 		return v / 1000
 	}
 	return 300 // default: 5 minutes
+}
+
+// skillDirs builds the default skill search path from well-known locations
+// plus any extra directories from the SKILL_DIRS env var.
+// Order: ["./skills", "~/.cairn/skills", ".cairn/skills"] + SKILL_DIRS extras.
+// Later directories override earlier ones (Service.Discover uses last-wins by map key).
+func skillDirs() []string {
+	dirs := []string{"./skills"}
+
+	// Expand ~ for home-based path.
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, filepath.Join(home, ".cairn", "skills"))
+	}
+
+	dirs = append(dirs, ".cairn/skills")
+
+	// Append any extra directories from SKILL_DIRS env var.
+	if extra := envSlice("SKILL_DIRS", nil); len(extra) > 0 {
+		dirs = append(dirs, extra...)
+	}
+
+	return dirs
 }
 
 // envMap parses JSON from an env var into map[string]string.

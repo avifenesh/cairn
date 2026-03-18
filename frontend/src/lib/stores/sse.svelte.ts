@@ -132,20 +132,30 @@ export const sseStore = {
 			}
 		});
 		handle('assistant_end', source, (d) => {
-			// Flush any pending delta before completing
-			flushDelta();
-
-			// Backend may send empty taskId — resolve from active streaming message
+			// Resolve taskId: from event, from pending buffer, or from active stream
 			let taskId = d.taskId;
+			if (!taskId) taskId = pendingDeltaTaskId;
 			if (!taskId) {
 				const active = chatStore.activeStream;
 				if (active) taskId = active.taskId;
 			}
-			if (taskId) {
-				const streaming = chatStore.streamingMessages.get(taskId);
-				const text = d.messageText ?? d.text ?? streaming?.content ?? '';
-				chatStore.completeMessage(taskId, text);
+			if (!taskId) return;
+
+			// Build final content: store content + any unflushed buffer
+			const streaming = chatStore.streamingMessages.get(taskId);
+			const fullContent = (streaming?.content ?? '') + pendingDelta;
+
+			// Clear the pending buffer (don't flush to store — we're completing directly)
+			if (deltaFlushHandle !== null) {
+				cancelAnimationFrame(deltaFlushHandle);
+				deltaFlushHandle = null;
 			}
+			pendingDelta = '';
+			pendingDeltaTaskId = '';
+
+			// Complete: prefer explicit messageText from backend, else accumulated content
+			const text = d.messageText ?? d.text ?? fullContent;
+			chatStore.completeMessage(taskId, text);
 		});
 		handle('assistant_reasoning', source, (d) => chatStore.appendReasoning(d.taskId, d.round, d.thought));
 		handle('assistant_tool_call', source, (d) => chatStore.appendToolCall(d.taskId, d.toolName, d.phase, d.args, d.result));

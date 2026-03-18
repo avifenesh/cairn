@@ -23,10 +23,10 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Done | `internal/signal/` |
 | 8 | Skill System - SKILL.md parser, discovery, hot-reload, injection | Done | `internal/skill/` |
 | 9 | Server & Protocols - HTTP, SSE, REST API, auth, static files | Done | `internal/server/` |
-| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.12 + Phase 6 partial, 193 tests) | `frontend/` |
+| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.12 + Phase 6 near complete, 213 tests) | `frontend/` |
 | 11 | Channel Adapters - web, Telegram, Slack, CLI, API, voice | Not started | — |
 
-Frontend Phase 6 in progress. 193 tests across 21 files. Cairn design system, 14 shadcn-svelte components. Chat working end-to-end with message split bug fixed. Phase 6 frontend done: 6f.1 (tool call upgrade), 6f.8 (skill browser), 6f.11 (system status), C.9 (streaming fix), C.10 (empty state). Remaining: 6f.2-6f.7, 6f.9-6f.10, 6f.12-6f.18, C.6-C.8.
+Frontend Phase 6 near complete. 213 tests across 25 files. 11/13 Phase 6 items done. Remaining: 6f.3 (feed actions), 6f.9 (skill detail — needs backend), 6f.10 (active skill — needs Phase 6.5), 6f.14-18 (infra stores/SSE). Chat items C.6 (file attach) and C.7 (voice) also remain.
 
 ## Phases
 

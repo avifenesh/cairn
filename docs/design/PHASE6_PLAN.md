@@ -5,11 +5,11 @@
 
 ## Current State (updated 2026-03-18)
 
-318 backend tests, 193 frontend tests, 14 packages, ~24,000 lines of Go.
-24 built-in tools. 5 bundled SKILL.md files.
+318 backend tests, 213 frontend tests, 14 packages, ~24,000 lines of Go.
+25 built-in tools. 5 bundled SKILL.md files.
 
 **Phase 6 backend COMPLETE** (PRs #21, #24, #26 — all merged).
-**Phase 6 frontend IN PROGRESS** — 6f.1, 6f.8, 6f.11 done (PRs #28, #29, #30, #32).
+**Phase 6 frontend NEAR COMPLETE** — 11/13 items done (PRs #28-38). Remaining: 6f.3, 6f.9, 6f.10, 6f.14-18.
 Phase 6.5 (skill activation), remaining Phase 6 frontend, Phase 7, and Phase 8 remain.
 
 ---
@@ -65,17 +65,17 @@ Phase 6.5 (skill activation), remaining Phase 6 frontend, Phase 7, and Phase 8 r
 | # | What | Component | Details |
 |---|------|-----------|---------|
 | 6f.1 | Tool call display upgrade | `ToolCallChip.svelte` | **DONE PR #29** — expandable output, duration badge, error state, disabled a11y. |
-| 6f.2 | Inline memory creation | New: `QuickMemoryButton.svelte` | Message action bar button "Remember this". Popover with category selector. Calls `POST /v1/memories`. |
+| 6f.2 | Inline memory creation | New: `QuickMemoryButton.svelte` | **DONE PR #34** — action bar "Remember this", category picker, POST /v1/memories. |
 | 6f.3 | Inline feed actions | New: `FeedActionBar.svelte` | When agent shows feed items, show "Mark read" / "Mark all read" inline actions. |
-| 6f.4 | Task creation from chat | New: `CreateTaskButton.svelte` | Message action bar "Create task". Pre-fills description from message. Calls `POST /v1/tasks`. |
+| 6f.4 | Task creation from chat | New: `CreateTaskButton.svelte` | **DONE PR #38** — priority picker, POST /v1/tasks, response normalization. |
 
 #### Memory View (`src/routes/memory/`, `src/lib/components/memory/`)
 
 | # | What | Component | Details |
 |---|------|-----------|---------|
-| 6f.5 | Memory create form | Extend `MemoryEditor.svelte` | Category dropdown (fact/preference/hard_rule/decision/writing_style), scope selector (personal/project/global). |
-| 6f.6 | Memory search scores | Extend `MemorySearch.svelte` | Relevance score as percentage badge. Highlight matching terms. |
-| 6f.7 | Batch accept/reject | New: `MemoryBatchActions.svelte` | Multi-select proposed memories, accept/reject in batch. |
+| 6f.5 | Memory create form | Extend `MemoryEditor.svelte` | **DONE PR #34** — categories from shared constants, aria-label. |
+| 6f.6 | Memory search scores | Extend `MemorySearch.svelte` | **DONE PR #38** — score mapped to confidence, shown as progress bar. |
+| 6f.7 | Batch accept/reject | New: `MemoryBatchActions.svelte` | **DONE PR #35** — multi-select checkboxes, bulk accept/reject, a11y. |
 
 #### Skills View (`src/routes/skills/`)
 
@@ -90,13 +90,13 @@ Phase 6.5 (skill activation), remaining Phase 6 frontend, Phase 7, and Phase 8 r
 | # | What | Component | Details |
 |---|------|-----------|---------|
 | 6f.11 | System status card | New: `SystemStatus.svelte` | **DONE PR #29** — uptime, version, SSE status, costs. |
-| 6f.12 | Task creation form | Extend ops page | "New Task" button → form with description, type, priority. |
+| 6f.12 | Task creation form | Extend ops page | **DONE PR #38** — TaskCreateForm with type/priority, POST /v1/tasks. |
 
 #### Settings View (`src/routes/settings/`)
 
 | # | What | Component | Details |
 |---|------|-----------|---------|
-| 6f.13 | Budget display | New: `BudgetCard.svelte` | Spend vs cap progress bar (green/yellow/red). Daily + weekly. |
+| 6f.13 | Budget display | New: `BudgetCard.svelte` | **DONE PR #36** — progress bars, color-coded, in settings. |
 
 #### Infrastructure
 

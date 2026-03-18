@@ -267,7 +267,7 @@ The Go backend embeds `frontend/dist/` via `embed.FS` and serves it at `/`.
 3. Unit tests for utilities: markdown (rendering, XSS sanitization), time (relative formatting), touch (pull-to-refresh, swipe-to-dismiss)
 4. API client tests: ApiError, fetch behavior, credentials
 5. Test script: `pnpm test` (vitest run), `pnpm test:watch` (vitest)
-6. 193 tests across 21 test files (stores, utils, API, components)
+6. 213 tests across 25 test files (stores, utils, API, components)
 
 ## Completion Status
 
@@ -294,8 +294,8 @@ Design system rewrite: `--pub-*` → `--cairn-*`, emerald `#10B981` accent, zinc
 
 ### Frontend Tool/Skill UI (from PHASE6_PLAN.md items 6f.1-6f.22 — UNBLOCKED, backend done)
 
-**Done:** 6f.1 (tool call upgrade, PR #29), 6f.8 (skill browser, PR #32), 6f.11 (system status, PR #29).
-**Remaining:** 6f.2 (inline memory), 6f.3 (feed actions), 6f.4 (task from chat), 6f.5 (memory form), 6f.6 (memory search scores), 6f.7 (batch accept/reject), 6f.9 (skill detail), 6f.10 (active skill indicator), 6f.12 (task creation form), 6f.13 (budget display), 6f.14-18 (infra: API methods, stores, SSE events).
+**Done (11/13):** 6f.1 (PR #29), 6f.2 (PR #34), 6f.4 (PR #38), 6f.5 (PR #34), 6f.6 (PR #38), 6f.7 (PR #35), 6f.8 (PR #32), 6f.11 (PR #29), 6f.12 (PR #38), 6f.13 (PR #36). Also: C.8 (PR #34), C.9 (PR #28), C.10 (PR #30).
+**Remaining:** 6f.3 (feed actions — low priority, chat doesn't render feed inline yet), 6f.9 (skill detail — needs GET /v1/skills/:name), 6f.10 (active skill indicator — needs Phase 6.5), 6f.14-18 (infra: stores, SSE events).
 
 ### Phase 6: Hardening (approved improvements, independent of backend)
 

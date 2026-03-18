@@ -114,6 +114,13 @@ func (b *SSEBroadcaster) Start() {
 				"finishReason": e.FinishReason,
 			})
 		}),
+		eventbus.Subscribe(b.bus, func(e eventbus.ReasoningDelta) {
+			b.broadcast("assistant_reasoning", e.ID, map[string]any{
+				"taskId": e.TaskID,
+				"text":   e.Text,
+				"round":  e.Round,
+			})
+		}),
 		eventbus.Subscribe(b.bus, func(e eventbus.ToolCallEvent) {
 			b.broadcast("assistant_tool_call", e.ID, map[string]any{
 				"taskId":   e.TaskID,

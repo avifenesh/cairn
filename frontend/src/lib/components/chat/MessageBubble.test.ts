@@ -58,12 +58,13 @@ describe('MessageBubble', () => {
 	});
 
 	it('renders reasoning block when reasoning steps present', () => {
-		const { container } = render(MessageBubble, {
+		render(MessageBubble, {
 			message: makeMessage({
 				reasoning: [{ round: 1, thought: 'Let me think about this...' }],
 			}),
 		});
-		expect(screen.getByText('Let me think about this...')).toBeInTheDocument();
+		// Collapsed by default — header shows step count
+		expect(screen.getByText(/Thought.*1 step/)).toBeInTheDocument();
 	});
 
 	it('renders timestamp', () => {

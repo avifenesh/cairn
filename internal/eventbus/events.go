@@ -62,6 +62,14 @@ type TextDelta struct {
 	Text   string `json:"text"`
 }
 
+// ReasoningDelta is emitted for reasoning/thinking content during LLM streaming.
+type ReasoningDelta struct {
+	EventMeta
+	TaskID string `json:"taskId"`
+	Text   string `json:"text"`
+	Round  int    `json:"round"`
+}
+
 // ToolCallEvent is emitted when a tool is invoked during LLM processing.
 type ToolCallEvent struct {
 	EventMeta

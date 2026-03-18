@@ -648,8 +648,12 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 					})
 				}
 			case agent.ReasoningPart:
-				// Reasoning traces are published separately for SSE.
-				// The bus subscriber in sse.go maps these to assistant_reasoning.
+				eventbus.Publish(s.bus, eventbus.ReasoningDelta{
+					EventMeta: eventbus.NewMeta("agent"),
+					TaskID:    t.ID,
+					Text:      p.Text,
+					Round:     ev.Event.Round,
+				})
 			case agent.ToolPart:
 				eventbus.Publish(s.bus, eventbus.ToolCallEvent{
 					EventMeta: eventbus.NewMeta("agent"),

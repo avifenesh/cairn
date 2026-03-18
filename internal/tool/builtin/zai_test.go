@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -79,12 +80,15 @@ func TestCallZaiMCP_MockServer(t *testing.T) {
 		if r.Header.Get("Authorization") != "Bearer test-key" {
 			t.Errorf("expected Bearer auth, got %q", r.Header.Get("Authorization"))
 		}
-		if !strings.Contains(r.URL.Path, "/web_search_prime/mcp") {
-			t.Errorf("expected /web_search_prime/mcp in path, got %q", r.URL.Path)
-		}
-		// Return SSE format like Z.ai does.
+		var req jsonRPCRequest
+		json.NewDecoder(r.Body).Decode(&req)
 		w.Header().Set("Content-Type", "text/event-stream")
-		w.Write([]byte("id:1\nevent:message\ndata:{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"search results here\"}]}}\n"))
+		if req.Method == "initialize" {
+			w.Header().Set("mcp-session-id", "test-session-123")
+			w.Write([]byte("id:1\nevent:message\ndata:{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2024-11-05\"}}\n"))
+		} else {
+			w.Write([]byte("id:1\nevent:message\ndata:{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"search results here\"}]}}\n"))
+		}
 	}))
 	defer srv.Close()
 

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -21,6 +22,7 @@ var zaiConfig struct {
 	BaseURL    string // https://api.z.ai/api/mcp
 	HTTPClient *http.Client
 	enabled    atomic.Bool
+	sessions   sync.Map // service name → session ID
 }
 
 // SetZaiConfig configures the Z.ai MCP tools. Call once at startup.
@@ -61,15 +63,69 @@ type jsonRPCError struct {
 	Message string `json:"message"`
 }
 
-// callZaiMCP makes a JSON-RPC call to a Z.ai MCP endpoint.
+// initSession does the MCP initialize handshake and returns the session ID.
+func initSession(ctx context.Context, endpoint string) (string, error) {
+	body := jsonRPCRequest{
+		JSONRPC: "2.0",
+		Method:  "initialize",
+		ID:      1,
+		Params: map[string]any{
+			"protocolVersion": "2024-11-05",
+			"capabilities":   map[string]any{},
+			"clientInfo":     map[string]any{"name": "cairn", "version": "0.1.0"},
+		},
+	}
+	data, _ := json.Marshal(body)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(data))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	req.Header.Set("Authorization", "Bearer "+zaiConfig.APIKey)
+
+	resp, err := zaiConfig.HTTPClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	io.ReadAll(resp.Body) // drain
+
+	sessionID := resp.Header.Get("mcp-session-id")
+	if sessionID == "" {
+		return "", fmt.Errorf("no mcp-session-id in response")
+	}
+	return sessionID, nil
+}
+
+// getSession returns a cached MCP session for the service, or creates one.
+func getSession(ctx context.Context, service, endpoint string) (string, error) {
+	if sid, ok := zaiConfig.sessions.Load(service); ok {
+		return sid.(string), nil
+	}
+	sid, err := initSession(ctx, endpoint)
+	if err != nil {
+		return "", fmt.Errorf("zai: session init: %w", err)
+	}
+	zaiConfig.sessions.Store(service, sid)
+	return sid, nil
+}
+
+// callZaiMCP makes a JSON-RPC call to a Z.ai MCP endpoint with session management.
 func callZaiMCP(ctx context.Context, service, toolName string, args map[string]any) (string, error) {
 	base := strings.TrimRight(zaiConfig.BaseURL, "/")
 	endpoint := base + "/" + service + "/mcp"
 
+	sessionID, err := getSession(ctx, service, endpoint)
+	if err != nil {
+		return "", err
+	}
+
 	body := jsonRPCRequest{
 		JSONRPC: "2.0",
 		Method:  "tools/call",
-		ID:      1,
+		ID:      2,
 		Params: map[string]any{
 			"name":      toolName,
 			"arguments": args,
@@ -88,12 +144,20 @@ func callZaiMCP(ctx context.Context, service, toolName string, args map[string]a
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
 	req.Header.Set("Authorization", "Bearer "+zaiConfig.APIKey)
+	req.Header.Set("mcp-session-id", sessionID)
 
 	resp, err := zaiConfig.HTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("zai: http request: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// Check for session expiry — retry with new session once.
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnauthorized {
+		resp.Body.Close()
+		zaiConfig.sessions.Delete(service)
+		return callZaiMCP(ctx, service, toolName, args)
+	}
 
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 	if err != nil {
@@ -105,7 +169,6 @@ func callZaiMCP(ctx context.Context, service, toolName string, args map[string]a
 	}
 
 	// Z.ai returns SSE format: "id:N\nevent:message\ndata:{json}\n"
-	// Extract the JSON from the data: line.
 	jsonData := extractSSEData(string(respBody))
 
 	var rpcResp jsonRPCResponse

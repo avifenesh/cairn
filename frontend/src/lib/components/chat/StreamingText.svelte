@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { renderMarkdown } from '$lib/utils/markdown';
-	import { Copy, Check } from '@lucide/svelte';
 
 	let { content = '', isStreaming = false }: { content: string; isStreaming: boolean } = $props();
 
 	let renderedContent = $state('');
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-	let codeBlocks = $state<{ code: string; lang: string }[]>([]);
-	let copiedIndex = $state<number | null>(null);
 
 	$effect(() => {
 		if (!isStreaming) {
@@ -19,26 +16,6 @@
 			renderedContent = renderMarkdown(content);
 		}, 80);
 	});
-
-	$effect(() => {
-		if (isStreaming) {
-			codeBlocks = [];
-			return;
-		}
-		const matches: { code: string; lang: string }[] = [];
-		const pattern = /```(\w*)\n([\s\S]*?)```/g;
-		let m;
-		while ((m = pattern.exec(content)) !== null) {
-			matches.push({ lang: m[1], code: m[2] });
-		}
-		codeBlocks = matches;
-	});
-
-	async function copyBlock(index: number) {
-		await navigator.clipboard.writeText(codeBlocks[index].code);
-		copiedIndex = index;
-		setTimeout(() => { copiedIndex = null; }, 2000);
-	}
 </script>
 
 <div class="streaming-text">
@@ -50,51 +27,11 @@
 	</div>
 </div>
 
-{#if !isStreaming && codeBlocks.length > 0}
-	<div class="mt-2 flex flex-wrap gap-1">
-		{#each codeBlocks as block, i}
-			<button
-				class="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-[var(--bg-2)] px-2 py-0.5 text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-border-default transition-colors"
-				onclick={() => copyBlock(i)}
-			>
-				{#if copiedIndex === i}
-					<Check class="h-2.5 w-2.5 text-[var(--color-success)]" />
-					Copied
-				{:else}
-					<Copy class="h-2.5 w-2.5" />
-					{block.lang || 'code'}
-				{/if}
-			</button>
-		{/each}
-	</div>
-{/if}
-
 <style>
+	/* --- Prose base --- */
 	.cairn-prose :global(p) { margin: 0.5em 0; }
 	.cairn-prose :global(p:first-child) { margin-top: 0; }
 	.cairn-prose :global(p:last-child) { margin-bottom: 0; }
-	.cairn-prose :global(code) {
-		background: var(--bg-2);
-		color: var(--cairn-accent);
-		padding: 0.15em 0.4em;
-		border-radius: 4px;
-		font-size: 0.85em;
-		font-family: 'Geist Mono', monospace;
-	}
-	.cairn-prose :global(pre) {
-		background: var(--bg-2);
-		border: 1px solid var(--border-subtle);
-		border-radius: 8px;
-		padding: 0.75em 1em;
-		overflow-x: auto;
-		margin: 0.75em 0;
-	}
-	.cairn-prose :global(pre code) {
-		background: none;
-		color: var(--text-primary);
-		padding: 0;
-		font-size: 0.8em;
-	}
 	.cairn-prose :global(strong) { color: var(--text-primary); font-weight: 600; }
 	.cairn-prose :global(em) { color: var(--text-secondary); }
 	.cairn-prose :global(ul), .cairn-prose :global(ol) { padding-left: 1.25em; margin: 0.5em 0; }
@@ -135,4 +72,87 @@
 		text-align: left;
 	}
 	.cairn-prose :global(th) { background: var(--bg-2); font-weight: 500; }
+
+	/* --- Inline code --- */
+	.cairn-prose :global(code) {
+		background: var(--bg-2);
+		color: var(--cairn-accent);
+		padding: 0.15em 0.4em;
+		border-radius: 4px;
+		font-size: 0.85em;
+		font-family: 'Geist Mono', monospace;
+	}
+
+	/* --- Code blocks with header bar --- */
+	.cairn-prose :global(.cairn-code-block) {
+		border: 1px solid var(--border-subtle);
+		border-radius: 8px;
+		overflow: hidden;
+		margin: 0.75em 0;
+	}
+	.cairn-prose :global(.cairn-code-header) {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.35em 0.75em;
+		background: var(--bg-3);
+		border-bottom: 1px solid var(--border-subtle);
+		font-size: 0.7em;
+	}
+	.cairn-prose :global(.cairn-code-lang) {
+		color: var(--text-tertiary);
+		font-family: 'Geist Mono', monospace;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+	.cairn-prose :global(.cairn-code-copy) {
+		color: var(--text-tertiary);
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0.2em 0.5em;
+		border-radius: 4px;
+		font-size: 1em;
+		font-family: inherit;
+		transition: color 0.15s, background 0.15s;
+	}
+	.cairn-prose :global(.cairn-code-copy:hover) {
+		color: var(--text-primary);
+		background: var(--bg-4);
+	}
+	.cairn-prose :global(.cairn-code-block pre) {
+		margin: 0;
+		border: none;
+		border-radius: 0;
+		background: var(--bg-2);
+		padding: 0.75em 1em;
+		overflow-x: auto;
+	}
+	.cairn-prose :global(.cairn-code-block pre code) {
+		background: none;
+		color: var(--text-primary);
+		padding: 0;
+		font-size: 0.8em;
+	}
+	/* Fallback pre without header */
+	.cairn-prose :global(pre:not(.cairn-code-block pre)) {
+		background: var(--bg-2);
+		border: 1px solid var(--border-subtle);
+		border-radius: 8px;
+		padding: 0.75em 1em;
+		overflow-x: auto;
+		margin: 0.75em 0;
+	}
+	.cairn-prose :global(pre:not(.cairn-code-block pre) code) {
+		background: none;
+		color: var(--text-primary);
+		padding: 0;
+		font-size: 0.8em;
+	}
+
+	/* --- Syntax highlighting --- */
+	.cairn-prose :global(.hl-keyword) { color: #C084FC; } /* purple-400 */
+	.cairn-prose :global(.hl-string) { color: #34D399; } /* emerald-400 */
+	.cairn-prose :global(.hl-comment) { color: var(--text-tertiary); font-style: italic; }
+	.cairn-prose :global(.hl-number) { color: #FB923C; } /* orange-400 */
 </style>

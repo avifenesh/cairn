@@ -3,12 +3,13 @@
 > Tools and skills first — the agent must be useful before it connects to others.
 > Based on patterns from OpenCode, Gollem, ADK-Go research repos.
 
-## Current State
+## Current State (updated 2026-03-18)
 
-269 backend tests, 169 frontend tests, 14 packages, ~21,100 lines of Go.
-8 filesystem tools (readFile, writeFile, editFile, deleteFile, listFiles, searchFiles, shell, gitRun).
+318 backend tests, 169 frontend tests, 14 packages, ~24,000 lines of Go.
+24 built-in tools. 5 bundled SKILL.md files.
 
-**Gap**: Agent can't search the web, manage memories, interact with its feed, organize tasks, or invoke skills.
+**Phase 6 backend COMPLETE** (PRs #21, #24, #26 — all merged).
+Phase 6 frontend (PR 4), Phase 7, and Phase 8 remain.
 
 ---
 

@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"crypto/rand"
 	"fmt"
 	"strings"
 	"time"
@@ -10,9 +11,9 @@ import (
 
 // composeParams are the parameters for cairn.compose.
 type composeParams struct {
-	Title    string `json:"title" desc:"Title of the message"`
-	Body     string `json:"body" desc:"Body content of the message"`
-	Priority string `json:"priority,omitempty" desc:"Priority: low, medium, high (default: medium)"`
+	Title    string  `json:"title" desc:"Title of the message"`
+	Body     string  `json:"body" desc:"Body content of the message"`
+	Priority *string `json:"priority,omitempty" desc:"Priority: low, medium, high (default: medium)"`
 }
 
 var compose = tool.Define("cairn.compose",
@@ -30,18 +31,20 @@ var compose = tool.Define("cairn.compose",
 		}
 
 		priority := "medium"
-		if p.Priority != "" {
+		if p.Priority != nil && *p.Priority != "" {
 			validPriorities := map[string]bool{"low": true, "medium": true, "high": true}
-			if !validPriorities[p.Priority] {
-				return &tool.ToolResult{Error: fmt.Sprintf("invalid priority %q, must be one of: low, medium, high", p.Priority)}, nil
+			if !validPriorities[*p.Priority] {
+				return &tool.ToolResult{Error: fmt.Sprintf("invalid priority %q, must be one of: low, medium, high", *p.Priority)}, nil
 			}
-			priority = p.Priority
+			priority = *p.Priority
 		}
 
 		// Create an agent-authored event in the feed.
+		b := make([]byte, 8)
+		rand.Read(b)
 		events, err := ctx.Events.Ingest(ctx.Cancel, []*tool.IngestEvent{{
 			Source:     "agent",
-			SourceID:   fmt.Sprintf("compose-%d", time.Now().UnixNano()),
+			SourceID:   fmt.Sprintf("compose-%x", b),
 			Kind:       "message",
 			Title:      p.Title,
 			Body:       p.Body,

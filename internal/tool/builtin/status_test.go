@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/avifenesh/cairn/internal/tool"
 )
@@ -128,6 +127,3 @@ func TestComposeMissingTitle(t *testing.T) {
 		t.Fatal("expected error for missing title")
 	}
 }
-
-// Ensure unused import doesn't cause issues.
-var _ = time.Now

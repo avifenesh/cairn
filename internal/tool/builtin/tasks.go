@@ -9,9 +9,9 @@ import (
 
 // createTaskParams are the parameters for cairn.createTask.
 type createTaskParams struct {
-	Description string `json:"description" desc:"What the task should accomplish"`
-	Type        string `json:"type,omitempty" desc:"Task type: chat, coding, digest, triage, workflow (default: chat)"`
-	Priority    *int   `json:"priority,omitempty" desc:"Priority 0-9, lower is higher priority (default: 2)"`
+	Description string  `json:"description" desc:"What the task should accomplish"`
+	Type        *string `json:"type,omitempty" desc:"Task type: chat, coding, digest, triage, workflow (default: chat)"`
+	Priority    *int    `json:"priority,omitempty" desc:"Priority 0-9, lower is higher priority (default: 2)"`
 }
 
 var createTask = tool.Define("cairn.createTask",
@@ -26,15 +26,15 @@ var createTask = tool.Define("cairn.createTask",
 		}
 
 		taskType := "chat"
-		if p.Type != "" {
+		if p.Type != nil && *p.Type != "" {
 			validTypes := map[string]bool{
 				"chat": true, "coding": true, "digest": true,
 				"triage": true, "workflow": true,
 			}
-			if !validTypes[p.Type] {
-				return &tool.ToolResult{Error: fmt.Sprintf("invalid type %q, must be one of: chat, coding, digest, triage, workflow", p.Type)}, nil
+			if !validTypes[*p.Type] {
+				return &tool.ToolResult{Error: fmt.Sprintf("invalid type %q, must be one of: chat, coding, digest, triage, workflow", *p.Type)}, nil
 			}
-			taskType = p.Type
+			taskType = *p.Type
 		}
 
 		priority := 2
@@ -67,9 +67,9 @@ var createTask = tool.Define("cairn.createTask",
 
 // listTasksParams are the parameters for cairn.listTasks.
 type listTasksParams struct {
-	Status string `json:"status,omitempty" desc:"Filter by status: queued, claimed, running, completed, failed, canceled"`
-	Type   string `json:"type,omitempty" desc:"Filter by type: chat, coding, digest, triage, workflow"`
-	Limit  *int   `json:"limit,omitempty" desc:"Maximum tasks to return (default 10)"`
+	Status *string `json:"status,omitempty" desc:"Filter by status: queued, claimed, running, completed, failed, canceled"`
+	Type   *string `json:"type,omitempty" desc:"Filter by type: chat, coding, digest, triage, workflow"`
+	Limit  *int    `json:"limit,omitempty" desc:"Maximum tasks to return (default 10)"`
 }
 
 var listTasks = tool.Define("cairn.listTasks",
@@ -85,7 +85,15 @@ var listTasks = tool.Define("cairn.listTasks",
 			limit = *p.Limit
 		}
 
-		tasks, err := ctx.Tasks.List(ctx.Cancel, p.Status, p.Type, limit)
+		status := ""
+		if p.Status != nil {
+			status = *p.Status
+		}
+		taskType := ""
+		if p.Type != nil {
+			taskType = *p.Type
+		}
+		tasks, err := ctx.Tasks.List(ctx.Cancel, status, taskType, limit)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to list tasks: %v", err)}, nil
 		}
@@ -114,8 +122,8 @@ var listTasks = tool.Define("cairn.listTasks",
 
 // completeTaskParams are the parameters for cairn.completeTask.
 type completeTaskParams struct {
-	ID     string `json:"id" desc:"Task ID to complete"`
-	Output string `json:"output,omitempty" desc:"Optional output or result message"`
+	ID     string  `json:"id" desc:"Task ID to complete"`
+	Output *string `json:"output,omitempty" desc:"Optional output or result message"`
 }
 
 var completeTask = tool.Define("cairn.completeTask",
@@ -129,7 +137,11 @@ var completeTask = tool.Define("cairn.completeTask",
 			return &tool.ToolResult{Error: "id is required"}, nil
 		}
 
-		if err := ctx.Tasks.Complete(ctx.Cancel, p.ID, p.Output); err != nil {
+		output := ""
+		if p.Output != nil {
+			output = *p.Output
+		}
+		if err := ctx.Tasks.Complete(ctx.Cancel, p.ID, output); err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to complete task: %v", err)}, nil
 		}
 

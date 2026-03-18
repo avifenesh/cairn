@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
@@ -144,9 +145,14 @@ func (a *eventAdapter) Ingest(ctx context.Context, events []*tool.IngestEvent) (
 	out := make([]*tool.IngestEvent, len(inserted))
 	for i, ev := range inserted {
 		out[i] = &tool.IngestEvent{
-			Source:   ev.Source,
-			SourceID: ev.SourceID,
-			Title:    ev.Title,
+			Source:     ev.Source,
+			SourceID:   ev.SourceID,
+			Kind:       ev.Kind,
+			Title:      ev.Title,
+			Body:       ev.Body,
+			Actor:      ev.Actor,
+			OccurredAt: ev.OccurredAt,
+			Metadata:   ev.Metadata,
 		}
 	}
 	return out, nil
@@ -248,42 +254,67 @@ func (a *taskAdapter) List(ctx context.Context, status, taskType string, limit i
 func (a *taskAdapter) Complete(ctx context.Context, id string, output string) error {
 	var raw json.RawMessage
 	if output != "" {
-		raw, _ = json.Marshal(output)
+		var err error
+		raw, err = json.Marshal(output)
+		if err != nil {
+			return fmt.Errorf("task adapter: marshal output: %w", err)
+		}
 	}
 	return a.engine.Complete(ctx, id, raw)
 }
 
 // statusAdapter aggregates system status from multiple services.
 type statusAdapter struct {
-	tasks     *task.Engine
-	events    *signal.EventStore
-	memories  *memory.Service
-	startedAt time.Time
+	tasks       *task.Engine
+	events      *signal.EventStore
+	memories    *memory.Service
+	startedAt   time.Time
+	pollerNames []string // populated at startup
 }
 
 func (a *statusAdapter) GetStatus(ctx context.Context) (*tool.SystemStatus, error) {
+	var errs []string
+
+	// Count active tasks by listing each active status.
 	activeTasks := 0
 	for _, s := range []task.TaskStatus{task.StatusQueued, task.StatusClaimed, task.StatusRunning} {
 		tasks, err := a.tasks.List(ctx, task.ListOpts{Status: s})
-		if err == nil {
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("tasks(%s): %v", s, err))
+		} else {
 			activeTasks += len(tasks)
 		}
 	}
 
-	unreadEvents, _ := a.events.Count(ctx, signal.EventFilter{UnreadOnly: true})
+	unreadEvents, err := a.events.Count(ctx, signal.EventFilter{UnreadOnly: true})
+	if err != nil {
+		errs = append(errs, fmt.Sprintf("events: %v", err))
+	}
 
 	memoryCount := 0
 	mems, err := a.memories.List(ctx, memory.ListOpts{Status: memory.StatusAccepted})
-	if err == nil {
+	if err != nil {
+		errs = append(errs, fmt.Sprintf("memories: %v", err))
+	} else {
 		memoryCount = len(mems)
 	}
 
-	uptime := fmt.Sprintf("%s", time.Since(a.startedAt).Truncate(time.Second))
+	// Build poller info from registered names.
+	pollers := make([]tool.PollerInfo, len(a.pollerNames))
+	for i, name := range a.pollerNames {
+		pollers[i] = tool.PollerInfo{Source: name, Active: true}
+	}
 
-	return &tool.SystemStatus{
-		Uptime:       uptime,
+	status := &tool.SystemStatus{
+		Uptime:       time.Since(a.startedAt).Truncate(time.Second).String(),
 		ActiveTasks:  activeTasks,
 		UnreadEvents: unreadEvents,
 		MemoryCount:  memoryCount,
-	}, nil
+		PollerStatus: pollers,
+	}
+
+	if len(errs) > 0 {
+		return status, fmt.Errorf("partial status: %s", strings.Join(errs, "; "))
+	}
+	return status, nil
 }

@@ -212,11 +212,29 @@ func runServe(logger *slog.Logger) {
 	}
 	journalAdapt := &journalAdapter{store: journalStore}
 	taskAdapt := &taskAdapter{engine: taskEngine}
+	// Collect active poller names for status display.
+	var pollerNames []string
+	if cfg.GHToken != "" {
+		pollerNames = append(pollerNames, "github")
+	}
+	if len(cfg.HNKeywords) > 0 || cfg.HNMinScore > 0 {
+		pollerNames = append(pollerNames, "hn")
+	}
+	if len(cfg.RedditSubs) > 0 {
+		pollerNames = append(pollerNames, "reddit")
+	}
+	if len(cfg.NPMPackages) > 0 {
+		pollerNames = append(pollerNames, "npm")
+	}
+	if len(cfg.CratesPackages) > 0 {
+		pollerNames = append(pollerNames, "crates")
+	}
 	statusAdapt := &statusAdapter{
-		tasks:     taskEngine,
-		events:    eventStore,
-		memories:  memService,
-		startedAt: time.Now(),
+		tasks:       taskEngine,
+		events:      eventStore,
+		memories:    memService,
+		startedAt:   time.Now(),
+		pollerNames: pollerNames,
 	}
 
 	// Initialize webhook handler.

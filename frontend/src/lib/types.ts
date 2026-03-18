@@ -168,4 +168,5 @@ export type SSEEventType =
 	| 'digest_ready'
 	| 'coding_session_event'
 	| 'agent_progress'
-	| 'skill_activated';
+	| 'skill_activated'
+	| 'budget_update';

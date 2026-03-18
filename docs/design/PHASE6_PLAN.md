@@ -1,160 +1,108 @@
-# Phase 6-8: Protocols, Channels & Intelligence
+# Phase 6-8: Tools & Skills, Protocols, Channels, Intelligence
 
-> Phases 1-5 built the core. Phases 6-8 make Cairn connected, multi-channel, and production-grade.
+> Tools and skills first — the agent must be useful before it connects to others.
 
 ## Current State
 
-242 backend tests, 169 frontend tests, 13 packages, ~19,500 lines of Go.
-Phases 1-5 complete: event bus, LLM, tools, tasks, memory, agent (loop+journal+reflection), signal plane (5 pollers+webhooks+digest), server, skills, CI/CD, Go embed frontend.
+269 backend tests, 169 frontend tests, 14 packages, ~21,100 lines of Go.
+Foundation complete: event bus, LLM, tools (8 filesystem), tasks, memory (context builder), agent (loop+journal+reflection+plugin hooks), signal plane (5 pollers+webhooks+digest), server, skills infrastructure, CI/CD.
+
+**Gap**: Cairn has 8 filesystem tools. The agent can't search the web, manage memories, interact with its feed, organize tasks, or invoke skills. These are what make an agent useful.
 
 ---
 
-## Phase 6: Protocols (MCP + A2A)
+## Phase 6: Tools & Skills (agent becomes useful)
 
-**Goal:** Cairn speaks MCP and A2A. Other agents can use its tools, it can use external tools, agents can submit tasks.
+**Goal:** Complete tool suite for real work. Based on OpenCode (websearch/webfetch/task/skill), Gollem (memory/planning/stateful), ADK-Go (memory load/MCP bridge).
 
-### 6a: MCP Server (`internal/mcp/`)
+### 6a: Web + Memory + Feed Tools
 
-| # | What |
-|---|------|
-| 6a.1 | MCP server core (mcp-go), tool listing + execution |
-| 6a.2 | Resource providers: feed events, memories, sessions |
-| 6a.3 | Transport: stdio (Claude Code, Cursor) |
-| 6a.4 | Transport: HTTP/SSE (remote, port 3001) |
-| 6a.5 | Per-session write rate limiting |
-| 6a.6 | Tests |
+| # | Tool | What | Pattern |
+|---|------|------|---------|
+| 6a.1 | webSearch | Search via SearXNG or Exa API | OpenCode: HTTP POST, permission gate |
+| 6a.2 | webFetch | Fetch URL, HTML to markdown, 5MB cap | OpenCode: format negotiation, Cloudflare retry |
+| 6a.3 | createMemory | Create memory with category/scope | Gollem: memory Put |
+| 6a.4 | searchMemory | RAG search with scores | Gollem: memory Search |
+| 6a.5 | manageMemory | Accept/reject/delete memories | Gollem: memory CRUD |
+| 6a.6 | readFeed | List feed events with filters | Service wrapper |
+| 6a.7 | markRead | Mark events read (single or all) | Service wrapper |
+| 6a.8 | digest | LLM digest of unread events | Existing DigestRunner |
+| 6a.9 | journalSearch | Search episodic memory | ADK-Go: load memory |
+| 6a.10 | Tests | | |
 
-### 6b: MCP Client (`internal/mcp/`)
+### 6b: Task + Communication Tools
 
-| # | What |
-|---|------|
-| 6b.1 | Connect to external MCP servers, discover tools |
-| 6b.2 | Wrap MCP tools as Cairn tool.Tool interface |
-| 6b.3 | Config-driven registration (`MCP_SERVERS` JSON) |
-| 6b.4 | Lifecycle: connect on startup, reconnect, close on shutdown |
-| 6b.5 | Tests |
+| # | Tool | What | Pattern |
+|---|------|------|---------|
+| 6b.1 | createTask | Submit task to queue | OpenCode: task spawner |
+| 6b.2 | listTasks | List with status/type filters | Service wrapper |
+| 6b.3 | completeTask | Mark done with output | Service wrapper |
+| 6b.4 | compose | Message to user's feed | Feed event creation |
+| 6b.5 | getStatus | System status (pollers, budget, memory) | Service aggregation |
+| 6b.6 | Tests | | |
 
-### 6c: A2A Server (`internal/a2a/`)
+### 6c: Skill Tools + Bundled Skills
 
-| # | What |
-|---|------|
-| 6c.1 | Agent card (`/.well-known/agent.json`) |
-| 6c.2 | Task submission (`POST /a2a/tasks`) |
-| 6c.3 | Task status (`GET /a2a/tasks/:id`) |
-| 6c.4 | Streaming results via SSE |
-| 6c.5 | Tests |
+| # | What | Pattern |
+|---|------|---------|
+| 6c.1 | loadSkill tool — discover and inject skill content | OpenCode: skill.ts |
+| 6c.2 | listSkills tool — list available skills | OpenCode: Skill.available() |
+| 6c.3 | Plugin-provided tools — Hooks.Tools registration | ADK-Go: tools in config |
+| 6c.4 | 5 bundled skills: web-search, code-review, digest, deploy, self-review | |
+| 6c.5 | Tests | |
 
-**Frontend:** MCP connections panel in Settings. A2A tasks in Ops view.
-**Config:** `MCP_SERVER_ENABLED`, `MCP_PORT` (3001), `MCP_SERVERS`, `A2A_ENABLED`
+### 6f: Frontend
 
----
-
-## Phase 7: Channel Adapters
-
-**Goal:** Interact with Cairn from Telegram. Messages follow the user across channels.
-
-### 7a: Channel Core (`internal/channel/`)
-
-| # | What |
-|---|------|
-| 7a.1 | Channel interface, IncomingMessage, OutgoingMessage types |
-| 7a.2 | Channel router (session -> active channel tracking) |
-| 7a.3 | Markdown normalization (CommonMark -> Telegram V2 / Slack / plain) |
-| 7a.4 | Web adapter (wraps existing SSE + REST) |
-| 7a.5 | Tests |
-
-### 7b: Telegram Adapter (`internal/channel/telegram/`)
-
-| # | What |
-|---|------|
-| 7b.1 | Bot setup (telego, webhook or long-poll) |
-| 7b.2 | Chat (messages -> agent, streaming via message edit) |
-| 7b.3 | Commands (/chat, /tasks, /memory, /digest, /settings) |
-| 7b.4 | Approvals (InlineKeyboard for approve/deny) |
-| 7b.5 | Voice (receive voice -> whisper STT -> agent) |
-| 7b.6 | Files (send/receive documents) |
-| 7b.7 | Tests |
-
-### 7c: Notification Router (`internal/channel/`)
-
-| # | What |
-|---|------|
-| 7c.1 | Priority levels (critical, high, medium, low) |
-| 7c.2 | Presence tracking (which channels user is on) |
-| 7c.3 | Quiet hours support |
-| 7c.4 | Low-priority items queued for digest |
-| 7c.5 | Tests |
-
-**Frontend:** Telegram config in Settings. Notification preferences. Channel indicator.
-**Config:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `NOTIFICATION_QUIET_START`, `NOTIFICATION_QUIET_END`
+| # | What | View |
+|---|------|------|
+| 6f.1 | Tool execution display (name, status, duration, output) | Chat |
+| 6f.2 | Memory management (create, search, accept/reject) | Memory + Chat |
+| 6f.3 | Feed actions from chat (mark read, digest) | Chat + Feed |
+| 6f.4 | Task creation from chat | Chat + Ops |
+| 6f.5 | Skill browser (list, load into context) | Skills |
+| 6f.6 | System status (budget, pollers, memory stats) | Settings/Ops |
 
 ---
 
-## Phase 8: Intelligence & Polish
+## Phase 7: Protocols (MCP + A2A)
 
-**Goal:** Production-grade memory, remaining signal sources, voice.
+### 7a: MCP Server | 7b: MCP Client | 7c: A2A Server
 
-### 8a: Embeddings + Compaction (`internal/memory/`)
-
-| # | What |
-|---|------|
-| 8a.1 | Embedding provider (OpenAI/GLM API or local HTTP) |
-| 8a.2 | Generate vectors on memory create |
-| 8a.3 | Hybrid search upgrade (vector + keyword, MMR done) |
-| 8a.4 | Session compaction (LLM summarizes old events) |
-| 8a.5 | Context builder (token-budgeted memory + journal injection) |
-| 8a.6 | Tests |
-
-### 8b: Gmail + Calendar (`internal/signal/`)
-
-| # | What |
-|---|------|
-| 8b.1 | OAuth2 token flow + credential storage |
-| 8b.2 | Gmail poller (list/get, label filtering) |
-| 8b.3 | Gmail push (Pub/Sub webhook, optional) |
-| 8b.4 | Calendar poller (upcoming events, free/busy) |
-| 8b.5 | Tests |
-
-### 8c: Voice Pipeline (`internal/voice/`)
-
-| # | What |
-|---|------|
-| 8c.1 | Whisper STT (HTTP to whisper.cpp or API) |
-| 8c.2 | TTS output (OpenAI/ElevenLabs or local) |
-| 8c.3 | Voice endpoint (POST /v1/voice -> transcribe -> agent -> TTS) |
-| 8c.4 | Wire with Telegram voice (7b.5) |
-| 8c.5 | Tests |
-
-**Frontend:** Voice button in chat. Gmail/calendar in feed. Session compaction indicator.
-**Config:** `EMBEDDING_PROVIDER`, `GOOGLE_CLIENT_ID`, `GMAIL_ENABLED`, `CALENDAR_ENABLED`, `WHISPER_URL`, `TTS_PROVIDER`
+### 7f: Frontend — MCP connections, external tools, A2A tasks
 
 ---
 
-## Dependency Graph
+## Phase 8: Channels + Intelligence
 
-```
-Phase 6a (MCP Server) ──┐
-Phase 6b (MCP Client) ──┤ parallel
-Phase 6c (A2A Server) ──┘
-                         │
-Phase 7a (Channel Core) ──→ Phase 7b (Telegram) ──→ Phase 8c (Voice)
-              │
-              └──→ Phase 7c (Notifications)
+### 8a: Channel Core + Telegram + Notifications
+### 8b: Embeddings + Compaction + Gmail + Voice
 
-Phase 8a (Embeddings) ── independent
-Phase 8b (Gmail/Cal)  ── independent
-```
+### 8f: Frontend — Telegram config, voice button, Gmail feed
 
-## PR Plan (9 PRs)
+---
 
-| PR | Phase | Content |
-|----|-------|---------|
-| 1 | 6a | MCP server (mcp-go, stdio+HTTP, resources, rate limiting) |
-| 2 | 6b | MCP client (external servers as tools) |
-| 3 | 6c | A2A server (agent card, task submission, streaming) |
-| 4 | 7a | Channel core (interface, router, markdown normalization) |
-| 5 | 7b | Telegram adapter (chat, commands, keyboards, voice, files) |
-| 6 | 7c | Notification router (priority, presence, quiet hours) |
-| 7 | 8a | Embeddings + session compaction + context builder |
-| 8 | 8b | Gmail + Google Calendar (OAuth2, pollers) |
-| 9 | 8c | Voice pipeline (Whisper STT + TTS) |
+## PR Plan (12 PRs)
+
+| PR | Phase | What | Who |
+|----|-------|------|-----|
+| 1 | 6a | Web + Memory + Feed tools | Backend |
+| 2 | 6b | Task + Communication tools | Backend |
+| 3 | 6c | Skill tools + bundled skills | Backend |
+| 4 | 6f | Tool display, memory UI, feed actions, skill browser | Frontend |
+| 5 | 7a | MCP server | Backend |
+| 6 | 7b | MCP client | Backend |
+| 7 | 7c | A2A server | Backend |
+| 8 | 7f | MCP/A2A UI | Frontend |
+| 9 | 8a | Channels + Telegram + notifications | Backend |
+| 10 | 8af | Telegram config, notification prefs | Frontend |
+| 11 | 8b | Embeddings + compaction + Gmail + voice | Backend |
+| 12 | 8bf | Voice button, Gmail feed, compaction UI | Frontend |
+
+## Design Principles (from research)
+
+1. **Tools are service wrappers** — call through existing services, not direct DB (all repos)
+2. **Permission gates on dangerous tools** — OpenCode ctx.ask(), ADK-Go confirmation flow
+3. **Output truncation** — stay within LLM context (OpenCode, Eino large_tool_result)
+4. **Stateful tools** — some maintain state across rounds (Gollem ExportState/RestoreState)
+5. **Plugin-provided tools** — registered at startup (ADK-Go tools slice, Gollem toolset)
+6. **Skills are prompt-based** — not tool execution, content injected into context (OpenCode)

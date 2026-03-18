@@ -2,7 +2,7 @@ version: 2
 
 before:
   hooks:
-    - sh -c "cd frontend && pnpm install --frozen-lockfile && pnpm build"
+    - make frontend-build
     - go vet ./...
     - go test -race -count=1 -timeout 5m ./...
 

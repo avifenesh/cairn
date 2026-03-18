@@ -48,6 +48,9 @@
 			class="flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px]
 				{isMoreActive || moreOpen ? 'text-[var(--pub-accent)]' : 'text-[var(--text-tertiary)]'}"
 			onclick={() => (moreOpen = !moreOpen)}
+			onkeydown={(e) => e.key === 'Escape' && moreOpen && (moreOpen = false)}
+			aria-expanded={moreOpen}
+			aria-haspopup="menu"
 		>
 			<MoreHorizontal class="h-5 w-5" />
 			<span>More</span>
@@ -55,14 +58,16 @@
 	</div>
 
 	{#if moreOpen}
-		<nav
+		<div
 			class="absolute bottom-full left-0 right-0 border-t border-border-subtle bg-[var(--bg-1)] p-2 shadow-lg"
+			role="menu"
 			aria-label="More navigation"
 			onkeydown={(e) => e.key === 'Escape' && (moreOpen = false)}
 		>
 			{#each moreItems as item}
 				<a
 					href={item.href}
+					role="menuitem"
 					class="block rounded-md px-4 py-2.5 text-sm
 						{isActive(item.href)
 						? 'bg-[var(--accent-dim)] text-[var(--pub-accent)]'
@@ -72,7 +77,7 @@
 					{item.label}
 				</a>
 			{/each}
-		</nav>
+		</div>
 	{/if}
 </nav>
 

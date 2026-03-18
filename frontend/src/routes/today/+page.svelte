@@ -66,6 +66,7 @@
 	}
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="mx-auto max-w-4xl p-6 overflow-y-auto h-full"
 	ontouchstart={ptr.handleTouchStart}
@@ -157,7 +158,7 @@
 
 		<!-- Recent activity -->
 		<h2 class="mb-4 text-lg font-medium text-[var(--text-primary)]">Recent Activity</h2>
-		<div class="flex flex-col gap-2">
+		<div class="flex flex-col gap-2" role="feed" aria-label="Recent activity">
 			{#each feedStore.items as item (item.id)}
 				<FeedItemComponent {item} />
 			{/each}

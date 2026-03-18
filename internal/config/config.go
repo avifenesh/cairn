@@ -75,6 +75,7 @@ type Config struct {
 	// Z.ai MCP tools (default for GLM provider)
 	ZaiWebEnabled bool   // ZAI_WEB_ENABLED (default true when LLM_PROVIDER=glm)
 	ZaiBaseURL    string // ZAI_BASE_URL (default https://api.z.ai/api/mcp)
+	ZaiAPIKey     string // ZAI_API_KEY (separate MCP key, falls back to LLM_API_KEY)
 
 	// Web tools (fallback when Z.ai disabled)
 	SearXNGURL      string // SearXNG instance URL for web search
@@ -174,6 +175,7 @@ func Load() (*Config, error) {
 		MCPWriteRateLimit:     envInt("MCP_WRITE_RATE_LIMIT", 100),
 		ZaiWebEnabled:         envBool("ZAI_WEB_ENABLED", provider == "glm"),
 		ZaiBaseURL:            envStr("ZAI_BASE_URL", "https://api.z.ai/api/mcp"),
+		ZaiAPIKey:             envStr("ZAI_API_KEY", ""),
 		TelegramBotToken:      envStr("TELEGRAM_BOT_TOKEN", ""),
 		TelegramChatID:        envInt64("TELEGRAM_CHAT_ID", 0),
 		ChannelSessionTimeout: envInt("CHANNEL_SESSION_TIMEOUT", 240),

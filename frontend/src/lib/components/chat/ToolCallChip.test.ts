@@ -69,4 +69,14 @@ describe('ToolCallChip', () => {
 		// Only the Check icon should be present
 		expect(svgs.length).toBe(1);
 	});
+
+	it('shows mcp badge when isExternal is true', () => {
+		render(ToolCallChip, { toolName: 'webSearch', phase: 'result', isExternal: true });
+		expect(screen.getByText('mcp')).toBeInTheDocument();
+	});
+
+	it('does not show mcp badge by default', () => {
+		render(ToolCallChip, { toolName: 'readFile', phase: 'result' });
+		expect(screen.queryByText('mcp')).toBeNull();
+	});
 });

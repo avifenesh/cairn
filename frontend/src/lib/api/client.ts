@@ -297,6 +297,15 @@ export const getCosts = () => {
 export const getMetrics = () => get<Record<string, unknown>>('/v1/metrics');
 export const getStatus = () => get<Record<string, unknown>>('/v1/status');
 
+export const getMcpStatus = async () => {
+	try {
+		const raw = await get<Record<string, unknown>>('/v1/status');
+		const mcp = raw.mcp as Record<string, unknown> | undefined;
+		if (!mcp) return null;
+		return { enabled: !!mcp.enabled, port: (mcp.port ?? 3001) as number, transport: (mcp.transport ?? 'http') as string };
+	} catch { return null; }
+};
+
 // Poll
 export const triggerPoll = () => post<{ ok: boolean }>('/v1/poll/run');
 

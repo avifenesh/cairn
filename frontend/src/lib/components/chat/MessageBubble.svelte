@@ -32,7 +32,7 @@
 		{#if message.toolCalls && message.toolCalls.length > 0}
 			<div class="mb-2 flex flex-wrap gap-1">
 				{#each message.toolCalls as tc}
-					<ToolCallChip toolName={tc.toolName} phase={tc.phase} args={tc.args} result={tc.result} error={tc.error} durationMs={tc.durationMs} />
+					<ToolCallChip toolName={tc.toolName} phase={tc.phase} args={tc.args} result={tc.result} error={tc.error} durationMs={tc.durationMs} isExternal={tc.isExternal} />
 				{/each}
 			</div>
 		{/if}

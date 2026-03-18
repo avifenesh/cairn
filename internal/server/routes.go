@@ -848,6 +848,13 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	if s.agent != nil {
 		status["agent"] = s.agent.Name()
 	}
+	if s.config != nil {
+		status["mcp"] = map[string]any{
+			"enabled":   s.config.MCPServerEnabled,
+			"port":      s.config.MCPPort,
+			"transport": s.config.MCPTransport,
+		}
+	}
 	writeJSON(w, http.StatusOK, status)
 }
 

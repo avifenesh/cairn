@@ -8,6 +8,7 @@
 		result,
 		error,
 		durationMs,
+		isExternal = false,
 	}: {
 		toolName: string;
 		phase: string;
@@ -15,6 +16,7 @@
 		result?: string;
 		error?: string;
 		durationMs?: number;
+		isExternal?: boolean;
 	} = $props();
 
 	let expanded = $state(false);
@@ -52,6 +54,9 @@
 			<Check class="h-2.5 w-2.5" />
 		{/if}
 		{toolName}
+		{#if isExternal}
+			<span class="text-[8px] text-[var(--text-tertiary)] bg-[var(--bg-3)] px-1 rounded">mcp</span>
+		{/if}
 		{#if durationMs !== undefined && isDone}
 			<span class="text-[var(--text-tertiary)] ml-0.5">{formatDuration(durationMs)}</span>
 		{/if}

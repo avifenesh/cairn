@@ -66,6 +66,12 @@ type Config struct {
 	AgentTickInterval  int // Seconds (default: 60)
 	ReflectionInterval int // Seconds (default: 1800)
 
+	// MCP server
+	MCPServerEnabled  bool   // MCP_SERVER_ENABLED (default false)
+	MCPPort           int    // MCP_PORT (default 3001)
+	MCPTransport      string // MCP_TRANSPORT ("stdio"/"http"/"both", default "http")
+	MCPWriteRateLimit int    // MCP_WRITE_RATE_LIMIT (default 100 per minute)
+
 	// Web tools
 	SearXNGURL      string // SearXNG instance URL for web search
 	WebFetchTimeout int    // Seconds (default: 30)
@@ -153,6 +159,10 @@ func Load() (*Config, error) {
 		BudgetWeeklyCap:       envFloat("BUDGET_WEEKLY_CAP", envFloat("BEDROCK_WEEKLY_BUDGET_USD", 0)),
 		AgentTickInterval:     envInt("AGENT_TICK_INTERVAL", 60),
 		ReflectionInterval:    envInt("REFLECTION_INTERVAL", 1800),
+		MCPServerEnabled:      envBool("MCP_SERVER_ENABLED", false),
+		MCPPort:               envInt("MCP_PORT", 3001),
+		MCPTransport:          envStr("MCP_TRANSPORT", "http"),
+		MCPWriteRateLimit:     envInt("MCP_WRITE_RATE_LIMIT", 100),
 		SearXNGURL:            envStr("SEARXNG_URL", ""),
 		WebFetchTimeout:       envInt("WEB_FETCH_TIMEOUT", 30),
 		WebFetchMaxSize:       envInt64("WEB_FETCH_MAX_SIZE", 5*1024*1024),

@@ -19,6 +19,7 @@ import (
 	"github.com/avifenesh/cairn/internal/db"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
+	cairnmcp "github.com/avifenesh/cairn/internal/mcp"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/server"
@@ -334,6 +335,42 @@ func runServe(logger *slog.Logger) {
 		ToolStatus:     statusAdapt,
 		ToolSkills:     skillAdapt,
 	})
+
+	// Start MCP server if enabled.
+	if cfg.MCPServerEnabled {
+		mcpToolCtx := &tool.ToolContext{
+			Cancel:   context.Background(),
+			Memories: memAdapter,
+			Events:   eventAdapter,
+			Digest:   digestAdapt,
+			Journal:  journalAdapt,
+			Tasks:    taskAdapt,
+			Status:   statusAdapt,
+			Skills:   skillAdapt,
+		}
+		mcpSrv := cairnmcp.New(cairnmcp.Config{
+			Port:           cfg.MCPPort,
+			Transport:      cfg.MCPTransport,
+			WriteRateLimit: cfg.MCPWriteRateLimit,
+		}, toolRegistry, mcpToolCtx, logger)
+
+		transport := cfg.MCPTransport
+		if transport == "http" || transport == "both" {
+			go func() {
+				if err := mcpSrv.ServeHTTP(); err != nil {
+					logger.Error("mcp http server error", "error", err)
+				}
+			}()
+		}
+		if transport == "stdio" || transport == "both" {
+			go func() {
+				if err := mcpSrv.ServeStdio(context.Background()); err != nil {
+					logger.Error("mcp stdio server error", "error", err)
+				}
+			}()
+		}
+		logger.Info("mcp server started", "transport", transport, "port", cfg.MCPPort)
+	}
 
 	// Graceful shutdown on SIGINT/SIGTERM.
 	ctx, cancel := context.WithCancel(context.Background())

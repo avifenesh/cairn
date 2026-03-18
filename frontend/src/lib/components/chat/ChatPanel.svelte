@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { sendMessage, getSessions } from '$lib/api/client';
+	import { sendMessage, getSessions, getSessionMessages } from '$lib/api/client';
 	import { chatStore } from '$lib/stores/chat.svelte';
 	import MessageBubble from './MessageBubble.svelte';
 	import StreamingText from './StreamingText.svelte';
@@ -19,6 +19,11 @@
 		try {
 			const res = await getSessions();
 			chatStore.setSessions(res.items);
+			// Auto-load last session if one was saved
+			if (chatStore.currentSessionId && res.items.some((s) => s.id === chatStore.currentSessionId)) {
+				const msgs = await getSessionMessages(chatStore.currentSessionId);
+				chatStore.setMessages(msgs.items);
+			}
 		} catch {
 			// ignore
 		}

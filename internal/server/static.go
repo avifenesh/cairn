@@ -89,17 +89,18 @@ func (s *Server) fsStaticHandler(distDir string) http.Handler {
 			return
 		}
 
-		info, statErr := os.Stat(filePath)
+		// Use the validated absolute path for all file operations.
+		info, statErr := os.Stat(absFilePath)
 		if statErr != nil || info.IsDir() {
-			indexPath := filepath.Join(distDir, "index.html")
-			if _, err := os.Stat(indexPath); err == nil {
-				http.ServeFile(w, r, indexPath)
+			absIndexPath := filepath.Join(absDistDir, "index.html")
+			if _, err := os.Stat(absIndexPath); err == nil {
+				http.ServeFile(w, r, absIndexPath)
 				return
 			}
 			writeError(w, http.StatusNotFound, "not found")
 			return
 		}
 
-		http.ServeFile(w, r, filePath)
+		http.ServeFile(w, r, absFilePath)
 	})
 }

@@ -1,8 +1,31 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { appStore, type Theme, type Density, type Mood } from '$lib/stores/app.svelte';
+	import { getCosts } from '$lib/api/client';
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign } from '@lucide/svelte';
+
+	let costs = $state<Record<string, number> | null>(null);
+
+	onMount(async () => {
+		try {
+			costs = await getCosts() as unknown as Record<string, number>;
+		} catch {
+			// handled
+		}
+	});
+
+	function budgetPercent(spent: number, cap: number): number {
+		if (!cap || cap <= 0) return 0;
+		return Math.min(100, (spent / cap) * 100);
+	}
+
+	function budgetColor(pct: number): string {
+		if (pct >= 90) return 'var(--color-error)';
+		if (pct >= 70) return 'var(--color-warning)';
+		return 'var(--color-success)';
+	}
 
 	const themes: { value: Theme; label: string; icon: typeof Sun }[] = [
 		{ value: 'dark', label: 'Dark', icon: Moon },
@@ -141,6 +164,58 @@
 					{/each}
 				</div>
 			</div>
+		</div>
+	</section>
+
+	<Separator class="mb-8" />
+
+	<!-- Budget -->
+	<section class="mb-8">
+		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">Budget</h2>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">LLM spend tracking</p>
+
+		<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 space-y-4">
+			{#if costs}
+				{@const dailySpent = costs.todayUsd ?? costs.today ?? 0}
+				{@const dailyCap = costs.budgetDailyUsd ?? 0}
+				{@const weeklySpent = costs.weekUsd ?? costs.thisMonth ?? 0}
+				{@const weeklyCap = costs.budgetWeeklyUsd ?? 0}
+				{@const dailyPct = budgetPercent(dailySpent, dailyCap)}
+				{@const weeklyPct = budgetPercent(weeklySpent, weeklyCap)}
+
+				<div>
+					<div class="flex items-center justify-between mb-1">
+						<span class="text-xs text-[var(--text-secondary)]">Today</span>
+						<span class="text-xs text-[var(--text-primary)] font-mono tabular-nums">
+							${dailySpent.toFixed(4)}{#if dailyCap > 0} / ${dailyCap.toFixed(2)}{/if}
+						</span>
+					</div>
+					{#if dailyCap > 0}
+						<div class="h-1.5 rounded-full bg-[var(--bg-3)] overflow-hidden">
+							<div class="h-full rounded-full transition-all" style="width: {dailyPct}%; background: {budgetColor(dailyPct)}"></div>
+						</div>
+					{/if}
+				</div>
+
+				<div>
+					<div class="flex items-center justify-between mb-1">
+						<span class="text-xs text-[var(--text-secondary)]">This week</span>
+						<span class="text-xs text-[var(--text-primary)] font-mono tabular-nums">
+							${weeklySpent.toFixed(4)}{#if weeklyCap > 0} / ${weeklyCap.toFixed(2)}{/if}
+						</span>
+					</div>
+					{#if weeklyCap > 0}
+						<div class="h-1.5 rounded-full bg-[var(--bg-3)] overflow-hidden">
+							<div class="h-full rounded-full transition-all" style="width: {weeklyPct}%; background: {budgetColor(weeklyPct)}"></div>
+						</div>
+					{/if}
+				</div>
+			{:else}
+				<div class="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
+					<DollarSign class="h-3.5 w-3.5" />
+					<span>Loading budget data...</span>
+				</div>
+			{/if}
 		</div>
 	</section>
 

@@ -73,7 +73,7 @@
 			<Button
 				variant="ghost"
 				size="icon"
-				class="h-8 w-8"
+				class="h-8 w-8 hidden md:inline-flex"
 				onclick={() => appStore.toggleContextPanel()}
 				aria-label="Toggle context panel"
 			>

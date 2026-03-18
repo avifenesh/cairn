@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/avifenesh/cairn/internal/memory"
@@ -79,6 +80,31 @@ func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilde
 				parts = append(parts, fmt.Sprintf("## Relevant Memories\n%s", memories))
 			}
 		}
+	}
+
+	// Skill catalog: always show available skills by name + description (frontmatter only).
+	if ctx.ToolSkills != nil {
+		skills := ctx.ToolSkills.List()
+		if len(skills) > 0 {
+			sort.Slice(skills, func(i, j int) bool { return skills[i].Name < skills[j].Name })
+			var sb strings.Builder
+			sb.WriteString("## Available Skills\n")
+			sb.WriteString("Use `cairn.loadSkill` to activate a skill when a task matches.\n\n")
+			for _, sk := range skills {
+				fmt.Fprintf(&sb, "- **%s**: %s\n", sk.Name, sk.Description)
+			}
+			parts = append(parts, sb.String())
+		}
+	}
+
+	// Active skills: inject full content of loaded skills.
+	if ctx.Session != nil && len(ctx.Session.ActiveSkills) > 0 {
+		var sb strings.Builder
+		sb.WriteString("## Active Skills\n")
+		for _, sk := range ctx.Session.ActiveSkills {
+			fmt.Fprintf(&sb, "### %s\n%s\n\n", sk.Name, sk.Content)
+		}
+		parts = append(parts, sb.String())
 	}
 
 	return strings.Join(parts, "\n\n")

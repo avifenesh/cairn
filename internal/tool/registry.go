@@ -59,7 +59,29 @@ func (r *Registry) ForMode(mode Mode) []Tool {
 
 // ForLLM converts all tools available in the given mode to the LLM ToolDef format.
 func (r *Registry) ForLLM(mode Mode) []llm.ToolDef {
+	return r.ForLLMFiltered(mode, nil)
+}
+
+// ForLLMFiltered converts tools available in the given mode to LLM format,
+// optionally filtering to only the named tools. When allowedTools is nil or
+// empty, all mode-available tools are returned.
+func (r *Registry) ForLLMFiltered(mode Mode, allowedTools []string) []llm.ToolDef {
 	tools := r.ForMode(mode)
+
+	if len(allowedTools) > 0 {
+		allowed := make(map[string]bool, len(allowedTools))
+		for _, name := range allowedTools {
+			allowed[name] = true
+		}
+		var filtered []Tool
+		for _, t := range tools {
+			if allowed[t.Name()] {
+				filtered = append(filtered, t)
+			}
+		}
+		tools = filtered
+	}
+
 	defs := make([]llm.ToolDef, len(tools))
 	for i, t := range tools {
 		defs[i] = llm.ToolDef{

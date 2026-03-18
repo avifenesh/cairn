@@ -5,6 +5,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"time"
 
 	"github.com/avifenesh/cairn/internal/eventbus"
@@ -117,13 +118,52 @@ func (ReasoningPart) partType() string { return "reasoning" }
 
 // Session represents a conversation with history.
 type Session struct {
-	ID        string
-	Title     string
-	Mode      tool.Mode
-	Events    []*Event
-	State     map[string]any
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID           string
+	Title        string
+	Mode         tool.Mode
+	Events       []*Event
+	State        map[string]any
+	ActiveSkills []ActiveSkill // Skills loaded in this session
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+// ActiveSkill tracks a skill loaded in a session.
+type ActiveSkill struct {
+	Name         string
+	Content      string   // Full skill body
+	AllowedTools []string // Tool scoping from frontmatter (nil or empty = no restriction)
+}
+
+// AllowedToolsFromSkills returns the merged allowed-tools from all active skills.
+// Returns nil if no skills have tool restrictions (meaning all tools available).
+// If ANY active skill has no restriction, all tools are available (nil).
+func (s *Session) AllowedToolsFromSkills() []string {
+	if len(s.ActiveSkills) == 0 {
+		return nil
+	}
+
+	merged := make(map[string]bool)
+	for _, sk := range s.ActiveSkills {
+		if len(sk.AllowedTools) == 0 {
+			// This skill has no restriction — all tools available.
+			return nil
+		}
+		for _, t := range sk.AllowedTools {
+			merged[t] = true
+		}
+	}
+
+	// Always include skill tools themselves so agent can manage skills.
+	merged["cairn.loadSkill"] = true
+	merged["cairn.listSkills"] = true
+
+	result := make([]string, 0, len(merged))
+	for t := range merged {
+		result = append(result, t)
+	}
+	sort.Strings(result)
+	return result
 }
 
 // History converts session events to LLM messages for context.

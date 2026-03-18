@@ -183,6 +183,46 @@ func TestRegistry_ForLLM(t *testing.T) {
 	}
 }
 
+func TestRegistry_ForLLMFiltered(t *testing.T) {
+	reg := NewRegistry()
+
+	t1 := Define("cairn.webSearch", "search", []Mode{ModeTalk}, func(ctx *ToolContext, p addParams) (*ToolResult, error) {
+		return &ToolResult{Output: "ok"}, nil
+	})
+	t2 := Define("cairn.webFetch", "fetch", []Mode{ModeTalk}, func(ctx *ToolContext, p addParams) (*ToolResult, error) {
+		return &ToolResult{Output: "ok"}, nil
+	})
+	t3 := Define("cairn.digest", "digest", []Mode{ModeTalk}, func(ctx *ToolContext, p addParams) (*ToolResult, error) {
+		return &ToolResult{Output: "ok"}, nil
+	})
+	reg.Register(t1, t2, t3)
+
+	// No filter — all 3 tools.
+	defs := reg.ForLLMFiltered(ModeTalk, nil)
+	if len(defs) != 3 {
+		t.Fatalf("expected 3 tools unfiltered, got %d", len(defs))
+	}
+
+	// Filter to 2 tools.
+	defs = reg.ForLLMFiltered(ModeTalk, []string{"cairn.webSearch", "cairn.webFetch"})
+	if len(defs) != 2 {
+		t.Fatalf("expected 2 filtered tools, got %d", len(defs))
+	}
+	names := map[string]bool{}
+	for _, d := range defs {
+		names[d.Name] = true
+	}
+	if !names["cairn.webSearch"] || !names["cairn.webFetch"] {
+		t.Fatalf("expected webSearch and webFetch, got %v", names)
+	}
+
+	// Filter with empty slice — all tools.
+	defs = reg.ForLLMFiltered(ModeTalk, []string{})
+	if len(defs) != 3 {
+		t.Fatalf("expected 3 tools with empty filter, got %d", len(defs))
+	}
+}
+
 func TestRegistry_Execute(t *testing.T) {
 	reg := NewRegistry()
 

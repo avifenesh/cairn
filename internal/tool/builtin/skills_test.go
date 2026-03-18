@@ -3,6 +3,7 @@ package builtin
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/avifenesh/cairn/internal/tool"
@@ -66,6 +67,45 @@ func TestLoadSkill(t *testing.T) {
 	}
 	if result.Output == "" {
 		t.Fatal("expected skill content in output")
+	}
+}
+
+func TestLoadSkillActivatesCallback(t *testing.T) {
+	ctx := toolCtxWithSkills(newMockSkillService())
+	var activated string
+	ctx.ActivateSkill = func(name, content string, allowedTools []string) {
+		activated = name
+	}
+
+	args, _ := json.Marshal(map[string]string{"name": "web-search"})
+	result, err := loadSkill.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("unexpected tool error: %s", result.Error)
+	}
+	if activated != "web-search" {
+		t.Fatalf("expected activation callback with 'web-search', got %q", activated)
+	}
+	if result.Metadata["activated"] != true {
+		t.Fatal("expected activated=true in metadata")
+	}
+}
+
+func TestLoadSkillOutputFormat(t *testing.T) {
+	ctx := toolCtxWithSkills(newMockSkillService())
+	args, _ := json.Marshal(map[string]string{"name": "web-search"})
+
+	result, err := loadSkill.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(result.Output, "<skill_content") {
+		t.Fatal("expected <skill_content> tag in output")
+	}
+	if !strings.Contains(result.Output, "</skill_content>") {
+		t.Fatal("expected closing </skill_content> tag")
 	}
 }
 

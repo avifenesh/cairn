@@ -161,10 +161,13 @@ type SkillService interface {
 
 // SkillItem is a tool-level representation of a skill.
 type SkillItem struct {
-	Name        string
-	Description string
-	Inclusion   string // "always" or "on-demand"
-	Content     string
+	Name         string
+	Description  string
+	Inclusion    string // "always" or "on-demand"
+	Content      string
+	AllowedTools []string // Tool scoping from frontmatter (nil or empty = no restriction)
+	Location     string   // Directory path on disk
+	DisableModel bool     // Requires approval before activation
 }
 
 // Mode represents the agent interaction mode that determines which tools are available.
@@ -203,6 +206,10 @@ type ToolContext struct {
 	Tasks    TaskService
 	Status   StatusService
 	Skills   SkillService
+
+	// ActivateSkill is called by cairn.loadSkill to register a skill in the session.
+	// Set by the ReAct loop before tool execution. Nil = activation not supported.
+	ActivateSkill func(name, content string, allowedTools []string)
 }
 
 // ToolResult holds the output of a tool execution.

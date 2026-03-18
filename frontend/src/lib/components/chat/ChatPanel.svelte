@@ -13,6 +13,7 @@
 
 	let inputText = $state('');
 	let messagesEnd: HTMLDivElement;
+	let textareaEl: HTMLTextAreaElement;
 	let sending = $state(false);
 
 	onMount(async () => {
@@ -114,7 +115,7 @@
 						{#each suggestions as suggestion}
 							<button
 								class="rounded-lg border border-border-subtle bg-[var(--bg-1)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-2)] hover:text-[var(--text-primary)] transition-colors"
-								onclick={() => { inputText = suggestion; }}
+								onclick={() => { inputText = suggestion; textareaEl?.focus(); }}
 								type="button"
 							>
 								{suggestion}
@@ -194,6 +195,7 @@
 					style="border-color: color-mix(in srgb, {modeColor} 25%, transparent); --tw-ring-color: color-mix(in srgb, {modeColor} 30%, transparent)"
 				>
 					<textarea
+						bind:this={textareaEl}
 						bind:value={inputText}
 						onkeydown={handleKeydown}
 						placeholder={modePlaceholder}

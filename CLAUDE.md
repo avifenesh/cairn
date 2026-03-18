@@ -16,16 +16,16 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 1 | Event Bus - typed async pub/sub backbone | Done | `internal/eventbus/` |
 | 2 | LLM Client - multi-provider streaming, retry/fallback/budget | Done | `internal/llm/` |
 | 3 | Tool System - type-safe tools, registry, mode filtering, permissions | Done | `internal/tool/` |
-| 4 | Agent Core - ReAct loop, sessions, modes (talk/work/coding) | Done | `internal/agent/` |
+| 4 | Agent Core - ReAct loop, sessions, journaler, reflection, agent loop | Done | `internal/agent/` |
 | 5 | Task Engine - priority queue, worktree isolation, leases | Done | `internal/task/` |
 | 6 | Memory System - semantic + episodic + procedural, RAG, Soul | Done | `internal/memory/` |
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Done | `internal/signal/` |
 | 8 | Skill System - SKILL.md parser, discovery, hot-reload, injection | Done | `internal/skill/` |
 | 9 | Server & Protocols - HTTP, SSE, REST API, auth, static files | Done | `internal/server/` |
-| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.11 + Phase 6, 169 tests) | `frontend/` |
+| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.12 + Phase 6, 169 tests) | `frontend/` |
 | 11 | Channel Adapters - web, Telegram, Slack, CLI, API, voice | Not started | — |
 
-Frontend complete (10.1-10.11 + Phase 6 hardening). 169 tests across 19 files. Next: 10.12 (Go embed) + Phase 5.2 (integration testing against Go server).
+Frontend complete (10.1-10.12 + Phase 6 hardening). 169 tests across 19 files. 10.12 Go embed done. Backend: 242 tests. Next: Phase 5.2 (integration testing against Go server).
 
 ## Phases
 
@@ -78,11 +78,11 @@ internal/
   tool/builtin/               Built-in tools: readFile, writeFile, editFile, shell, gitRun, etc.
   task/                       Task store, priority queue, worktree manager, lease claiming, reaper
   memory/                     Memory store, RAG search + MMR, embedder interface, Soul loader
-  agent/                      ReAct loop, session store, modes (talk/work/coding), system prompt builder
-  server/                     HTTP server, REST routes, SSE broadcaster, auth, static files
+  agent/                      ReAct loop, sessions, journaler, reflection engine, always-on loop
+  server/                     HTTP server, REST routes, SSE broadcaster, auth, static (embed+FS), webhooks
   skill/                      SKILL.md parser, discovery, hot-reload, prompt injection
   signal/                     Signal plane: event store, scheduler, 5 pollers, webhooks, digest
-frontend/                     SvelteKit 5 app (Svelte 5 runes, Tailwind v4, shadcn-svelte)
+frontend/                     SvelteKit 5 app + embed.FS package for production binary
   src/routes/                 today, chat, ops, memory, agents, skills, soul, settings
   src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav)
   src/lib/components/         chat/, feed/, layout/, memory/, tasks/, shared/
@@ -141,6 +141,11 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 - `NPM_PACKAGES` - comma-separated npm packages to track
 - `CRATES_PACKAGES` - comma-separated crates to track
 - `WEBHOOK_SECRETS` - JSON map of name->secret (e.g. '{"github":"abc"}')
+
+**Agent loop:**
+- `AGENT_TICK_INTERVAL` (60) - tick interval in seconds
+- `REFLECTION_INTERVAL` (1800) - reflection cycle interval in seconds
+- `JOURNAL_ENABLED` (true) - enable session journaling
 
 **Feature flags:**
 - `CODING_ENABLED` (false), `IDLE_MODE_ENABLED` (false)

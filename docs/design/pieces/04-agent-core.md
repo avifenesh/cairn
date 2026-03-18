@@ -176,13 +176,20 @@ type SubAgentConfig struct {
 
 ## Subphases
 
-| # | Subphase | Depends On |
-|---|----------|------------|
-| 4.1 | Agent interface + Event model | 1 (event bus) |
-| 4.2 | ReAct loop implementation | 2 (LLM), 3 (tools), 4.1 |
-| 4.3 | Session store (SQLite) | 4.1 |
-| 4.4 | Session compaction | 4.2, 4.3, 2 (LLM for summarization) |
-| 4.5 | Agent modes + system prompt building | 4.2 |
-| 4.6 | Sub-agent spawning | 4.2, 5 (task engine) |
-| 4.7 | Checkpoint/resume (Eino pattern) | 4.2, 4.3 |
-| 4.8 | Tests | All |
+| # | Subphase | Depends On | Status |
+|---|----------|------------|--------|
+| 4.1 | Agent interface + Event model | 1 (event bus) | Done (PR #3) |
+| 4.2 | ReAct loop implementation | 2 (LLM), 3 (tools), 4.1 | Done (PR #3) |
+| 4.3 | Session store (SQLite) | 4.1 | Done (PR #3) |
+| 4.4 | Session compaction | 4.2, 4.3, 2 (LLM for summarization) | Deferred |
+| 4.5 | Agent modes + system prompt building | 4.2 | Done (PR #3) |
+| 4.6 | Sub-agent spawning | 4.2, 5 (task engine) | Deferred |
+| 4.7 | Checkpoint/resume (Eino pattern) | 4.2, 4.3 | Deferred |
+| 4.8 | Tests | All | Done (19 tests) |
+
+### Phase 5 Additions (PR #10)
+| # | Addition | Status |
+|---|----------|--------|
+| 5.3 | Always-on agent loop (tick cycle, task execution) | Done |
+| 5.5 | Session journaler (episodic memory via LLM) | Done |
+| 5.6 | Reflection engine (pattern detection, memory proposals) | Done |

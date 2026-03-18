@@ -69,13 +69,13 @@ type Digest struct {
 
 ## Subphases
 
-| # | Subphase | Depends On |
-|---|----------|------------|
-| 7.1 | Event store (SQLite) + dedup | Nothing |
-| 7.2 | Poll scheduler (per-source intervals, backoff) | 7.1 |
-| 7.3 | GitHub poller | 7.1, 7.2 |
-| 7.4 | Gmail poller | 7.1, 7.2 |
-| 7.5 | Generic pollers (Reddit, HN, npm, crates) | 7.1, 7.2 |
-| 7.6 | Webhook handler (HTTP POST receiver) | 7.1 |
-| 7.7 | Digest runner | 7.1, 2 (LLM) |
-| 7.8 | Tests | All |
+| # | Subphase | Depends On | Status |
+|---|----------|------------|--------|
+| 7.1 | Event store (SQLite) + dedup | Nothing | Done (PR #7) |
+| 7.2 | Poll scheduler (per-source intervals, backoff) | 7.1 | Done (PR #7) |
+| 7.3 | GitHub poller | 7.1, 7.2 | Done (PR #7) |
+| 7.4 | Gmail poller | 7.1, 7.2 | Deferred (OAuth complexity) |
+| 7.5 | Generic pollers (Reddit, HN, npm, crates) | 7.1, 7.2 | Done (PR #7, #9) |
+| 7.6 | Webhook handler (HTTP POST receiver) | 7.1 | Done (PR #9) |
+| 7.7 | Digest runner | 7.1, 2 (LLM) | Done (PR #9) |
+| 7.8 | Tests | All | Done (35 tests) |

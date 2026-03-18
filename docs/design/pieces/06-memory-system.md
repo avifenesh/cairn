@@ -130,14 +130,14 @@ func (r *ReflectionEngine) Reflect(ctx context.Context) error
 
 ## Subphases
 
-| # | Subphase | Depends On |
-|---|----------|------------|
-| 6.1 | Memory store (SQLite + embeddings) | Nothing |
-| 6.2 | Embedding service (local or API) | Nothing |
-| 6.3 | RAG search with MMR re-ranking | 6.1, 6.2 |
-| 6.4 | Session journaler | 4 (agent), 2 (LLM) |
-| 6.5 | Soul loader + hot-reload | Nothing |
-| 6.6 | Context builder (token-budgeted) | 6.1, 6.3, 6.4, 6.5 |
-| 6.7 | Reflection engine | 6.1, 6.4, 6.5, 2 (LLM) |
-| 6.8 | Memory compaction + decay | 6.1 |
-| 6.9 | Tests | All |
+| # | Subphase | Depends On | Status |
+|---|----------|------------|--------|
+| 6.1 | Memory store (SQLite + embeddings) | Nothing | Done (PR #2) |
+| 6.2 | Embedding service (local or API) | Nothing | Done (NoopEmbedder, keyword-only) |
+| 6.3 | RAG search with MMR re-ranking | 6.1, 6.2 | Done (PR #2) |
+| 6.4 | Session journaler | 4 (agent), 2 (LLM) | Done (PR #10, in agent pkg) |
+| 6.5 | Soul loader + hot-reload | Nothing | Done (PR #2) |
+| 6.6 | Context builder (token-budgeted) | 6.1, 6.3, 6.4, 6.5 | Partial (modes.go) |
+| 6.7 | Reflection engine | 6.1, 6.4, 6.5, 2 (LLM) | Done (PR #10, in agent pkg) |
+| 6.8 | Memory compaction + decay | 6.1 | Done (PR #2) |
+| 6.9 | Tests | All | Done (24 memory + 19 agent) |

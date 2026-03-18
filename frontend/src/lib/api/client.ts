@@ -167,8 +167,10 @@ export const getSessions = async () => {
 	return { items: (raw.sessions ?? raw.items ?? []) as ChatSession[] };
 };
 
-export const getSessionMessages = (sessionId: string) =>
-	get<{ items: ChatMessage[] }>(`/v1/assistant/sessions/${sessionId}`);
+export const getSessionMessages = async (sessionId: string) => {
+	const raw = await get<Record<string, unknown>>(`/v1/assistant/sessions/${sessionId}`);
+	return { items: (raw.messages ?? raw.events ?? raw.items ?? []) as ChatMessage[] };
+};
 
 export const sendMessage = (message: string, mode?: ChatMode, sessionId?: string) =>
 	post<{ taskId: string }>('/v1/assistant/message', { message, mode, sessionId });

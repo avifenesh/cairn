@@ -36,6 +36,9 @@
 
 		try {
 			const res = await sendMessage(text, chatStore.mode, chatStore.currentSessionId ?? undefined);
+			if (res.sessionId && !chatStore.currentSessionId) {
+				chatStore.setCurrentSession(res.sessionId);
+			}
 			chatStore.startStreaming(res.taskId);
 		} catch {
 			// error handled via notification
@@ -57,6 +60,15 @@
 
 	const streamingList = $derived([...chatStore.streamingMessages.values()]);
 	const hasMessages = $derived(chatStore.messages.length > 0 || streamingList.length > 0);
+
+	// Auto-scroll when messages change (new message or session loaded)
+	$effect(() => {
+		// Track message count to trigger scroll
+		const _ = chatStore.messages.length + streamingList.length;
+		if (_ > 0) {
+			tick().then(scrollToBottom);
+		}
+	});
 </script>
 
 <div class="flex h-full flex-col">

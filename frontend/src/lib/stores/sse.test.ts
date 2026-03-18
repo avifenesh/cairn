@@ -192,9 +192,11 @@ describe('sseStore', () => {
 		expect(taskStore.upsertTask).toHaveBeenCalledWith({ id: 't1', status: 'running' });
 	});
 
-	it('routes assistant_delta to chatStore.appendDelta', () => {
+	it('routes assistant_delta to chatStore.appendDelta', async () => {
 		sseStore.connect();
 		mockEventSource.simulateEvent('assistant_delta', '{"taskId":"t1","deltaText":"hello"}');
+		// Delta is batched via requestAnimationFrame — flush it
+		await vi.advanceTimersByTimeAsync(20);
 		expect(chatStore.appendDelta).toHaveBeenCalledWith('t1', 'hello');
 	});
 

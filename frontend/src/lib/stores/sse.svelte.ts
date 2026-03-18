@@ -108,9 +108,33 @@ export const sseStore = {
 		handle('task_update', source, (d) => taskStore.upsertTask(d.task ?? d));
 		handle('approval_required', source, (d) => taskStore.addApproval(d.approval ?? d));
 
-		// Chat streaming
-		handle('assistant_delta', source, (d) => chatStore.appendDelta(d.taskId, d.deltaText));
+		// Chat streaming — batch deltas with requestAnimationFrame for performance
+		let pendingDelta = '';
+		let pendingDeltaTaskId = '';
+		let deltaFlushHandle: number | null = null;
+
+		function flushDelta() {
+			deltaFlushHandle = null;
+			if (pendingDelta && pendingDeltaTaskId) {
+				chatStore.appendDelta(pendingDeltaTaskId, pendingDelta);
+				pendingDelta = '';
+			}
+		}
+
+		handle('assistant_delta', source, (d) => {
+			if (pendingDeltaTaskId && pendingDeltaTaskId !== d.taskId) {
+				flushDelta();
+			}
+			pendingDeltaTaskId = d.taskId;
+			pendingDelta += d.deltaText;
+			if (deltaFlushHandle === null) {
+				deltaFlushHandle = requestAnimationFrame(flushDelta);
+			}
+		});
 		handle('assistant_end', source, (d) => {
+			// Flush any pending delta before completing
+			flushDelta();
+
 			// Backend may send empty taskId — resolve from active streaming message
 			let taskId = d.taskId;
 			if (!taskId) {

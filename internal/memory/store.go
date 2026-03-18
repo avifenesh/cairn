@@ -335,6 +335,19 @@ func (s *Store) OldUnusedMemories(ctx context.Context, age time.Duration) ([]*Me
 	return results, nil
 }
 
+// MarkMemoriesUsed increments access_count and sets last_accessed_at for a batch of memories.
+func (s *Store) MarkMemoriesUsed(ctx context.Context, ids []string) {
+	if len(ids) == 0 {
+		return
+	}
+	now := time.Now().UTC().Format(timeFormat)
+	for _, id := range ids {
+		s.db.ExecContext(ctx,
+			"UPDATE memories SET access_count = access_count + 1, last_accessed_at = ? WHERE id = ?",
+			now, id)
+	}
+}
+
 // UpdateConfidence sets the confidence value for a memory.
 func (s *Store) UpdateConfidence(ctx context.Context, id string, confidence float64) error {
 	now := time.Now().UTC().Format(timeFormat)

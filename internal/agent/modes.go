@@ -36,37 +36,56 @@ func DefaultModes() map[tool.Mode]*ModeConfig {
 	}
 }
 
-// BuildSystemPrompt assembles the full system prompt from mode config,
-// soul content, and relevant memories.
-func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig) string {
+// BuildSystemPrompt assembles the full system prompt using the context builder
+// for token-budgeted memory injection with hard rule reservation, decay scoring,
+// adversarial sanitization, and journal digest.
+func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilder *memory.ContextBuilder, journalEntries []memory.JournalDigestEntry) string {
 	var parts []string
 
 	// Identity.
 	parts = append(parts, "You are Cairn, a personal agent operating system.")
 
-	// Soul content (procedural memory).
-	if ctx.Soul != nil {
-		if content := ctx.Soul.Content(); content != "" {
-			parts = append(parts, fmt.Sprintf("## Soul\n%s", content))
-		}
-	}
-
 	// Mode instructions.
 	parts = append(parts, fmt.Sprintf("## Mode: %s\n%s", modeConfig.Mode, modeConfig.Prompt))
 
-	// Relevant memories (semantic memory, token-budgeted).
-	if ctx.Memory != nil && ctx.UserMessage != "" {
-		memories := injectMemories(ctx, 4000) // ~4000 token budget
-		if memories != "" {
-			parts = append(parts, fmt.Sprintf("## Relevant Memories\n%s", memories))
+	// Context builder: soul + memories + journal (token-budgeted).
+	if ctxBuilder != nil {
+		soulContent := ""
+		if ctx.Soul != nil {
+			soulContent = ctx.Soul.Content()
+		}
+
+		result := ctxBuilder.Build(ctx.Context, ctx.UserMessage, soulContent, journalEntries)
+		if result.Text != "" {
+			parts = append(parts, result.Text)
+		}
+
+		// Track memory usage (fire-and-forget).
+		if len(result.InjectedMemoryIDs) > 0 {
+			go ctxBuilder.MarkUsed(ctx.Context, result.InjectedMemoryIDs)
+		}
+	} else {
+		// Fallback: basic soul injection when no context builder available.
+		if ctx.Soul != nil {
+			if content := ctx.Soul.Content(); content != "" {
+				parts = append(parts, fmt.Sprintf("## Soul\n%s", content))
+			}
+		}
+
+		// Fallback: basic memory injection.
+		if ctx.Memory != nil && ctx.UserMessage != "" {
+			memories := injectMemoriesBasic(ctx, 4000)
+			if memories != "" {
+				parts = append(parts, fmt.Sprintf("## Relevant Memories\n%s", memories))
+			}
 		}
 	}
 
 	return strings.Join(parts, "\n\n")
 }
 
-// injectMemories searches for relevant memories and formats them for injection.
-func injectMemories(ctx *InvocationContext, tokenBudget int) string {
+// injectMemoriesBasic is the simple fallback when no ContextBuilder is configured.
+func injectMemoriesBasic(ctx *InvocationContext, tokenBudget int) string {
 	if ctx.Memory == nil {
 		return ""
 	}
@@ -77,10 +96,10 @@ func injectMemories(ctx *InvocationContext, tokenBudget int) string {
 	}
 
 	var sb strings.Builder
-	charBudget := tokenBudget * 4 // rough: 1 token ≈ 4 chars
+	charBudget := tokenBudget * 4
 
 	for _, r := range results {
-		line := formatMemory(r)
+		line := formatMemorySimple(r)
 		if sb.Len()+len(line) > charBudget {
 			break
 		}
@@ -91,7 +110,7 @@ func injectMemories(ctx *InvocationContext, tokenBudget int) string {
 	return sb.String()
 }
 
-func formatMemory(r memory.SearchResult) string {
+func formatMemorySimple(r memory.SearchResult) string {
 	m := r.Memory
 	prefix := ""
 	switch m.Category {

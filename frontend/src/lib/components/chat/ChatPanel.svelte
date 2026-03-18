@@ -122,7 +122,7 @@
 						{#if sm.toolCalls.length > 0}
 							<div class="mb-2 flex flex-wrap gap-1">
 								{#each sm.toolCalls as tc}
-									<ToolCallChip toolName={tc.toolName} phase={tc.phase} args={tc.args} result={tc.result} />
+									<ToolCallChip toolName={tc.toolName} phase={tc.phase} args={tc.args} result={tc.result} error={tc.error} durationMs={tc.durationMs} />
 								{/each}
 							</div>
 						{/if}

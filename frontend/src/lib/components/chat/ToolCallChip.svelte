@@ -37,12 +37,12 @@
 
 <div class="inline-flex flex-col">
 	<button
-		class="inline-flex items-center gap-1 h-5 px-1.5 text-[10px] font-mono rounded-md border transition-colors
+		class="inline-flex items-center gap-1 h-5 px-1.5 text-[10px] font-mono rounded-md border transition-colors hover:enabled:bg-[var(--bg-2)] disabled:cursor-default
 			{isError ? 'border-[var(--color-error)]/30 text-[var(--color-error)]' :
 			 phase === 'start' ? 'border-[var(--cairn-accent)]/30 text-[var(--cairn-accent)]' :
-			 'border-[var(--border-subtle)] text-[var(--text-tertiary)]'}
-			{hasDetails ? 'cursor-pointer hover:bg-[var(--bg-2)]' : 'cursor-default'}"
-		onclick={() => { if (hasDetails) expanded = !expanded; }}
+			 'border-[var(--border-subtle)] text-[var(--text-tertiary)]'}"
+		onclick={() => { expanded = !expanded; }}
+		disabled={!hasDetails}
 		type="button"
 	>
 		{#if isError}

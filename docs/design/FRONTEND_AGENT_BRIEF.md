@@ -267,11 +267,11 @@ The Go backend embeds `frontend/dist/` via `embed.FS` and serves it at `/`.
 3. Unit tests for utilities: markdown (rendering, XSS sanitization), time (relative formatting), touch (pull-to-refresh, swipe-to-dismiss)
 4. API client tests: ApiError, fetch behavior, credentials
 5. Test script: `pnpm test` (vitest run), `pnpm test:watch` (vitest)
-6. 169 tests across 19 test files (stores, utils, API, components)
+6. 193 tests across 21 test files (stores, utils, API, components)
 
 ## Completion Status
 
-All frontend phases (1-5), subphases (10.1-10.12), Phase 6 hardening (10/10 items), and full redesign complete. 169 tests, 14 shadcn-svelte components, Cairn design system (emerald accent, zinc backgrounds, Geist font). Token gate, SSE chat integration, API normalization layer all working.
+All frontend phases (1-5), subphases (10.1-10.12), Phase 6 hardening (10/10 items), full redesign, and Phase 6 frontend partial complete. 193 tests across 21 files, 14 shadcn-svelte components, Cairn design system (emerald accent, zinc backgrounds, Geist font). Token gate, SSE chat integration, API normalization layer, message split bug fix, tool call upgrade, system status card, skill browser, chat empty state all done.
 
 ### Full Redesign (merged)
 
@@ -289,12 +289,13 @@ Design system rewrite: `--pub-*` → `--cairn-*`, emerald `#10B981` accent, zinc
 | C.6 | File attachment | medium | Attach files to messages, preview, send as multipart |
 | C.7 | Voice input/output | medium | Wire VoiceButton to backend whisper endpoint, TTS playback |
 | C.8 | Message actions bar | medium | Hover actions: copy, remember, create task, share |
-| C.9 | Streaming improvements | medium | Smooth token-by-token rendering, cursor animation, cancellation |
-| C.10 | Chat empty state | low | Suggested prompts, recent sessions, quick actions |
+| C.9 | Streaming improvements | medium | **DONE PR #28** — completedTaskIds guard, appendDelta no auto-create, split bug fixed |
+| C.10 | Chat empty state | low | **DONE PR #30** — mode-aware suggestion chips, textarea focus on click |
 
-### Frontend Tool/Skill UI (from PHASE6_PLAN.md items 6f.1-6f.22 — blocked on backend PRs 1-3)
+### Frontend Tool/Skill UI (from PHASE6_PLAN.md items 6f.1-6f.22 — UNBLOCKED, backend done)
 
-Tool call display upgrade, inline memory creation, feed actions, task creation from chat, memory batch actions, skill browser/detail, system status, budget display, new API methods, stores, SSE events, tests.
+**Done:** 6f.1 (tool call upgrade, PR #29), 6f.8 (skill browser, PR #32), 6f.11 (system status, PR #29).
+**Remaining:** 6f.2 (inline memory), 6f.3 (feed actions), 6f.4 (task from chat), 6f.5 (memory form), 6f.6 (memory search scores), 6f.7 (batch accept/reject), 6f.9 (skill detail), 6f.10 (active skill indicator), 6f.12 (task creation form), 6f.13 (budget display), 6f.14-18 (infra: API methods, stores, SSE events).
 
 ### Phase 6: Hardening (approved improvements, independent of backend)
 

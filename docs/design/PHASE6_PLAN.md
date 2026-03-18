@@ -5,11 +5,12 @@
 
 ## Current State (updated 2026-03-18)
 
-318 backend tests, 169 frontend tests, 14 packages, ~24,000 lines of Go.
+318 backend tests, 193 frontend tests, 14 packages, ~24,000 lines of Go.
 24 built-in tools. 5 bundled SKILL.md files.
 
 **Phase 6 backend COMPLETE** (PRs #21, #24, #26 — all merged).
-Phase 6.5 (skill activation), Phase 6 frontend (PR 4), Phase 7, and Phase 8 remain.
+**Phase 6 frontend IN PROGRESS** — 6f.1, 6f.8, 6f.11 done (PRs #28, #29, #30, #32).
+Phase 6.5 (skill activation), remaining Phase 6 frontend, Phase 7, and Phase 8 remain.
 
 ---
 
@@ -63,7 +64,7 @@ Phase 6.5 (skill activation), Phase 6 frontend (PR 4), Phase 7, and Phase 8 rema
 
 | # | What | Component | Details |
 |---|------|-----------|---------|
-| 6f.1 | Tool call display upgrade | `ToolCallChip.svelte` | Add: expandable output preview (truncated), duration badge, error state (red). Click expands full output in modal. |
+| 6f.1 | Tool call display upgrade | `ToolCallChip.svelte` | **DONE PR #29** — expandable output, duration badge, error state, disabled a11y. |
 | 6f.2 | Inline memory creation | New: `QuickMemoryButton.svelte` | Message action bar button "Remember this". Popover with category selector. Calls `POST /v1/memories`. |
 | 6f.3 | Inline feed actions | New: `FeedActionBar.svelte` | When agent shows feed items, show "Mark read" / "Mark all read" inline actions. |
 | 6f.4 | Task creation from chat | New: `CreateTaskButton.svelte` | Message action bar "Create task". Pre-fills description from message. Calls `POST /v1/tasks`. |
@@ -80,7 +81,7 @@ Phase 6.5 (skill activation), Phase 6 frontend (PR 4), Phase 7, and Phase 8 rema
 
 | # | What | Component | Details |
 |---|------|-----------|---------|
-| 6f.8 | Skill browser | Extend skills page | List with name, description, inclusion type, category badges. Search/filter. |
+| 6f.8 | Skill browser | Extend skills page | **DONE PR #32** — search/filter, expandable cards, inclusion badges, a11y. |
 | 6f.9 | Skill detail | New: `SkillDetail.svelte` | Full SKILL.md rendered as markdown. "Load into chat" button. |
 | 6f.10 | Active skill indicator | Extend `ChatPanel.svelte` | Chip below mode selector: "Active skill: web-search". |
 
@@ -88,7 +89,7 @@ Phase 6.5 (skill activation), Phase 6 frontend (PR 4), Phase 7, and Phase 8 rema
 
 | # | What | Component | Details |
 |---|------|-----------|---------|
-| 6f.11 | System status card | New: `SystemStatus.svelte` | Budget (spend vs cap), poller status (last poll, errors), memory stats, unread count. SSE-updated. |
+| 6f.11 | System status card | New: `SystemStatus.svelte` | **DONE PR #29** — uptime, version, SSE status, costs. |
 | 6f.12 | Task creation form | Extend ops page | "New Task" button → form with description, type, priority. |
 
 #### Settings View (`src/routes/settings/`)

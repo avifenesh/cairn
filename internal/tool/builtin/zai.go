@@ -245,16 +245,8 @@ var zaiWebSearch = tool.Define("cairn.webSearch",
 			return &tool.ToolResult{Error: "query is required"}, nil
 		}
 
-		args := map[string]any{
-			"search_query": p.Query,
-			"location":     "us",
-			"content_size":  "high",
-		}
-		if p.NumResults != nil && *p.NumResults > 0 {
-			// No count param in web_search_prime, but we pass it in case the API supports it
-		}
-
-		text, err := callZaiMCP(safeCtx(ctx.Cancel), "web_search_prime", "web_search_prime", args)
+		// Try REST API first (gives clearer errors), fall back to MCP.
+		text, err := callZaiWebSearchREST(safeCtx(ctx.Cancel), p.Query, p.NumResults)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("web search failed: %v", err)}, nil
 		}
@@ -270,6 +262,83 @@ var zaiWebSearch = tool.Define("cairn.webSearch",
 
 type zaiWebReaderParams struct {
 	URL string `json:"url" desc:"URL to read"`
+}
+
+// callZaiWebSearchREST calls the Z.ai REST web search API directly.
+// POST /api/paas/v4/web_search with search_engine=search-prime.
+func callZaiWebSearchREST(ctx context.Context, query string, numResults *int) (string, error) {
+	count := 10
+	if numResults != nil && *numResults > 0 {
+		count = *numResults
+		if count > 50 {
+			count = 50
+		}
+	}
+
+	body := map[string]any{
+		"search_engine": "search-prime",
+		"search_query":  query,
+		"count":         count,
+	}
+	data, _ := json.Marshal(body)
+
+	// Use the coding plan base URL for REST API
+	restURL := strings.Replace(zaiConfig.BaseURL, "/api/mcp", "/api/paas/v4/web_search", 1)
+	if !strings.Contains(restURL, "web_search") {
+		restURL = "https://api.z.ai/api/paas/v4/web_search"
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, restURL, bytes.NewReader(data))
+	if err != nil {
+		return "", fmt.Errorf("zai search: create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+zaiConfig.APIKey)
+
+	resp, err := zaiConfig.HTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("zai search: http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 2*1024*1024))
+	if err != nil {
+		return "", fmt.Errorf("zai search: read response: %w", err)
+	}
+
+	// Check for API error
+	var errResp struct {
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(respBody, &errResp) == nil && errResp.Error.Code != "" {
+		return "", fmt.Errorf("zai search: %s — %s", errResp.Error.Code, errResp.Error.Message)
+	}
+
+	// Parse search results
+	var searchResp struct {
+		SearchResult []struct {
+			Title   string `json:"title"`
+			Content string `json:"content"`
+			Link    string `json:"link"`
+			Media   string `json:"media"`
+		} `json:"search_result"`
+	}
+	if err := json.Unmarshal(respBody, &searchResp); err != nil {
+		return "", fmt.Errorf("zai search: parse: %w", err)
+	}
+
+	if len(searchResp.SearchResult) == 0 {
+		return "No search results found.", nil
+	}
+
+	var sb strings.Builder
+	for i, r := range searchResp.SearchResult {
+		fmt.Fprintf(&sb, "%d. **%s**\n   %s\n   URL: %s\n   Source: %s\n\n", i+1, r.Title, r.Content, r.Link, r.Media)
+	}
+	return sb.String(), nil
 }
 
 var zaiWebReader = tool.Define("cairn.webFetch",

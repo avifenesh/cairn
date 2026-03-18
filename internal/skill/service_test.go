@@ -257,6 +257,63 @@ B body.
 	}
 }
 
+func TestService_MultiDirOverride(t *testing.T) {
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+
+	// Same skill name in both dirs — dir2 should override dir1 (last wins).
+	writeSkill(t, dir1, "shared", `---
+name: shared
+description: From first directory
+---
+
+First body.
+`)
+	writeSkill(t, dir2, "shared", `---
+name: shared
+description: From second directory (override)
+---
+
+Second body.
+`)
+
+	// Also add a unique skill in dir1 that should survive.
+	writeSkill(t, dir1, "unique", `---
+name: unique
+description: Only in first directory
+---
+
+Unique body.
+`)
+
+	svc := NewService([]string{dir1, dir2}, slog.Default())
+	if err := svc.Discover(); err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+
+	// Should have 2 skills: "shared" (from dir2) and "unique" (from dir1).
+	if len(svc.List()) != 2 {
+		t.Fatalf("List: got %d, want 2", len(svc.List()))
+	}
+
+	// The "shared" skill should come from dir2 (later dir overrides).
+	sk := svc.Get("shared")
+	if sk == nil {
+		t.Fatal("Get(shared): nil")
+	}
+	if sk.Description != "From second directory (override)" {
+		t.Errorf("shared.Description: got %q, want description from dir2", sk.Description)
+	}
+	if !searchString(sk.Content, "Second body") {
+		t.Errorf("shared.Content should be from dir2, got %q", sk.Content)
+	}
+
+	// The "unique" skill should still exist.
+	if svc.Get("unique") == nil {
+		t.Error("Get(unique): nil — unique skill from dir1 should survive")
+	}
+}
+
 func TestService_SkipsBadSkills(t *testing.T) {
 	dir := t.TempDir()
 

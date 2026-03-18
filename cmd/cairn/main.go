@@ -3,9 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"io/fs"
 	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -47,6 +51,19 @@ func main() {
 		case "version":
 			fmt.Printf("cairn %s (%s) built %s\n", version, commit, date)
 			return
+		case "install":
+			if len(os.Args) > 2 && os.Args[2] == "skill" {
+				if len(os.Args) < 4 {
+					fmt.Fprintln(os.Stderr, "Usage: cairn install skill <source>")
+					fmt.Fprintln(os.Stderr, "  source: git URL (https://... or *.git) or local directory path")
+					os.Exit(1)
+				}
+				runInstallSkill(logger, os.Args[3])
+				return
+			}
+			fmt.Fprintln(os.Stderr, "Usage: cairn install skill <source>")
+			os.Exit(1)
+			return
 		}
 	}
 
@@ -54,8 +71,9 @@ func main() {
 	fmt.Printf("version %s (%s)\n\n", version, commit)
 	fmt.Println("Usage: cairn chat \"your message here\"")
 	fmt.Println("       cairn chat --mode coding \"your message\"")
-	fmt.Println("       cairn serve               # start HTTP server")
-	fmt.Println("       cairn version             # show version info")
+	fmt.Println("       cairn serve                      # start HTTP server")
+	fmt.Println("       cairn install skill <source>     # install a skill from git URL or local path")
+	fmt.Println("       cairn version                    # show version info")
 }
 
 // runServe starts the HTTP server with all subsystems initialized.
@@ -537,4 +555,228 @@ func runChat(logger *slog.Logger) {
 			sessionStore.AppendEvent(ctx, session.ID, assistantEv)
 		}
 	}
+}
+
+// exitf prints an error message to stderr and exits with code 1.
+func exitf(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", args...)
+	os.Exit(1)
+}
+
+// runInstallSkill installs a skill from a git URL or local directory path
+// into ~/.cairn/skills/{name}/.
+func runInstallSkill(logger *slog.Logger, source string) {
+	logger.Info("installing skill", "source", source)
+
+	// Determine install target directory.
+	home, err := os.UserHomeDir()
+	if err != nil {
+		exitf("cannot determine home directory: %v", err)
+	}
+	installBase := filepath.Join(home, ".cairn", "skills")
+
+	// Ensure the install directory exists.
+	if err := os.MkdirAll(installBase, 0755); err != nil {
+		exitf("cannot create skill directory %s: %v", installBase, err)
+	}
+
+	var srcDir string // directory containing the SKILL.md
+
+	if isGitURL(source) {
+		// Clone to a temp directory.
+		tmpDir, err := os.MkdirTemp("", "cairn-skill-install-*")
+		if err != nil {
+			exitf("cannot create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		logger.Info("cloning repository", "url", source)
+		cmd := exec.Command("git", "clone", "--depth", "1", "--", source, tmpDir)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+		if err := cmd.Run(); err != nil {
+			exitf("git clone failed: %v", err)
+		}
+
+		srcDir, err = findSkillDir(tmpDir)
+		if err != nil {
+			exitf("%v", err)
+		}
+	} else {
+		// Local path — resolve and verify.
+		absPath, err := filepath.Abs(source)
+		if err != nil {
+			exitf("invalid path %q: %v", source, err)
+		}
+		logger.Debug("resolving local path", "source", source, "abs", absPath)
+
+		srcDir, err = findSkillDir(absPath)
+		if err != nil {
+			exitf("%v", err)
+		}
+	}
+
+	// Verify SKILL.md is a regular file (not a symlink) before parsing.
+	skillPath := filepath.Join(srcDir, "SKILL.md")
+	fi, err := os.Lstat(skillPath)
+	if err != nil {
+		exitf("cannot stat SKILL.md: %v", err)
+	}
+	if fi.Mode()&fs.ModeSymlink != 0 {
+		exitf("SKILL.md is a symlink — refusing to parse for security")
+	}
+	if !fi.Mode().IsRegular() {
+		exitf("SKILL.md is not a regular file")
+	}
+
+	// Parse and validate the SKILL.md.
+	sk, err := skill.Parse(skillPath)
+	if err != nil {
+		exitf("failed to parse SKILL.md: %v", err)
+	}
+
+	// Collect known tool names from builtin registry for validation.
+	knownToolNames := make([]string, 0, len(builtin.All()))
+	for _, t := range builtin.All() {
+		knownToolNames = append(knownToolNames, t.Name())
+	}
+
+	// Validate.
+	issues := skill.Validate(sk, knownToolNames)
+	for _, iss := range issues {
+		fmt.Printf("  [%s] %s\n", iss.Severity, iss.Message)
+	}
+	hasErrors := false
+	for _, iss := range issues {
+		if iss.Severity == skill.SeverityError {
+			hasErrors = true
+		}
+	}
+	if hasErrors {
+		exitf("skill has validation errors, aborting install")
+	}
+
+	// Copy the skill directory to ~/.cairn/skills/{name}/.
+	destDir := filepath.Join(installBase, sk.Name)
+
+	// Remove existing if present.
+	if _, err := os.Stat(destDir); err == nil {
+		fmt.Printf("Replacing existing skill %q...\n", sk.Name)
+		if err := os.RemoveAll(destDir); err != nil {
+			exitf("cannot remove existing skill: %v", err)
+		}
+	}
+
+	if err := copyDir(srcDir, destDir); err != nil {
+		exitf("failed to copy skill: %v", err)
+	}
+
+	fmt.Printf("Installed skill %q to %s\n", sk.Name, destDir)
+	fmt.Printf("  Name:        %s\n", sk.Name)
+	fmt.Printf("  Description: %s\n", sk.Description)
+	fmt.Printf("  Inclusion:   %s\n", sk.Inclusion)
+	if len(sk.AllowedTools) > 0 {
+		fmt.Printf("  Tools:       %s\n", strings.Join(sk.AllowedTools, ", "))
+	}
+}
+
+// isGitURL returns true if source looks like a git URL.
+// Handles HTTPS (contains "://"), bare .git suffix, and SCP-like URLs (git@host:user/repo).
+func isGitURL(source string) bool {
+	return strings.Contains(source, "://") ||
+		strings.HasSuffix(source, ".git") ||
+		(strings.Contains(source, "@") && strings.Contains(source, ":"))
+}
+
+// findSkillDir locates the directory containing SKILL.md within root.
+// It checks root itself first, then immediate subdirectories.
+func findSkillDir(root string) (string, error) {
+	// Check root directly.
+	if _, err := os.Stat(filepath.Join(root, "SKILL.md")); err == nil {
+		return root, nil
+	}
+
+	// Check immediate subdirectories.
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return "", fmt.Errorf("cannot read directory %q: %w", root, err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		candidate := filepath.Join(root, entry.Name(), "SKILL.md")
+		if _, err := os.Stat(candidate); err == nil {
+			return filepath.Join(root, entry.Name()), nil
+		}
+	}
+
+	return "", fmt.Errorf("no SKILL.md found in %q or its subdirectories", root)
+}
+
+// maxCopyFileSize is the maximum file size (10 MB) allowed during skill copy.
+const maxCopyFileSize = 10 * 1024 * 1024
+
+// copyDir recursively copies a directory tree, skipping .git directories,
+// rejecting symlinks, and enforcing a per-file size limit.
+func copyDir(src, dst string) error {
+	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Compute relative path.
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+
+		// Skip .git directories (cloned repos include these).
+		if d.IsDir() && d.Name() == ".git" {
+			return filepath.SkipDir
+		}
+
+		// Reject symlinks to prevent dereferencing arbitrary files.
+		if d.Type()&fs.ModeSymlink != 0 {
+			return fmt.Errorf("symlink found at %s — refusing to copy for security", rel)
+		}
+
+		if d.IsDir() {
+			return os.MkdirAll(target, 0755)
+		}
+
+		// Copy regular file using streaming I/O with size limit.
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		if info.Size() > maxCopyFileSize {
+			return fmt.Errorf("file %s exceeds maximum size (%d bytes)", rel, maxCopyFileSize)
+		}
+
+		return copyFile(path, target, info.Mode())
+	})
+}
+
+// copyFile streams a single file from src to dst using io.Copy.
+func copyFile(src, dst string, perm fs.FileMode) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Close()
 }

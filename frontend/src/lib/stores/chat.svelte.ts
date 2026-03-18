@@ -85,10 +85,13 @@ export const chatStore = {
 		updated.delete(taskId);
 		streamingMessages = updated;
 
+		// Dedup: don't add if message with this taskId already exists
+		if (messages.some((m) => m.id === taskId)) return;
+
 		const msg: ChatMessage = {
 			id: taskId,
 			role: 'assistant',
-			content: finalText,
+			content: finalText || streaming?.content || '',
 			toolCalls: streaming?.toolCalls ?? [],
 			reasoning: streaming?.reasoning ?? [],
 			createdAt: new Date().toISOString(),

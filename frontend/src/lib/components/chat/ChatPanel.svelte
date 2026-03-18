@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { sendMessage, getSessions } from '$lib/api/client';
+	import { sendMessage, getSessions, getSessionMessages } from '$lib/api/client';
 	import { chatStore } from '$lib/stores/chat.svelte';
 	import MessageBubble from './MessageBubble.svelte';
 	import StreamingText from './StreamingText.svelte';
@@ -9,7 +9,7 @@
 	import SessionPicker from './SessionPicker.svelte';
 	import VoiceButton from './VoiceButton.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Bot, Send, Loader2 } from '@lucide/svelte';
+	import { Bot, Send, Loader2, Brain } from '@lucide/svelte';
 
 	let inputText = $state('');
 	let messagesEnd: HTMLDivElement;
@@ -19,6 +19,11 @@
 		try {
 			const res = await getSessions();
 			chatStore.setSessions(res.items);
+			// Auto-load last session if one was saved
+			if (chatStore.currentSessionId && res.items.some((s) => s.id === chatStore.currentSessionId)) {
+				const msgs = await getSessionMessages(chatStore.currentSessionId);
+				chatStore.setMessages(msgs.items);
+			}
 		} catch {
 			// ignore
 		}
@@ -36,6 +41,9 @@
 
 		try {
 			const res = await sendMessage(text, chatStore.mode, chatStore.currentSessionId ?? undefined);
+			if (res.sessionId && !chatStore.currentSessionId) {
+				chatStore.setCurrentSession(res.sessionId);
+			}
 			chatStore.startStreaming(res.taskId);
 		} catch {
 			// error handled via notification
@@ -57,6 +65,15 @@
 
 	const streamingList = $derived([...chatStore.streamingMessages.values()]);
 	const hasMessages = $derived(chatStore.messages.length > 0 || streamingList.length > 0);
+
+	// Auto-scroll when messages change (new message or session loaded)
+	$effect(() => {
+		// Track message count to trigger scroll
+		const _ = chatStore.messages.length + streamingList.length;
+		if (_ > 0) {
+			tick().then(scrollToBottom);
+		}
+	});
 </script>
 
 <div class="flex h-full flex-col">
@@ -95,7 +112,34 @@
 								{/each}
 							</div>
 						{/if}
-						<StreamingText content={sm.content || '...'} isStreaming={sm.isStreaming} />
+						{#if sm.reasoning.length > 0}
+							<details class="mb-2" open>
+								<summary class="flex items-center gap-1.5 text-[10px] text-[var(--text-tertiary)] cursor-pointer hover:text-[var(--text-secondary)]">
+									<Brain class="h-3 w-3" />
+									<span>Thinking ({sm.reasoning.length} step{sm.reasoning.length !== 1 ? 's' : ''})</span>
+								</summary>
+								<div class="mt-1.5 border-l-2 border-[var(--cairn-accent)]/20 pl-3 text-xs text-[var(--text-secondary)] space-y-1">
+									{#each sm.reasoning as step}
+										<p><span class="font-mono text-[var(--cairn-accent)]">R{step.round}</span> {step.thought}</p>
+									{/each}
+								</div>
+							</details>
+						{/if}
+						{#if sm.content}
+							<StreamingText content={sm.content} isStreaming={sm.isStreaming} />
+						{:else if sm.isStreaming}
+							<!-- Thinking/waiting indicator -->
+							<div class="flex items-center gap-2 text-sm text-[var(--text-tertiary)]">
+								{#if sm.reasoning.length > 0 || sm.toolCalls.length > 0}
+									<span>Thinking</span>
+								{/if}
+								<span class="thinking-dots flex gap-0.5">
+									<span class="h-1.5 w-1.5 rounded-full bg-[var(--cairn-accent)]"></span>
+									<span class="h-1.5 w-1.5 rounded-full bg-[var(--cairn-accent)]"></span>
+									<span class="h-1.5 w-1.5 rounded-full bg-[var(--cairn-accent)]"></span>
+								</span>
+							</div>
+						{/if}
 					</div>
 				</div>
 			{/each}

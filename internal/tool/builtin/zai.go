@@ -104,20 +104,13 @@ func callZaiMCP(ctx context.Context, service, toolName string, args map[string]a
 		return "", fmt.Errorf("zai: HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	// The Z.ai MCP server may return SSE format (text/event-stream) or plain JSON.
-	// SSE format: "id: ...\nevent: message\ndata: {json}\n\n"
-	// Extract the last JSON-RPC response from SSE data lines.
-	jsonData := respBody
-	if ct := resp.Header.Get("Content-Type"); strings.Contains(ct, "text/event-stream") || bytes.HasPrefix(bytes.TrimSpace(respBody), []byte("id:")) || bytes.HasPrefix(bytes.TrimSpace(respBody), []byte("event:")) {
-		jsonData = extractSSEData(respBody)
-		if jsonData == nil {
-			return "", fmt.Errorf("zai: no JSON-RPC data in SSE response")
-		}
-	}
+	// Z.ai returns SSE format: "id:N\nevent:message\ndata:{json}\n"
+	// Extract the JSON from the data: line.
+	jsonData := extractSSEData(string(respBody))
 
 	var rpcResp jsonRPCResponse
-	if err := json.Unmarshal(jsonData, &rpcResp); err != nil {
-		return "", fmt.Errorf("zai: parse response: %w", err)
+	if err := json.Unmarshal([]byte(jsonData), &rpcResp); err != nil {
+		return "", fmt.Errorf("zai: parse response: %w (raw: %.200s)", err, string(respBody))
 	}
 
 	if rpcResp.Error != nil {
@@ -128,20 +121,16 @@ func callZaiMCP(ctx context.Context, service, toolName string, args map[string]a
 	return extractMCPText(rpcResp.Result), nil
 }
 
-// extractSSEData parses SSE format and returns the last JSON data payload.
-// SSE format: "id: ...\nevent: message\ndata: {json}\n\n"
-func extractSSEData(body []byte) []byte {
-	var lastData []byte
-	for _, line := range bytes.Split(body, []byte("\n")) {
-		line = bytes.TrimSpace(line)
-		if bytes.HasPrefix(line, []byte("data:")) {
-			d := bytes.TrimSpace(line[5:])
-			if len(d) > 0 {
-				lastData = d
-			}
+// extractSSEData extracts the JSON payload from an SSE-formatted response.
+// Z.ai MCP endpoints return: "id:N\nevent:message\ndata:{json}\n"
+func extractSSEData(body string) string {
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, "data:") {
+			return strings.TrimPrefix(line, "data:")
 		}
 	}
-	return lastData
+	// Not SSE format — return as-is (might be plain JSON).
+	return body
 }
 
 // extractMCPText extracts text from an MCP CallToolResult JSON.
@@ -186,13 +175,6 @@ var zaiWebSearch = tool.Define("cairn.webSearch",
 		}
 
 		args := map[string]any{"search_query": p.Query}
-		if p.NumResults != nil && *p.NumResults > 0 {
-			n := *p.NumResults
-			if n > 20 {
-				n = 20
-			}
-			args["count"] = n
-		}
 
 		text, err := callZaiMCP(safeCtx(ctx.Cancel), "web_search_prime", "web_search_prime", args)
 		if err != nil {

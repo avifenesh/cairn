@@ -4,7 +4,9 @@
 	import { sseStore } from '$lib/stores/sse.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Circle, Search, Sun, Moon, DollarSign, HelpCircle } from '@lucide/svelte';
+	import { Circle, Search, Sun, Moon, DollarSign, HelpCircle, PanelRight } from '@lucide/svelte';
+
+	const isChat = $derived(page.url.pathname === '/chat');
 
 	function handleKeyboardShortcut() {
 		appStore.openCommandPalette();
@@ -65,6 +67,18 @@
 				<DollarSign class="h-3 w-3" />
 				{budgetPct}%
 			</span>
+		{/if}
+
+		{#if isChat}
+			<Button
+				variant="ghost"
+				size="icon"
+				class="h-8 w-8 hidden md:inline-flex"
+				onclick={() => appStore.toggleContextPanel()}
+				aria-label="Toggle context panel"
+			>
+				<PanelRight class="h-4 w-4 text-[var(--text-tertiary)] {appStore.contextPanelOpen ? 'text-[var(--cairn-accent)]' : ''}" />
+			</Button>
 		{/if}
 
 		<Button

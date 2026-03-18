@@ -4,9 +4,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Wrench, Brain, PanelRightClose } from '@lucide/svelte';
+	import { Wrench, Brain, PanelRightClose, PanelRight } from '@lucide/svelte';
 
-	let { open = false, onclose }: { open: boolean; onclose: () => void } = $props();
+	let { open = false, onclose, onopen }: { open: boolean; onclose: () => void; onopen: () => void } = $props();
 
 	const activeStream = $derived(chatStore.activeStream);
 	const lastMessage = $derived(chatStore.messages.at(-1));
@@ -84,4 +84,18 @@
 			{/if}
 		</div>
 	</aside>
+{:else}
+	<!-- Collapsed: thin strip with reopen button -->
+	<div class="hidden md:flex flex-col items-center border-l border-border-subtle bg-[var(--bg-1)] pt-2 w-10">
+		<Button
+			variant="ghost"
+			size="icon"
+			class="h-8 w-8"
+			onclick={onopen}
+			aria-label="Open context panel"
+		>
+			<PanelRight class="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+		</Button>
+		<span class="mt-2 text-[9px] text-[var(--text-tertiary)] [writing-mode:vertical-rl] tracking-widest uppercase">Context</span>
+	</div>
 {/if}

@@ -315,21 +315,6 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Active nav indicator bar */
-.nav-active-bar {
-  position: relative;
-}
-.nav-active-bar::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  width: 2px;
-  background: var(--cairn-accent);
-  border-radius: 1px;
-}
-
 /* Staggered fade-in for lists */
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(6px); }

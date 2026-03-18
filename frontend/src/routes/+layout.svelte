@@ -158,6 +158,7 @@
 			<ContextPanel
 				open={appStore.contextPanelOpen}
 				onclose={() => appStore.closeContextPanel()}
+				onopen={() => appStore.openContextPanel()}
 			/>
 		{/if}
 	</div>

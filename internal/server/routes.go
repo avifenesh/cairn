@@ -57,6 +57,7 @@ func (s *Server) registerRoutes() {
 
 	// Skills.
 	s.mux.HandleFunc("GET /v1/skills", s.handleListSkills)
+	s.mux.HandleFunc("GET /v1/skills/{name}", s.handleGetSkill)
 
 	// Soul.
 	s.mux.HandleFunc("GET /v1/soul", s.handleGetSoul)
@@ -680,7 +681,49 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 // --- Skills ---
 
 func (s *Server) handleListSkills(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"skills": []any{}})
+	if s.toolSkills == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"skills": []any{}})
+		return
+	}
+	items := s.toolSkills.List()
+	skills := make([]map[string]any, 0, len(items))
+	for _, sk := range items {
+		skills = append(skills, map[string]any{
+			"name":                   sk.Name,
+			"description":            sk.Description,
+			"inclusion":              sk.Inclusion,
+			"scope":                  sk.Inclusion,
+			"allowedTools":           sk.AllowedTools,
+			"disableModelInvocation": sk.DisableModel,
+			"userInvocable":          sk.Inclusion == "on-demand",
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"skills": skills})
+}
+
+func (s *Server) handleGetSkill(w http.ResponseWriter, r *http.Request) {
+	if s.toolSkills == nil {
+		writeError(w, http.StatusServiceUnavailable, "skill service not available")
+		return
+	}
+	name := r.PathValue("name")
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "missing skill name")
+		return
+	}
+	sk := s.toolSkills.Get(name)
+	if sk == nil {
+		writeError(w, http.StatusNotFound, "skill not found: "+name)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"name":                   sk.Name,
+		"description":            sk.Description,
+		"inclusion":              sk.Inclusion,
+		"content":                sk.Content,
+		"allowedTools":           sk.AllowedTools,
+		"disableModelInvocation": sk.DisableModel,
+	})
 }
 
 // --- Soul ---

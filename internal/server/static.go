@@ -3,6 +3,7 @@ package server
 import (
 	"io/fs"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/avifenesh/cairn/frontend"
@@ -18,6 +19,10 @@ func (s *Server) staticHandler() http.Handler {
 	return s.fsStaticHandler("frontend/dist")
 }
 
+func isAPIPath(p string) bool {
+	return p == "/v1" || strings.HasPrefix(p, "/v1/")
+}
+
 // embeddedStaticHandler serves from an embed.FS with SPA fallback.
 func (s *Server) embeddedStaticHandler(dist fs.FS) http.Handler {
 	fileServer := http.FileServer(http.FS(dist))
@@ -27,18 +32,22 @@ func (s *Server) embeddedStaticHandler(dist fs.FS) http.Handler {
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
-		if strings.HasPrefix(r.URL.Path, "/v1/") {
+		if isAPIPath(r.URL.Path) {
 			writeError(w, http.StatusNotFound, "not found")
 			return
 		}
 
-		path := strings.TrimPrefix(r.URL.Path, "/")
-		if path == "" {
-			path = "index.html"
+		// Use path.Clean (not filepath.Clean) for URL paths — OS-agnostic.
+		cleaned := path.Clean(r.URL.Path)
+		p := strings.TrimPrefix(cleaned, "/")
+		if p == "" {
+			p = "index.html"
 		}
 
-		info, err := fs.Stat(dist, path)
+		info, err := fs.Stat(dist, p)
 		if err == nil && !info.IsDir() {
+			// Serve with the cleaned path so FileServer resolves the same file.
+			r.URL.Path = cleaned
 			fileServer.ServeHTTP(w, r)
 			return
 		}
@@ -60,20 +69,19 @@ func (s *Server) fsStaticHandler(distDir string) http.Handler {
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 			return
 		}
-		if strings.HasPrefix(r.URL.Path, "/v1/") {
+		if isAPIPath(r.URL.Path) {
 			writeError(w, http.StatusNotFound, "not found")
 			return
 		}
 
-		// Try to open the file via http.Dir (handles path traversal protection).
-		path := r.URL.Path
-		if path == "/" {
-			path = "/index.html"
+		// Use path.Clean for URL paths.
+		cleaned := path.Clean(r.URL.Path)
+		if cleaned == "/" {
+			cleaned = "/index.html"
 		}
 
-		f, err := root.Open(path)
+		f, err := root.Open(cleaned)
 		if err != nil {
-			// SPA fallback: serve index.html for any missing path.
 			r.URL.Path = "/index.html"
 			fileServer.ServeHTTP(w, r)
 			return
@@ -82,13 +90,12 @@ func (s *Server) fsStaticHandler(distDir string) http.Handler {
 
 		info, err := f.Stat()
 		if err != nil || info.IsDir() {
-			// Directory or stat error: SPA fallback.
 			r.URL.Path = "/index.html"
 			fileServer.ServeHTTP(w, r)
 			return
 		}
 
-		// Serve the actual file.
+		r.URL.Path = cleaned
 		fileServer.ServeHTTP(w, r)
 	})
 }

@@ -34,6 +34,7 @@ func (s *Server) registerRoutes() {
 
 	// Tasks.
 	s.mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
+	s.mux.HandleFunc("POST /v1/tasks", s.handleCreateTask)
 	s.mux.HandleFunc("POST /v1/tasks/{id}/cancel", s.handleCancelTask)
 
 	// Approvals.
@@ -176,6 +177,50 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"tasks": marshalTasks(tasks)})
+}
+
+func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
+	if s.tasks == nil {
+		writeError(w, http.StatusServiceUnavailable, "task engine not available")
+		return
+	}
+
+	var req struct {
+		Description string `json:"description"`
+		Type        string `json:"type"`
+		Priority    int    `json:"priority"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Description == "" {
+		writeError(w, http.StatusBadRequest, "description is required")
+		return
+	}
+	if req.Type == "" {
+		req.Type = "general"
+	}
+
+	t, err := s.tasks.Submit(r.Context(), &task.SubmitRequest{
+		Type:        task.TaskType(req.Type),
+		Priority:    task.Priority(req.Priority),
+		Description: req.Description,
+		Input:       json.RawMessage(`{}`),
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"id":          t.ID,
+		"type":        string(t.Type),
+		"status":      string(t.Status),
+		"description": t.Description,
+		"priority":    int(t.Priority),
+		"createdAt":   t.CreatedAt.Format(time.RFC3339),
+	})
 }
 
 func (s *Server) handleCancelTask(w http.ResponseWriter, r *http.Request) {

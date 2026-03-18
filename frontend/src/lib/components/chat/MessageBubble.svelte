@@ -4,6 +4,7 @@
 	import ToolCallChip from './ToolCallChip.svelte';
 	import ReasoningBlock from './ReasoningBlock.svelte';
 	import QuickMemoryButton from './QuickMemoryButton.svelte';
+	import CreateTaskButton from './CreateTaskButton.svelte';
 	import { relativeTime } from '$lib/utils/time';
 	import { Button } from '$lib/components/ui/button';
 	import { Bot, User, Copy, Check } from '@lucide/svelte';
@@ -60,6 +61,7 @@
 				</Button>
 				{#if message.role === 'assistant'}
 					<QuickMemoryButton content={message.content} />
+					<CreateTaskButton content={message.content} />
 				{/if}
 			</div>
 		</div>

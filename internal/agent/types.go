@@ -5,6 +5,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"time"
 
 	"github.com/avifenesh/cairn/internal/eventbus"
@@ -131,7 +132,7 @@ type Session struct {
 type ActiveSkill struct {
 	Name         string
 	Content      string   // Full skill body
-	AllowedTools []string // Tool scoping from frontmatter (nil = no restriction)
+	AllowedTools []string // Tool scoping from frontmatter (nil or empty = no restriction)
 }
 
 // AllowedToolsFromSkills returns the merged allowed-tools from all active skills.
@@ -161,6 +162,7 @@ func (s *Session) AllowedToolsFromSkills() []string {
 	for t := range merged {
 		result = append(result, t)
 	}
+	sort.Strings(result)
 	return result
 }
 

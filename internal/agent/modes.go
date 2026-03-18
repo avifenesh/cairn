@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/avifenesh/cairn/internal/memory"
@@ -85,6 +86,7 @@ func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilde
 	if ctx.ToolSkills != nil {
 		skills := ctx.ToolSkills.List()
 		if len(skills) > 0 {
+			sort.Slice(skills, func(i, j int) bool { return skills[i].Name < skills[j].Name })
 			var sb strings.Builder
 			sb.WriteString("## Available Skills\n")
 			sb.WriteString("Use `cairn.loadSkill` to activate a skill when a task matches.\n\n")

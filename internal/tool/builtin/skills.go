@@ -3,7 +3,6 @@ package builtin
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -31,9 +30,18 @@ var loadSkill = tool.Define("cairn.loadSkill",
 			return &tool.ToolResult{Error: fmt.Sprintf("skill %q not found", p.Name)}, nil
 		}
 
+		// Enforce disable-model-invocation gate.
+		if sk.DisableModel {
+			return &tool.ToolResult{
+				Error: fmt.Sprintf("skill %q requires approval (disable-model-invocation). Ask the user to approve activation.", p.Name),
+			}, nil
+		}
+
 		// Activate the skill in the session (if callback is set).
+		activated := false
 		if ctx.ActivateSkill != nil {
 			ctx.ActivateSkill(sk.Name, sk.Content, sk.AllowedTools)
+			activated = true
 		}
 
 		// Build output with skill content and bundled files.
@@ -61,7 +69,7 @@ var loadSkill = tool.Define("cairn.loadSkill",
 			"name":        sk.Name,
 			"description": sk.Description,
 			"inclusion":   sk.Inclusion,
-			"activated":   true,
+			"activated":   activated,
 		}
 		if len(sk.AllowedTools) > 0 {
 			meta["allowedTools"] = sk.AllowedTools
@@ -74,7 +82,8 @@ var loadSkill = tool.Define("cairn.loadSkill",
 	},
 )
 
-// listSkillFiles returns up to limit files in a skill directory, excluding SKILL.md.
+// listSkillFiles returns up to limit filenames in a skill directory, excluding SKILL.md.
+// Returns relative names only (no full paths) to avoid leaking host directory structure.
 func listSkillFiles(dir string, limit int) []string {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -90,7 +99,7 @@ func listSkillFiles(dir string, limit int) []string {
 		if strings.EqualFold(name, "SKILL.md") {
 			continue
 		}
-		files = append(files, filepath.Join(dir, name))
+		files = append(files, name)
 		if len(files) >= limit {
 			break
 		}

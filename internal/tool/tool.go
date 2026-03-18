@@ -165,7 +165,7 @@ type SkillItem struct {
 	Description  string
 	Inclusion    string // "always" or "on-demand"
 	Content      string
-	AllowedTools []string // Tool scoping from frontmatter (nil = no restriction)
+	AllowedTools []string // Tool scoping from frontmatter (nil or empty = no restriction)
 	Location     string   // Directory path on disk
 	DisableModel bool     // Requires approval before activation
 }

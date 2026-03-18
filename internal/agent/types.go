@@ -29,18 +29,20 @@ type RunEvent struct {
 
 // InvocationContext carries all dependencies for an agent invocation.
 type InvocationContext struct {
-	Context     context.Context
-	SessionID   string
-	UserMessage string
-	Mode        tool.Mode
-	Session     *Session
-	Tools       *tool.Registry
-	LLM         llm.Provider
-	Memory      *memory.Service
-	Soul        *memory.Soul
-	Tasks       *task.Engine
-	Bus         *eventbus.Bus
-	Config      *AgentConfig
+	Context        context.Context
+	SessionID      string
+	UserMessage    string
+	Mode           tool.Mode
+	Session        *Session
+	Tools          *tool.Registry
+	LLM            llm.Provider
+	Memory         *memory.Service
+	Soul           *memory.Soul
+	Tasks          *task.Engine
+	Bus            *eventbus.Bus
+	Config         *AgentConfig
+	ContextBuilder *memory.ContextBuilder      // Token-budgeted context assembly (nil = fallback)
+	JournalEntries []memory.JournalDigestEntry // Last 48h journal for context
 }
 
 // AgentConfig holds per-invocation agent configuration.

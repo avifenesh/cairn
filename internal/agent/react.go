@@ -88,7 +88,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 	emit(invCtx.Context, ch, RunEvent{Event: userEvent})
 
 	// Build system prompt.
-	systemPrompt := BuildSystemPrompt(invCtx, modeConfig)
+	systemPrompt := BuildSystemPrompt(invCtx, modeConfig, invCtx.ContextBuilder, invCtx.JournalEntries)
 
 	// Get available tools for this mode.
 	toolDefs := invCtx.Tools.ForLLM(mode)

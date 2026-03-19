@@ -433,6 +433,7 @@ func runServe(logger *slog.Logger) {
 			TickInterval:       time.Duration(cfg.AgentTickInterval) * time.Second,
 			ReflectionInterval: time.Duration(cfg.ReflectionInterval) * time.Second,
 			Model:              cfg.LLMModel,
+			IdleEnabled:        true,
 		}, agent.LoopDeps{
 			Agent:        reactAgent,
 			Tasks:        taskEngine,

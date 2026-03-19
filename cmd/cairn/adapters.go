@@ -10,6 +10,7 @@ import (
 
 	"github.com/avifenesh/cairn/internal/agent"
 	cairnchannel "github.com/avifenesh/cairn/internal/channel"
+	cairncron "github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/signal"
 	"github.com/avifenesh/cairn/internal/skill"
@@ -403,4 +404,58 @@ func (a *notifierAdapter) FlushDigest(ctx context.Context) int {
 
 func (a *notifierAdapter) DigestLen() int {
 	return a.router.DigestLen()
+}
+
+// cronAdapter bridges cron.Store to tool.CronService.
+type cronAdapter struct {
+	store *cairncron.Store
+}
+
+func (a *cronAdapter) Create(ctx context.Context, name, schedule, instruction string, priority int) (string, error) {
+	job := &cairncron.CronJob{
+		Enabled:     true,
+		Name:        name,
+		Schedule:    schedule,
+		Instruction: instruction,
+		Priority:    priority,
+		CooldownMs:  3600000,
+	}
+	if err := a.store.Create(ctx, job); err != nil {
+		return "", err
+	}
+	return job.ID, nil
+}
+
+func (a *cronAdapter) List(ctx context.Context) ([]tool.CronJobInfo, error) {
+	jobs, err := a.store.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]tool.CronJobInfo, len(jobs))
+	for i, j := range jobs {
+		result[i] = tool.CronJobInfo{
+			ID:          j.ID,
+			Name:        j.Name,
+			Schedule:    j.Schedule,
+			Instruction: j.Instruction,
+			Timezone:    j.Timezone,
+			Enabled:     j.Enabled,
+			Priority:    j.Priority,
+			LastRun:     j.LastRunAt,
+			NextRun:     j.NextRunAt,
+		}
+	}
+	return result, nil
+}
+
+func (a *cronAdapter) Delete(ctx context.Context, idOrName string) error {
+	// Try by ID first, then by name.
+	if err := a.store.Delete(ctx, idOrName); err == nil {
+		return nil
+	}
+	job, err := a.store.GetByName(ctx, idOrName)
+	if err != nil {
+		return fmt.Errorf("cron job %q not found", idOrName)
+	}
+	return a.store.Delete(ctx, job.ID)
 }

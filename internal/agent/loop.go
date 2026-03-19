@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log/slog"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	cairncron "github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
@@ -40,6 +42,9 @@ type Loop struct {
 	toolTasks    tool.TaskService
 	toolStatus   tool.StatusService
 	toolSkills   tool.SkillService
+
+	cronStore *cairncron.Store // nil = cron disabled
+	db        *sql.DB          // for state checkpoint
 
 	cancel  context.CancelFunc
 	stopped atomic.Bool
@@ -91,6 +96,8 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		toolTasks:    deps.ToolTasks,
 		toolStatus:   deps.ToolStatus,
 		toolSkills:   deps.ToolSkills,
+		cronStore:    deps.CronStore,
+		db:           deps.DB,
 	}
 }
 
@@ -117,6 +124,9 @@ type LoopDeps struct {
 	ToolTasks    tool.TaskService
 	ToolStatus   tool.StatusService
 	ToolSkills   tool.SkillService
+
+	CronStore *cairncron.Store // optional: enables cron job checking in tick
+	DB        *sql.DB          // optional: enables state checkpoint
 }
 
 // Start begins the agent loop in a background goroutine. Safe to call only once.
@@ -147,6 +157,12 @@ func (l *Loop) TickCount() int64 {
 	return l.tickCount.Load()
 }
 
+// SetInitialState restores tick count and reflection time from crash recovery.
+func (l *Loop) SetInitialState(state LoopState) {
+	l.tickCount.Store(state.TickCount)
+	l.lastReflect = state.LastReflection
+}
+
 func (l *Loop) run(ctx context.Context) {
 	defer l.wg.Done()
 
@@ -173,13 +189,19 @@ func (l *Loop) tick(ctx context.Context) {
 	// 1. Check for pending tasks and execute the highest priority one.
 	executed := l.executePendingTask(ctx)
 
-	// 2. Run reflection if interval elapsed.
+	// 2. Check for due cron jobs and submit them as tasks.
+	l.checkDueCrons(ctx)
+
+	// 3. Run reflection if interval elapsed.
 	if time.Since(l.lastReflect) >= l.config.ReflectionInterval && l.reflector != nil {
 		l.runReflection(ctx)
 		l.lastReflect = time.Now()
 	}
 
-	// 3. Publish heartbeat.
+	// 4. Checkpoint state for crash recovery.
+	CheckpointState(ctx, l.db, l.tickCount.Load(), l.lastReflect)
+
+	// 5. Publish heartbeat.
 	if l.bus != nil {
 		eventbus.Publish(l.bus, AgentHeartbeat{
 			EventMeta:  eventbus.NewMeta("agent"),
@@ -303,6 +325,36 @@ func (l *Loop) runReflection(ctx context.Context) {
 
 	if err := l.reflector.Apply(ctx, result); err != nil {
 		l.logger.Warn("agent loop: reflection apply failed", "error", err)
+	}
+}
+
+// checkDueCrons finds cron jobs that are due and submits them as tasks.
+func (l *Loop) checkDueCrons(ctx context.Context) {
+	if l.cronStore == nil {
+		return
+	}
+	dueJobs, err := l.cronStore.GetDueJobs(ctx, time.Now().UTC())
+	if err != nil {
+		l.logger.Warn("cron: failed to get due jobs", "error", err)
+		return
+	}
+	for _, job := range dueJobs {
+		input, _ := json.Marshal(map[string]string{"instruction": job.Instruction})
+		t, err := l.tasks.Submit(ctx, &task.SubmitRequest{
+			Type:        "cron",
+			Priority:    task.Priority(job.Priority),
+			Description: "Cron: " + job.Name,
+			Input:       input,
+		})
+		if err != nil {
+			l.logger.Warn("cron: failed to submit task", "job", job.Name, "error", err)
+			l.cronStore.RecordExecution(ctx, job.ID, "", "failed", err)
+			continue
+		}
+		next, _ := cairncron.NextRun(job.Schedule, time.Now().UTC())
+		l.cronStore.UpdateAfterRun(ctx, job.ID, time.Now().UTC(), next)
+		l.cronStore.RecordExecution(ctx, job.ID, t.ID, "fired", nil)
+		l.logger.Info("cron: task submitted", "job", job.Name, "task", t.ID, "nextRun", next)
 	}
 }
 

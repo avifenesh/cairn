@@ -19,6 +19,7 @@ import (
 
 	"github.com/avifenesh/cairn/internal/agent"
 	"github.com/avifenesh/cairn/internal/config"
+	"github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
@@ -78,6 +79,15 @@ func (s *Server) registerRoutes() {
 	// Soul.
 	s.mux.HandleFunc("GET /v1/soul", s.handleGetSoul)
 	s.mux.HandleFunc("PUT /v1/soul", s.handlePutSoul)
+
+	// Cron jobs (optional).
+	if s.cronStore != nil {
+		s.mux.HandleFunc("GET /v1/crons", s.handleListCrons)
+		s.mux.HandleFunc("POST /v1/crons", s.handleCreateCron)
+		s.mux.HandleFunc("GET /v1/crons/{id}", s.handleGetCron)
+		s.mux.HandleFunc("PATCH /v1/crons/{id}", s.handleUpdateCron)
+		s.mux.HandleFunc("DELETE /v1/crons/{id}", s.handleDeleteCron)
+	}
 
 	// Webhooks (optional, wired when WEBHOOK_SECRETS is configured).
 	if s.webhooks != nil {
@@ -1549,4 +1559,104 @@ func (s *Server) handleVoiceTTS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(audio)))
 	w.WriteHeader(http.StatusOK)
 	w.Write(audio)
+}
+
+// --- Cron job handlers ---
+
+func (s *Server) handleListCrons(w http.ResponseWriter, r *http.Request) {
+	jobs, err := s.cronStore.List(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if jobs == nil {
+		jobs = []*cron.CronJob{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": jobs, "count": len(jobs)})
+}
+
+func (s *Server) handleCreateCron(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name        string `json:"name"`
+		Schedule    string `json:"schedule"`
+		Instruction string `json:"instruction"`
+		Description string `json:"description"`
+		Priority    int    `json:"priority"`
+		Timezone    string `json:"timezone"`
+		CooldownMs  int64  `json:"cooldownMs"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	if req.Name == "" || req.Schedule == "" || req.Instruction == "" {
+		writeError(w, http.StatusBadRequest, "name, schedule, and instruction are required")
+		return
+	}
+	if req.Priority == 0 {
+		req.Priority = 3
+	}
+	if req.Timezone == "" {
+		req.Timezone = "UTC"
+	}
+	if req.CooldownMs == 0 {
+		req.CooldownMs = 3600000
+	}
+
+	job := &cron.CronJob{
+		Enabled:     true,
+		Name:        req.Name,
+		Description: req.Description,
+		Schedule:    req.Schedule,
+		Instruction: req.Instruction,
+		Timezone:    req.Timezone,
+		Priority:    req.Priority,
+		CooldownMs:  req.CooldownMs,
+	}
+	if err := s.cronStore.Create(r.Context(), job); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, job)
+}
+
+func (s *Server) handleGetCron(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	job, err := s.cronStore.Get(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "cron job not found")
+		return
+	}
+	execs, _ := s.cronStore.ListExecutions(r.Context(), id, 10)
+	writeJSON(w, http.StatusOK, map[string]any{"job": job, "executions": execs})
+}
+
+func (s *Server) handleUpdateCron(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Enabled     *bool   `json:"enabled"`
+		Schedule    *string `json:"schedule"`
+		Instruction *string `json:"instruction"`
+		Description *string `json:"description"`
+		Priority    *int    `json:"priority"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	if err := s.cronStore.Update(r.Context(), id, req.Enabled, req.Schedule, req.Instruction, req.Description, req.Priority); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	job, _ := s.cronStore.Get(r.Context(), id)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "job": job})
+}
+
+func (s *Server) handleDeleteCron(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := s.cronStore.Delete(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

@@ -117,6 +117,12 @@ func (e *Engine) Cancel(ctx context.Context, taskID string) error {
 	return nil
 }
 
+// Delete permanently removes a task from the store.
+func (e *Engine) Delete(ctx context.Context, taskID string) error {
+	e.queue.Remove(taskID)
+	return e.store.Delete(ctx, taskID)
+}
+
 // Get retrieves a task by ID.
 func (e *Engine) Get(ctx context.Context, taskID string) (*Task, error) {
 	t, err := e.store.Get(ctx, taskID)

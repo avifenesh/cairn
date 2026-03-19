@@ -210,6 +210,12 @@ func (s *Store) Update(ctx context.Context, t *Task) error {
 	return nil
 }
 
+// Delete removes a task from the store.
+func (s *Store) Delete(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM tasks WHERE id = ?", id)
+	return err
+}
+
 // Claim atomically picks the highest-priority queued task of the given type,
 // sets it to claimed status with a lease, and returns it.
 func (s *Store) Claim(ctx context.Context, taskType TaskType, owner string, leaseDuration time.Duration) (*Task, error) {

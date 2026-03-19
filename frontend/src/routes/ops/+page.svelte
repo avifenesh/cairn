@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getTasks, getApprovals, cancelTask, createTask, approve, deny } from '$lib/api/client';
+	import { getTasks, getApprovals, cancelTask, deleteTask, createTask, approve, deny } from '$lib/api/client';
 	import { taskStore } from '$lib/stores/tasks.svelte';
 	import TaskCard from '$lib/components/tasks/TaskCard.svelte';
 	import TaskCreateForm from '$lib/components/tasks/TaskCreateForm.svelte';
@@ -82,13 +82,15 @@
 		}
 	}
 
-	function handleDeleteTask(id: string) {
+	async function handleDeleteTask(id: string) {
 		taskStore.removeTask(id);
+		try { await deleteTask(id); } catch { /* optimistic */ }
 	}
 
-	function handleClearCompleted() {
+	async function handleClearCompleted() {
 		const completed = taskStore.tasks.filter((t) => t.status === 'completed' || t.status === 'cancelled');
 		completed.forEach((t) => taskStore.removeTask(t.id));
+		await Promise.all(completed.map((t) => deleteTask(t.id).catch(() => {})));
 	}
 
 	const filteredTasks = $derived(() => {

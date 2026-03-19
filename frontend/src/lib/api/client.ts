@@ -176,6 +176,7 @@ export const getTasks = async (params?: { status?: string; type?: string }) => {
 };
 
 export const cancelTask = (id: string) => post<{ ok: boolean }>(`/v1/tasks/${id}/cancel`);
+export const deleteTask = (id: string) => del<{ ok: boolean }>(`/v1/tasks/${id}`);
 export const createTask = async (description: string, type = 'general', priority = 2) => {
 	const raw = await post<Record<string, unknown>>('/v1/tasks', { description, type, priority });
 	return {

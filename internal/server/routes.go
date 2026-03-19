@@ -43,6 +43,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /v1/tasks", s.handleListTasks)
 	s.mux.HandleFunc("POST /v1/tasks", s.handleCreateTask)
 	s.mux.HandleFunc("POST /v1/tasks/{id}/cancel", s.handleCancelTask)
+	s.mux.HandleFunc("DELETE /v1/tasks/{id}", s.handleDeleteTask)
 
 	// Approvals.
 	s.mux.HandleFunc("GET /v1/approvals", s.handleListApprovals)
@@ -265,6 +266,26 @@ func (s *Server) handleCancelTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
+	if s.tasks == nil {
+		writeError(w, http.StatusServiceUnavailable, "task engine not available")
+		return
+	}
+
+	taskID := r.PathValue("id")
+	if taskID == "" {
+		writeError(w, http.StatusBadRequest, "missing task id")
+		return
+	}
+
+	if err := s.tasks.Delete(r.Context(), taskID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "id": taskID})
 }
 
 // --- Approvals ---

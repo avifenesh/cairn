@@ -23,12 +23,13 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Done | `internal/signal/` |
 | 8 | Skill System - SKILL.md parser, discovery, hot-reload, injection | Done | `internal/skill/` |
 | 9 | Server & Protocols - HTTP, SSE, REST API, auth, static files | Done | `internal/server/` |
-| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (Phase 6-8, 227 tests, 20 PRs) | `frontend/` |
+| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (Phase 6-8, 227 tests, 24 PRs) | `frontend/` |
 | 11 | Channel Adapters - Telegram, Discord, Slack | Done | `internal/channel/` |
 | 12 | Z.ai Integration - web search, reader, zread, vision (13 tools) | Done | `internal/tool/builtin/zai.go`, `vision.go` |
 | 13 | Intelligence - embeddings, session compaction | Done | `internal/memory/`, `internal/agent/compaction.go` |
+| 14 | Voice - Whisper STT + edge-tts TTS | Done | `internal/voice/` |
 
-Frontend feature-complete. 227 tests, 27 files. 35 tools (GLM+Vision) / 24 (other). Embeddings: local Ollama nomic-embed-text 768d. Session compaction: 80K trigger, SummaryBuffer pattern. File upload + drag-and-drop + paste. Memory edit/delete. Mode selector dropdown. Chat item C.7 (voice) remains — backend endpoint not yet implemented.
+Frontend feature-complete. 227 tests, 27 files. 35 tools (GLM+Vision) / 24 (other). All chat features done: text, voice (C.7 Whisper STT + TTS), file upload (C.6 paperclip + paste + DnD), vision (8 tools). Settings editable with file persistence. Memory CRUD. Remaining backend: auto-extract memories (Mem0), Gmail/Calendar pollers.
 
 ## Phases
 
@@ -40,7 +41,7 @@ Phase 4: Server + Skills + Signal Plane (4a+4b+4c)             [DONE]
 Phase 5: Always-on, CI/CD, docs, open-source                   [DONE]
 Phase 6: Tools & Skills + MCP server                          [DONE]
 Phase 7: Channels (Telegram, Discord, Slack) + Z.ai tools      [DONE]
-Phase 8: Intelligence (embeddings, compaction, Gmail, voice)    [PARTIAL — embeddings + compaction done, Gmail/voice remaining]
+Phase 8: Intelligence (embeddings, compaction, voice, Gmail)    [PARTIAL — embeddings + compaction + voice done, Gmail/auto-extract remaining]
 ```
 
 Full plan: `docs/design/PHASE6_PLAN.md`

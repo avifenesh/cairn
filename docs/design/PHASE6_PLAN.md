@@ -22,7 +22,9 @@
 **Memory Edit/Delete COMPLETE** — PR #69 (DELETE + PUT /v1/memories/{id}, inline edit UI).
 **Intelligence UI COMPLETE** — PR #71 (embeddings + compaction status in settings).
 **Polish COMPLETE** — PR #68 (mode selector dropdown, drag-and-drop upload).
-Phase 7 PRs 6-7 (MCP client, A2A) deferred. Remaining: C.7 voice (needs backend), Gmail/Calendar pollers, auto-extract memories.
+**Editable Settings COMPLETE** — PR #72 (PATCH /v1/config, file persistence, editable compaction/budget/channels).
+**Voice COMPLETE** — PR #73 (backend Whisper STT + edge-tts), PR #74 (frontend VoiceButton wiring).
+Phase 7 PRs 6-7 (MCP client, A2A) deferred. Remaining: auto-extract memories (PR 11c), Gmail/Calendar pollers (PR 11d).
 
 ---
 
@@ -318,9 +320,10 @@ Phase 8 Intelligence (see docs/design/INTELLIGENCE_PLAN.md):
 | 6.5 | 2 PRs ✅ DONE | — | Skill activation, install, validation |
 | 7 | 1 PR ✅ DONE (MCP server) | 1 PR ✅ DONE | MCP tool exposure |
 | 8 Channels | 3 PRs ✅ DONE | 1 PR ✅ DONE | Telegram + Discord + Slack, channel UI |
-| 8 Intelligence | 3/4 PRs ✅ (Embeddings, Compaction, UI) | 1 PR ✅ DONE | Embeddings + compaction + settings UI |
+| 8 Intelligence | 4/4 PRs ✅ DONE | 1 PR ✅ DONE | Embeddings + compaction + settings UI |
+| 8 Voice | 1 PR ✅ DONE | 1 PR ✅ DONE | Whisper STT + edge-tts TTS (C.7) |
 | Z.ai HTTP | 3 PRs ✅ DONE | — | Web search (GLM built-in + SearXNG), reader, zread |
 | Z.ai Vision | 1 PR ✅ DONE | — | 8 vision tools via stdio subprocess (GLM-4.6V) |
 | File Upload | 1 PR ✅ DONE | 1 PR ✅ DONE | C.6 — paperclip, paste, drag-and-drop, POST /v1/upload |
-| Polish | — | 3 PRs ✅ DONE | Mode dropdown, drag-and-drop, memory edit/delete |
-| **Total** | **22 merged** | **21/21 done** | **35 tools, 5 skills, MCP, 3 channels, file upload, embeddings, compaction** |
+| Polish | — | 4 PRs ✅ DONE | Mode dropdown, DnD, memory edit/delete, editable settings |
+| **Total** | **26 merged** | **24/24 done** | **35 tools, 5 skills, MCP, 3 channels, file upload, voice, embeddings, compaction** |

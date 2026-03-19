@@ -455,6 +455,17 @@ func runServe(logger *slog.Logger) {
 				}
 			}
 
+			// Transcribe voice message if present.
+			if len(msg.Audio) > 0 && voiceSvc != nil {
+				transcribed, tErr := voiceSvc.Transcribe(ctx, msg.Audio, msg.AudioFilename)
+				if tErr != nil {
+					logger.Warn("channel: voice transcription failed", "error", tErr)
+				} else if transcribed != "" {
+					msg.Text = transcribed
+					logger.Info("channel: voice transcribed", "text", transcribed[:min(len(transcribed), 80)])
+				}
+			}
+
 			// Determine message text.
 			text := msg.Text
 			if msg.IsCommand {
@@ -532,7 +543,19 @@ func runServe(logger *slog.Logger) {
 				}()
 			}
 
-			return &cairnchannel.OutgoingMessage{Text: response.String()}, nil
+			out := &cairnchannel.OutgoingMessage{Text: response.String()}
+
+			// Synthesize voice reply if the incoming message was voice.
+			if len(msg.Audio) > 0 && voiceSvc != nil && response.Len() > 0 {
+				audio, ttsErr := voiceSvc.Synthesize(ctx, response.String(), "")
+				if ttsErr != nil {
+					logger.Warn("channel: TTS synthesis failed", "error", ttsErr)
+				} else {
+					out.Audio = audio
+				}
+			}
+
+			return out, nil
 		}
 
 		channelRouter := cairnchannel.NewRouter(channelHandler, logger)

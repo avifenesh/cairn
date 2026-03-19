@@ -2,21 +2,24 @@ package channel
 
 // IncomingMessage is the canonical representation of a message from any channel.
 type IncomingMessage struct {
-	ID        string            // globally unique message ID
-	ChannelID string            // "telegram", "discord", "slack", "matrix"
-	UserID    string            // channel-scoped user identifier
-	ChatID    string            // channel-scoped conversation ID
-	SessionID string            // Cairn session ID (set by router from channel_sessions)
-	Text      string            // normalized plain text
-	IsCommand bool              // starts with /
-	Command   string            // command name without /
-	Args      string            // command arguments after command name
-	Metadata  map[string]string // channel-specific extras
+	ID            string            // globally unique message ID
+	ChannelID     string            // "telegram", "discord", "slack", "matrix"
+	UserID        string            // channel-scoped user identifier
+	ChatID        string            // channel-scoped conversation ID
+	SessionID     string            // Cairn session ID (set by router from channel_sessions)
+	Text          string            // normalized plain text
+	IsCommand     bool              // starts with /
+	Command       string            // command name without /
+	Args          string            // command arguments after command name
+	Audio         []byte            // voice message audio data (nil = text only)
+	AudioFilename string            // original filename with extension (e.g. "voice.ogg")
+	Metadata      map[string]string // channel-specific extras
 }
 
 // OutgoingMessage is the canonical representation of a response to send.
 type OutgoingMessage struct {
 	Text     string        // markdown source (CommonMark)
+	Audio    []byte        // voice reply audio (MP3, nil = text only)
 	Actions  []ActionGroup // interactive buttons/approval prompts
 	Priority Priority      // routing priority
 }

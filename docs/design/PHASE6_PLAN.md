@@ -229,9 +229,11 @@ Phase 7 PRs 6-7 (MCP client, A2A) deferred. Remaining: notification routing, Gma
 | # | What | View | Component |
 |---|------|------|-----------|
 | 8af.1 | Telegram config | Settings | `TelegramConfig.svelte` — token, chat ID, test button |
-| 8af.2 | Notification prefs | Settings | `NotificationPrefs.svelte` — quiet hours, channel priority |
+| 8af.2 | Notification prefs | Settings | `NotificationPrefs.svelte` — preferred channel dropdown, quiet hours (start/end/TZ), digest queue count, flush button. Uses PATCH /v1/config for `preferredChannel`, `quietHoursStart`, `quietHoursEnd`, `quietHoursTZ`. Backend PR #83 complete. |
 | 8af.3 | Channel indicator | Header | `ChannelBadge.svelte` — active channel icon |
-| 8af.4 | API + tests | | |
+| 8af.4 | Cron job manager | Settings | `CronManager.svelte` — table of jobs (name, schedule, instruction, next/last run, enabled toggle). Create form with cron expression helper/preview ("Next: tomorrow 9:00 AM"), instruction textarea, priority dropdown. Expand row for execution history (last 10 fires). API: `GET/POST/PATCH/DELETE /v1/crons`, `GET /v1/crons/{id}` (includes executions). Backend PR #88 complete. |
+| 8af.5 | API methods | `client.ts` | `getCrons()`, `createCron()`, `updateCron()`, `deleteCron()`, `getCronDetail()` |
+| 8af.6 | Tests | | CronManager component tests, cron store integration |
 
 ### PR 11 — Backend: Intelligence — SPLIT INTO 3 SUB-PRs
 

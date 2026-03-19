@@ -25,14 +25,18 @@ func CheckContradiction(ctx context.Context, existing, proposed string, provider
 		return false, nil
 	}
 
-	prompt := fmt.Sprintf(contradictionPrompt, existing, proposed)
+	// Sanitize inputs to prevent prompt injection via quotes/newlines.
+	cleanExisting := strings.ReplaceAll(strings.ReplaceAll(existing, "\"", "'"), "\n", " ")
+	cleanProposed := strings.ReplaceAll(strings.ReplaceAll(proposed, "\"", "'"), "\n", " ")
+	prompt := fmt.Sprintf(contradictionPrompt, cleanExisting, cleanProposed)
 
 	req := &llm.Request{
 		Model: model,
 		Messages: []llm.Message{
 			{Role: llm.RoleUser, Content: []llm.ContentBlock{llm.TextBlock{Text: prompt}}},
 		},
-		MaxTokens: 5,
+		MaxTokens:       5,
+		DisableThinking: true,
 	}
 
 	ch, err := provider.Stream(ctx, req)
@@ -51,5 +55,5 @@ func CheckContradiction(ctx context.Context, existing, proposed string, provider
 	}
 
 	answer := strings.TrimSpace(strings.ToUpper(result.String()))
-	return strings.HasPrefix(answer, "YES"), nil
+	return strings.Contains(answer, "YES"), nil
 }

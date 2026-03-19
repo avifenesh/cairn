@@ -320,7 +320,7 @@ func (g *GitHubSignalPoller) pollMetrics(ctx context.Context) ([]*RawEvent, erro
 				Title:      fmt.Sprintf("%s: %s", repo, strings.Join(parts, ", ")),
 				Repo:       repo,
 				GroupKey:   repo,
-				Metadata:   map[string]any{"stars": current.Stars, "forks": current.Forks, "watchers": current.Watchers, "dStars": dStars, "dForks": dForks},
+				Metadata:   map[string]any{"stars": current.Stars, "forks": current.Forks, "watchers": current.Watchers, "dStars": dStars, "dForks": dForks, "dWatch": dWatch},
 				OccurredAt: time.Now().UTC(),
 			})
 		}

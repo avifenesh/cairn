@@ -108,6 +108,79 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	return s.store.Delete(ctx, id)
 }
 
+// Update persists changes to a memory, re-embedding content if the embedder is active.
+func (s *Service) Update(ctx context.Context, m *Memory) error {
+	if s.embedder.Dimensions() > 0 {
+		vecs, err := s.embedder.Embed(ctx, []string{m.Content})
+		if err != nil {
+			slog.Warn("memory: re-embedding failed on update", "id", m.ID, "error", err)
+		} else if len(vecs) > 0 && vecs[0] != nil {
+			m.Embedding = vecs[0]
+		}
+	}
+	return s.store.Update(ctx, m)
+}
+
+// BackfillEmbeddings computes embeddings for accepted memories that don't have one.
+// Runs in batches with rate limiting. Designed to run in a background goroutine.
+func (s *Service) BackfillEmbeddings(ctx context.Context) error {
+	if s.embedder.Dimensions() == 0 {
+		return nil
+	}
+
+	memories, err := s.store.AllAcceptedWithoutEmbeddings(ctx)
+	if err != nil {
+		return err
+	}
+	if len(memories) == 0 {
+		return nil
+	}
+
+	slog.Info("memory: backfilling embeddings", "count", len(memories))
+
+	const batchSize = 20
+	embedded := 0
+	for i := 0; i < len(memories); i += batchSize {
+		end := i + batchSize
+		if end > len(memories) {
+			end = len(memories)
+		}
+		batch := memories[i:end]
+
+		texts := make([]string, len(batch))
+		for j, m := range batch {
+			texts[j] = m.Content
+		}
+
+		vecs, err := s.embedder.Embed(ctx, texts)
+		if err != nil {
+			slog.Warn("memory: backfill batch failed", "offset", i, "error", err)
+			continue
+		}
+
+		for j, vec := range vecs {
+			if vec == nil {
+				continue
+			}
+			if err := s.store.UpdateEmbedding(ctx, batch[j].ID, vec); err != nil {
+				slog.Warn("memory: backfill update failed", "id", batch[j].ID, "error", err)
+			} else {
+				embedded++
+			}
+		}
+
+		// Rate limit between batches.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+		}
+	}
+
+	slog.Info("memory: backfill complete", "embedded", embedded, "total", len(memories))
+	return nil
+}
+
 // Compact decays old unused memories and auto-rejects those below threshold.
 //
 // Memories with UseCount=0 and age > 30 days get Confidence *= 0.8.

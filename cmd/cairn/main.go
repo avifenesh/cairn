@@ -142,20 +142,45 @@ func runServe(logger *slog.Logger) {
 	toolRegistry := tool.NewRegistry()
 	toolRegistry.Register(builtin.All()...)
 
+	// Initialize embedder.
+	var embedder memory.Embedder = memory.NoopEmbedder{}
+	if cfg.EmbeddingEnabled && cfg.EmbeddingAPIKey != "" {
+		embedder = memory.NewOpenAIEmbedder(
+			cfg.EmbeddingAPIKey, cfg.EmbeddingBaseURL,
+			cfg.EmbeddingModel, cfg.EmbeddingDimensions,
+		)
+		logger.Info("embedding enabled",
+			"model", cfg.EmbeddingModel,
+			"dimensions", cfg.EmbeddingDimensions,
+			"baseURL", cfg.EmbeddingBaseURL,
+		)
+	}
+
 	// Initialize memory service.
 	memStore := memory.NewStore(database)
-	memService := memory.NewService(memStore, memory.NoopEmbedder{}, bus)
+	memService := memory.NewService(memStore, embedder, bus)
 	soul := memory.NewSoul(cfg.SoulPath)
 	soul.Load() // ignore error if SOUL.md doesn't exist yet
 
 	// Initialize context builder (token-budgeted memory injection).
-	ctxBuilder := memory.NewContextBuilder(memStore, memory.NoopEmbedder{}, memory.ContextConfig{
+	ctxBuilder := memory.NewContextBuilder(memStore, embedder, memory.ContextConfig{
 		TokenBudget:     cfg.MemoryContextBudget,
 		HardRuleReserve: cfg.MemoryHardRuleReserve,
 		DecayHalfLife:   cfg.MemoryDecayHalfLife,
 		StaleThreshold:  cfg.MemoryStaleThreshold,
 	})
 	logger.Info("context builder ready", "budget", cfg.MemoryContextBudget, "hardRuleReserve", cfg.MemoryHardRuleReserve)
+
+	// Backfill embeddings for existing memories in background.
+	if embedder.Dimensions() > 0 {
+		go func() {
+			bctx, bcancel := context.WithTimeout(context.Background(), 10*time.Minute)
+			defer bcancel()
+			if err := memService.BackfillEmbeddings(bctx); err != nil {
+				logger.Warn("embedding backfill failed", "error", err)
+			}
+		}()
+	}
 
 	// Initialize plugin manager.
 	pluginMgr := plugin.NewManager(logger)
@@ -641,12 +666,21 @@ func runChat(logger *slog.Logger) {
 	toolRegistry := tool.NewRegistry()
 	toolRegistry.Register(builtin.All()...)
 
-	// Initialize memory service (keyword-only for now, no embeddings).
+	// Initialize embedder for chat mode.
+	var chatEmbedder memory.Embedder = memory.NoopEmbedder{}
+	if cfg.EmbeddingEnabled && cfg.EmbeddingAPIKey != "" {
+		chatEmbedder = memory.NewOpenAIEmbedder(
+			cfg.EmbeddingAPIKey, cfg.EmbeddingBaseURL,
+			cfg.EmbeddingModel, cfg.EmbeddingDimensions,
+		)
+	}
+
+	// Initialize memory service.
 	var memService *memory.Service
 	var soul *memory.Soul
 	if database != nil {
 		memStore := memory.NewStore(database)
-		memService = memory.NewService(memStore, memory.NoopEmbedder{}, bus)
+		memService = memory.NewService(memStore, chatEmbedder, bus)
 		soul = memory.NewSoul(cfg.SoulPath)
 		soul.Load() // ignore error if SOUL.md doesn't exist yet
 	}

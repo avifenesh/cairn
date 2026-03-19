@@ -308,6 +308,46 @@ func (s *Store) AllAcceptedWithEmbeddings(ctx context.Context) ([]*Memory, error
 	return results, nil
 }
 
+// AllAcceptedWithoutEmbeddings returns accepted memories that have no embedding (for backfill).
+func (s *Store) AllAcceptedWithoutEmbeddings(ctx context.Context) ([]*Memory, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, content, category, scope, status, confidence, source,
+			created_at, updated_at, embedding, access_count, last_accessed_at, metadata
+		FROM memories
+		WHERE status = 'accepted' AND embedding IS NULL
+		ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("memory: all accepted without embeddings: %w", err)
+	}
+	defer rows.Close()
+
+	var results []*Memory
+	for rows.Next() {
+		m, err := scanMemoryRows(rows)
+		if err != nil {
+			return nil, fmt.Errorf("memory: without embeddings scan: %w", err)
+		}
+		results = append(results, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("memory: without embeddings rows: %w", err)
+	}
+	return results, nil
+}
+
+// UpdateEmbedding sets the embedding for a single memory (used by backfill).
+func (s *Store) UpdateEmbedding(ctx context.Context, id string, embedding []float32) error {
+	blob := encodeFloat32s(embedding)
+	now := time.Now().UTC().Format(timeFormat)
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE memories SET embedding = ?, updated_at = ? WHERE id = ?",
+		blob, now, id)
+	if err != nil {
+		return fmt.Errorf("memory: update embedding: %w", err)
+	}
+	return nil
+}
+
 // OldUnusedMemories returns accepted memories with access_count=0 older than age.
 func (s *Store) OldUnusedMemories(ctx context.Context, age time.Duration) ([]*Memory, error) {
 	cutoff := time.Now().UTC().Add(-age).Format(timeFormat)

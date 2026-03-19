@@ -140,7 +140,7 @@ Phase 7 PRs 6-7 (MCP client, A2A) deferred. Remaining: auto-extract memories (PR
 | 6.5a.1 | Active skill tracking | `Session.ActiveSkills []string`. `cairn.loadSkill` adds skill to session. | OpenCode: skill loaded into conversation |
 | 6.5a.2 | Tool filtering | When skill with `allowed-tools` is active, only those tools + always-available tools sent to LLM. No skill = all tools. | OpenCode: permission gate |
 | 6.5a.3 | Skill in system prompt | Active skill content injected into system prompt (not just tool output). Stacks with always-on skills. | OpenCode: `<skill_content>` blocks |
-| 6.5a.4 | Bundled files | `cairn.loadSkill` lists files in skill directory (scripts, references). Agent reads with `pub.readFile`. | OpenCode: `<skill_files>` listing |
+| 6.5a.4 | Bundled files | `cairn.loadSkill` lists files in skill directory (scripts, references). Agent reads with `cairn.readFile`. | OpenCode: `<skill_files>` listing |
 | 6.5a.5 | Permission gate | `disable-model-invocation: true` skills require approval before activation. | OpenCode: `ctx.ask({ permission: "skill" })` |
 | 6.5a.6 | Tests | | |
 
@@ -150,7 +150,7 @@ Phase 7 PRs 6-7 (MCP client, A2A) deferred. Remaining: auto-extract memories (PR
 |---|------|---------|---------|
 | 6.5b.1 | Multi-dir discovery | Scan `~/.cairn/skills/`, project `.cairn/skills/`, config `SKILL_DIRS` | OpenCode: global + project + config |
 | 6.5b.2 | URL install | `cairn install skill <git-url>` clones into skills dir | OpenCode: `DiscoveryService.pull(url)` |
-| 6.5b.3 | Validation | Vet `allowed-tools` against known tools, warn on `pub.shell` without `disable-model-invocation` | Cairn convention |
+| 6.5b.3 | Validation | Vet `allowed-tools` against known tools, warn on `cairn.shell` without `disable-model-invocation` | Cairn convention |
 | 6.5b.4 | Tests | | |
 
 ### PR C — Backend: Plugin Tool Declaration (optional, if needed later)

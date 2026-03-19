@@ -11,7 +11,7 @@ func TestParse_BasicSkill(t *testing.T) {
 name: my-skill
 description: "Use when user asks to deploy"
 inclusion: always
-allowed-tools: "pub.shell,pub.readFile"
+allowed-tools: "cairn.shell,cairn.readFile"
 disable-model-invocation: true
 ---
 
@@ -42,11 +42,11 @@ Run the deploy script.
 	if len(sk.AllowedTools) != 2 {
 		t.Fatalf("AllowedTools length: got %d, want 2", len(sk.AllowedTools))
 	}
-	if sk.AllowedTools[0] != "pub.shell" {
-		t.Errorf("AllowedTools[0]: got %q, want %q", sk.AllowedTools[0], "pub.shell")
+	if sk.AllowedTools[0] != "cairn.shell" {
+		t.Errorf("AllowedTools[0]: got %q, want %q", sk.AllowedTools[0], "cairn.shell")
 	}
-	if sk.AllowedTools[1] != "pub.readFile" {
-		t.Errorf("AllowedTools[1]: got %q, want %q", sk.AllowedTools[1], "pub.readFile")
+	if sk.AllowedTools[1] != "cairn.readFile" {
+		t.Errorf("AllowedTools[1]: got %q, want %q", sk.AllowedTools[1], "cairn.readFile")
 	}
 	if !sk.DisableModel {
 		t.Error("DisableModel: got false, want true")
@@ -144,7 +144,7 @@ func TestParse_AllowedTools(t *testing.T) {
 	content := `---
 name: tooled
 description: Has tools
-allowed-tools: "pub.shell, pub.readFile, pub.writeFile"
+allowed-tools: "cairn.shell, cairn.readFile, cairn.writeFile"
 ---
 
 Body.
@@ -158,7 +158,7 @@ Body.
 		t.Fatalf("AllowedTools length: got %d, want 3", len(sk.AllowedTools))
 	}
 
-	expected := []string{"pub.shell", "pub.readFile", "pub.writeFile"}
+	expected := []string{"cairn.shell", "cairn.readFile", "cairn.writeFile"}
 	for i, want := range expected {
 		if sk.AllowedTools[i] != want {
 			t.Errorf("AllowedTools[%d]: got %q, want %q", i, sk.AllowedTools[i], want)

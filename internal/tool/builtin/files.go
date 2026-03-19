@@ -11,13 +11,13 @@ import (
 	"github.com/avifenesh/cairn/internal/tool"
 )
 
-// readFileParams are the parameters for pub.readFile.
+// readFileParams are the parameters for cairn.readFile.
 type readFileParams struct {
 	Path  string `json:"path" desc:"File path to read (relative to work directory)"`
 	Limit *int   `json:"limit,omitempty" desc:"Maximum number of lines to read (0 = unlimited)"`
 }
 
-var readFile = tool.Define("pub.readFile",
+var readFile = tool.Define("cairn.readFile",
 	"Read the contents of a file. Returns the file text.",
 	[]tool.Mode{tool.ModeTalk, tool.ModeWork, tool.ModeCoding},
 	func(ctx *tool.ToolContext, p readFileParams) (*tool.ToolResult, error) {
@@ -26,7 +26,7 @@ var readFile = tool.Define("pub.readFile",
 			return nil, err
 		}
 
-		if action := ctx.Permissions.Evaluate("pub.readFile", absPath); action != tool.Allow {
+		if action := ctx.Permissions.Evaluate("cairn.readFile", absPath); action != tool.Allow {
 			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: read %s", p.Path)}, nil
 		}
 
@@ -54,13 +54,13 @@ var readFile = tool.Define("pub.readFile",
 	},
 )
 
-// writeFileParams are the parameters for pub.writeFile.
+// writeFileParams are the parameters for cairn.writeFile.
 type writeFileParams struct {
 	Path    string `json:"path" desc:"File path to write (relative to work directory)"`
 	Content string `json:"content" desc:"Content to write to the file"`
 }
 
-var writeFile = tool.Define("pub.writeFile",
+var writeFile = tool.Define("cairn.writeFile",
 	"Write content to a file. Creates parent directories if needed.",
 	[]tool.Mode{tool.ModeWork, tool.ModeCoding},
 	func(ctx *tool.ToolContext, p writeFileParams) (*tool.ToolResult, error) {
@@ -69,7 +69,7 @@ var writeFile = tool.Define("pub.writeFile",
 			return nil, err
 		}
 
-		if action := ctx.Permissions.Evaluate("pub.writeFile", absPath); action != tool.Allow {
+		if action := ctx.Permissions.Evaluate("cairn.writeFile", absPath); action != tool.Allow {
 			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: write %s", p.Path)}, nil
 		}
 
@@ -92,7 +92,7 @@ var writeFile = tool.Define("pub.writeFile",
 	},
 )
 
-// editFileParams are the parameters for pub.editFile.
+// editFileParams are the parameters for cairn.editFile.
 type editFileParams struct {
 	Path       string `json:"path" desc:"File path to edit (relative to work directory)"`
 	Old        string `json:"old" desc:"Text to search for"`
@@ -100,7 +100,7 @@ type editFileParams struct {
 	ReplaceAll bool   `json:"replaceAll" desc:"Replace all occurrences (default: first only)"`
 }
 
-var editFile = tool.Define("pub.editFile",
+var editFile = tool.Define("cairn.editFile",
 	"Edit a file by replacing text. Searches for the old string and replaces with the new string.",
 	[]tool.Mode{tool.ModeWork, tool.ModeCoding},
 	func(ctx *tool.ToolContext, p editFileParams) (*tool.ToolResult, error) {
@@ -109,7 +109,7 @@ var editFile = tool.Define("pub.editFile",
 			return nil, err
 		}
 
-		if action := ctx.Permissions.Evaluate("pub.editFile", absPath); action != tool.Allow {
+		if action := ctx.Permissions.Evaluate("cairn.editFile", absPath); action != tool.Allow {
 			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: edit %s", p.Path)}, nil
 		}
 
@@ -147,12 +147,12 @@ var editFile = tool.Define("pub.editFile",
 	},
 )
 
-// deleteFileParams are the parameters for pub.deleteFile.
+// deleteFileParams are the parameters for cairn.deleteFile.
 type deleteFileParams struct {
 	Path string `json:"path" desc:"File path to delete (relative to work directory)"`
 }
 
-var deleteFile = tool.Define("pub.deleteFile",
+var deleteFile = tool.Define("cairn.deleteFile",
 	"Delete a file.",
 	[]tool.Mode{tool.ModeCoding},
 	func(ctx *tool.ToolContext, p deleteFileParams) (*tool.ToolResult, error) {
@@ -161,7 +161,7 @@ var deleteFile = tool.Define("pub.deleteFile",
 			return nil, err
 		}
 
-		if action := ctx.Permissions.Evaluate("pub.deleteFile", absPath); action != tool.Allow {
+		if action := ctx.Permissions.Evaluate("cairn.deleteFile", absPath); action != tool.Allow {
 			return &tool.ToolResult{Error: fmt.Sprintf("permission denied: delete %s", p.Path)}, nil
 		}
 
@@ -178,13 +178,13 @@ var deleteFile = tool.Define("pub.deleteFile",
 	},
 )
 
-// listFilesParams are the parameters for pub.listFiles.
+// listFilesParams are the parameters for cairn.listFiles.
 type listFilesParams struct {
 	Path    string `json:"path" desc:"Directory path to list (relative to work directory)"`
 	Pattern string `json:"pattern" desc:"Optional glob pattern to filter files (e.g., *.go)"`
 }
 
-var listFiles = tool.Define("pub.listFiles",
+var listFiles = tool.Define("cairn.listFiles",
 	"List files in a directory, optionally filtered by glob pattern.",
 	[]tool.Mode{tool.ModeTalk, tool.ModeWork, tool.ModeCoding},
 	func(ctx *tool.ToolContext, p listFilesParams) (*tool.ToolResult, error) {
@@ -228,14 +228,14 @@ var listFiles = tool.Define("pub.listFiles",
 	},
 )
 
-// searchFilesParams are the parameters for pub.searchFiles.
+// searchFilesParams are the parameters for cairn.searchFiles.
 type searchFilesParams struct {
 	Pattern    string `json:"pattern" desc:"Regex pattern to search for"`
 	Path       string `json:"path" desc:"Directory to search in (relative to work directory)"`
 	MaxResults int    `json:"maxResults" desc:"Maximum number of results to return (default: 50)"`
 }
 
-var searchFiles = tool.Define("pub.searchFiles",
+var searchFiles = tool.Define("cairn.searchFiles",
 	"Search for a regex pattern in files (grep). Returns matching lines with file paths and line numbers.",
 	[]tool.Mode{tool.ModeTalk, tool.ModeWork, tool.ModeCoding},
 	func(ctx *tool.ToolContext, p searchFilesParams) (*tool.ToolResult, error) {

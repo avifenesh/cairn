@@ -15,8 +15,8 @@ import (
 var writeToolPrefixes = []string{
 	"cairn.create", "cairn.manage", "cairn.markRead",
 	"cairn.completeTask", "cairn.compose",
-	"pub.writeFile", "pub.editFile", "pub.deleteFile",
-	"pub.shell", "pub.gitRun",
+	"cairn.writeFile", "cairn.editFile", "cairn.deleteFile",
+	"cairn.shell", "cairn.gitRun",
 }
 
 // isWriteTool returns true if the tool performs write operations.

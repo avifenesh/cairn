@@ -289,8 +289,8 @@ func TestAll(t *testing.T) {
 	}
 
 	expected := []string{
-		"pub.readFile", "pub.writeFile", "pub.editFile", "pub.deleteFile",
-		"pub.listFiles", "pub.searchFiles", "pub.shell", "pub.gitRun",
+		"cairn.readFile", "cairn.writeFile", "cairn.editFile", "cairn.deleteFile",
+		"cairn.listFiles", "cairn.searchFiles", "cairn.shell", "cairn.gitRun",
 		"cairn.createMemory", "cairn.searchMemory", "cairn.manageMemory",
 		"cairn.readFeed", "cairn.markRead", "cairn.archiveFeedItem", "cairn.deleteFeedItem", "cairn.digest",
 		"cairn.journalSearch",

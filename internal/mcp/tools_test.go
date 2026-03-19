@@ -76,8 +76,8 @@ func TestRegisterAllTools(t *testing.T) {
 	if _, ok := tools["cairn.webSearch"]; !ok {
 		t.Fatal("expected cairn.webSearch to be registered")
 	}
-	if _, ok := tools["pub.readFile"]; !ok {
-		t.Fatal("expected pub.readFile to be registered")
+	if _, ok := tools["cairn.readFile"]; !ok {
+		t.Fatal("expected cairn.readFile to be registered")
 	}
 }
 

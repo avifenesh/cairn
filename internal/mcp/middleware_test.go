@@ -14,8 +14,8 @@ func TestIsWriteTool(t *testing.T) {
 		"cairn.createTask", "cairn.createMemory",
 		"cairn.manageMemory", "cairn.markRead",
 		"cairn.completeTask", "cairn.compose",
-		"pub.writeFile", "pub.editFile", "pub.deleteFile",
-		"pub.shell", "pub.gitRun",
+		"cairn.writeFile", "cairn.editFile", "cairn.deleteFile",
+		"cairn.shell", "cairn.gitRun",
 	}
 	for _, name := range writes {
 		if !isWriteTool(name) {
@@ -27,8 +27,8 @@ func TestIsWriteTool(t *testing.T) {
 		"cairn.searchMemory", "cairn.readFeed", "cairn.listTasks",
 		"cairn.getStatus", "cairn.listSkills", "cairn.loadSkill",
 		"cairn.webSearch", "cairn.webFetch", "cairn.digest",
-		"cairn.journalSearch", "pub.readFile", "pub.listFiles",
-		"pub.searchFiles",
+		"cairn.journalSearch", "cairn.readFile", "cairn.listFiles",
+		"cairn.searchFiles",
 	}
 	for _, name := range reads {
 		if isWriteTool(name) {

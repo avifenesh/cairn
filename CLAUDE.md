@@ -23,10 +23,11 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Done | `internal/signal/` |
 | 8 | Skill System - SKILL.md parser, discovery, hot-reload, injection | Done | `internal/skill/` |
 | 9 | Server & Protocols - HTTP, SSE, REST API, auth, static files | Done | `internal/server/` |
-| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (10.1-10.12 + Phase 6 13/15, 221 tests) | `frontend/` |
-| 11 | Channel Adapters - web, Telegram, Slack, CLI, API, voice | Not started | — |
+| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (Phase 6 15/15, Phase 7, Phase 8 channels, 227 tests) | `frontend/` |
+| 11 | Channel Adapters - Telegram, Discord, Slack | Done | `internal/channel/` |
+| 12 | Z.ai Integration - web search, reader, zread, vision (13 tools) | Done | `internal/tool/builtin/zai.go`, `vision.go` |
 
-Frontend Phase 6 near complete. 221 tests across 27 files. 13/15 Phase 6 items done (PRs #28-40). Remaining: 6f.3 (feed actions — low priority), 6f.9 (skill detail — needs backend to wire handleListSkills + GET /v1/skills/:name). Phase 6.5 backend complete (#37, #39). Chat items C.6 (file attach) and C.7 (voice) remain.
+Frontend complete through Phase 8 channels. 227 tests across 27 files. 35 tools (GLM+Vision) / 24 (other providers). Z.ai Vision MCP: 8 tools via stdio subprocess (@z_ai/mcp-server). Web search: GLM built-in + SearXNG fallback. Chat items C.6 (file attach) and C.7 (voice) remain - **no file upload support in frontend or backend yet**.
 
 ## Phases
 
@@ -36,9 +37,9 @@ Phase 2: Core Systems (tools | tasks | memory) in parallel    [DONE]
 Phase 3: Agent Core (ReAct loop wires all together)           [DONE]
 Phase 4: Server + Skills + Signal Plane (4a+4b+4c)             [DONE]
 Phase 5: Always-on, CI/CD, docs, open-source                   [DONE]
-Phase 6: Protocols (MCP server/client, A2A)
-Phase 7: Channels (Telegram, router, notifications)
-Phase 8: Intelligence (embeddings, compaction, Gmail, voice)
+Phase 6: Tools & Skills + MCP server                          [DONE]
+Phase 7: Channels (Telegram, Discord, Slack) + Z.ai tools      [DONE]
+Phase 8: Intelligence (embeddings, compaction, Gmail, voice)    [REMAINING]
 ```
 
 Full plan: `docs/design/PHASE6_PLAN.md`

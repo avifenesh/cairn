@@ -3,18 +3,20 @@
 > Tools and skills first — the agent must be useful before it connects to others.
 > Based on patterns from OpenCode, Gollem, ADK-Go research repos.
 
-## Current State (updated 2026-03-18)
+## Current State (updated 2026-03-19)
 
-361 backend tests, ~280 frontend tests, 16 packages, ~27K lines of Go.
-27 built-in tools (GLM) / 24 (other providers). 5 bundled SKILL.md files.
+361 backend tests, ~280 frontend tests (227), 16 packages, ~28K lines of Go.
+35 built-in tools (GLM+Vision) / 24 (other providers). 5 bundled SKILL.md files.
 
 **Phase 6 COMPLETE** — backend PRs #21, #24, #26. Frontend PRs #28-50 (15/15 done).
 **Phase 6.5 COMPLETE** — PR A (#37), PR B (#39).
 **Phase 7 MCP Server COMPLETE** — PR #42 (24 tools + resources via mcp-go).
 **Phase 7 Frontend COMPLETE** — PR #50 (MCP status, connections, external tool badges).
-**Phase 8 Channels PR1 COMPLETE** — PR #46 (framework + Telegram adapter + session continuity).
-**Z.ai MCP tools COMPLETE** — PR #49, #52 (web search, reader, zread — 5 tools for GLM).
-Phase 7 PRs 6-7 (MCP client, A2A) deferred. Phase 8 PRs 2-3 (Discord/Slack/Matrix) + Intelligence remain.
+**Phase 8 Channels COMPLETE** — PR #46 (Telegram), #59 (Discord+Slack), #62 (frontend channel UI + feed actions).
+**Z.ai MCP tools COMPLETE** — PR #49, #52 (web search, reader, zread — 5 HTTP tools).
+**Z.ai Web Search FIXED** — PR #61 (GLM built-in web_search + SearXNG fallback chain).
+**Z.ai Vision MCP COMPLETE** — PR #64 (8 tools via stdio subprocess, @z_ai/mcp-server).
+Phase 7 PRs 6-7 (MCP client, A2A) deferred. Phase 8 Intelligence remains.
 
 ---
 
@@ -268,11 +270,13 @@ Phase 7 (MCP Server DONE, Client/A2A DEFERRED):
 Z.ai Integration (DONE):
   PR 49 (Z.ai MCP tools)        ─── merged #49
   PR 52 (Accept header fix)     ─── merged #52
+  PR 61 (Web search fix)        ─── merged #61 (GLM built-in + SearXNG fallback)
+  PR 64 (Vision MCP)            ─── merged #64 (8 tools, stdio subprocess)
 
-Phase 8 Channels (PR1 DONE, PR2-3 REMAINING):
+Phase 8 Channels (DONE):
   PR 9  (Framework + Telegram)  ─── merged #46
-  PR 10 (Discord + Slack)       ─── next
-  PR 11 (Matrix + routing)      ─── after PR 10
+  PR 10 (Discord + Slack)       ─── merged #59
+  PR 11 (Frontend channel UI)   ─── merged #62
 
 Phase 8 Intelligence (REMAINING):
   PR 12 (Embeddings, Gmail, voice) ─── independent
@@ -285,8 +289,9 @@ Phase 8 Intelligence (REMAINING):
 |-------|---------|----------|-----------------|
 | 6 | 3 PRs ✅ DONE | 15/15 ✅ DONE | Web, memory, feed, tasks, skills |
 | 6.5 | 2 PRs ✅ DONE | — | Skill activation, install, validation |
-| 7 | 1 PR ✅ DONE (MCP server) | 1 PR ✅ DONE | MCP tool exposure, Z.ai integration |
-| 8 Channels | 1/3 PRs ✅ (Telegram) | — | Telegram adapter + session continuity |
+| 7 | 1 PR ✅ DONE (MCP server) | 1 PR ✅ DONE | MCP tool exposure |
+| 8 Channels | 3 PRs ✅ DONE | 1 PR ✅ DONE | Telegram + Discord + Slack, channel UI |
 | 8 Intelligence | 0/2 PRs | 0/1 PR | Embeddings, Gmail, voice |
-| Z.ai | 2 PRs ✅ DONE | — | Web search, reader, zread (5 tools) |
-| **Total** | **11 merged** | **17/17 done** | **27 tools, 5 skills, MCP, Telegram** |
+| Z.ai HTTP | 3 PRs ✅ DONE | — | Web search (GLM built-in + SearXNG), reader, zread |
+| Z.ai Vision | 1 PR ✅ DONE | — | 8 vision tools via stdio subprocess (GLM-4.6V) |
+| **Total** | **16 merged** | **17/17 done** | **35 tools, 5 skills, MCP, 3 channels** |

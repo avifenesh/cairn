@@ -165,17 +165,17 @@ func (s *Server) handleListFeed(w http.ResponseWriter, r *http.Request) {
 	items := make([]map[string]any, 0, len(events))
 	for _, ev := range events {
 		item := map[string]any{
-			"id":        ev.ID,
-			"source":    ev.Source,
-			"kind":      ev.Kind,
-			"title":     ev.Title,
-			"body":      ev.Body,
-			"url":       ev.URL,
-			"author":    ev.Actor,
-			"groupKey":  ev.GroupKey,
-			"isRead":    ev.ReadAt != nil,
+			"id":         ev.ID,
+			"source":     ev.Source,
+			"kind":       ev.Kind,
+			"title":      ev.Title,
+			"body":       ev.Body,
+			"url":        ev.URL,
+			"author":     ev.Actor,
+			"groupKey":   ev.GroupKey,
+			"isRead":     ev.ReadAt != nil,
 			"isArchived": ev.ArchivedAt != nil,
-			"createdAt": ev.CreatedAt.Format(time.RFC3339),
+			"createdAt":  ev.CreatedAt.Format(time.RFC3339),
 		}
 		if ev.Metadata != nil {
 			item["metadata"] = ev.Metadata

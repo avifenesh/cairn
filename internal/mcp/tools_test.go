@@ -68,8 +68,8 @@ func TestRegisterAllTools(t *testing.T) {
 	registerTools(srv, reg, toolCtx)
 
 	tools := srv.ListTools()
-	if len(tools) != 24 {
-		t.Fatalf("expected 24 registered MCP tools, got %d", len(tools))
+	if len(tools) != 26 {
+		t.Fatalf("expected 26 registered MCP tools, got %d", len(tools))
 	}
 
 	// Verify a specific tool exists.

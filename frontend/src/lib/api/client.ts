@@ -402,6 +402,13 @@ export interface EditableConfig {
 	calendarEnabled?: boolean;
 	gmailFilterQuery?: string;
 	calendarLookaheadH?: number;
+	rssEnabled?: boolean;
+	rssFeeds?: string;
+	soEnabled?: boolean;
+	soTags?: string;
+	devtoEnabled?: boolean;
+	devtoTags?: string;
+	devtoUsername?: string;
 	budgetDailyCap?: number;
 	budgetWeeklyCap?: number;
 	channelSessionTimeout?: number;

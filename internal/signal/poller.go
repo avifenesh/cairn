@@ -9,14 +9,17 @@ import (
 
 // Source name constants.
 const (
-	SourceGitHub   = "github"
-	SourceHN       = "hn"
-	SourceReddit   = "reddit"
-	SourceNPM      = "npm"
-	SourceCrates   = "crates"
-	SourceWebhook  = "webhook"
-	SourceGmail    = "gmail"
-	SourceCalendar = "calendar"
+	SourceGitHub        = "github"
+	SourceHN            = "hn"
+	SourceReddit        = "reddit"
+	SourceNPM           = "npm"
+	SourceCrates        = "crates"
+	SourceWebhook       = "webhook"
+	SourceGmail         = "gmail"
+	SourceCalendar      = "calendar"
+	SourceRSS           = "rss"
+	SourceStackOverflow = "stackoverflow"
+	SourceDevTo         = "devto"
 )
 
 // Event kind constants.

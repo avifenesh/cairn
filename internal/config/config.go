@@ -53,6 +53,14 @@ type Config struct {
 	CalendarEnabled    bool              // Enable Calendar poller
 	GmailFilterQuery   string            // Gmail search query filter
 	CalendarLookaheadH int               // Calendar lookahead hours (default 48)
+	RSSEnabled         bool              // Enable RSS poller
+	RSSFeeds           []string          // RSS/Atom feed URLs
+	SOEnabled          bool              // Enable Stack Overflow poller
+	SOTags             []string          // SO tags to monitor
+	SOAPIKey           string            // SO API key (optional, higher rate limit)
+	DevToEnabled       bool              // Enable Dev.to poller
+	DevToTags          []string          // Dev.to tags to monitor
+	DevToUsername      string            // Dev.to username
 	HNKeywords         []string          // HN keyword filter
 	HNMinScore         int               // HN minimum score filter
 	PollInterval       int               // Poll interval in seconds (default 300 = 5min)
@@ -207,6 +215,14 @@ func Load() (*Config, error) {
 		CalendarEnabled:         envBool("CALENDAR_ENABLED", false),
 		GmailFilterQuery:        envStr("GMAIL_FILTER_QUERY", "-category:promotions -category:social -category:forums"),
 		CalendarLookaheadH:      envInt("CALENDAR_LOOKAHEAD_H", 48),
+		RSSEnabled:              envBool("RSS_ENABLED", false),
+		RSSFeeds:                envSlice("RSS_FEEDS", nil),
+		SOEnabled:               envBool("SO_ENABLED", false),
+		SOTags:                  envSlice("SO_TAGS", nil),
+		SOAPIKey:                envStr("SO_API_KEY", ""),
+		DevToEnabled:            envBool("DEVTO_ENABLED", false),
+		DevToTags:               envSlice("DEVTO_TAGS", nil),
+		DevToUsername:           envStr("DEVTO_USERNAME", ""),
 		HNKeywords:              envSlice("HN_KEYWORDS", nil),
 		HNMinScore:              envInt("HN_MIN_SCORE", 0),
 		PollInterval:            pollIntervalSeconds(),
@@ -434,6 +450,13 @@ type PatchableConfig struct {
 	QuietHoursStart         *int     `json:"quietHoursStart,omitempty"`
 	QuietHoursEnd           *int     `json:"quietHoursEnd,omitempty"`
 	QuietHoursTZ            *string  `json:"quietHoursTZ,omitempty"`
+	RSSEnabled              *bool    `json:"rssEnabled,omitempty"`
+	RSSFeeds                *string  `json:"rssFeeds,omitempty"` // comma-sep URLs
+	SOEnabled               *bool    `json:"soEnabled,omitempty"`
+	SOTags                  *string  `json:"soTags,omitempty"` // comma-sep
+	DevToEnabled            *bool    `json:"devtoEnabled,omitempty"`
+	DevToTags               *string  `json:"devtoTags,omitempty"` // comma-sep
+	DevToUsername           *string  `json:"devtoUsername,omitempty"`
 }
 
 var configMu sync.RWMutex
@@ -504,6 +527,39 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 	if p.QuietHoursTZ != nil && *p.QuietHoursTZ != "" {
 		c.QuietHoursTZ = *p.QuietHoursTZ
 	}
+	if p.RSSEnabled != nil {
+		c.RSSEnabled = *p.RSSEnabled
+	}
+	if p.RSSFeeds != nil {
+		if *p.RSSFeeds == "" {
+			c.RSSFeeds = nil
+		} else {
+			c.RSSFeeds = strings.Split(*p.RSSFeeds, ",")
+		}
+	}
+	if p.SOEnabled != nil {
+		c.SOEnabled = *p.SOEnabled
+	}
+	if p.SOTags != nil {
+		if *p.SOTags == "" {
+			c.SOTags = nil
+		} else {
+			c.SOTags = strings.Split(*p.SOTags, ",")
+		}
+	}
+	if p.DevToEnabled != nil {
+		c.DevToEnabled = *p.DevToEnabled
+	}
+	if p.DevToTags != nil {
+		if *p.DevToTags == "" {
+			c.DevToTags = nil
+		} else {
+			c.DevToTags = strings.Split(*p.DevToTags, ",")
+		}
+	}
+	if p.DevToUsername != nil {
+		c.DevToUsername = *p.DevToUsername
+	}
 }
 
 // GetPatchable returns the current runtime-editable config values.
@@ -529,6 +585,13 @@ func (c *Config) GetPatchable() PatchableConfig {
 		QuietHoursStart:         &c.QuietHoursStart,
 		QuietHoursEnd:           &c.QuietHoursEnd,
 		QuietHoursTZ:            &c.QuietHoursTZ,
+		RSSEnabled:              &c.RSSEnabled,
+		RSSFeeds:                strPtr(strings.Join(c.RSSFeeds, ",")),
+		SOEnabled:               &c.SOEnabled,
+		SOTags:                  strPtr(strings.Join(c.SOTags, ",")),
+		DevToEnabled:            &c.DevToEnabled,
+		DevToTags:               strPtr(strings.Join(c.DevToTags, ",")),
+		DevToUsername:           &c.DevToUsername,
 	}
 }
 

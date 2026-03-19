@@ -6,7 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar, Rss, Code, BookOpen } from '@lucide/svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
 	let mcpStatus = $state<McpStatus | null>(null);
@@ -29,6 +29,13 @@
 	let editCalendarEnabled = $state(false);
 	let editGmailFilter = $state('-category:promotions -category:social -category:forums');
 	let editCalendarLookahead = $state(48);
+	let editRssEnabled = $state(false);
+	let editRssFeeds = $state('');
+	let editSoEnabled = $state(false);
+	let editSoTags = $state('');
+	let editDevtoEnabled = $state(false);
+	let editDevtoTags = $state('');
+	let editDevtoUsername = $state('');
 	let saving = $state('');
 
 	const knownChannels = [
@@ -60,6 +67,13 @@
 				editCalendarEnabled = cfg.calendarEnabled ?? false;
 				editGmailFilter = cfg.gmailFilterQuery ?? '-category:promotions -category:social -category:forums';
 				editCalendarLookahead = cfg.calendarLookaheadH ?? 48;
+				editRssEnabled = cfg.rssEnabled ?? false;
+				editRssFeeds = cfg.rssFeeds ?? '';
+				editSoEnabled = cfg.soEnabled ?? false;
+				editSoTags = cfg.soTags ?? '';
+				editDevtoEnabled = cfg.devtoEnabled ?? false;
+				editDevtoTags = cfg.devtoTags ?? '';
+				editDevtoUsername = cfg.devtoUsername ?? '';
 			}
 		} catch {
 			// handled
@@ -634,6 +648,114 @@
 					disabled={saving === 'gws-pollers'}
 				>
 					{#if saving === 'gws-pollers'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
+					Save
+				</Button>
+			</div>
+		</div>
+	</section>
+
+	<Separator class="mb-8" />
+
+	<!-- RSS, Stack Overflow, Dev.to -->
+	<section class="mb-8">
+		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">Content Sources</h2>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">RSS feeds, Stack Overflow questions, Dev.to articles</p>
+
+		<div class="space-y-3">
+			<!-- RSS -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 space-y-3">
+				<div class="flex items-center gap-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-md {editRssEnabled ? 'bg-[var(--color-success)]/10' : 'bg-[var(--bg-2)]'}">
+						<Rss class="h-4 w-4 {editRssEnabled ? 'text-[var(--color-success)]' : 'text-[var(--text-tertiary)]'}" />
+					</div>
+					<div class="flex-1">
+						<p class="text-sm font-medium text-[var(--text-primary)]">RSS / Atom Feeds</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Blogs, changelogs, release notes</p>
+					</div>
+					<label class="relative inline-flex items-center cursor-pointer">
+						<input type="checkbox" bind:checked={editRssEnabled} class="sr-only peer" />
+						<div class="w-9 h-5 bg-[var(--bg-3)] peer-checked:bg-[var(--cairn-accent)] rounded-full transition-colors after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+					</label>
+				</div>
+				{#if editRssEnabled}
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Feed URLs</p>
+						<textarea
+							bind:value={editRssFeeds}
+							placeholder="https://go.dev/blog/feed.atom, https://github.com/org/repo/releases.atom"
+							class="w-full rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 py-1.5 text-xs font-mono text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]/40 focus:border-[var(--cairn-accent)] focus:outline-none resize-none h-16"
+						></textarea>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Stack Overflow -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 space-y-3">
+				<div class="flex items-center gap-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-md {editSoEnabled ? 'bg-[var(--color-success)]/10' : 'bg-[var(--bg-2)]'}">
+						<Code class="h-4 w-4 {editSoEnabled ? 'text-[var(--color-success)]' : 'text-[var(--text-tertiary)]'}" />
+					</div>
+					<div class="flex-1">
+						<p class="text-sm font-medium text-[var(--text-primary)]">Stack Overflow</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Questions by tag (e.g. go, svelte, sqlite)</p>
+					</div>
+					<label class="relative inline-flex items-center cursor-pointer">
+						<input type="checkbox" bind:checked={editSoEnabled} class="sr-only peer" />
+						<div class="w-9 h-5 bg-[var(--bg-3)] peer-checked:bg-[var(--cairn-accent)] rounded-full transition-colors after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+					</label>
+				</div>
+				{#if editSoEnabled}
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Tags</p>
+						<Input type="text" bind:value={editSoTags} placeholder="go, svelte, sqlite" class="h-7 text-xs font-mono" />
+					</div>
+				{/if}
+			</div>
+
+			<!-- Dev.to -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 space-y-3">
+				<div class="flex items-center gap-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-md {editDevtoEnabled ? 'bg-[var(--color-success)]/10' : 'bg-[var(--bg-2)]'}">
+						<BookOpen class="h-4 w-4 {editDevtoEnabled ? 'text-[var(--color-success)]' : 'text-[var(--text-tertiary)]'}" />
+					</div>
+					<div class="flex-1">
+						<p class="text-sm font-medium text-[var(--text-primary)]">Dev.to</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Articles by tag or your own profile</p>
+					</div>
+					<label class="relative inline-flex items-center cursor-pointer">
+						<input type="checkbox" bind:checked={editDevtoEnabled} class="sr-only peer" />
+						<div class="w-9 h-5 bg-[var(--bg-3)] peer-checked:bg-[var(--cairn-accent)] rounded-full transition-colors after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+					</label>
+				</div>
+				{#if editDevtoEnabled}
+					<div class="grid grid-cols-2 gap-3">
+						<div>
+							<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Tags</p>
+							<Input type="text" bind:value={editDevtoTags} placeholder="go, webdev" class="h-7 text-xs font-mono" />
+						</div>
+						<div>
+							<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Username</p>
+							<Input type="text" bind:value={editDevtoUsername} placeholder="avifenesh" class="h-7 text-xs font-mono" />
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<div class="flex justify-end">
+				<Button
+					size="sm" class="h-7 text-xs gap-1 px-3"
+					onclick={() => saveConfig('content-sources', {
+						rssEnabled: editRssEnabled,
+						rssFeeds: editRssFeeds,
+						soEnabled: editSoEnabled,
+						soTags: editSoTags,
+						devtoEnabled: editDevtoEnabled,
+						devtoTags: editDevtoTags,
+						devtoUsername: editDevtoUsername,
+					})}
+					disabled={saving === 'content-sources'}
+				>
+					{#if saving === 'content-sources'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
 					Save
 				</Button>
 			</div>

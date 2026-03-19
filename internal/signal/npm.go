@@ -130,11 +130,15 @@ func (n *NPMPoller) fetchMetrics(ctx context.Context, pkg string) (npmDownloadSn
 	totalURL := fmt.Sprintf("https://api.npmjs.org/downloads/point/2020-01-01:%s/%s",
 		time.Now().UTC().Format("2006-01-02"), url.PathEscape(pkg))
 	totalData, err := n.httpGet(ctx, totalURL)
-	if err == nil {
+	if err != nil {
+		n.logger.Warn("npm: total downloads fetch failed", "package", pkg, "error", err)
+	} else {
 		var totalResp struct {
 			Downloads int `json:"downloads"`
 		}
-		if json.Unmarshal(totalData, &totalResp) == nil {
+		if err := json.Unmarshal(totalData, &totalResp); err != nil {
+			n.logger.Warn("npm: total downloads parse failed", "package", pkg, "error", err)
+		} else {
 			snapshot.TotalDownloads = totalResp.Downloads
 		}
 	}

@@ -58,9 +58,11 @@ type Config struct {
 	SOEnabled          bool              // Enable Stack Overflow poller
 	SOTags             []string          // SO tags to monitor
 	SOAPIKey           string            // SO API key (optional, higher rate limit)
+	SOPollInterval     int               // SO poll interval in minutes (default 60)
 	DevToEnabled       bool              // Enable Dev.to poller
 	DevToTags          []string          // Dev.to tags to monitor
 	DevToUsername      string            // Dev.to username
+	DevToPollInterval  int               // Dev.to poll interval in minutes (default 30)
 	HNKeywords         []string          // HN keyword filter
 	HNMinScore         int               // HN minimum score filter
 	PollInterval       int               // Poll interval in seconds (default 300 = 5min)
@@ -223,9 +225,11 @@ func Load() (*Config, error) {
 		SOEnabled:               envBool("SO_ENABLED", false),
 		SOTags:                  envSlice("SO_TAGS", nil),
 		SOAPIKey:                envStr("SO_API_KEY", ""),
+		SOPollInterval:          envInt("SO_POLL_INTERVAL", 60),
 		DevToEnabled:            envBool("DEVTO_ENABLED", false),
 		DevToTags:               envSlice("DEVTO_TAGS", nil),
 		DevToUsername:           envStr("DEVTO_USERNAME", ""),
+		DevToPollInterval:       envInt("DEVTO_POLL_INTERVAL", 30),
 		HNKeywords:              envSlice("HN_KEYWORDS", nil),
 		HNMinScore:              envInt("HN_MIN_SCORE", 0),
 		PollInterval:            pollIntervalSeconds(),
@@ -615,8 +619,8 @@ func (c *Config) GetPatchable() PatchableConfig {
 		BudgetWeeklyCap:         &c.BudgetWeeklyCap,
 		ChannelSessionTimeout:   &c.ChannelSessionTimeout,
 		GHOwner:                 &c.GHOwner,
-		GHTrackedRepos:          strPtr(strings.Join(c.GHTrackedRepos, ",")),
-		GHBotFilter:             strPtr(strings.Join(c.GHBotFilter, ",")),
+		GHTrackedRepos:          strPtr(strings.Join(c.GHTrackedRepos, ", ")),
+		GHBotFilter:             strPtr(strings.Join(c.GHBotFilter, ", ")),
 		GHMetricsInterval:       &c.GHMetricsInterval,
 		GmailEnabled:            &c.GmailEnabled,
 		CalendarEnabled:         &c.CalendarEnabled,
@@ -626,18 +630,18 @@ func (c *Config) GetPatchable() PatchableConfig {
 		QuietHoursStart:         &c.QuietHoursStart,
 		QuietHoursEnd:           &c.QuietHoursEnd,
 		QuietHoursTZ:            &c.QuietHoursTZ,
-		MutedSources:            strPtr(strings.Join(c.MutedSources, ",")),
+		MutedSources:            strPtr(strings.Join(c.MutedSources, ", ")),
 		NotifMinPriority:        &c.NotifMinPriority,
 		ChannelRouting:          &c.ChannelRouting,
 		RSSEnabled:              &c.RSSEnabled,
-		RSSFeeds:                strPtr(strings.Join(c.RSSFeeds, ",")),
+		RSSFeeds:                strPtr(strings.Join(c.RSSFeeds, ", ")),
 		SOEnabled:               &c.SOEnabled,
-		SOTags:                  strPtr(strings.Join(c.SOTags, ",")),
+		SOTags:                  strPtr(strings.Join(c.SOTags, ", ")),
 		DevToEnabled:            &c.DevToEnabled,
-		DevToTags:               strPtr(strings.Join(c.DevToTags, ",")),
+		DevToTags:               strPtr(strings.Join(c.DevToTags, ", ")),
 		DevToUsername:           &c.DevToUsername,
-		NPMPackages:             strPtr(strings.Join(c.NPMPackages, ",")),
-		CratesPackages:          strPtr(strings.Join(c.CratesPackages, ",")),
+		NPMPackages:             strPtr(strings.Join(c.NPMPackages, ", ")),
+		CratesPackages:          strPtr(strings.Join(c.CratesPackages, ", ")),
 	}
 }
 

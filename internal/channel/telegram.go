@@ -145,9 +145,10 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 			Voice:  voiceFile,
 		}
 		if _, err := t.bot.SendVoice(ctx, voiceParams); err != nil {
-			t.logger.Warn("telegram: voice send failed, falling back to text", "error", err)
+			t.logger.Warn("telegram: voice send failed", "error", err, "audioBytes", len(msg.Audio))
+		} else {
+			t.logger.Info("telegram: voice note sent", "chatID", chatID, "audioBytes", len(msg.Audio))
 		}
-		// Always also send text for readability (voice + text).
 	}
 
 	text := Normalize(msg.Text, "telegram")

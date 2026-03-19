@@ -20,6 +20,7 @@
 	let editInstruction = $state('');
 	let editPriority = $state(3);
 	let savingEdit = $state(false);
+	let editError = $state('');
 
 	// Create form state
 	let newName = $state('');
@@ -111,6 +112,7 @@
 
 	async function saveEdit(id: string) {
 		savingEdit = true;
+		editError = '';
 		try {
 			const res = await updateCron(id, {
 				schedule: editSchedule.trim(),
@@ -120,6 +122,7 @@
 			jobs = jobs.map((j) => (j.id === id ? res.job : j));
 			editingId = null;
 		} catch (e) {
+			editError = e instanceof Error ? e.message : 'Failed to save changes';
 			console.error('Failed to update cron job:', e);
 		} finally {
 			savingEdit = false;
@@ -242,7 +245,7 @@
 									<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Instruction</p>
 									<textarea
 										bind:value={editInstruction}
-										class="w-full rounded-md border border-border-subtle bg-[var(--bg-1)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] font-mono focus:border-[var(--cairn-accent)] focus:outline-none resize-none h-16"
+										class="w-full rounded-md border border-border-subtle bg-[var(--bg-1)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] font-mono focus:border-[var(--cairn-accent)] focus:outline-none resize-y h-16"
 									></textarea>
 								</div>
 								<div>
@@ -253,8 +256,11 @@
 										{/each}
 									</select>
 								</div>
+								{#if editError}
+									<p class="text-[10px] text-[var(--color-error)]">{editError}</p>
+								{/if}
 								<div class="flex gap-2 justify-end">
-									<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => editingId = null}>Cancel</Button>
+									<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => { editingId = null; editError = ''; }}>Cancel</Button>
 									<Button size="sm" class="h-7 text-xs gap-1" onclick={() => saveEdit(job.id)} disabled={savingEdit}>
 										{#if savingEdit}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
 										Save

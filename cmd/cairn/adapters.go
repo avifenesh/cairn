@@ -492,6 +492,8 @@ func (a *configAdapter) GetConfig(_ context.Context) (map[string]any, error) {
 		return nil, err
 	}
 	var result map[string]any
-	json.Unmarshal(data, &result)
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("unmarshal config: %w", err)
+	}
 	return result, nil
 }

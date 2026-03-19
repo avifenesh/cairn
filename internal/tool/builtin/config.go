@@ -80,7 +80,10 @@ var getConfig = tool.Define("cairn.getConfig",
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to get config: %v", err)}, nil
 		}
 
-		data, _ := json.MarshalIndent(cfg, "", "  ")
+		data, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return &tool.ToolResult{Error: fmt.Sprintf("marshal config: %v", err)}, nil
+		}
 		return &tool.ToolResult{
 			Output:   string(data),
 			Metadata: cfg,

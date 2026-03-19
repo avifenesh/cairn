@@ -63,16 +63,20 @@
 		const ids = filteredItems.map((i) => i.id);
 		for (const id of ids) {
 			feedStore.archiveItem(id);
-			archiveFeedItem(id).catch(() => {});
 		}
+		const results = await Promise.allSettled(ids.map((id) => archiveFeedItem(id)));
+		const failed = results.filter((r) => r.status === 'rejected').length;
+		if (failed > 0) console.error(`Failed to archive ${failed} items`);
 	}
 
 	async function handleDeleteAll() {
 		const ids = filteredItems.map((i) => i.id);
 		for (const id of ids) {
 			feedStore.removeItem(id);
-			deleteFeedItem(id).catch(() => {});
 		}
+		const results = await Promise.allSettled(ids.map((id) => deleteFeedItem(id)));
+		const failed = results.filter((r) => r.status === 'rejected').length;
+		if (failed > 0) console.error(`Failed to delete ${failed} items`);
 	}
 
 	async function handleDelete(id: string) {

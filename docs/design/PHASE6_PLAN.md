@@ -317,7 +317,8 @@ Feed Signal Intelligence (see docs/design/FEED_SIGNAL_PLAN.md):
   PR A (Wire Feed API + types)       ─── merged #80 (feed wired, archive/delete, source filters, 232 tests)
   PR B (GitHub Signal Intelligence)  ─── merged #81 (engagement, metrics, stargazers, followers, new repos, bot filter)
   PR C (Gmail + Calendar pollers)    ─── merged #84 (Gmail + auto-archive GH emails + Calendar via gws CLI)
-  PR D (Future integrations spec)    ─── docs only (X, RSS, SO, cron)
+  PR D (Future integrations spec)    ─── docs committed + implemented RSS/SO/DevTo in #85
+  PR #85 (RSS + SO + DevTo pollers)  ─── merged #85 (3-in-1, gofeed lib, 11 pollers total)
 
 Google Workspace:
   GWS tools                          ─── merged (cairn.gwsQuery + cairn.gwsExecute, 17 services)
@@ -337,5 +338,5 @@ Google Workspace:
 | Z.ai Vision | 1 PR ✅ DONE | — | 8 vision tools via stdio subprocess (GLM-4.6V) |
 | File Upload | 1 PR ✅ DONE | 1 PR ✅ DONE | C.6 — paperclip, paste, drag-and-drop, POST /v1/upload |
 | Polish | — | 4 PRs ✅ DONE | Mode dropdown, DnD, memory edit/delete, editable settings |
-| Feed Signal | 3 PRs ✅ DONE | 3 PRs ✅ DONE | Feed API, GitHub signal, Gmail+Calendar, 8 pollers |
-| **Total** | **31 merged** | **28/28 done** | **37 tools, 5 skills, MCP, 3 channels, file upload, voice + TTS, embeddings, compaction, 8 pollers** |
+| Feed Signal | 4 PRs ✅ DONE | 4 PRs ✅ DONE | Feed API, GitHub signal, Gmail+Calendar, RSS+SO+DevTo, 11 pollers |
+| **Total** | **32 merged** | **29/29 done** | **37 tools, 5 skills, MCP, 3 channels, file upload, voice + TTS, embeddings, compaction, 11 pollers** |

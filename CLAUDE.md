@@ -23,13 +23,13 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Done | `internal/signal/` |
 | 8 | Skill System - SKILL.md parser, discovery, hot-reload, injection | Done | `internal/skill/` |
 | 9 | Server & Protocols - HTTP, SSE, REST API, auth, static files | Done | `internal/server/` |
-| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (Phase 6-8, 232 tests, 26 PRs) | `frontend/` |
+| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (Phase 6-8, 232 tests, 32 PRs) | `frontend/` |
 | 11 | Channel Adapters - Telegram, Discord, Slack | Done | `internal/channel/` |
 | 12 | Z.ai Integration - web search, reader, zread, vision (13 tools) | Done | `internal/tool/builtin/zai.go`, `vision.go` |
 | 13 | Intelligence - embeddings, session compaction | Done | `internal/memory/`, `internal/agent/compaction.go` |
 | 14 | Voice - Whisper STT + edge-tts TTS | Done | `internal/voice/` |
 
-Frontend feature-complete. 232 tests, 27 files. 37 tools (GLM+Vision) / 26 (other). All chat features done: text, voice (C.7 Whisper STT + TTS playback button), file upload (C.6 paperclip + paste + DnD), vision (8 tools). Settings editable with file persistence. Memory CRUD. TTS playback on assistant messages (PR #76). Feed API wired with archive/delete/source filters (PR #80). Remaining: GitHub signal poller, Gmail/Calendar pollers.
+Frontend feature-complete. 232 tests, 27 files. 37 tools (GLM+Vision) / 26 (other). 11 pollers (github, github_signal, gmail, calendar, hn, reddit, npm, crates, rss, stackoverflow, devto). All chat features done: text, voice, file upload, vision. Settings editable. Memory CRUD. Feed system complete: API wired, archive/delete, source filters, GitHub signal intelligence, Gmail/Calendar (auto-archive GH emails), RSS/SO/DevTo. 32 PRs merged.
 
 ## Phases
 

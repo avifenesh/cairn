@@ -540,7 +540,7 @@ PR A (Wire Feed API)          ← DONE (#80)
 PR B (GitHub Signal)          ← DONE (#81) (engagement, metrics, stargazers, followers, new repos, bot filter)
 PR C (Gmail + Calendar)       ← DONE (#84) (filtered email + auto-archive GH emails + calendar via gws CLI)
   ↓
-PR D (Future Spec)            ← independent, docs only
+PR D (Future Spec)            ← DONE (docs + RSS/SO/DevTo implemented in #85, 11 pollers total)
 ```
 
 ## Implementation Order

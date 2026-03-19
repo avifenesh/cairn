@@ -939,6 +939,16 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 			"items":          channels,
 			"sessionTimeout": s.config.ChannelSessionTimeout,
 		}
+		status["embeddings"] = map[string]any{
+			"enabled":    s.config.EmbeddingEnabled,
+			"model":      s.config.EmbeddingModel,
+			"dimensions": s.config.EmbeddingDimensions,
+		}
+		status["compaction"] = map[string]any{
+			"triggerTokens": s.config.CompactionTriggerTokens,
+			"keepRecent":    s.config.CompactionKeepRecent,
+			"maxToolOutput": s.config.CompactionMaxToolOutput,
+		}
 	}
 	writeJSON(w, http.StatusOK, status)
 }

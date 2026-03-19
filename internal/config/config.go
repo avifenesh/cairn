@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // Config holds all application configuration, loaded from environment variables.
@@ -374,4 +375,85 @@ func envMap(key string) map[string]string {
 		return nil
 	}
 	return m
+}
+
+// --- Runtime-editable config ---
+
+// PatchableConfig holds fields that can be changed at runtime via PATCH /v1/config.
+// All fields are pointers — nil means "don't change".
+type PatchableConfig struct {
+	CompactionTriggerTokens *int     `json:"compactionTriggerTokens,omitempty"`
+	CompactionKeepRecent    *int     `json:"compactionKeepRecent,omitempty"`
+	CompactionMaxToolOutput *int     `json:"compactionMaxToolOutput,omitempty"`
+	BudgetDailyCap          *float64 `json:"budgetDailyCap,omitempty"`
+	BudgetWeeklyCap         *float64 `json:"budgetWeeklyCap,omitempty"`
+	ChannelSessionTimeout   *int     `json:"channelSessionTimeout,omitempty"`
+}
+
+var configMu sync.RWMutex
+
+// ApplyPatch merges non-nil fields from p into the config.
+func (c *Config) ApplyPatch(p PatchableConfig) {
+	configMu.Lock()
+	defer configMu.Unlock()
+	if p.CompactionTriggerTokens != nil && *p.CompactionTriggerTokens > 0 {
+		c.CompactionTriggerTokens = *p.CompactionTriggerTokens
+	}
+	if p.CompactionKeepRecent != nil && *p.CompactionKeepRecent > 0 {
+		c.CompactionKeepRecent = *p.CompactionKeepRecent
+	}
+	if p.CompactionMaxToolOutput != nil && *p.CompactionMaxToolOutput > 0 {
+		c.CompactionMaxToolOutput = *p.CompactionMaxToolOutput
+	}
+	if p.BudgetDailyCap != nil && *p.BudgetDailyCap >= 0 {
+		c.BudgetDailyCap = *p.BudgetDailyCap
+	}
+	if p.BudgetWeeklyCap != nil && *p.BudgetWeeklyCap >= 0 {
+		c.BudgetWeeklyCap = *p.BudgetWeeklyCap
+	}
+	if p.ChannelSessionTimeout != nil && *p.ChannelSessionTimeout > 0 {
+		c.ChannelSessionTimeout = *p.ChannelSessionTimeout
+	}
+}
+
+// GetPatchable returns the current runtime-editable config values.
+func (c *Config) GetPatchable() PatchableConfig {
+	configMu.RLock()
+	defer configMu.RUnlock()
+	return PatchableConfig{
+		CompactionTriggerTokens: &c.CompactionTriggerTokens,
+		CompactionKeepRecent:    &c.CompactionKeepRecent,
+		CompactionMaxToolOutput: &c.CompactionMaxToolOutput,
+		BudgetDailyCap:          &c.BudgetDailyCap,
+		BudgetWeeklyCap:         &c.BudgetWeeklyCap,
+		ChannelSessionTimeout:   &c.ChannelSessionTimeout,
+	}
+}
+
+// SaveOverrides writes the current patchable config to $dataDir/config.json.
+func (c *Config) SaveOverrides(dataDir string) error {
+	p := c.GetPatchable()
+	data, err := json.MarshalIndent(p, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dataDir, "config.json"), data, 0644)
+}
+
+// LoadOverrides reads config.json from dataDir and applies over current config.
+func (c *Config) LoadOverrides(dataDir string) {
+	path := filepath.Join(dataDir, "config.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return // no overrides file, that's fine
+	}
+	var p PatchableConfig
+	if err := json.Unmarshal(data, &p); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: config.json invalid, ignoring: %v\n", err)
+		return
+	}
+	c.ApplyPatch(p)
 }

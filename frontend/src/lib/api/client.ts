@@ -68,6 +68,17 @@ async function del<T>(path: string): Promise<T> {
 	return res.json();
 }
 
+async function patch<T>(path: string, body: unknown): Promise<T> {
+	const res = await fetch(`${BASE_URL}${path}`, {
+		method: 'PATCH',
+		credentials: 'include',
+		headers: headers(),
+		body: JSON.stringify(body),
+	});
+	if (!res.ok) throw new ApiError(res.status, await res.text());
+	return res.json();
+}
+
 async function put<T>(path: string, body: unknown): Promise<T> {
 	const res = await fetch(`${BASE_URL}${path}`, {
 		method: 'PUT',
@@ -360,6 +371,19 @@ export const getStatusDetails = async () => {
 		};
 	} catch { return { mcp: null, channels: null }; }
 };
+
+// Config (runtime-editable)
+export interface EditableConfig {
+	compactionTriggerTokens?: number;
+	compactionKeepRecent?: number;
+	compactionMaxToolOutput?: number;
+	budgetDailyCap?: number;
+	budgetWeeklyCap?: number;
+	channelSessionTimeout?: number;
+}
+export const getEditableConfig = () => get<EditableConfig>('/v1/config');
+export const patchConfig = (cfg: Partial<EditableConfig>) =>
+	patch<{ ok: boolean; config: EditableConfig }>('/v1/config', cfg);
 
 // Poll
 export const triggerPoll = () => post<{ ok: boolean }>('/v1/poll/run');

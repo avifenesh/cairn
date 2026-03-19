@@ -310,6 +310,15 @@ Phase 8 Intelligence (see docs/design/INTELLIGENCE_PLAN.md):
   PR 71  (Frontend Intelligence UI)  ─── merged #71 (embeddings + compaction in settings)
   PR 11c (Auto-Extract Memories)     ─── next (Mem0 extract→classify pipeline)
   PR 11d (Gmail, Calendar, Voice)    ─── independent
+
+Feed Signal Intelligence (see docs/design/FEED_SIGNAL_PLAN.md):
+  PR A (Wire Feed API + types)       ─── next (foundation — unblocks everything)
+  PR B (GitHub Signal Intelligence)  ─── after A (external engagement + growth metrics + bot filter)
+  PR C (Gmail + Calendar pollers)    ─── after A (filtered email + calendar via gws CLI)
+  PR D (Future integrations spec)    ─── docs only (X, RSS, SO, cron)
+
+Google Workspace:
+  GWS tools                          ─── merged (cairn.gwsQuery + cairn.gwsExecute, 17 services)
 ```
 
 ## Summary

@@ -462,6 +462,11 @@ func runServe(logger *slog.Logger) {
 				ToolStatus:     statusAdapt,
 				ToolSkills:     skillAdapt,
 				Config:         &agent.AgentConfig{Model: cfg.LLMModel},
+				CompactionConfig: agent.CompactionConfig{
+					TriggerTokens:   cfg.CompactionTriggerTokens,
+					KeepRecentPairs: cfg.CompactionKeepRecent,
+					MaxToolOutput:   cfg.CompactionMaxToolOutput,
+				},
 			}
 
 			// Run agent, collect response.
@@ -763,6 +768,11 @@ func runChat(logger *slog.Logger) {
 		ToolSkills:   chatSkillAdapter,
 		Config: &agent.AgentConfig{
 			Model: cfg.LLMModel,
+		},
+		CompactionConfig: agent.CompactionConfig{
+			TriggerTokens:   cfg.CompactionTriggerTokens,
+			KeepRecentPairs: cfg.CompactionKeepRecent,
+			MaxToolOutput:   8000,
 		},
 	}
 

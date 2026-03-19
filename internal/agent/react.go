@@ -71,6 +71,23 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 	// Build conversation history.
 	messages := invCtx.Session.History()
 
+	// Compact session if over token threshold.
+	if invCtx.CompactionConfig.TriggerTokens > 0 {
+		tokens := EstimateMessageTokens(messages)
+		if tokens > invCtx.CompactionConfig.TriggerTokens {
+			compacted, compErr := CompactMessages(invCtx.Context, messages, invCtx.LLM, invCtx.CompactionConfig)
+			if compErr != nil {
+				a.logger.Warn("compaction failed, using full history", "tokens", tokens, "error", compErr)
+			} else {
+				a.logger.Info("session compacted",
+					"before", len(messages), "after", len(compacted),
+					"tokensBefore", tokens, "tokensAfter", EstimateMessageTokens(compacted),
+				)
+				messages = compacted
+			}
+		}
+	}
+
 	// Add user message.
 	messages = append(messages, llm.Message{
 		Role:    llm.RoleUser,
@@ -383,8 +400,8 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 				}},
 			}})
 
-			// Add tool result to messages for next LLM call.
-			content := output
+			// Add tool result to messages for next LLM call (truncate large outputs).
+			content := TruncateToolOutput(output, invCtx.CompactionConfig.MaxToolOutput)
 			isError := false
 			if status == ToolFailed {
 				content = errStr

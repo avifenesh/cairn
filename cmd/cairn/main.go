@@ -281,14 +281,18 @@ func runServe(logger *slog.Logger) {
 	if len(cfg.NPMPackages) > 0 {
 		scheduler.Register(signalplane.NewNPMPoller(signalplane.NPMConfig{
 			Packages: cfg.NPMPackages,
-		}), 15*time.Minute) // npm/crates poll less frequently
+			State:    sourceState,
+			Logger:   logger,
+		}), 4*time.Hour) // download metrics don't change fast
 		logger.Info("signal: npm poller registered", "packages", cfg.NPMPackages)
 	}
 
 	if len(cfg.CratesPackages) > 0 {
 		scheduler.Register(signalplane.NewCratesPoller(signalplane.CratesConfig{
 			Crates: cfg.CratesPackages,
-		}), 15*time.Minute)
+			State:  sourceState,
+			Logger: logger,
+		}), 4*time.Hour)
 		logger.Info("signal: crates poller registered", "crates", cfg.CratesPackages)
 	}
 

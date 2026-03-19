@@ -6,7 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar, Rss, Code, BookOpen } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar, Rss, Code, BookOpen, Package } from '@lucide/svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
 	let mcpStatus = $state<McpStatus | null>(null);
@@ -36,6 +36,8 @@
 	let editDevtoEnabled = $state(false);
 	let editDevtoTags = $state('');
 	let editDevtoUsername = $state('');
+	let editNpmPackages = $state('');
+	let editCratesPackages = $state('');
 	let saving = $state('');
 
 	const knownChannels = [
@@ -74,6 +76,8 @@
 				editDevtoEnabled = cfg.devtoEnabled ?? false;
 				editDevtoTags = cfg.devtoTags ?? '';
 				editDevtoUsername = cfg.devtoUsername ?? '';
+				editNpmPackages = cfg.npmPackages ?? '';
+				editCratesPackages = cfg.cratesPackages ?? '';
 			}
 		} catch {
 			// handled
@@ -741,6 +745,42 @@
 				{/if}
 			</div>
 
+			<!-- NPM Packages -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 space-y-3">
+				<div class="flex items-center gap-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg-2)]">
+						<Package class="h-4 w-4 text-[var(--text-tertiary)]" />
+					</div>
+					<div class="flex-1">
+						<p class="text-sm font-medium text-[var(--text-primary)]">npm Packages</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Track download metrics for your npm packages</p>
+					</div>
+				</div>
+				<div>
+					<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Packages</p>
+					<Input type="text" bind:value={editNpmPackages} placeholder="@anthropic-ai/sdk, svelte" class="h-7 text-xs font-mono" />
+					<p class="text-[10px] text-[var(--text-tertiary)]/60 mt-0.5">Comma-separated. Tracks weekly + total downloads over time.</p>
+				</div>
+			</div>
+
+			<!-- Crates.io -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 space-y-3">
+				<div class="flex items-center gap-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--bg-2)]">
+						<Package class="h-4 w-4 text-[var(--text-tertiary)]" />
+					</div>
+					<div class="flex-1">
+						<p class="text-sm font-medium text-[var(--text-primary)]">Crates.io</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Track download metrics for your Rust crates</p>
+					</div>
+				</div>
+				<div>
+					<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Crates</p>
+					<Input type="text" bind:value={editCratesPackages} placeholder="tokio, serde" class="h-7 text-xs font-mono" />
+					<p class="text-[10px] text-[var(--text-tertiary)]/60 mt-0.5">Comma-separated. Tracks recent + total downloads over time.</p>
+				</div>
+			</div>
+
 			<div class="flex justify-end">
 				<Button
 					size="sm" class="h-7 text-xs gap-1 px-3"
@@ -752,6 +792,8 @@
 						devtoEnabled: editDevtoEnabled,
 						devtoTags: editDevtoTags,
 						devtoUsername: editDevtoUsername,
+						npmPackages: editNpmPackages,
+						cratesPackages: editCratesPackages,
 					})}
 					disabled={saving === 'content-sources'}
 				>

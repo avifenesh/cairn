@@ -79,6 +79,17 @@ func main() {
 }
 
 // runServe starts the HTTP server with all subsystems initialized.
+// newEmbedder creates an embedder from config, returning NoopEmbedder if disabled.
+func newEmbedder(cfg *config.Config) memory.Embedder {
+	if cfg.EmbeddingEnabled && cfg.EmbeddingAPIKey != "" {
+		return memory.NewOpenAIEmbedder(
+			cfg.EmbeddingAPIKey, cfg.EmbeddingBaseURL,
+			cfg.EmbeddingModel, cfg.EmbeddingDimensions,
+		)
+	}
+	return memory.NoopEmbedder{}
+}
+
 func runServe(logger *slog.Logger) {
 	// Load config.
 	cfg := config.LoadOptional()
@@ -143,12 +154,8 @@ func runServe(logger *slog.Logger) {
 	toolRegistry.Register(builtin.All()...)
 
 	// Initialize embedder.
-	var embedder memory.Embedder = memory.NoopEmbedder{}
-	if cfg.EmbeddingEnabled && cfg.EmbeddingAPIKey != "" {
-		embedder = memory.NewOpenAIEmbedder(
-			cfg.EmbeddingAPIKey, cfg.EmbeddingBaseURL,
-			cfg.EmbeddingModel, cfg.EmbeddingDimensions,
-		)
+	embedder := newEmbedder(cfg)
+	if embedder.Dimensions() > 0 {
 		logger.Info("embedding enabled",
 			"model", cfg.EmbeddingModel,
 			"dimensions", cfg.EmbeddingDimensions,
@@ -666,16 +673,8 @@ func runChat(logger *slog.Logger) {
 	toolRegistry := tool.NewRegistry()
 	toolRegistry.Register(builtin.All()...)
 
-	// Initialize embedder for chat mode.
-	var chatEmbedder memory.Embedder = memory.NoopEmbedder{}
-	if cfg.EmbeddingEnabled && cfg.EmbeddingAPIKey != "" {
-		chatEmbedder = memory.NewOpenAIEmbedder(
-			cfg.EmbeddingAPIKey, cfg.EmbeddingBaseURL,
-			cfg.EmbeddingModel, cfg.EmbeddingDimensions,
-		)
-	}
-
 	// Initialize memory service.
+	chatEmbedder := newEmbedder(cfg)
 	var memService *memory.Service
 	var soul *memory.Soul
 	if database != nil {

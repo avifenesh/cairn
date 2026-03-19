@@ -44,11 +44,15 @@ func (e *OpenAIEmbedder) Embed(ctx context.Context, texts []string) ([][]float32
 		return nil, nil
 	}
 
-	// Truncate long texts.
+	// Truncate long texts (rune-safe to avoid splitting UTF-8 characters).
 	truncated := make([]string, len(texts))
 	for i, t := range texts {
 		if len(t) > maxEmbedInputLen {
-			truncated[i] = t[:maxEmbedInputLen]
+			runes := []rune(t)
+			if len(runes) > maxEmbedInputLen {
+				runes = runes[:maxEmbedInputLen]
+			}
+			truncated[i] = string(runes)
 		} else {
 			truncated[i] = t
 		}
@@ -101,16 +105,14 @@ func (e *OpenAIEmbedder) Embed(ctx context.Context, texts []string) ([][]float32
 		return result.Data[i].Index < result.Data[j].Index
 	})
 
-	// Log dimension info on first call.
-	if len(result.Data) > 0 && len(result.Data[0].Embedding) > 0 {
-		actual := len(result.Data[0].Embedding)
-		if actual != e.dimensions {
-			slog.Warn("embedding: dimension mismatch",
-				"configured", e.dimensions,
-				"actual", actual,
-				"model", e.model,
-			)
-		}
+	// Warn if API returns different dimensions than configured.
+	if len(result.Data) > 0 && len(result.Data[0].Embedding) > 0 &&
+		len(result.Data[0].Embedding) != e.dimensions {
+		slog.Warn("embedding: dimension mismatch",
+			"configured", e.dimensions,
+			"actual", len(result.Data[0].Embedding),
+			"model", e.model,
+		)
 	}
 
 	vecs := make([][]float32, len(result.Data))

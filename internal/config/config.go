@@ -490,14 +490,14 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 		if *p.GHTrackedRepos == "" {
 			c.GHTrackedRepos = nil
 		} else {
-			c.GHTrackedRepos = strings.Split(*p.GHTrackedRepos, ",")
+			c.GHTrackedRepos = splitTrimmed(*p.GHTrackedRepos)
 		}
 	}
 	if p.GHBotFilter != nil {
 		if *p.GHBotFilter == "" {
 			c.GHBotFilter = nil
 		} else {
-			c.GHBotFilter = strings.Split(*p.GHBotFilter, ",")
+			c.GHBotFilter = splitTrimmed(*p.GHBotFilter)
 		}
 	}
 	if p.GHMetricsInterval != nil && *p.GHMetricsInterval > 0 {
@@ -534,7 +534,7 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 		if *p.RSSFeeds == "" {
 			c.RSSFeeds = nil
 		} else {
-			c.RSSFeeds = strings.Split(*p.RSSFeeds, ",")
+			c.RSSFeeds = splitTrimmed(*p.RSSFeeds)
 		}
 	}
 	if p.SOEnabled != nil {
@@ -544,7 +544,7 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 		if *p.SOTags == "" {
 			c.SOTags = nil
 		} else {
-			c.SOTags = strings.Split(*p.SOTags, ",")
+			c.SOTags = splitTrimmed(*p.SOTags)
 		}
 	}
 	if p.DevToEnabled != nil {
@@ -554,7 +554,7 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 		if *p.DevToTags == "" {
 			c.DevToTags = nil
 		} else {
-			c.DevToTags = strings.Split(*p.DevToTags, ",")
+			c.DevToTags = splitTrimmed(*p.DevToTags)
 		}
 	}
 	if p.DevToUsername != nil {
@@ -596,6 +596,19 @@ func (c *Config) GetPatchable() PatchableConfig {
 }
 
 func strPtr(s string) *string { return &s }
+
+// splitTrimmed splits a comma-separated string and trims whitespace from each element.
+func splitTrimmed(s string) []string {
+	parts := strings.Split(s, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
+}
 
 // SaveOverrides writes the current patchable config to $dataDir/config.json.
 func (c *Config) SaveOverrides(dataDir string) error {

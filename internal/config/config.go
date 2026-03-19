@@ -121,6 +121,12 @@ type Config struct {
 	SlackAppToken  string // SLACK_APP_TOKEN (Socket Mode)
 	SlackChannelID string // SLACK_CHANNEL_ID
 
+	// Notification routing
+	PreferredChannel string // PREFERRED_CHANNEL (e.g. "telegram")
+	QuietHoursStart  int    // QUIET_HOURS_START (0-23, -1 = disabled)
+	QuietHoursEnd    int    // QUIET_HOURS_END (0-23, -1 = disabled)
+	QuietHoursTZ     string // QUIET_HOURS_TZ (IANA timezone, default "UTC")
+
 	// Voice
 	VoiceEnabled bool   // VOICE_ENABLED (default: false)
 	WhisperURL   string // WHISPER_URL (default: http://127.0.0.1:8178)
@@ -241,6 +247,10 @@ func Load() (*Config, error) {
 		SlackBotToken:           envStr("SLACK_BOT_TOKEN", ""),
 		SlackAppToken:           envStr("SLACK_APP_TOKEN", ""),
 		SlackChannelID:          envStr("SLACK_CHANNEL_ID", ""),
+		PreferredChannel:        envStr("PREFERRED_CHANNEL", ""),
+		QuietHoursStart:         envInt("QUIET_HOURS_START", -1),
+		QuietHoursEnd:           envInt("QUIET_HOURS_END", -1),
+		QuietHoursTZ:            envStr("QUIET_HOURS_TZ", "UTC"),
 		SearXNGURL:              envStr("SEARXNG_URL", ""),
 		WebFetchTimeout:         envInt("WEB_FETCH_TIMEOUT", 30),
 		WebFetchMaxSize:         envInt64("WEB_FETCH_MAX_SIZE", 5*1024*1024),
@@ -420,6 +430,10 @@ type PatchableConfig struct {
 	CalendarEnabled         *bool    `json:"calendarEnabled,omitempty"`
 	GmailFilterQuery        *string  `json:"gmailFilterQuery,omitempty"`
 	CalendarLookaheadH      *int     `json:"calendarLookaheadH,omitempty"`
+	PreferredChannel        *string  `json:"preferredChannel,omitempty"`
+	QuietHoursStart         *int     `json:"quietHoursStart,omitempty"`
+	QuietHoursEnd           *int     `json:"quietHoursEnd,omitempty"`
+	QuietHoursTZ            *string  `json:"quietHoursTZ,omitempty"`
 }
 
 var configMu sync.RWMutex
@@ -478,6 +492,18 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 	if p.CalendarLookaheadH != nil && *p.CalendarLookaheadH > 0 {
 		c.CalendarLookaheadH = *p.CalendarLookaheadH
 	}
+	if p.PreferredChannel != nil {
+		c.PreferredChannel = *p.PreferredChannel
+	}
+	if p.QuietHoursStart != nil && (*p.QuietHoursStart == -1 || (*p.QuietHoursStart >= 0 && *p.QuietHoursStart <= 23)) {
+		c.QuietHoursStart = *p.QuietHoursStart
+	}
+	if p.QuietHoursEnd != nil && (*p.QuietHoursEnd == -1 || (*p.QuietHoursEnd >= 0 && *p.QuietHoursEnd <= 23)) {
+		c.QuietHoursEnd = *p.QuietHoursEnd
+	}
+	if p.QuietHoursTZ != nil && *p.QuietHoursTZ != "" {
+		c.QuietHoursTZ = *p.QuietHoursTZ
+	}
 }
 
 // GetPatchable returns the current runtime-editable config values.
@@ -499,6 +525,10 @@ func (c *Config) GetPatchable() PatchableConfig {
 		CalendarEnabled:         &c.CalendarEnabled,
 		GmailFilterQuery:        &c.GmailFilterQuery,
 		CalendarLookaheadH:      &c.CalendarLookaheadH,
+		PreferredChannel:        &c.PreferredChannel,
+		QuietHoursStart:         &c.QuietHoursStart,
+		QuietHoursEnd:           &c.QuietHoursEnd,
+		QuietHoursTZ:            &c.QuietHoursTZ,
 	}
 }
 

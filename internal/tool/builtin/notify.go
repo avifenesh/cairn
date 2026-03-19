@@ -1,0 +1,73 @@
+package builtin
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/avifenesh/cairn/internal/tool"
+)
+
+type notifyParams struct {
+	Message  string `json:"message" desc:"Notification text (markdown)"`
+	Priority string `json:"priority" desc:"Priority: low, medium, high, critical (default: medium)"`
+	Action   string `json:"action" desc:"Optional action: 'flush' to send queued digest immediately"`
+}
+
+var notify = tool.Define("cairn.notify",
+	"Send a notification to configured channels. Routes based on priority and quiet hours. Use action='flush' to deliver queued digest.",
+	[]tool.Mode{tool.ModeTalk, tool.ModeWork, tool.ModeCoding},
+	func(ctx *tool.ToolContext, p notifyParams) (*tool.ToolResult, error) {
+		if ctx.Notifier == nil {
+			return &tool.ToolResult{Error: "notification service not configured"}, nil
+		}
+
+		// Handle flush action.
+		if strings.EqualFold(p.Action, "flush") {
+			count := ctx.Notifier.FlushDigest(ctx.Cancel)
+			if count == 0 {
+				return &tool.ToolResult{Output: "Digest queue is empty, nothing to flush."}, nil
+			}
+			return &tool.ToolResult{
+				Output:   fmt.Sprintf("Flushed %d queued notifications as digest.", count),
+				Metadata: map[string]any{"flushed": count},
+			}, nil
+		}
+
+		if strings.TrimSpace(p.Message) == "" {
+			return &tool.ToolResult{Error: "message is required"}, nil
+		}
+
+		// Parse priority.
+		priority := 1 // default: medium
+		switch strings.ToLower(p.Priority) {
+		case "low", "0":
+			priority = 0
+		case "medium", "1", "":
+			priority = 1
+		case "high", "2":
+			priority = 2
+		case "critical", "3":
+			priority = 3
+		default:
+			return &tool.ToolResult{Error: fmt.Sprintf("unknown priority %q (use: low, medium, high, critical)", p.Priority)}, nil
+		}
+
+		ctx.Notifier.Notify(ctx.Cancel, p.Message, priority)
+
+		labels := []string{"low (queued)", "medium", "high", "critical (all channels)"}
+		return &tool.ToolResult{
+			Output: fmt.Sprintf("Notification sent with priority %s: %s", labels[priority], truncateStr(p.Message, 100)),
+			Metadata: map[string]any{
+				"priority":    labels[priority],
+				"digestQueue": ctx.Notifier.DigestLen(),
+			},
+		}, nil
+	},
+)
+
+func truncateStr(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
+}

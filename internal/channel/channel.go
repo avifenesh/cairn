@@ -26,11 +26,14 @@ type Channel interface {
 type MessageHandler func(ctx context.Context, msg *IncomingMessage) (*OutgoingMessage, error)
 
 // Router dispatches incoming messages to the agent and routes responses
-// back to the originating channel. Manages channel lifecycle.
+// back to the originating channel. Manages channel lifecycle and
+// priority-based notification routing.
 type Router struct {
-	channels map[string]Channel
-	handler  MessageHandler
-	logger   *slog.Logger
+	channels  map[string]Channel
+	handler   MessageHandler
+	logger    *slog.Logger
+	notifyCfg *NotifyConfig // notification routing config (nil = broadcast all)
+	digest    *digestQueue  // queued low-priority messages
 }
 
 // NewRouter creates a channel router with the given message handler.
@@ -42,6 +45,7 @@ func NewRouter(handler MessageHandler, logger *slog.Logger) *Router {
 		channels: make(map[string]Channel),
 		handler:  handler,
 		logger:   logger,
+		digest:   &digestQueue{},
 	}
 }
 

@@ -313,6 +313,35 @@ func runServe(logger *slog.Logger) {
 		logger.Info("signal: calendar poller registered", "lookahead", cfg.CalendarLookaheadH)
 	}
 
+	// RSS feed poller.
+	if cfg.RSSEnabled && len(cfg.RSSFeeds) > 0 {
+		scheduler.Register(signalplane.NewRSSPoller(signalplane.RSSConfig{
+			Feeds:  cfg.RSSFeeds,
+			Logger: logger,
+		}), pollInterval)
+		logger.Info("signal: rss poller registered", "feeds", len(cfg.RSSFeeds))
+	}
+
+	// Stack Overflow poller.
+	if cfg.SOEnabled && len(cfg.SOTags) > 0 {
+		scheduler.Register(signalplane.NewSOPoller(signalplane.SOConfig{
+			Tags:   cfg.SOTags,
+			APIKey: cfg.SOAPIKey,
+			Logger: logger,
+		}), 60*time.Minute)
+		logger.Info("signal: stackoverflow poller registered", "tags", cfg.SOTags)
+	}
+
+	// Dev.to poller.
+	if cfg.DevToEnabled && (len(cfg.DevToTags) > 0 || cfg.DevToUsername != "") {
+		scheduler.Register(signalplane.NewDevToPoller(signalplane.DevToConfig{
+			Tags:     cfg.DevToTags,
+			Username: cfg.DevToUsername,
+			Logger:   logger,
+		}), 30*time.Minute)
+		logger.Info("signal: devto poller registered", "tags", cfg.DevToTags, "user", cfg.DevToUsername)
+	}
+
 	scheduler.Start()
 	defer scheduler.Close()
 

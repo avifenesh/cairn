@@ -15,11 +15,23 @@ GLM_KEY=$(grep ZHIPU_API_KEY /home/ubuntu/pub/backend/.env 2>/dev/null | head -1
 
 export GLM_API_KEY="${GLM_KEY}"
 export GLM_BASE_URL="https://api.z.ai/api/coding/paas/v4"
-export ZAI_API_KEY="${ZAI_API_KEY:-4e414d552c06418aa1a3ee18dadac351.HXt4H2gnHGBNR2u2}"
+export ZAI_API_KEY="${ZAI_API_KEY:-27c7fa8b5b3c44b2ac08d30710f5cefa.MvB5yAr798EmSxL0}"
+export SEARXNG_URL="${SEARXNG_URL:-http://127.0.0.1:8888}"
 export PORT="${PORT:-8788}"
 export WRITE_API_TOKEN="${WRITE_API_TOKEN:-cairn-dev}"
 export READ_API_TOKEN=""
 export DATABASE_PATH="${DB_PATH}"
+
+# Source .env.cairn for channel tokens and other config
+ENV_FILE="/home/ubuntu/cairn-backend/.env.cairn"
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    source "$ENV_FILE"
+    set +a
+    # Restore overrides
+    export READ_API_TOKEN=""
+    export DATABASE_PATH="${DB_PATH}"
+fi
 
 build() {
     echo "[cairn] Building production binary..."

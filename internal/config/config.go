@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"strings"
+	"sync"
 )
 
 // Config holds all application configuration, loaded from environment variables.

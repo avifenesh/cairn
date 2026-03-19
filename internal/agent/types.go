@@ -47,6 +47,9 @@ type InvocationContext struct {
 	JournalEntries []memory.JournalDigestEntry // Last 48h journal for context
 	Plugins        *plugin.Manager             // Lifecycle hooks (nil = no plugins)
 
+	// Session compaction config.
+	CompactionConfig CompactionConfig
+
 	// Tool service adapters — passed through to ToolContext during execution.
 	ToolMemories tool.MemoryService
 	ToolEvents   tool.EventService

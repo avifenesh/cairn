@@ -122,6 +122,35 @@
 	};
 	const suggestions = $derived(modeSuggestions[chatStore.mode] ?? modeSuggestions.talk);
 
+	let dragging = $state(false);
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		if (e.dataTransfer?.types.includes('Files')) {
+			dragging = true;
+		}
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		if (e.relatedTarget === null || !(e.currentTarget as HTMLElement)?.contains(e.relatedTarget as Node)) {
+			dragging = false;
+		}
+	}
+
+	async function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		dragging = false;
+		const file = e.dataTransfer?.files?.[0];
+		if (!file) return;
+		if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return;
+		try {
+			const result = await uploadFile(file);
+			attachment = { path: result.path, name: result.name || file.name, size: result.size, mimeType: result.mimeType };
+		} catch {
+			// upload failed
+		}
+	}
+
 	// Auto-scroll when messages change (new message or session loaded)
 	$effect(() => {
 		// Track message count to trigger scroll
@@ -132,7 +161,18 @@
 	});
 </script>
 
-<div class="flex h-full flex-col">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class="flex h-full flex-col relative"
+	ondragover={handleDragOver}
+	ondragleave={handleDragLeave}
+	ondrop={handleDrop}
+>
+	{#if dragging}
+		<div class="absolute inset-0 z-10 flex items-center justify-center bg-[var(--bg-0)]/80 border-2 border-dashed border-[var(--cairn-accent)] rounded-lg m-2">
+			<p class="text-sm font-medium text-[var(--cairn-accent)]">Drop image or video to attach</p>
+		</div>
+	{/if}
 	<!-- Messages area -->
 	<div class="flex-1 overflow-y-auto">
 		<div class="mx-auto max-w-3xl flex flex-col gap-4 p-4">

@@ -309,7 +309,7 @@ func runServe(logger *slog.Logger) {
 			GWSPath:    gwsPath,
 			LookaheadH: cfg.CalendarLookaheadH,
 			Logger:     logger,
-		}), 15*time.Minute)
+		}), pollInterval)
 		logger.Info("signal: calendar poller registered", "lookahead", cfg.CalendarLookaheadH)
 	}
 

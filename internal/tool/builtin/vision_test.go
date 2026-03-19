@@ -147,7 +147,7 @@ echo '{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"Mock a
 	}
 	visionConfig.npxPath = wrapper
 
-	text, err := callVisionMCP(t.Context(), "image_analysis", map[string]any{"image_path": "/tmp/test.png"})
+	text, err := callVisionMCP(t.Context(), "analyze_image", map[string]any{"image_source": "/tmp/test.png", "prompt": "What is in this image?"})
 	if err != nil {
 		t.Fatalf("callVisionMCP failed: %v", err)
 	}

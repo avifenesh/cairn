@@ -225,56 +225,46 @@ func visionCleanup() {
 }
 
 // --- Vision tool parameter structs ---
+// All tools use "image_source" (local path or URL) + "prompt" (required).
+// Verified via tools/list on @z_ai/mcp-server v0.1.2.
 
 type visionImageParams struct {
-	ImageURL  string `json:"image_url,omitempty" desc:"URL of the image"`
-	ImagePath string `json:"image_path,omitempty" desc:"Local file path of the image"`
-	Query     string `json:"query,omitempty" desc:"Specific question about the image"`
+	ImageSource string `json:"image_source" desc:"Local file path or URL of the image"`
+	Prompt      string `json:"prompt" desc:"What to analyze or extract from the image"`
 }
 
-type visionDualImageParams struct {
-	ImageURL1  string `json:"image_url_1,omitempty" desc:"URL of the first image"`
-	ImageURL2  string `json:"image_url_2,omitempty" desc:"URL of the second image"`
-	ImagePath1 string `json:"image_path_1,omitempty" desc:"Local path of the first image"`
-	ImagePath2 string `json:"image_path_2,omitempty" desc:"Local path of the second image"`
+type visionUIToArtifactParams struct {
+	ImageSource string `json:"image_source" desc:"Local file path or URL of the UI screenshot"`
+	OutputType  string `json:"output_type" desc:"Type of output: code, prompt, spec, or description"`
+	Prompt      string `json:"prompt" desc:"Instructions for what to generate from this UI"`
+}
+
+type visionDiffParams struct {
+	ExpectedImageSource string `json:"expected_image_source" desc:"Local path or URL of the expected/reference UI"`
+	ActualImageSource   string `json:"actual_image_source" desc:"Local path or URL of the actual UI"`
+	Prompt              string `json:"prompt" desc:"What aspects to compare"`
 }
 
 type visionVideoParams struct {
-	VideoURL  string `json:"video_url,omitempty" desc:"URL of the video (MP4/MOV/M4V, max 8MB)"`
-	VideoPath string `json:"video_path,omitempty" desc:"Local file path of the video"`
-}
-
-func validateImageParam(p visionImageParams) error {
-	if p.ImageURL == "" && p.ImagePath == "" {
-		return fmt.Errorf("at least one of image_url or image_path is required")
-	}
-	return nil
-}
-
-func imageArgs(p visionImageParams) map[string]any {
-	args := map[string]any{}
-	if p.ImageURL != "" {
-		args["image_url"] = p.ImageURL
-	}
-	if p.ImagePath != "" {
-		args["image_path"] = p.ImagePath
-	}
-	if p.Query != "" {
-		args["query"] = p.Query
-	}
-	return args
+	VideoSource string `json:"video_source" desc:"Local file path or URL of the video (MP4/MOV/M4V, max 8MB)"`
+	Prompt      string `json:"prompt" desc:"What to analyze or extract from the video"`
 }
 
 // --- Vision tool definitions ---
+// Tool names and param schemas verified via tools/list on the actual MCP server.
 
 func visionTool(name, desc, mcpTool string) tool.Tool {
 	return tool.Define(name, desc,
 		[]tool.Mode{tool.ModeTalk, tool.ModeWork},
 		func(ctx *tool.ToolContext, p visionImageParams) (*tool.ToolResult, error) {
-			if err := validateImageParam(p); err != nil {
-				return &tool.ToolResult{Error: err.Error()}, nil
+			if p.ImageSource == "" {
+				return &tool.ToolResult{Error: "image_source is required (local path or URL)"}, nil
 			}
-			text, err := callVisionMCP(safeCtx(ctx.Cancel), mcpTool, imageArgs(p))
+			if p.Prompt == "" {
+				return &tool.ToolResult{Error: "prompt is required"}, nil
+			}
+			args := map[string]any{"image_source": p.ImageSource, "prompt": p.Prompt}
+			text, err := callVisionMCP(safeCtx(ctx.Cancel), mcpTool, args)
 			if err != nil {
 				return &tool.ToolResult{Error: fmt.Sprintf("%s failed: %v", name, err)}, nil
 			}
@@ -284,35 +274,53 @@ func visionTool(name, desc, mcpTool string) tool.Tool {
 }
 
 var (
-	visionImageAnalysis  = visionTool("cairn.imageAnalysis", "Analyze an image using Z.ai Vision (general understanding, Q&A).", "image_analysis")
+	visionImageAnalysis  = visionTool("cairn.imageAnalysis", "Analyze an image using Z.ai Vision (general understanding, Q&A).", "analyze_image")
 	visionExtractText    = visionTool("cairn.extractText", "Extract text from a screenshot (OCR for code, terminals, docs) using Z.ai Vision.", "extract_text_from_screenshot")
 	visionDiagnoseError  = visionTool("cairn.diagnoseError", "Diagnose an error from a screenshot with fix recommendations using Z.ai Vision.", "diagnose_error_screenshot")
 	visionAnalyzeDiagram = visionTool("cairn.analyzeDiagram", "Understand a technical diagram (architecture, flow, UML) using Z.ai Vision.", "understand_technical_diagram")
 	visionAnalyzeChart   = visionTool("cairn.analyzeChart", "Analyze a data visualization (chart, dashboard, graph) using Z.ai Vision.", "analyze_data_visualization")
-	visionUIToArtifact   = visionTool("cairn.uiToArtifact", "Convert a UI screenshot into code or specifications using Z.ai Vision.", "ui_to_artifact")
+)
+
+var visionUIToArtifact = tool.Define("cairn.uiToArtifact",
+	"Convert a UI screenshot into code, prompts, specs, or descriptions using Z.ai Vision.",
+	[]tool.Mode{tool.ModeTalk, tool.ModeWork},
+	func(ctx *tool.ToolContext, p visionUIToArtifactParams) (*tool.ToolResult, error) {
+		if p.ImageSource == "" {
+			return &tool.ToolResult{Error: "image_source is required"}, nil
+		}
+		if p.OutputType == "" {
+			p.OutputType = "code"
+		}
+		if p.Prompt == "" {
+			return &tool.ToolResult{Error: "prompt is required"}, nil
+		}
+		args := map[string]any{
+			"image_source": p.ImageSource,
+			"output_type":  p.OutputType,
+			"prompt":       p.Prompt,
+		}
+		text, err := callVisionMCP(safeCtx(ctx.Cancel), "ui_to_artifact", args)
+		if err != nil {
+			return &tool.ToolResult{Error: fmt.Sprintf("ui to artifact failed: %v", err)}, nil
+		}
+		return &tool.ToolResult{Output: text, Metadata: map[string]any{"provider": "zai-vision"}}, nil
+	},
 )
 
 var visionUIDiffCheck = tool.Define("cairn.uiDiffCheck",
 	"Compare two UI screenshots and identify visual differences using Z.ai Vision.",
 	[]tool.Mode{tool.ModeTalk, tool.ModeWork},
-	func(ctx *tool.ToolContext, p visionDualImageParams) (*tool.ToolResult, error) {
-		hasFirst := p.ImageURL1 != "" || p.ImagePath1 != ""
-		hasSecond := p.ImageURL2 != "" || p.ImagePath2 != ""
-		if !hasFirst || !hasSecond {
-			return &tool.ToolResult{Error: "both first and second images are required (via url or path)"}, nil
+	func(ctx *tool.ToolContext, p visionDiffParams) (*tool.ToolResult, error) {
+		if p.ExpectedImageSource == "" || p.ActualImageSource == "" {
+			return &tool.ToolResult{Error: "both expected_image_source and actual_image_source are required"}, nil
 		}
-		args := map[string]any{}
-		if p.ImageURL1 != "" {
-			args["image_url_1"] = p.ImageURL1
+		if p.Prompt == "" {
+			return &tool.ToolResult{Error: "prompt is required"}, nil
 		}
-		if p.ImageURL2 != "" {
-			args["image_url_2"] = p.ImageURL2
-		}
-		if p.ImagePath1 != "" {
-			args["image_path_1"] = p.ImagePath1
-		}
-		if p.ImagePath2 != "" {
-			args["image_path_2"] = p.ImagePath2
+		args := map[string]any{
+			"expected_image_source": p.ExpectedImageSource,
+			"actual_image_source":   p.ActualImageSource,
+			"prompt":                p.Prompt,
 		}
 		text, err := callVisionMCP(safeCtx(ctx.Cancel), "ui_diff_check", args)
 		if err != nil {
@@ -326,16 +334,13 @@ var visionVideoAnalysis = tool.Define("cairn.videoAnalysis",
 	"Analyze a video file (MP4/MOV/M4V, max 8MB) using Z.ai Vision.",
 	[]tool.Mode{tool.ModeTalk, tool.ModeWork},
 	func(ctx *tool.ToolContext, p visionVideoParams) (*tool.ToolResult, error) {
-		if p.VideoURL == "" && p.VideoPath == "" {
-			return &tool.ToolResult{Error: "at least one of video_url or video_path is required"}, nil
+		if p.VideoSource == "" {
+			return &tool.ToolResult{Error: "video_source is required (local path or URL)"}, nil
 		}
-		args := map[string]any{}
-		if p.VideoURL != "" {
-			args["video_url"] = p.VideoURL
+		if p.Prompt == "" {
+			return &tool.ToolResult{Error: "prompt is required"}, nil
 		}
-		if p.VideoPath != "" {
-			args["video_path"] = p.VideoPath
-		}
+		args := map[string]any{"video_source": p.VideoSource, "prompt": p.Prompt}
 		text, err := callVisionMCP(safeCtx(ctx.Cancel), "video_analysis", args)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("video analysis failed: %v", err)}, nil

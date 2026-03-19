@@ -3,8 +3,8 @@
 	import type { ChatMode } from '$lib/types';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Plus, X } from '@lucide/svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Plus, X, ChevronDown } from '@lucide/svelte';
 
 	interface CustomMode {
 		name: string;
@@ -22,7 +22,6 @@
 	let activeCustomMode = $state<string | null>(null);
 	let showAdd = $state(false);
 	let newName = $state('');
-	let newDesc = $state('');
 	let newPrompt = $state('');
 
 	function loadCustomModes(): CustomMode[] {
@@ -52,10 +51,9 @@
 	function addMode() {
 		const name = newName.trim();
 		if (!name) return;
-		customModes = [...customModes, { name, description: newDesc, promptInjection: newPrompt }];
+		customModes = [...customModes, { name, description: '', promptInjection: newPrompt }];
 		saveCustomModes();
 		newName = '';
-		newDesc = '';
 		newPrompt = '';
 		showAdd = false;
 	}
@@ -73,77 +71,80 @@
 		if (!activeCustomMode) return null;
 		return customModes.find((m) => m.name === activeCustomMode)?.promptInjection ?? null;
 	}
+
+	const currentLabel = $derived(
+		activeCustomMode ?? builtinModes.find(m => m.value === chatStore.mode)?.label ?? 'Talk'
+	);
 </script>
 
-<div class="flex flex-wrap items-center gap-1">
-	{#each builtinModes as m}
+<DropdownMenu.Root>
+	<DropdownMenu.Trigger>
 		<Button
-			variant={chatStore.mode === m.value && !activeCustomMode ? 'secondary' : 'ghost'}
+			variant="ghost"
 			size="sm"
-			class="h-6 text-[11px] px-2
-				{chatStore.mode === m.value && !activeCustomMode ? 'text-[var(--cairn-accent)]' : 'text-[var(--text-tertiary)]'}"
-			onclick={() => selectBuiltin(m.value)}
+			class="h-6 text-[11px] px-2 gap-1 text-[var(--cairn-accent)]"
 		>
-			{m.label}
+			{currentLabel}
+			<ChevronDown class="h-2.5 w-2.5 opacity-50" />
 		</Button>
-	{/each}
-	{#each customModes as m}
-		<Button
-			variant={activeCustomMode === m.name ? 'secondary' : 'ghost'}
-			size="sm"
-			class="group h-6 text-[11px] px-2 gap-1
-				{activeCustomMode === m.name ? 'text-[var(--cairn-accent)]' : 'text-[var(--text-tertiary)]'}"
-			onclick={() => selectCustom(m)}
-		>
-			{m.name}
-			<span
-				role="button"
-				tabindex="-1"
-				class="hidden group-hover:inline text-[var(--text-tertiary)] hover:text-[var(--color-error)]"
-				onclick={(e: MouseEvent) => { e.stopPropagation(); removeMode(m.name); }}
-				onkeydown={(e) => e.key === 'Enter' && removeMode(m.name)}
+	</DropdownMenu.Trigger>
+	<DropdownMenu.Content class="w-56" align="start">
+		{#each builtinModes as m}
+			<DropdownMenu.Item
+				class="text-xs gap-2 {chatStore.mode === m.value && !activeCustomMode ? 'text-[var(--cairn-accent)]' : ''}"
+				onclick={() => selectBuiltin(m.value)}
 			>
-				<X class="h-2.5 w-2.5" />
-			</span>
-		</Button>
-	{/each}
-	<Button
-		variant="ghost"
-		size="sm"
-		class="h-6 w-6 p-0 text-[var(--text-tertiary)]"
-		onclick={() => (showAdd = !showAdd)}
-	>
-		<Plus class="h-3 w-3" />
-	</Button>
-</div>
+				{m.label}
+			</DropdownMenu.Item>
+		{/each}
 
-{#if showAdd}
-	<div class="mt-2 rounded-lg border border-border-subtle bg-[var(--bg-1)] p-3">
-		<div class="flex flex-col gap-2">
-			<Input
-				bind:value={newName}
-				placeholder="Mode name"
-				class="h-7 text-xs"
-			/>
-			<Input
-				bind:value={newDesc}
-				placeholder="Description (optional)"
-				class="h-7 text-xs"
-			/>
-			<textarea
-				bind:value={newPrompt}
-				placeholder="System prompt injection"
-				rows="2"
-				class="resize-none rounded-md border border-border-subtle bg-[var(--bg-0)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--cairn-accent)] focus:ring-1 focus:ring-[var(--cairn-accent)]/30 focus:outline-none transition-colors"
-			></textarea>
-			<div class="flex gap-2">
-				<Button size="sm" class="h-7 text-xs" onclick={addMode} disabled={!newName.trim()}>
-					Add
-				</Button>
-				<Button variant="ghost" size="sm" class="h-7 text-xs" onclick={() => (showAdd = false)}>
-					Cancel
-				</Button>
+		{#if customModes.length > 0}
+			<DropdownMenu.Separator />
+			{#each customModes as m}
+				<DropdownMenu.Item
+					class="text-xs gap-2 justify-between {activeCustomMode === m.name ? 'text-[var(--cairn-accent)]' : ''}"
+					onclick={() => selectCustom(m)}
+				>
+					{m.name}
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<span
+						class="text-[var(--text-tertiary)] hover:text-[var(--color-error)] p-0.5 rounded"
+						onclick={(e) => { e.stopPropagation(); removeMode(m.name); }}
+					>
+						<X class="h-3 w-3" />
+					</span>
+				</DropdownMenu.Item>
+			{/each}
+		{/if}
+
+		<DropdownMenu.Separator />
+		{#if showAdd}
+			<div class="p-2 space-y-2" onclick={(e) => e.stopPropagation()}>
+				<Input
+					bind:value={newName}
+					placeholder="Mode name"
+					class="h-7 text-xs"
+				/>
+				<textarea
+					bind:value={newPrompt}
+					placeholder="System prompt (optional)"
+					rows="2"
+					class="w-full resize-none rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--cairn-accent)] focus:ring-1 focus:ring-[var(--cairn-accent)]/30 focus:outline-none transition-colors"
+				></textarea>
+				<div class="flex gap-1.5">
+					<Button size="sm" class="h-6 text-[10px] px-2" onclick={addMode} disabled={!newName.trim()}>
+						Add
+					</Button>
+					<Button variant="ghost" size="sm" class="h-6 text-[10px] px-2" onclick={() => (showAdd = false)}>
+						Cancel
+					</Button>
+				</div>
 			</div>
-		</div>
-	</div>
-{/if}
+		{:else}
+			<DropdownMenu.Item class="text-xs gap-2" onclick={() => (showAdd = true)}>
+				<Plus class="h-3 w-3" />
+				New mode
+			</DropdownMenu.Item>
+		{/if}
+	</DropdownMenu.Content>
+</DropdownMenu.Root>

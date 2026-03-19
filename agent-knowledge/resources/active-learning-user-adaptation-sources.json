@@ -1,0 +1,620 @@
+{
+  "topic": "Active learning and user adaptation in AI agents",
+  "slug": "active-learning-user-adaptation",
+  "generated": "2026-03-19T00:00:00Z",
+  "depth": "deep",
+  "totalSources": 42,
+  "sourceBreakdown": {
+    "arxivResearch": 29,
+    "officialDocs": 5,
+    "blogPosts": 5,
+    "githubRepos": 2,
+    "tutorials": 1
+  },
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2602.22680",
+      "title": "Toward Personalized LLM-Powered Agents: Foundations, Evaluation, and Future Directions",
+      "qualityScore": 96,
+      "scores": { "authority": 9, "recency": 10, "depth": 10, "examples": 8, "uniqueness": 10 },
+      "keyInsights": [
+        "Personalization permeates the entire agent pipeline, not just output",
+        "Four capabilities: profile modeling, memory, planning, action execution",
+        "User signals must be propagated across the full agent decision pipeline"
+      ],
+      "type": "survey",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.07670",
+      "title": "Memory for Autonomous LLM Agents: Mechanisms, Evaluation, and Emerging Frontiers",
+      "qualityScore": 95,
+      "scores": { "authority": 9, "recency": 10, "depth": 10, "examples": 8, "uniqueness": 9 },
+      "keyInsights": [
+        "Five memory families: context compression, retrieval-augmented, reflective, hierarchical, policy-learned",
+        "Memory is the differentiating factor in personalized agents",
+        "Memory operates via write-manage-read loop"
+      ],
+      "type": "survey",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/2510.17132",
+      "title": "Do LLMs Recognize Your Latent Preferences? A Benchmark for Latent Information Discovery",
+      "qualityScore": 90,
+      "scores": { "authority": 8, "recency": 9, "depth": 9, "examples": 8, "uniqueness": 9 },
+      "keyInsights": [
+        "Preference inference success varies from 32% to 98% depending on context",
+        "Tri-agent evaluation system (User, Assistant, Judge)",
+        "Effective preference inference remains an open frontier"
+      ],
+      "type": "benchmark",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2512.15302",
+      "title": "Towards Proactive Personalization through Profile Customization (PersonalAgent)",
+      "qualityScore": 88,
+      "scores": { "authority": 8, "recency": 9, "depth": 9, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Lifelong personalization via sequential decision-making across turns",
+        "Unified user profile that evolves across sessions",
+        "Addresses cold-start and long-term personalization simultaneously"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2504.13643",
+      "title": "Simulating Before Planning: Constructing Intrinsic User World Model",
+      "qualityScore": 85,
+      "scores": { "authority": 7, "recency": 9, "depth": 9, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Diffusion model for dynamic user profile inference",
+        "Brownian Bridge-inspired anticipator predicts user reactions",
+        "Active learning prioritizes challenging user personas during training"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2504.03206",
+      "title": "Enhancing Personalized Multi-Turn Dialogue with Curiosity Reward",
+      "qualityScore": 87,
+      "scores": { "authority": 7, "recency": 9, "depth": 9, "examples": 7, "uniqueness": 9 },
+      "keyInsights": [
+        "Curiosity reward encourages active user characteristic inference",
+        "User model improvement as implicit feedback signal",
+        "Effective for new or context-limited users"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2601.19055",
+      "title": "Principled Fine-tuning of LLMs from User-Edits",
+      "qualityScore": 88,
+      "scores": { "authority": 8, "recency": 10, "depth": 9, "examples": 8, "uniqueness": 8 },
+      "keyInsights": [
+        "User edits combine preferences, supervised labels, and cost signals",
+        "Ensembling procedure for multiple feedback types outperforms single-type",
+        "Robustly adapts to different user-edit distributions at test time"
+      ],
+      "type": "research",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/2601.16872",
+      "title": "STEAM: Structured and Evolving Agent Memory",
+      "qualityScore": 89,
+      "scores": { "authority": 8, "recency": 10, "depth": 9, "examples": 8, "uniqueness": 9 },
+      "keyInsights": [
+        "Atomic memory units per distinct interest dimension",
+        "Consolidation (refine) + Formation (new interests) mechanisms",
+        "Community-organized memories enable collaborative signal propagation"
+      ],
+      "type": "research",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/2512.12686",
+      "title": "Memoria: Scalable Conversational LLM Memory with Knowledge Graph",
+      "qualityScore": 86,
+      "scores": { "authority": 7, "recency": 9, "depth": 9, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Hybrid: session-level summarization + weighted knowledge graph",
+        "Captures user traits, preferences, behavioral patterns as structured entities",
+        "Bridges stateless LLM interfaces and agentic memory systems"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2511.02208",
+      "title": "PPP: Productivity, Proactivity, Personalization (Multi-objective RL)",
+      "qualityScore": 91,
+      "scores": { "authority": 8, "recency": 9, "depth": 9, "examples": 9, "uniqueness": 9 },
+      "keyInsights": [
+        "+21.6 average improvement over GPT-4 on SW engineering and research tasks",
+        "Strategic questioning improves personalization outcomes",
+        "UserVille simulation environment for diverse preference testing"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2511.17467",
+      "title": "PersonaAgent with GraphRAG",
+      "qualityScore": 88,
+      "scores": { "authority": 8, "recency": 9, "depth": 9, "examples": 8, "uniqueness": 8 },
+      "keyInsights": [
+        "LLM-derived graph index with community detection for persona alignment",
+        "11.1% news categorization, 56.1% movie tagging improvements on LaMP",
+        "Combines individual behavior summaries with collective graph patterns"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2511.18413",
+      "title": "MACF: Multi-Agent Collaborative Filtering for Recommendations",
+      "qualityScore": 84,
+      "scores": { "authority": 7, "recency": 9, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "User and item agents collaborate dynamically via orchestrator",
+        "Dynamic recruitment: orchestrator selects similar user + relevant item agents",
+        "Differs from static preference aggregation in traditional CF"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.02240",
+      "title": "SuperLocalMemory: Privacy-Preserving Multi-Agent Memory",
+      "qualityScore": 87,
+      "scores": { "authority": 8, "recency": 10, "depth": 9, "examples": 9, "uniqueness": 9 },
+      "keyInsights": [
+        "104% NDCG@5 improvement via adaptive learning-to-rank personalization",
+        "Bayesian trust defense: 72% trust degradation for delayed attacks",
+        "10.6ms median search latency, SQLite + FTS5 + Leiden clustering"
+      ],
+      "type": "research",
+      "year": 2026
+    },
+    {
+      "url": "https://huggingface.co/blog/rlhf",
+      "title": "Illustrating Reinforcement Learning from Human Feedback (RLHF)",
+      "qualityScore": 92,
+      "scores": { "authority": 10, "recency": 7, "depth": 9, "examples": 9, "uniqueness": 7 },
+      "keyInsights": [
+        "Three stages: pretrain, reward model, PPO fine-tuning",
+        "KL divergence penalty prevents reward hacking",
+        "Explicit (ratings) vs implicit (engagement) feedback comparison",
+        "Open-source: TRL, TRLX, RL4LMs"
+      ],
+      "type": "officialBlog",
+      "year": 2023
+    },
+    {
+      "url": "https://blog.langchain.com/memory-for-agents",
+      "title": "Memory for Agents (LangChain)",
+      "qualityScore": 88,
+      "scores": { "authority": 9, "recency": 8, "depth": 9, "examples": 9, "uniqueness": 7 },
+      "keyInsights": [
+        "Three types: procedural (system prompt), semantic (facts), episodic (past actions)",
+        "Hot path vs background memory update tradeoffs",
+        "Memory is application-specific: coding agents vs research agents differ"
+      ],
+      "type": "blog",
+      "year": 2024
+    },
+    {
+      "url": "https://github.com/mem0ai/mem0",
+      "title": "Mem0: The Memory Layer for AI Agents",
+      "qualityScore": 92,
+      "scores": { "authority": 9, "recency": 10, "depth": 9, "examples": 10, "uniqueness": 8 },
+      "keyInsights": [
+        "+26% accuracy vs OpenAI Memory, 91% faster, 90% fewer tokens",
+        "Multi-level: user/session/agent memory tiers",
+        "LLM-based preference extraction with embedding-based retrieval",
+        "Supports 17+ integrations via MCP"
+      ],
+      "type": "codeRepo",
+      "year": 2024
+    },
+    {
+      "url": "https://www.getzep.com/",
+      "title": "Zep: Temporal Knowledge Graph for Agent Memory",
+      "qualityScore": 90,
+      "scores": { "authority": 9, "recency": 10, "depth": 9, "examples": 9, "uniqueness": 9 },
+      "keyInsights": [
+        "Temporal context graph with valid_at/invalid_at fact timestamps",
+        "Sub-200ms retrieval for production use",
+        "Tracks preference evolution over time, not just current state",
+        "Custom entity types per domain (sales leads, product interests)"
+      ],
+      "type": "codeRepo",
+      "year": 2024
+    },
+    {
+      "url": "https://arxiv.org/abs/2310.08560",
+      "title": "MemGPT: Towards LLMs as Operating Systems",
+      "qualityScore": 91,
+      "scores": { "authority": 9, "recency": 8, "depth": 9, "examples": 8, "uniqueness": 10 },
+      "keyInsights": [
+        "OS-inspired virtual context management: fast (in-context) + slow (disk) tiers",
+        "LLM controls memory paging via interrupts",
+        "Enables coherent multi-session interactions"
+      ],
+      "type": "research",
+      "year": 2023
+    },
+    {
+      "url": "https://arxiv.org/abs/2502.09597",
+      "title": "Do LLMs Recognize Your Preferences? PrefEval Benchmark",
+      "qualityScore": 87,
+      "scores": { "authority": 8, "recency": 10, "depth": 9, "examples": 8, "uniqueness": 9 },
+      "keyInsights": [
+        "Preference following accuracy < 10% at 10 turns in zero-shot settings",
+        "Both explicit and implicit preference signals tested",
+        "Fine-tuning on PrefEval significantly improves preference following"
+      ],
+      "type": "benchmark",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2503.06358",
+      "title": "Language Model Personalization via Reward Factorization",
+      "qualityScore": 92,
+      "scores": { "authority": 8, "recency": 10, "depth": 9, "examples": 9, "uniqueness": 10 },
+      "keyInsights": [
+        "User preferences lie in a low-dimensional space",
+        "~10 user responses sufficient for meaningful personalization",
+        "67% win rate over default GPT-4o responses in human eval"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2601.18731",
+      "title": "One Adapts to Any: Meta Reward Modeling for Personalized LLM Alignment",
+      "qualityScore": 91,
+      "scores": { "authority": 8, "recency": 10, "depth": 9, "examples": 8, "uniqueness": 9 },
+      "keyInsights": [
+        "MAML-style meta-learning: learns process of preference adaptation",
+        "Robust Personalization Objective emphasizes hard-to-learn users",
+        "Few-shot personalization for new users with minimal feedback"
+      ],
+      "type": "research",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/2507.13579",
+      "title": "PLUS: Learning to Summarize User Information for Personalized RLHF",
+      "qualityScore": 92,
+      "scores": { "authority": 8, "recency": 9, "depth": 9, "examples": 8, "uniqueness": 9 },
+      "keyInsights": [
+        "Online co-adaptation: summarizer + reward model train simultaneously",
+        "11-77% improvement over standard approaches",
+        "25% better zero-shot on new users; interpretable user representations",
+        "72% win rate with GPT-4o"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.12595",
+      "title": "Swap-guided Preference Learning for Personalized RLHF",
+      "qualityScore": 85,
+      "scores": { "authority": 7, "recency": 10, "depth": 9, "examples": 7, "uniqueness": 9 },
+      "keyInsights": [
+        "Identifies posterior collapse problem in variational preference learning",
+        "Swap-annotation strategy preserves latent user preference representations",
+        "Submitted to ICLR 2026 - cutting-edge research"
+      ],
+      "type": "research",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/2505.24846",
+      "title": "MiCRo: Mixture Modeling and Context-aware Routing for Preference Learning",
+      "qualityScore": 86,
+      "scores": { "authority": 7, "recency": 9, "depth": 9, "examples": 7, "uniqueness": 9 },
+      "keyInsights": [
+        "Single BT reward model has irreducible error from preference subgroups",
+        "Dynamic routing allocates users to appropriate reward models per context",
+        "Discovers preference clusters organically without manual annotations"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2504.14439",
+      "title": "LoRe: Personalizing LLMs via Low-Rank Reward Modeling",
+      "qualityScore": 85,
+      "scores": { "authority": 7, "recency": 9, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Low-rank basis captures structure of diverse user preferences",
+        "Scalable few-shot adaptation to new users",
+        "Superior generalization to unseen users vs full reward models"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2508.05289",
+      "title": "RLHF Fine-Tuning for Implicit User Feedback in Conversational Recommenders",
+      "qualityScore": 87,
+      "scores": { "authority": 7, "recency": 9, "depth": 9, "examples": 8, "uniqueness": 8 },
+      "keyInsights": [
+        "Implicit signals used: dwell time, sentiment polarity, engagement patterns",
+        "PPO + weakly-labelled engagement info as reward model training data",
+        "Implicit signal alignment achieves scalable and user-adaptive design"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2509.22807",
+      "title": "MTRec: Aligning Recommendations via Mental Reward Models",
+      "qualityScore": 88,
+      "scores": { "authority": 7, "recency": 9, "depth": 9, "examples": 8, "uniqueness": 9 },
+      "keyInsights": [
+        "Clicks are noisy proxies - users click curiosity but experience discomfort",
+        "Distributional IRL models true user satisfaction vs observable signals",
+        "7% increase in average viewing time at production deployment"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2312.14037",
+      "title": "Neural Contextual Bandits for Personalized Recommendation (Tutorial)",
+      "qualityScore": 86,
+      "scores": { "authority": 7, "recency": 8, "depth": 9, "examples": 8, "uniqueness": 8 },
+      "keyInsights": [
+        "Matthew Effect: popular items get richer in training data",
+        "UCB bonuses force exploration of undersampled response strategies",
+        "Collaborative neural bandits balance user heterogeneity with correlations"
+      ],
+      "type": "tutorial",
+      "year": 2023
+    },
+    {
+      "url": "https://arxiv.org/abs/2601.12945",
+      "title": "LLMs and Multi-Armed Bandits: A Component Survey",
+      "qualityScore": 84,
+      "scores": { "authority": 7, "recency": 10, "depth": 8, "examples": 6, "uniqueness": 8 },
+      "keyInsights": [
+        "Bidirectional benefit: MABs help LLM personalization, LLMs improve MAB arm definition",
+        "MABs provide principled adaptive decision-making under uncertainty",
+        "First systematic survey of LLM-MAB interaction"
+      ],
+      "type": "survey",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/2601.14333",
+      "title": "Hierarchical Contextual Uplift Bandits",
+      "qualityScore": 85,
+      "scores": { "authority": 7, "recency": 10, "depth": 8, "examples": 8, "uniqueness": 8 },
+      "keyInsights": [
+        "Hierarchical: broad system insights → user-specific contexts",
+        "Contextual similarity enables cold-start policy transfer",
+        "Production: 0.4% A/B revenue improvement + 0.5% post-deployment gain"
+      ],
+      "type": "research",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/2503.12556",
+      "title": "From Guessing to Asking: Resolving Persona Knowledge Gaps in LLMs",
+      "qualityScore": 90,
+      "scores": { "authority": 8, "recency": 10, "depth": 9, "examples": 9, "uniqueness": 9 },
+      "keyInsights": [
+        "+42% preference improvement in movie recommendations vs baselines",
+        "+27% in mental health support conversations",
+        "Most effective in extended dialogues (12+ turns)",
+        "CPER: Contextual Understanding + Dynamic Feedback + Response Generation"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2601.05171",
+      "title": "Inside Out: Core Memory Trees for Long-Term Personalized Dialogue",
+      "qualityScore": 88,
+      "scores": { "authority": 8, "recency": 10, "depth": 9, "examples": 8, "uniqueness": 9 },
+      "keyInsights": [
+        "PersonaTree: trunk (schema) + branches (domains) + leaves (preferences)",
+        "RL-trained MemListener generates {ADD, UPDATE, DELETE, NO_OP} operations",
+        "Comparable to DeepSeek-R1 on memory operation decisions with smaller model"
+      ],
+      "type": "research",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/2602.04493",
+      "title": "PersoDPO: Scalable Preference Optimization for Persona-Grounded Dialogue",
+      "qualityScore": 83,
+      "scores": { "authority": 7, "recency": 10, "depth": 8, "examples": 7, "uniqueness": 7 },
+      "keyInsights": [
+        "Multi-LLM evaluation generates preference pairs without human annotation",
+        "DPO enables persona consistency without PPO infrastructure",
+        "Tested on FoCus dataset; consistent improvements over DPO variants"
+      ],
+      "type": "research",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/2509.04303",
+      "title": "HumAIne-Chatbot: Real-Time Personalized Conversational AI via RL",
+      "qualityScore": 86,
+      "scores": { "authority": 7, "recency": 9, "depth": 9, "examples": 8, "uniqueness": 8 },
+      "keyInsights": [
+        "Dual signals: implicit (typing speed, sentiment, dwell time) + explicit (likes/dislikes)",
+        "Pre-trains on diverse virtual personas to establish broad prior",
+        "Adapts both content and style based on evolving user profile"
+      ],
+      "type": "research",
+      "year": 2025
+    },
+    {
+      "url": "https://arxiv.org/abs/2204.07372",
+      "title": "A Personalized Dialogue Generator with Implicit User Persona Detection",
+      "qualityScore": 82,
+      "scores": { "authority": 7, "recency": 6, "depth": 8, "examples": 7, "uniqueness": 9 },
+      "keyInsights": [
+        "Infers user persona from dialogue history without explicit persona descriptions",
+        "Bidirectional: models user characteristics not just agent personality",
+        "Posterior-discriminated regularization for better user-awareness"
+      ],
+      "type": "research",
+      "year": 2022
+    },
+    {
+      "url": "https://arxiv.org/abs/2204.08128",
+      "title": "Less is More: Learning to Refine Dialogue History for Personalized Generation",
+      "qualityScore": 81,
+      "scores": { "authority": 7, "recency": 6, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Sparse extraction of high-value tokens beats indiscriminate truncation",
+        "Three personal information refiners + personalized response generator",
+        "Similar users' dialogue patterns strengthen individual personalization"
+      ],
+      "type": "research",
+      "year": 2022
+    },
+    {
+      "url": "https://arxiv.org/abs/2601.22820",
+      "title": "User-Adaptive Meta-Learning for Cold-Start Medication Recommendation",
+      "qualityScore": 84,
+      "scores": { "authority": 7, "recency": 10, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Dual-adaptation: self (own history) + peer (similar users)",
+        "Uncertainty quantification filters unrelated support visits",
+        "Pattern for rapid new-user adaptation with minimal data"
+      ],
+      "type": "research",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.03309",
+      "title": "Combating Data Scarcity: VARK Cognitive Profiling + LLMs",
+      "qualityScore": 82,
+      "scores": { "authority": 7, "recency": 10, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "VARK categories (Visual/Auditory/Reading/Kinesthetic) for cold-start profiling",
+        "LLMs enrich sparse item descriptions for knowledge graph construction",
+        "6-component system handles cold start from minimal initial data"
+      ],
+      "type": "research",
+      "year": 2026
+    },
+    {
+      "url": "https://arxiv.org/abs/1510.05263",
+      "title": "Temporal Matrix Factorization for Tracking Concept Drift in User Preferences",
+      "qualityScore": 78,
+      "scores": { "authority": 7, "recency": 4, "depth": 8, "examples": 6, "uniqueness": 9 },
+      "keyInsights": [
+        "Linear transition model tracks preference vector changes over time",
+        "5-20% RMSE improvement for users with genuine preference drift",
+        "Automatically identifies users experiencing preference shifts"
+      ],
+      "type": "research",
+      "year": 2015
+    },
+    {
+      "url": "https://arxiv.org/abs/2601.09113",
+      "title": "The AI Hippocampus: How Far are We From Human Memory?",
+      "qualityScore": 85,
+      "scores": { "authority": 8, "recency": 10, "depth": 9, "examples": 6, "uniqueness": 8 },
+      "keyInsights": [
+        "Three paradigms: implicit (in-weights), explicit (external store), agentic (persistent temporal)",
+        "Episodic-like memory in agents via temporal sequences",
+        "Semantic-like memory via distributed parameter knowledge"
+      ],
+      "type": "survey",
+      "year": 2026
+    },
+    {
+      "url": "https://developers.google.com/machine-learning/recommendation/collaborative/matrix",
+      "title": "Matrix Factorization for Recommendation (Google ML Crash Course)",
+      "qualityScore": 88,
+      "scores": { "authority": 10, "recency": 7, "depth": 8, "examples": 9, "uniqueness": 6 },
+      "keyInsights": [
+        "Weighted Matrix Factorization handles unobserved interactions",
+        "Dot product similarity biases toward popular items (use cosine for pure relevance)",
+        "WALS converges faster than SGD for recommendation tasks"
+      ],
+      "type": "officialDocs",
+      "year": 2023
+    },
+    {
+      "url": "https://developers.google.com/machine-learning/recommendation/overview/candidate-generation",
+      "title": "Candidate Generation (Google ML Recommendation)",
+      "qualityScore": 87,
+      "scores": { "authority": 10, "recency": 7, "depth": 8, "examples": 8, "uniqueness": 5 },
+      "keyInsights": [
+        "Two-stage: broad candidate generation → personalized ranking",
+        "Similarity metric choice embeds behavioral biases",
+        "Content-based vs collaborative filtering tradeoffs"
+      ],
+      "type": "officialDocs",
+      "year": 2023
+    },
+    {
+      "url": "https://eugeneyan.com/writing/llm-patterns/",
+      "title": "Patterns for LLM Applications (Eugene Yan)",
+      "qualityScore": 89,
+      "scores": { "authority": 8, "recency": 7, "depth": 9, "examples": 9, "uniqueness": 7 },
+      "keyInsights": [
+        "Data flywheel: user feedback enables continuous improvement",
+        "Explicit (ratings) vs implicit (code acceptance) feedback patterns",
+        "Defensive UX: set realistic expectations to build trust despite LLM imperfection",
+        "88% of respondents consider retrieval a key stack component (Sequoia survey)"
+      ],
+      "type": "blog",
+      "year": 2024
+    },
+    {
+      "url": "https://www.anthropic.com/research/contextual-retrieval",
+      "title": "Contextual Retrieval (Anthropic)",
+      "qualityScore": 91,
+      "scores": { "authority": 10, "recency": 9, "depth": 9, "examples": 9, "uniqueness": 7 },
+      "keyInsights": [
+        "49% fewer retrieval failures with contextual embeddings + BM25",
+        "67% fewer failures with reranking added",
+        "Prepend context to chunks before embedding to preserve meaning"
+      ],
+      "type": "officialDocs",
+      "year": 2024
+    },
+    {
+      "url": "https://docs.mem0.ai/examples/personal-travel-assistant",
+      "title": "Mem0 Travel Assistant Example",
+      "qualityScore": 85,
+      "scores": { "authority": 8, "recency": 9, "depth": 7, "examples": 10, "uniqueness": 6 },
+      "keyInsights": [
+        "memory.add(messages, user_id) + memory.search(query, user_id) pattern",
+        "text-embedding-3-large for semantic memory matching",
+        "Per-user isolation via user_id; preferences persist cross-session"
+      ],
+      "type": "officialDocs",
+      "year": 2024
+    },
+    {
+      "url": "https://www.pinecone.io/learn/langchain-conversational-memory/",
+      "title": "Conversational Memory for LLMs (Pinecone)",
+      "qualityScore": 82,
+      "scores": { "authority": 7, "recency": 7, "depth": 8, "examples": 9, "uniqueness": 6 },
+      "keyInsights": [
+        "Buffer (full) vs Summary (compressed) vs Window (recent k) vs Hybrid memory types",
+        "SummaryBuffer hybrid: summarize old, keep recent raw — best of both",
+        "max_token_limit tuning key for hybrid approaches"
+      ],
+      "type": "blog",
+      "year": 2023
+    }
+  ]
+}

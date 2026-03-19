@@ -50,8 +50,9 @@ type Loop struct {
 	stopped atomic.Bool
 	wg      sync.WaitGroup
 
-	tickCount   atomic.Int64
-	lastReflect time.Time
+	tickCount    atomic.Int64
+	lastReflect  time.Time
+	lastIdleTick time.Time
 }
 
 // LoopConfig configures the always-on agent loop.
@@ -192,7 +193,12 @@ func (l *Loop) tick(ctx context.Context) {
 	// 2. Check for due cron jobs and submit them as tasks.
 	l.checkDueCrons(ctx)
 
-	// 3. Run reflection if interval elapsed.
+	// 3. If no task was executed, run proactive idle tick.
+	if !executed {
+		l.idleTick(ctx)
+	}
+
+	// 4. Run reflection if interval elapsed.
 	if time.Since(l.lastReflect) >= l.config.ReflectionInterval && l.reflector != nil {
 		l.runReflection(ctx)
 		l.lastReflect = time.Now()

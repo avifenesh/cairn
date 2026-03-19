@@ -1,0 +1,963 @@
+{
+  "topic": "Self-evolving AI agents — memory-driven adaptation, reflection loops, SOUL documents, self-modifying prompts, behavioral evolution",
+  "slug": "self-evolving-agents",
+  "generated": "2026-03-19T00:00:00Z",
+  "depth": "deep",
+  "totalSources": 42,
+  "sources": [
+    {
+      "url": "https://voyager.minedojo.org/",
+      "title": "Voyager: An Open-Ended Embodied Agent with Large Language Models",
+      "qualityScore": 97,
+      "scores": {
+        "authority": 10,
+        "recency": 8,
+        "depth": 10,
+        "examples": 10,
+        "uniqueness": 10
+      },
+      "keyInsights": [
+        "Skill library indexed by description embeddings enables lifelong learning without catastrophic forgetting",
+        "3-component feedback: environment feedback + execution errors + self-verification critic",
+        "Iterative prompting loop (max 4 attempts) before committing skill to library",
+        "Automatic curriculum proposes suitable tasks based on current state — 'in-context novelty search'",
+        "Skills are executable code, compositional and interpretable",
+        "Achieves 3.3x more unique items, 2.3x longer travel vs prior approaches"
+      ],
+      "codeExamples": [
+        {
+          "language": "python",
+          "description": "Iterative prompting pseudocode for skill acquisition loop"
+        }
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2303.11366",
+      "title": "Reflexion: Language Agents with Verbal Reinforcement Learning",
+      "qualityScore": 96,
+      "scores": {
+        "authority": 10,
+        "recency": 8,
+        "depth": 10,
+        "examples": 9,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Verbal RL: agents learn by writing reflective text on failures, stored in episodic memory buffer",
+        "Three components: Actor (Ma), Evaluator (Me), Self-Reflection (Msr)",
+        "Episodic buffer bounded to 1-3 entries (max context limit)",
+        "Achieved 91% pass@1 on HumanEval — surpassing GPT-4's 80%",
+        "Works across sequential decision-making, coding, and reasoning",
+        "Example reflection: 'I should have looked for the desklamp first'"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2304.03442",
+      "title": "Generative Agents: Interactive Simulacra of Human Behavior",
+      "qualityScore": 95,
+      "scores": {
+        "authority": 10,
+        "recency": 8,
+        "depth": 10,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Memory stream: natural language observations with timestamps",
+        "Retrieval scoring: score = α_recency×recency + α_importance×importance + α_relevance×relevance",
+        "Importance rated by LLM on 1-10 scale at storage time",
+        "Reflection triggers when importance accumulates > 150 points (2-3x daily)",
+        "Hierarchical reflection: observations → insights → meta-insights (tree structure)",
+        "Planning: daily sketch → hourly decomposition → 5-15 min micro-actions",
+        "Ablation shows observation + planning + reflection are all essential"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2310.08560",
+      "title": "MemGPT: Towards LLMs as Operating Systems",
+      "qualityScore": 93,
+      "scores": {
+        "authority": 9,
+        "recency": 7,
+        "depth": 9,
+        "examples": 8,
+        "uniqueness": 10
+      },
+      "keyInsights": [
+        "OS-inspired virtual context management — hierarchical memory tiers",
+        "Interrupt-based control flow mimics OS interrupt handling",
+        "Enables multi-session chat where agents 'remember, reflect, and evolve dynamically'",
+        "Supports document analysis beyond model context window",
+        "Main tier (in-context) + archival tier (external vector store) + recall (conversation history)"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://github.com/cpacker/MemGPT",
+      "title": "Letta (MemGPT) GitHub Repository",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 9,
+        "recency": 9,
+        "depth": 7,
+        "examples": 9,
+        "uniqueness": 6
+      },
+      "keyInsights": [
+        "memory_blocks API: labeled segments (persona, human, custom)",
+        "agentState object with unique ID for persistence across conversations",
+        "RESTful API with Python/TypeScript SDKs",
+        "Database persistence via alembic migrations",
+        "Model-agnostic design for LLM backend swapping"
+      ],
+      "codeExamples": [
+        {
+          "language": "python",
+          "description": "Agent creation with memory_blocks configuration"
+        }
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2305.16291",
+      "title": "Self-Refine: Iterative Refinement with Self-Feedback",
+      "qualityScore": 91,
+      "scores": {
+        "authority": 9,
+        "recency": 8,
+        "depth": 9,
+        "examples": 9,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Single-model generator → feedback → refiner loop without external oracles",
+        "All three roles (generator, feedback, refiner) can be same LLM with different prompts",
+        "Iterates until terminal condition or max iterations",
+        "No additional training required",
+        "Effective for creative writing, code, math reasoning"
+      ],
+      "codeExamples": [
+        {
+          "language": "python",
+          "description": "generator/feedback/refiner loop pseudocode"
+        }
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2212.08073",
+      "title": "Constitutional AI: Harmlessness from AI Feedback",
+      "qualityScore": 94,
+      "scores": {
+        "authority": 10,
+        "recency": 7,
+        "depth": 10,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Two phases: supervised (self-critique+revision) + RL (RLAIF on AI preferences)",
+        "Constitution as list of principles guides self-critique",
+        "Chain-of-thought reasoning improves transparency",
+        "Eliminates need for human-labeled harmful outputs",
+        "Agents can explain objections rather than just refusing",
+        "RLAIF: AI evaluates which of two samples performs better"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://www.anthropic.com/research/claude-character",
+      "title": "Claude's Character (Anthropic Research)",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 10,
+        "recency": 9,
+        "depth": 8,
+        "examples": 5,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Character traits are authentic, not masks — cultivated through training",
+        "Avoids sycophancy: honest about views after training rather than adopting user views",
+        "Traits guide probabilistic behavior, never mandate rigid rules",
+        "Transparent about limitations: cannot remember past conversations",
+        "Constitutional AI variant with synthetic data + preference model training"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://github.com/langchain-ai/langmem",
+      "title": "LangMem SDK — Persistent Memory for LLM Agents",
+      "qualityScore": 90,
+      "scores": {
+        "authority": 9,
+        "recency": 10,
+        "depth": 8,
+        "examples": 9,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Three memory types: semantic (facts), procedural (behavior), episodic (experiences)",
+        "Hot path: agent uses memory tools during conversation in real time",
+        "Background processing: automatic extraction and consolidation asynchronously",
+        "Procedural memory updates system prompt based on learned patterns",
+        "Namespace isolation prevents cross-user memory contamination",
+        "Key design decision: which behaviors should adapt vs. remain fixed"
+      ],
+      "codeExamples": [
+        {
+          "language": "python",
+          "description": "create_manage_memory_tool() and create_search_memory_tool() usage"
+        }
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://blog.langchain.com/reflection-agents/",
+      "title": "LangChain Blog: Reflection Agents",
+      "qualityScore": 85,
+      "scores": {
+        "authority": 8,
+        "recency": 9,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Reflection moves agents from System 1 (reactive) to System 2 (deliberate) behavior",
+        "Basic Reflection: generator → reflector (teacher persona) loop",
+        "Reflexion variant: grounds criticism in external search results with citations",
+        "LATS: MCTS + reflection, explores multiple trajectories in parallel",
+        "Trade-off: quality over speed — not suitable for low-latency applications"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://lilianweng.github.io/posts/2023-06-23-agent/",
+      "title": "LLM Powered Autonomous Agents — Lilian Weng",
+      "qualityScore": 93,
+      "scores": {
+        "authority": 9,
+        "recency": 7,
+        "depth": 10,
+        "examples": 9,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Three memory tiers: short-term (in-context), long-term (external vector store), sensory (raw embeddings)",
+        "Reflexion detects two failure modes: inefficient trajectories and hallucinations/repetition",
+        "Chain of Hindsight: ranked sequences of past attempts with feedback",
+        "Algorithm Distillation: encode improvement trajectories as context",
+        "FAISS and HNSW for approximate nearest neighbor retrieval"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2210.03629",
+      "title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+      "qualityScore": 92,
+      "scores": {
+        "authority": 10,
+        "recency": 7,
+        "depth": 9,
+        "examples": 9,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Interleaved thought-action-observation creates working memory for current episode",
+        "Reasoning traces help model update action plans and handle exceptions",
+        "Actions interface with external sources (APIs, knowledge bases)",
+        "34% and 10% absolute success rate improvements over RL/IL baselines",
+        "Produces human-like trajectories more interpretable than baselines"
+      ],
+      "codeExamples": [
+        {
+          "language": "text",
+          "description": "Thought/Action/Observation interleaving example"
+        }
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2309.17288",
+      "title": "AutoAgents: A Framework for Automatic Agent Generation",
+      "qualityScore": 82,
+      "scores": {
+        "authority": 8,
+        "recency": 7,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Dynamically generates specialized agents matched to task requirements",
+        "Observer role provides continuous reflective feedback to improve strategies",
+        "Task-responsive team composition rather than static pre-configuration",
+        "Validated performance over existing multi-agent methods"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2308.00352",
+      "title": "MetaGPT: Meta Programming for Multi-Agent Collaborative Framework",
+      "qualityScore": 87,
+      "scores": {
+        "authority": 9,
+        "recency": 7,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "SOPs encoded into prompt sequences for structured agent collaboration",
+        "Shared message pool: agents publish structured outputs and subscribe to relevant info",
+        "Before each project: agents review previous feedback and update constraint prompts",
+        "Long-term memory summarized for inheritance by future constraint updates",
+        "Iterative feedback loop: engineer checks past messages vs current requirements"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.18000",
+      "title": "AgentFactory: A Self-Evolving Framework Through Executable Subagent Accumulation",
+      "qualityScore": 89,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Saves successful solutions as standardized Python code rather than textual descriptions",
+        "Execution feedback continuously refines subagents over time",
+        "Library grows and improves, reducing future effort without manual intervention",
+        "Addresses limitation of prior work: textual experience cannot guarantee reliable re-execution",
+        "Skills are verifiable and portable across systems"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.15255",
+      "title": "SAGE: Multi-Agent Self-Evolution for LLM Reasoning",
+      "qualityScore": 91,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 9,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Four agents co-evolve from shared LLM backbone: Challenger, Planner, Solver, Critic",
+        "Challenger generates progressively harder tasks for curriculum advancement",
+        "Critic scores and filters outputs to prevent curriculum drift",
+        "Improved Qwen-2.5-7B by 8.9% on LiveCodeBench and 10.7% on OlympiadBench",
+        "Uses only a small seed set — highly sample efficient"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.09716",
+      "title": "AutoAgent: Evolving Cognition and Elastic Memory Orchestration",
+      "qualityScore": 90,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 9,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Structured prompt-level cognition over tools, self-capabilities, peer expertise, task knowledge",
+        "Closed-loop cognitive evolution: aligns intended actions with observed outcomes",
+        "Elastic memory: preserve raw records, compress redundant trajectories, construct episodic abstractions",
+        "No external retraining required — purely in-context",
+        "Improves task success and collaborative robustness across benchmarks"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.10291",
+      "title": "Hybrid Self-Evolving Structured Memory for GUI Agents",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Graph-based memory: discrete symbolic nodes + continuous trajectory embeddings",
+        "Multi-hop retrieval across knowledge graph",
+        "Self-evolution via node update operations",
+        "On-the-fly working-memory refreshing during inference",
+        "Boosted Qwen2.5-VL-7B by +22.5%, surpassing GPT-4o and Gemini 2.5-Pro"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.08561",
+      "title": "RetroAgent: Retrospective Dual Intrinsic Feedback",
+      "qualityScore": 89,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 9,
+        "examples": 7,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Dual intrinsic feedback: numerical (subtask progress) + language (distilled lessons)",
+        "SimUtil-UCB retrieval: balances similarity, utility, and exploration incentives",
+        "Prevents repetitive failure patterns while leveraging accumulated wisdom",
+        "+18.3% on ALFWorld, +27.1% on Sokoban vs GRPO-trained agents"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.04900",
+      "title": "EvoTool: Self-Evolving Tool-Use Policy Optimization",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 9,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Decomposes agent behavior into Planner, Selector, Caller, Synthesizer modules",
+        "Blame-aware mutation: pinpoints failing module via diagnostic traces, edits only that module",
+        "Diversity-aware selection: preserves complementary candidates to prevent premature convergence",
+        "Gradient-free evolutionary optimization",
+        "+5 points on both GPT-4.1 and Qwen3-8B vs baselines"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2408.08435",
+      "title": "ADAS: Automated Design of Agentic Systems / Meta Agent Search",
+      "qualityScore": 93,
+      "scores": {
+        "authority": 9,
+        "recency": 9,
+        "depth": 9,
+        "examples": 8,
+        "uniqueness": 10
+      },
+      "keyInsights": [
+        "Meta agent iteratively programs better agents in code, using ever-growing archive of discoveries",
+        "Programming languages are Turing complete — theoretically enables any agentic system",
+        "Discovered agents outperform hand-designed agents across domains",
+        "Cross-domain robustness: invented agents maintain advantages when transferred",
+        "Can discover: novel prompts, tool orchestration, workflow patterns, hybrid architectures"
+      ],
+      "codeExamples": [
+        {
+          "language": "python",
+          "description": "Meta Agent Search pseudocode: archive → meta-agent → new agent → evaluate → archive"
+        }
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.15707",
+      "title": "SEMAG: Self-Evolutionary Multi-Agent Code Generation",
+      "qualityScore": 85,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Workflow adapts to task complexity across planning/coding/debugging/discussion stages",
+        "Real-time access to latest models + automatic backbone upgrading without manual intervention",
+        "+3.3% on CodeContests vs prior methods with same backbone; 52.6% with model selection"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.08127",
+      "title": "EvoScientist: Multi-Agent Evolving AI Scientists",
+      "qualityScore": 87,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Three agents: Researcher (ideas), Engineer (experiments), Evolution Manager (distillation)",
+        "Ideation Memory: summarizes feasible directions, records previously failed ones",
+        "Experimentation Memory: captures effective data processing and training strategies",
+        "Superior to 7 competing systems on novelty, feasibility, relevance metrics"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.14799",
+      "title": "Universe Routing: Why Self-Evolving Agents Need Epistemic Control",
+      "qualityScore": 83,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Agents fail not from knowledge deficiency but reasoning framework selection errors",
+        "Hard routing to heterogeneous solvers: 7x faster than soft MoE while matching accuracy",
+        "Semantic routing with 465M-parameter router: 2.3x smaller generalization gap vs keyword matching",
+        "Rehearsal-based continual learning: zero forgetting, outperforms EWC by 75 percentage points",
+        "Self-evolving agents need explicit epistemic control layer governing framework selection"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2603.13131",
+      "title": "Steve-Evolving: Open-World Embodied Self-Evolution",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 9,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Three-phase closed-loop: experience anchoring + fine-grained diagnosis + dual-track distillation",
+        "Experience tuples: (pre-state, action, diagnosis-result, post-state) in three-tier space",
+        "Skills track: generalize successes into reusable skills with preconditions",
+        "Guardrails track: distill failures into executable constraints preventing risky operations",
+        "Non-parametric — no model parameter updates required"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2311.05997",
+      "title": "JARVIS-1: Open-World Multi-task Agents with Memory-Augmented Multimodal Language Models",
+      "qualityScore": 84,
+      "scores": {
+        "authority": 8,
+        "recency": 8,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Multimodal memory combining pre-trained knowledge with actual game survival experiences",
+        "Progressively enhances task completion as game time progresses",
+        "5x more reliable than prior SOTA on diamond pickaxe acquisition",
+        "Diverse input modes (visual + text + goals) inform planning refinement"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://github.com/aiwaves-cn/agents",
+      "title": "Agents 2.0 Framework (aiwaves)",
+      "qualityScore": 82,
+      "scores": {
+        "authority": 7,
+        "recency": 8,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Symbolic learning: agent pipeline treated as computational graph",
+        "Forward pass records trajectory (inputs, outputs, prompts, tools)",
+        "Language loss: prompt-based function evaluates outcome quality",
+        "Backward reflection: language gradients propagated through pipeline",
+        "Prompt optimization at each node without numerical weight updates",
+        "Naturally supports multi-agent system optimization"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://blog.langchain.com/langmem-sdk-launch/",
+      "title": "LangMem SDK Launch — LangChain Blog",
+      "qualityScore": 87,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Semantic memory: stores user preferences, facts, entity relationships",
+        "Procedural memory: generalizes skills and rules, updates system prompt over time",
+        "Episodic memory: specific past interactions as few-shot examples",
+        "Design-first: decide what behaviors should adapt before implementing",
+        "Namespace organization prevents cross-contamination across users"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2310.11511",
+      "title": "Self-RAG: Learning to Retrieve, Generate, and Critique",
+      "qualityScore": 86,
+      "scores": {
+        "authority": 9,
+        "recency": 7,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Adaptive retrieval: model decides when retrieval is necessary (not always)",
+        "Reflection tokens: special control tokens making behavior adjustable at inference time",
+        "Single model performs retrieval, generation, and critique simultaneously",
+        "7B/13B versions outperform ChatGPT and Llama2-chat on factuality",
+        "Reflection as critique mechanism without external oracle"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2406.01297",
+      "title": "A Survey on Self-Correction in LLMs",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 9,
+        "recency": 8,
+        "depth": 9,
+        "examples": 6,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "CRITICAL: pure LLM self-correction without external feedback is unreliable",
+        "Success conditions: external feedback available, large-scale fine-tuning, task-suited structure",
+        "Many studies use impractical frameworks or unfair evaluations",
+        "Sycophancy problem: model tends to agree with its own output when critiquing",
+        "Implication: always ground reflection in external signals (tests, environment, human ratings)"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2404.13501",
+      "title": "Memory in LLM-Based Agents: Survey and Design Principles",
+      "qualityScore": 84,
+      "scores": {
+        "authority": 8,
+        "recency": 9,
+        "depth": 8,
+        "examples": 6,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Memory design is the central mechanism enabling self-evolving capability",
+        "Survey reviews: memory definition, design patterns, evaluation methodologies, applications",
+        "Memory enables long-term goal achievement through agent-environment exchanges",
+        "Multiple competing memory design patterns still being developed"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2410.17238",
+      "title": "SELA: Tree-Search Enhanced LLM Agents for AutoML",
+      "qualityScore": 83,
+      "scores": {
+        "authority": 8,
+        "recency": 9,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Monte Carlo Tree Search for optimizing ML pipeline configurations",
+        "Agents represent pipeline configurations as tree structures",
+        "Iterative strategy refinement through experimental feedback",
+        "Overcomes low-diversity code generation with structured tree-based search",
+        "65-80% win rate against baselines across 20 datasets"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2501.10893",
+      "title": "Learn-by-Interact: Data-Centric Approach to Agent Improvement",
+      "qualityScore": 82,
+      "scores": {
+        "authority": 7,
+        "recency": 10,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Trajectory synthesis from environment documentation without human annotation",
+        "Backward construction: converts interaction histories into actionable instructions",
+        "Supports both training fine-tuning and retrieval-augmented in-context learning",
+        "+12.2% for ICL with Claude-3.5; +19.5% for training with Codestral-22B"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2302.07842",
+      "title": "Augmented Language Models: A Survey",
+      "qualityScore": 82,
+      "scores": {
+        "authority": 9,
+        "recency": 7,
+        "depth": 8,
+        "examples": 6,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Two augmentation modes: heuristic-based and demonstration-based",
+        "Reasoning skills via decomposition + tool usage via external modules",
+        "Learning to use tools via missing-token prediction objective",
+        "Non-parametric external modules expand context processing"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://huggingface.co/blog/open-source-llms-as-agents",
+      "title": "Open-Source LLMs as Agents — Hugging Face",
+      "qualityScore": 85,
+      "scores": {
+        "authority": 9,
+        "recency": 8,
+        "depth": 8,
+        "examples": 9,
+        "uniqueness": 6
+      },
+      "keyInsights": [
+        "ReAct: Thought/Action/Observation cycle creates progressive context building",
+        "Each ReAct iteration adds to scratchpad — implicit memory for multi-step reasoning",
+        "Tool selection as a key bottleneck in agent self-improvement",
+        "Mixtral 57.6% → 73% on GSM8K just from calculator tool in agent loop",
+        "Three bottlenecks: tool selection, format consistency, information ingestion"
+      ],
+      "codeExamples": [
+        {
+          "language": "python",
+          "description": "ReAct thought/action/observation loop example"
+        }
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://www.microsoft.com/en-us/research/blog/autogen-enabling-next-generation-large-language-model-applications/",
+      "title": "AutoGen: Enabling Next-Generation LLM Applications",
+      "qualityScore": 83,
+      "scores": {
+        "authority": 9,
+        "recency": 8,
+        "depth": 7,
+        "examples": 7,
+        "uniqueness": 6
+      },
+      "keyInsights": [
+        "Adaptive behavior through 'personalization and adaptability based on past interactions'",
+        "Automated continual learning capability cited",
+        "Multi-agent conversation loops naturally handle ambiguity through dialogue",
+        "4x reduction in coding effort via agent dialogue patterns",
+        "Adaptive behavior emerges from recursive dialogue with peer feedback"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2309.17288",
+      "title": "AutoAgents: A Framework for Automatic Agent Generation",
+      "qualityScore": 82,
+      "scores": {
+        "authority": 8,
+        "recency": 8,
+        "depth": 8,
+        "examples": 6,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Dynamic agent generation: task requirements drive specialized agent creation",
+        "Observer role embedded to reflect on plans and agent responses",
+        "Self-evolving capacity from task-responsive design rather than static configuration",
+        "Generates more coherent solutions than existing multi-agent methods"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2501.12599",
+      "title": "Kimi k1.5: Scaling Reinforcement Learning with LLMs",
+      "qualityScore": 80,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 7,
+        "examples": 5,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "RL as a novel scaling axis: LLMs can scale training data by learning to explore with rewards",
+        "Long context scaling + improved policy optimization as core components",
+        "Long-to-short knowledge transfer for efficient models",
+        "Simple RL framework avoids MCTS and value functions",
+        "Achieves SOTA reasoning through autonomous capability improvement"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2309.17288",
+      "title": "AutoAgents: Evaluation and Coordination of Specialized Agents",
+      "qualityScore": 80,
+      "scores": {
+        "authority": 8,
+        "recency": 8,
+        "depth": 8,
+        "examples": 6,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Validates task-specific dynamic agent generation produces better outcomes",
+        "Self-evolving systems require coordinated feedback loops, not just memory",
+        "Observer agent critical for quality control in multi-agent self-improvement"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://docs.letta.com/introduction",
+      "title": "Letta Documentation — Introduction",
+      "qualityScore": 78,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 6,
+        "examples": 6,
+        "uniqueness": 5
+      },
+      "keyInsights": [
+        "Letta Code: terminal agent with stateful memory",
+        "Letta Code SDK for building stateful agent applications",
+        "Letta API for lower-level agent management",
+        "Core claim: 'stateful AI agents that remember and learn'"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2411.09073",
+      "title": "CHAI: RLAIF for Code-Mixed Translation",
+      "qualityScore": 76,
+      "scores": {
+        "authority": 7,
+        "recency": 9,
+        "depth": 7,
+        "examples": 6,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "RLAIF: models annotate their own outputs to generate preference data at scale",
+        "Self-assessment creates feedback signal without human labeling",
+        "25.66% win rate improvement over SOTA open-source LLMs",
+        "Demonstrates self-annotation as viable alternative to human feedback for specific domains"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2402.13116",
+      "title": "Survey on Knowledge Distillation for LLM Self-Improvement",
+      "qualityScore": 77,
+      "scores": {
+        "authority": 8,
+        "recency": 9,
+        "depth": 7,
+        "examples": 5,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "KD enables LLMs to improve themselves by serving as both teacher and student",
+        "Open-source models can approximate contextual adeptness of proprietary models via KD",
+        "Three pillars: algorithmic refinement, skill enhancement, domain adaptation",
+        "Self-as-teacher paradigm: models generate training data for themselves"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://github.com/MineDojo/Voyager",
+      "title": "Voyager GitHub Repository",
+      "qualityScore": 90,
+      "scores": {
+        "authority": 9,
+        "recency": 8,
+        "depth": 8,
+        "examples": 10,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Skills stored as executable code with semantic metadata",
+        "Lifelong learning: skills from one world transfer to new worlds",
+        "Rapid ability compounding through skill composition",
+        "No parameter fine-tuning needed — all learning via API calls to GPT-4",
+        "Three key components: automatic curriculum + skill library + iterative prompting"
+      ],
+      "codeExamples": [
+        {
+          "language": "python",
+          "description": "Complete iterative prompting loop with pseudocode showing feedback integration"
+        }
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "https://arxiv.org/abs/2302.07842",
+      "title": "A Survey of Augmented Language Models",
+      "qualityScore": 80,
+      "scores": {
+        "authority": 9,
+        "recency": 7,
+        "depth": 8,
+        "examples": 5,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Foundation for tool-using agents: reasoning + tool calls",
+        "Two augmentation modes: heuristic-based rules and demonstration-based learning",
+        "Non-parametric external modules extend context beyond model weights"
+      ],
+      "codeExamples": [],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    }
+  ]
+}

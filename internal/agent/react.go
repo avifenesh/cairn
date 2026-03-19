@@ -139,10 +139,11 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 
 		// 1. Call LLM.
 		req := &llm.Request{
-			Model:    model,
-			Messages: messages,
-			System:   systemPrompt,
-			Tools:    toolDefs,
+			Model:           model,
+			Messages:        messages,
+			System:          systemPrompt,
+			Tools:           toolDefs,
+			EnableWebSearch: hasWebSearchTool(toolDefs),
 		}
 
 		// Plugin: BeforeLLMCall.
@@ -451,4 +452,14 @@ func emit(ctx context.Context, ch chan<- RunEvent, ev RunEvent) {
 	case ch <- ev:
 	case <-ctx.Done():
 	}
+}
+
+// hasWebSearchTool returns true if cairn.webSearch is among the tool definitions.
+func hasWebSearchTool(tools []llm.ToolDef) bool {
+	for _, t := range tools {
+		if t.Name == "cairn.webSearch" {
+			return true
+		}
+	}
+	return false
 }

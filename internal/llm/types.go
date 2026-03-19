@@ -25,6 +25,7 @@ type Request struct {
 	Temperature     *float64
 	Stop            []string
 	DisableThinking bool // Skip reasoning/thinking for simple prompts
+	EnableWebSearch bool // Enable built-in web search (GLM: adds web_search tool type)
 }
 
 // Message in conversation.

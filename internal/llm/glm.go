@@ -82,7 +82,7 @@ type glmRequest struct {
 	MaxTokens   int          `json:"max_tokens,omitempty"`
 	Temperature *float64     `json:"temperature,omitempty"`
 	Stop        []string     `json:"stop,omitempty"`
-	Tools       []glmToolDef `json:"tools,omitempty"`
+	Tools       []any        `json:"tools,omitempty"` // glmToolDef (function) or glmWebSearchTool
 	Thinking    *glmThinking `json:"thinking,omitempty"`
 }
 
@@ -102,6 +102,21 @@ type glmMessage struct {
 type glmToolDef struct {
 	Type     string         `json:"type"`
 	Function glmToolDefFunc `json:"function"`
+}
+
+// glmWebSearchTool is the built-in web search tool for GLM chat completions.
+// Unlike function tools, search results are returned inline in the response.
+type glmWebSearchTool struct {
+	Type      string              `json:"type"`
+	WebSearch glmWebSearchOptions `json:"web_search"`
+}
+
+type glmWebSearchOptions struct {
+	Enable              string `json:"enable"`
+	SearchEngine        string `json:"search_engine"`
+	SearchResult        string `json:"search_result"`
+	ContentSize         string `json:"content_size,omitempty"`
+	SearchRecencyFilter string `json:"search_recency_filter,omitempty"`
 }
 
 type glmToolDefFunc struct {
@@ -249,6 +264,21 @@ func (p *GLMProvider) buildRequestBody(req *Request) ([]byte, error) {
 				},
 			})
 		}
+	}
+
+	// Add built-in web search tool when enabled.
+	// This uses GLM's native search — results come back inline in the response,
+	// consuming prompt quota instead of MCP quota.
+	if req.EnableWebSearch {
+		glmReq.Tools = append(glmReq.Tools, glmWebSearchTool{
+			Type: "web_search",
+			WebSearch: glmWebSearchOptions{
+				Enable:       "True",
+				SearchEngine: "search-prime",
+				SearchResult: "True",
+				ContentSize:  "medium",
+			},
+		})
 	}
 
 	return json.Marshal(glmReq)

@@ -245,10 +245,38 @@ var zaiWebSearch = tool.Define("cairn.webSearch",
 			return &tool.ToolResult{Error: "query is required"}, nil
 		}
 
-		// Try REST API first (gives clearer errors), fall back to MCP.
-		text, err := callZaiWebSearchREST(safeCtx(ctx.Cancel), p.Query, p.NumResults)
+		// Use MCP web_search_prime (coding plan quota) as primary.
+		// REST API at /api/paas/v4/web_search is pay-as-you-go and returns error 1113
+		// for coding plan users without separate balance.
+		// Note: actual tool name is "web_search_prime" (snake_case), NOT "webSearchPrime".
+		args := map[string]any{
+			"search_query": p.Query,
+			"location":     "us",
+			"content_size": "medium",
+		}
+		text, err := callZaiMCP(safeCtx(ctx.Cancel), "web_search_prime", "web_search_prime", args)
 		if err != nil {
-			return &tool.ToolResult{Error: fmt.Sprintf("web search failed: %v", err)}, nil
+			// MCP failed — try SearXNG, then REST, then give up.
+			if result := trySearXNG(safeCtx(ctx.Cancel), p.Query, p.NumResults); result != nil {
+				return result, nil
+			}
+			text, restErr := callZaiWebSearchREST(safeCtx(ctx.Cancel), p.Query, p.NumResults)
+			if restErr != nil {
+				return &tool.ToolResult{Error: fmt.Sprintf("web search failed: %v (REST: %v)", err, restErr)}, nil
+			}
+			return &tool.ToolResult{
+				Output:   text,
+				Metadata: map[string]any{"provider": "zai-rest"},
+			}, nil
+		}
+
+		// MCP returns "[]" when quota is exhausted or platform bug.
+		trimmed := strings.TrimSpace(text)
+		if trimmed == "" || trimmed == "\"[]\"" || trimmed == "[]" {
+			if result := trySearXNG(safeCtx(ctx.Cancel), p.Query, p.NumResults); result != nil {
+				return result, nil
+			}
+			return &tool.ToolResult{Output: "No search results found."}, nil
 		}
 
 		return &tool.ToolResult{
@@ -486,3 +514,26 @@ var zaiReadRepoFile = tool.Define("cairn.readRepoFile",
 		}, nil
 	},
 )
+
+// trySearXNG attempts a SearXNG search if configured. Returns nil if unavailable or no results.
+func trySearXNG(ctx context.Context, query string, numResults *int) *tool.ToolResult {
+	if webConfig.SearXNGURL == "" {
+		return nil
+	}
+	count := 10
+	if numResults != nil && *numResults > 0 {
+		count = *numResults
+	}
+	results, err := doSearXNGSearch(ctx, query, count)
+	if err != nil || len(results) == 0 {
+		return nil
+	}
+	var sb strings.Builder
+	for i, r := range results {
+		fmt.Fprintf(&sb, "%d. **%s**\n   %s\n   URL: %s\n\n", i+1, r.Title, r.Snippet, r.URL)
+	}
+	return &tool.ToolResult{
+		Output:   sb.String(),
+		Metadata: map[string]any{"provider": "searxng", "count": len(results)},
+	}
+}

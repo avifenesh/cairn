@@ -81,7 +81,7 @@ func (e *Extractor) Extract(ctx context.Context, transcript string) {
 	}
 
 	// Stage 2: Classify each fact against existing memories and apply.
-	added, updated, skipped := 0, 0, 0
+	added, updated, skipped, contradicted := 0, 0, 0, 0
 	for _, fact := range facts {
 		action := e.classifyFact(ctx, fact)
 		switch action {
@@ -99,15 +99,31 @@ func (e *Extractor) Extract(ctx context.Context, transcript string) {
 				added++
 			}
 		case "update":
-			updated++ // Update handled inside classifyFact
+			updated++
 		case "skip":
 			skipped++
+		case "contradict":
+			// Old memory was rejected — add the new fact as proposed.
+			cat := normCategory(fact.Category)
+			m := &Memory{
+				Content:    fact.Content,
+				Category:   cat,
+				Source:     "auto-extract",
+				Confidence: 0.7, // Slightly higher confidence — it replaced something.
+			}
+			if err := e.memService.Create(ctx, m); err != nil {
+				e.logger.Warn("memory extraction: create after contradiction failed", "error", err)
+			} else {
+				added++
+			}
+			contradicted++
 		}
 	}
 
-	if added > 0 || updated > 0 {
+	if added > 0 || updated > 0 || contradicted > 0 {
 		e.logger.Info("memory extraction complete",
-			"extracted", len(facts), "added", added, "updated", updated, "skipped", skipped,
+			"extracted", len(facts), "added", added, "updated", updated,
+			"skipped", skipped, "contradicted", contradicted,
 		)
 	}
 }
@@ -172,7 +188,24 @@ func (e *Extractor) classifyFact(ctx context.Context, fact extractedFact) string
 			return "skip"
 		}
 		if r.Score >= thresholdUpdate {
-			// Similar but different — update existing memory content and category.
+			// Similar but different — check for contradiction before updating.
+			contradicts, cErr := CheckContradiction(ctx, r.Memory.Content, fact.Content, e.provider, e.model)
+			if cErr != nil {
+				e.logger.Warn("contradiction check failed, defaulting to update", "error", cErr)
+			}
+			if contradicts {
+				// Reject old memory, return "contradict" so new fact gets added as proposed.
+				if err := e.memService.Reject(ctx, r.Memory.ID); err != nil {
+					e.logger.Warn("memory extraction: reject contradicted failed", "id", r.Memory.ID, "error", err)
+				}
+				e.logger.Info("memory contradiction detected",
+					"oldID", r.Memory.ID,
+					"old", truncate(r.Memory.Content, 80),
+					"new", truncate(fact.Content, 80),
+				)
+				return "contradict"
+			}
+			// No contradiction — update existing memory.
 			r.Memory.Content = fact.Content
 			r.Memory.Category = normCategory(fact.Category)
 			if err := e.memService.Update(ctx, r.Memory); err != nil {

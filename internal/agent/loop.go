@@ -187,14 +187,14 @@ func (l *Loop) tick(ctx context.Context) {
 	l.tickCount.Add(1)
 	start := time.Now()
 
-	// 1. Check for pending tasks and execute the highest priority one.
+	// 1. Check for due cron jobs and submit them as tasks (before claiming).
+	cronSubmitted := l.checkDueCrons(ctx)
+
+	// 2. Check for pending tasks and execute the highest priority one.
 	executed := l.executePendingTask(ctx)
 
-	// 2. Check for due cron jobs and submit them as tasks.
-	l.checkDueCrons(ctx)
-
-	// 3. If no task was executed, run proactive idle tick.
-	if !executed {
+	// 3. If no task was executed and no cron submitted, run proactive idle tick.
+	if !executed && !cronSubmitted {
 		l.idleTick(ctx)
 	}
 
@@ -335,15 +335,16 @@ func (l *Loop) runReflection(ctx context.Context) {
 }
 
 // checkDueCrons finds cron jobs that are due and submits them as tasks.
-func (l *Loop) checkDueCrons(ctx context.Context) {
+func (l *Loop) checkDueCrons(ctx context.Context) bool {
 	if l.cronStore == nil {
-		return
+		return false
 	}
 	dueJobs, err := l.cronStore.GetDueJobs(ctx, time.Now().UTC())
 	if err != nil {
 		l.logger.Warn("cron: failed to get due jobs", "error", err)
-		return
+		return false
 	}
+	submitted := false
 	for _, job := range dueJobs {
 		input, _ := json.Marshal(map[string]string{
 			"cronJobID":   job.ID,
@@ -373,7 +374,9 @@ func (l *Loop) checkDueCrons(ctx context.Context) {
 		l.cronStore.UpdateAfterRun(ctx, job.ID, time.Now().UTC(), next.UTC())
 		l.cronStore.RecordExecution(ctx, job.ID, t.ID, "fired", nil)
 		l.logger.Info("cron: task submitted", "job", job.Name, "task", t.ID, "nextRun", next)
+		submitted = true
 	}
+	return submitted
 }
 
 // AgentHeartbeat is emitted every tick via the event bus.

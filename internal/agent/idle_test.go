@@ -32,8 +32,8 @@ func TestParseIdleDecision_Invalid(t *testing.T) {
 	tests := []string{
 		"",
 		"not json at all",
-		"{}",                       // missing action → empty string → defaults to wait
-		`{"action":"invalid123"}`,  // unknown action → defaults to wait
+		"{}",                      // missing action → empty string → defaults to wait
+		`{"action":"invalid123"}`, // unknown action → defaults to wait
 	}
 
 	for _, input := range tests {

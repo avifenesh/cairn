@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -47,13 +48,15 @@ func (l *Loop) idleTick(ctx context.Context) {
 	if time.Since(l.lastIdleTick) < minIdleInterval {
 		return
 	}
-	l.lastIdleTick = time.Now()
 
 	obs := l.gatherObservations(ctx)
 	if obs.isEmpty() {
 		l.logger.Debug("idle: no observations, skipping")
 		return
 	}
+
+	// Only update throttle after we have observations worth reasoning about.
+	l.lastIdleTick = time.Now()
 
 	decision := l.reasonAboutAction(ctx, obs)
 	l.executeIdleDecision(ctx, decision)
@@ -68,8 +71,9 @@ func (l *Loop) gatherObservations(ctx context.Context) *Observations {
 	// Feed: unread count by source.
 	if l.events != nil {
 		events, err := l.events.List(ctx, signal.EventFilter{
-			UnreadOnly: true,
-			Limit:      100,
+			UnreadOnly:      true,
+			ExcludeArchived: true,
+			Limit:           100,
 		})
 		if err == nil {
 			obs.UnreadFeedCount = len(events)
@@ -162,8 +166,9 @@ func parseIdleDecision(raw string) *IdleDecision {
 	case "notify", "task", "learn", "wait":
 		// valid
 	default:
+		original := d.Action
 		d.Action = "wait"
-		d.Reason = "unknown action: " + d.Action
+		d.Reason = "unknown action: " + original
 	}
 
 	return &d
@@ -223,9 +228,14 @@ func buildIdlePrompt(soulContent string, obs *Observations) string {
 	b.WriteString("Current observations:\n")
 	fmt.Fprintf(&b, "- Unread feed items: %d", obs.UnreadFeedCount)
 	if len(obs.UnreadBySource) > 0 {
-		parts := make([]string, 0, len(obs.UnreadBySource))
-		for src, count := range obs.UnreadBySource {
-			parts = append(parts, fmt.Sprintf("%s: %d", src, count))
+		sources := make([]string, 0, len(obs.UnreadBySource))
+		for src := range obs.UnreadBySource {
+			sources = append(sources, src)
+		}
+		sort.Strings(sources)
+		parts := make([]string, 0, len(sources))
+		for _, src := range sources {
+			parts = append(parts, fmt.Sprintf("%s: %d", src, obs.UnreadBySource[src]))
 		}
 		fmt.Fprintf(&b, " (%s)", strings.Join(parts, ", "))
 	}
@@ -263,11 +273,4 @@ type AgentNotification struct {
 	Message  string `json:"message"`
 	Priority int    `json:"priority"`
 	Reason   string `json:"reason"`
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

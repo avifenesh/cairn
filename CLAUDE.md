@@ -27,7 +27,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 11 | Channel Adapters - Telegram, Discord, Slack | Done | `internal/channel/` |
 | 12 | Z.ai Integration - web search, reader, zread, vision (13 tools) | Done | `internal/tool/builtin/zai.go`, `vision.go` |
 
-Frontend complete through Phase 8 channels. 227 tests across 27 files. 35 tools (GLM+Vision) / 24 (other providers). Z.ai Vision MCP: 8 tools via stdio subprocess (@z_ai/mcp-server). Web search: GLM built-in + SearXNG fallback. Chat items C.6 (file attach) and C.7 (voice) remain - **no file upload support in frontend or backend yet**.
+Frontend complete through Phase 8 channels + file upload. 227 tests across 27 files. 35 tools (GLM+Vision) / 24 (other providers). Z.ai Vision MCP: 8 tools via stdio subprocess (@z_ai/mcp-server). Web search: GLM built-in + SearXNG fallback. File upload (C.6) done — paperclip button, paste, preview chip, POST /v1/upload. Chat item C.7 (voice) remains — backend endpoint not yet implemented.
 
 ## Phases
 

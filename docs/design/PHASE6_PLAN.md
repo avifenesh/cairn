@@ -16,7 +16,8 @@
 **Z.ai MCP tools COMPLETE** — PR #49, #52 (web search, reader, zread — 5 HTTP tools).
 **Z.ai Web Search FIXED** — PR #61 (GLM built-in web_search + SearXNG fallback chain).
 **Z.ai Vision MCP COMPLETE** — PR #64 (8 tools via stdio subprocess, @z_ai/mcp-server).
-Phase 7 PRs 6-7 (MCP client, A2A) deferred. Phase 8 Intelligence remains.
+**File Upload COMPLETE** — PR #65 (C.6 — paperclip button, paste, preview chip, POST /v1/upload).
+Phase 7 PRs 6-7 (MCP client, A2A) deferred. Phase 8 Intelligence remains. C.7 (voice) needs backend.
 
 ---
 
@@ -278,6 +279,10 @@ Phase 8 Channels (DONE):
   PR 10 (Discord + Slack)       ─── merged #59
   PR 11 (Frontend channel UI)   ─── merged #62
 
+Chat Features:
+  PR 65 (File upload C.6)         ─── merged #65 (paperclip, paste, preview)
+  C.7 (Voice input/output)        ─── needs backend /v1/assistant/voice endpoint
+
 Phase 8 Intelligence (REMAINING):
   PR 12 (Embeddings, Gmail, voice) ─── independent
   PR 13 (Frontend Intelligence)    ─── needs PR 12
@@ -294,4 +299,5 @@ Phase 8 Intelligence (REMAINING):
 | 8 Intelligence | 0/2 PRs | 0/1 PR | Embeddings, Gmail, voice |
 | Z.ai HTTP | 3 PRs ✅ DONE | — | Web search (GLM built-in + SearXNG), reader, zread |
 | Z.ai Vision | 1 PR ✅ DONE | — | 8 vision tools via stdio subprocess (GLM-4.6V) |
-| **Total** | **16 merged** | **17/17 done** | **35 tools, 5 skills, MCP, 3 channels** |
+| File Upload | 1 PR ✅ DONE | 1 PR ✅ DONE | C.6 — paperclip, paste, preview, POST /v1/upload |
+| **Total** | **17 merged** | **18/18 done** | **35 tools, 5 skills, MCP, 3 channels, file upload** |

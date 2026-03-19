@@ -339,11 +339,15 @@ func (s *Store) AllAcceptedWithoutEmbeddings(ctx context.Context) ([]*Memory, er
 func (s *Store) UpdateEmbedding(ctx context.Context, id string, embedding []float32) error {
 	blob := encodeFloat32s(embedding)
 	now := time.Now().UTC().Format(timeFormat)
-	_, err := s.db.ExecContext(ctx,
+	res, err := s.db.ExecContext(ctx,
 		"UPDATE memories SET embedding = ?, updated_at = ? WHERE id = ?",
 		blob, now, id)
 	if err != nil {
 		return fmt.Errorf("memory: update embedding: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("memory: update embedding: not found: %s", id)
 	}
 	return nil
 }

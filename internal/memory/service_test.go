@@ -265,3 +265,98 @@ func TestService_NilBus(t *testing.T) {
 		t.Fatalf("Reject: %v", err)
 	}
 }
+
+func TestService_BackfillEmbeddings(t *testing.T) {
+	d := openTestDB(t)
+	store := NewStore(d)
+
+	// Create memories without embeddings using NoopEmbedder.
+	noopSvc := NewService(store, NoopEmbedder{}, nil)
+	ctx := context.Background()
+
+	m1 := &Memory{Content: "memory one", Status: StatusAccepted}
+	m2 := &Memory{Content: "memory two", Status: StatusAccepted}
+	for _, m := range []*Memory{m1, m2} {
+		if err := store.Create(ctx, m); err != nil {
+			t.Fatalf("Create: %v", err)
+		}
+	}
+
+	// Verify no embeddings.
+	without, _ := store.AllAcceptedWithoutEmbeddings(ctx)
+	if len(without) != 2 {
+		t.Fatalf("expected 2 without embeddings, got %d", len(without))
+	}
+
+	// Noop backfill should be a no-op.
+	if err := noopSvc.BackfillEmbeddings(ctx); err != nil {
+		t.Fatalf("NoopEmbedder backfill: %v", err)
+	}
+
+	// Switch to mock embedder and backfill.
+	mock := &testEmbedder{dims: 3, vec: []float32{0.1, 0.2, 0.3}}
+	svc := NewService(store, mock, nil)
+	if err := svc.BackfillEmbeddings(ctx); err != nil {
+		t.Fatalf("BackfillEmbeddings: %v", err)
+	}
+
+	// Verify embeddings were stored.
+	without, _ = store.AllAcceptedWithoutEmbeddings(ctx)
+	if len(without) != 0 {
+		t.Fatalf("expected 0 without embeddings after backfill, got %d", len(without))
+	}
+
+	got, _ := store.Get(ctx, m1.ID)
+	if len(got.Embedding) != 3 {
+		t.Fatalf("expected 3 dims after backfill, got %d", len(got.Embedding))
+	}
+}
+
+func TestService_UpdateReembeds(t *testing.T) {
+	d := openTestDB(t)
+	store := NewStore(d)
+	mock := &testEmbedder{dims: 2, vec: []float32{0.5, 0.6}}
+	svc := NewService(store, mock, nil)
+	ctx := context.Background()
+
+	m := &Memory{Content: "original content"}
+	if err := svc.Create(ctx, m); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Verify initial embedding.
+	got, _ := store.Get(ctx, m.ID)
+	if len(got.Embedding) != 2 {
+		t.Fatalf("expected 2 dims, got %d", len(got.Embedding))
+	}
+
+	// Update content — should re-embed.
+	mock.vec = []float32{0.9, 0.8}
+	m.Content = "updated content"
+	if err := svc.Update(ctx, m); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, _ = store.Get(ctx, m.ID)
+	if got.Embedding[0] != 0.9 {
+		t.Fatalf("expected re-embedded 0.9, got %f", got.Embedding[0])
+	}
+}
+
+// testEmbedder is a simple mock that returns a fixed vector.
+type testEmbedder struct {
+	dims int
+	vec  []float32
+}
+
+func (e *testEmbedder) Embed(_ context.Context, texts []string) ([][]float32, error) {
+	vecs := make([][]float32, len(texts))
+	for i := range texts {
+		v := make([]float32, len(e.vec))
+		copy(v, e.vec)
+		vecs[i] = v
+	}
+	return vecs, nil
+}
+
+func (e *testEmbedder) Dimensions() int { return e.dims }

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type OpenAIEmbedder struct {
 	model      string // e.g. "embedding-3"
 	dimensions int
 	client     *http.Client
+	dimWarn    sync.Once // fire dimension mismatch warning only once
 }
 
 // NewOpenAIEmbedder creates an embedder for any OpenAI-compatible API.
@@ -59,8 +61,9 @@ func (e *OpenAIEmbedder) Embed(ctx context.Context, texts []string) ([][]float32
 	}
 
 	body, err := json.Marshal(embeddingRequest{
-		Model: e.model,
-		Input: truncated,
+		Model:      e.model,
+		Input:      truncated,
+		Dimensions: e.dimensions,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("embedding: marshal request: %w", err)
@@ -105,14 +108,16 @@ func (e *OpenAIEmbedder) Embed(ctx context.Context, texts []string) ([][]float32
 		return result.Data[i].Index < result.Data[j].Index
 	})
 
-	// Warn if API returns different dimensions than configured.
+	// Warn once if API returns different dimensions than configured.
 	if len(result.Data) > 0 && len(result.Data[0].Embedding) > 0 &&
 		len(result.Data[0].Embedding) != e.dimensions {
-		slog.Warn("embedding: dimension mismatch",
-			"configured", e.dimensions,
-			"actual", len(result.Data[0].Embedding),
-			"model", e.model,
-		)
+		e.dimWarn.Do(func() {
+			slog.Warn("embedding: dimension mismatch",
+				"configured", e.dimensions,
+				"actual", len(result.Data[0].Embedding),
+				"model", e.model,
+			)
+		})
 	}
 
 	vecs := make([][]float32, len(result.Data))
@@ -123,8 +128,9 @@ func (e *OpenAIEmbedder) Embed(ctx context.Context, texts []string) ([][]float32
 }
 
 type embeddingRequest struct {
-	Model string   `json:"model"`
-	Input []string `json:"input"`
+	Model      string   `json:"model"`
+	Input      []string `json:"input"`
+	Dimensions int      `json:"dimensions,omitempty"`
 }
 
 type embeddingResponse struct {

@@ -5,7 +5,7 @@
 
 ## Current State (updated 2026-03-19)
 
-361 backend tests, ~280 frontend tests (227), 16 packages, ~28K lines of Go.
+~400 backend tests, 227 frontend tests, 16 packages, ~30K lines of Go.
 35 built-in tools (GLM+Vision) / 24 (other providers). 5 bundled SKILL.md files.
 
 **Phase 6 COMPLETE** — backend PRs #21, #24, #26. Frontend PRs #28-50 (15/15 done).
@@ -16,8 +16,13 @@
 **Z.ai MCP tools COMPLETE** — PR #49, #52 (web search, reader, zread — 5 HTTP tools).
 **Z.ai Web Search FIXED** — PR #61 (GLM built-in web_search + SearXNG fallback chain).
 **Z.ai Vision MCP COMPLETE** — PR #64 (8 tools via stdio subprocess, @z_ai/mcp-server).
-**File Upload COMPLETE** — PR #65 (C.6 — paperclip button, paste, preview chip, POST /v1/upload).
-Phase 7 PRs 6-7 (MCP client, A2A) deferred. Phase 8 Intelligence remains. C.7 (voice) needs backend.
+**File Upload COMPLETE** — PR #65 (C.6 — paperclip, paste, drag-and-drop, preview chip, POST /v1/upload).
+**Embeddings COMPLETE** — PR #63 (local Ollama nomic-embed-text 768d, hybrid search).
+**Session Compaction COMPLETE** — PR #67 (SummaryBuffer 80K trigger, orphan stripping).
+**Memory Edit/Delete COMPLETE** — PR #69 (DELETE + PUT /v1/memories/{id}, inline edit UI).
+**Intelligence UI COMPLETE** — PR #71 (embeddings + compaction status in settings).
+**Polish COMPLETE** — PR #68 (mode selector dropdown, drag-and-drop upload).
+Phase 7 PRs 6-7 (MCP client, A2A) deferred. Remaining: C.7 voice (needs backend), Gmail/Calendar pollers, auto-extract memories.
 
 ---
 
@@ -291,16 +296,18 @@ Phase 8 Channels (DONE):
   PR 10 (Discord + Slack)       ─── merged #59
   PR 11 (Frontend channel UI)   ─── merged #62
 
-Chat Features:
-  PR 65 (File upload C.6)         ─── merged #65 (paperclip, paste, preview)
-  C.7 (Voice input/output)        ─── needs backend /v1/assistant/voice endpoint
+Chat Features + Polish:
+  PR 65 (File upload C.6)          ─── merged #65 (paperclip, paste, drag-and-drop)
+  PR 68 (Mode selector + DnD)      ─── merged #68 (dropdown, drag-and-drop upload)
+  PR 69 (Memory edit/delete)        ─── merged #69 (DELETE + PUT endpoints, inline edit)
+  C.7 (Voice input/output)         ─── needs backend /v1/assistant/voice endpoint
 
 Phase 8 Intelligence (see docs/design/INTELLIGENCE_PLAN.md):
-  PR 11a (Embeddings)              ─── merged #63 (local Ollama, 768d)
-  PR 11b (Session Compaction)      ─── next (SummaryBuffer + tool truncation)
-  PR 11c (Auto-Extract Memories)   ─── after 11b (Mem0 extract→classify pipeline)
-  PR 11d (Gmail, Calendar, Voice)  ─── independent
-  PR 13  (Frontend Intelligence)   ─── needs PR 11b+11c
+  PR 11a (Embeddings)               ─── merged #63 (local Ollama nomic-embed-text, 768d)
+  PR 11b (Session Compaction)        ─── merged #67 (SummaryBuffer 80K trigger)
+  PR 71  (Frontend Intelligence UI)  ─── merged #71 (embeddings + compaction in settings)
+  PR 11c (Auto-Extract Memories)     ─── next (Mem0 extract→classify pipeline)
+  PR 11d (Gmail, Calendar, Voice)    ─── independent
 ```
 
 ## Summary
@@ -311,8 +318,9 @@ Phase 8 Intelligence (see docs/design/INTELLIGENCE_PLAN.md):
 | 6.5 | 2 PRs ✅ DONE | — | Skill activation, install, validation |
 | 7 | 1 PR ✅ DONE (MCP server) | 1 PR ✅ DONE | MCP tool exposure |
 | 8 Channels | 3 PRs ✅ DONE | 1 PR ✅ DONE | Telegram + Discord + Slack, channel UI |
-| 8 Intelligence | 1/4 PRs ✅ (Embeddings) | 0/1 PR | Local embeddings, compaction + extraction next |
+| 8 Intelligence | 3/4 PRs ✅ (Embeddings, Compaction, UI) | 1 PR ✅ DONE | Embeddings + compaction + settings UI |
 | Z.ai HTTP | 3 PRs ✅ DONE | — | Web search (GLM built-in + SearXNG), reader, zread |
 | Z.ai Vision | 1 PR ✅ DONE | — | 8 vision tools via stdio subprocess (GLM-4.6V) |
-| File Upload | 1 PR ✅ DONE | 1 PR ✅ DONE | C.6 — paperclip, paste, preview, POST /v1/upload |
-| **Total** | **17 merged** | **18/18 done** | **35 tools, 5 skills, MCP, 3 channels, file upload** |
+| File Upload | 1 PR ✅ DONE | 1 PR ✅ DONE | C.6 — paperclip, paste, drag-and-drop, POST /v1/upload |
+| Polish | — | 3 PRs ✅ DONE | Mode dropdown, drag-and-drop, memory edit/delete |
+| **Total** | **22 merged** | **21/21 done** | **35 tools, 5 skills, MCP, 3 channels, file upload, embeddings, compaction** |

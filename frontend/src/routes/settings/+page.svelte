@@ -6,7 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar, Rss, Code, BookOpen, Package } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar, Rss, Code, BookOpen, Package, Bell, BellOff, Clock, Route } from '@lucide/svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
 	let mcpStatus = $state<McpStatus | null>(null);
@@ -38,7 +38,22 @@
 	let editDevtoUsername = $state('');
 	let editNpmPackages = $state('');
 	let editCratesPackages = $state('');
+	let editPreferredChannel = $state('');
+	let editQuietStart = $state(-1);
+	let editQuietEnd = $state(-1);
+	let editQuietTZ = $state('UTC');
+	let editMutedSources = $state('');
+	let editNotifPriority = $state('low');
+	let editChannelRouting = $state('');
 	let saving = $state('');
+
+	const ALL_SOURCES = ['github', 'github_signal', 'gmail', 'calendar', 'hn', 'reddit', 'npm', 'crates', 'rss', 'stackoverflow', 'devto'];
+	const CHANNELS = ['web', 'telegram', 'discord', 'slack'];
+	const PRIORITIES = [
+		{ value: 'low', label: 'All', desc: 'Every event' },
+		{ value: 'medium', label: 'Medium+', desc: 'Skip low-priority' },
+		{ value: 'high', label: 'High only', desc: 'Critical only' },
+	];
 
 	const knownChannels = [
 		{ id: 'telegram', label: 'Telegram', icon: Send },
@@ -78,6 +93,13 @@
 				editDevtoUsername = cfg.devtoUsername ?? '';
 				editNpmPackages = cfg.npmPackages ?? '';
 				editCratesPackages = cfg.cratesPackages ?? '';
+				editPreferredChannel = cfg.preferredChannel ?? '';
+				editQuietStart = cfg.quietHoursStart ?? -1;
+				editQuietEnd = cfg.quietHoursEnd ?? -1;
+				editQuietTZ = cfg.quietHoursTZ ?? 'UTC';
+				editMutedSources = cfg.mutedSources ?? '';
+				editNotifPriority = cfg.notifMinPriority ?? 'low';
+				editChannelRouting = cfg.channelRouting ?? '';
 			}
 		} catch {
 			// handled
@@ -222,27 +244,171 @@
 	<!-- Notifications -->
 	<section class="mb-8">
 		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">Notifications</h2>
-		<p class="mb-4 text-xs text-[var(--text-tertiary)]">Control how notifications behave</p>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">Control how and when you get notified</p>
 
-		<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
-			<div class="flex items-center justify-between">
-				<div>
-					<p class="text-sm text-[var(--text-primary)]">Toast duration</p>
-					<p class="text-[10px] text-[var(--text-tertiary)]">How long notifications stay visible</p>
+		<div class="space-y-3">
+			<!-- Toast duration -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-sm text-[var(--text-primary)]">Toast duration</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">How long notifications stay visible</p>
+					</div>
+					<div class="flex items-center gap-1 rounded-md border border-border-subtle bg-[var(--bg-0)] p-0.5">
+						{#each [3, 5, 8] as sec}
+							<button
+								class="rounded px-2.5 py-1 text-xs font-mono transition-colors duration-[var(--dur-fast)]
+									{toastDuration === sec
+									? 'bg-[var(--bg-2)] text-[var(--cairn-accent)]'
+									: 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
+								onclick={() => setToastDuration(sec)}
+							>
+								{sec}s
+							</button>
+						{/each}
+					</div>
 				</div>
-				<div class="flex items-center gap-1 rounded-md border border-border-subtle bg-[var(--bg-0)] p-0.5">
-					{#each [3, 5, 8] as sec}
+			</div>
+
+			<!-- Priority threshold -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center gap-3 mb-3">
+					<Bell class="h-4 w-4 text-[var(--cairn-accent)]" />
+					<div>
+						<p class="text-sm font-medium text-[var(--text-primary)]">Priority Threshold</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Minimum priority to trigger a notification</p>
+					</div>
+				</div>
+				<div class="flex gap-2">
+					{#each PRIORITIES as p}
 						<button
-							class="rounded px-2.5 py-1 text-xs font-mono transition-colors duration-[var(--dur-fast)]
-								{toastDuration === sec
-								? 'bg-[var(--bg-2)] text-[var(--cairn-accent)]'
-								: 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
-							onclick={() => setToastDuration(sec)}
+							class="flex-1 rounded-lg border px-3 py-2 text-left transition-all duration-[var(--dur-fast)]
+								{editNotifPriority === p.value
+								? 'border-[var(--cairn-accent)] bg-[var(--accent-dim)] shadow-sm'
+								: 'border-border-subtle hover:bg-[var(--bg-2)]'}"
+							onclick={() => editNotifPriority = p.value}
 						>
-							{sec}s
+							<span class="text-xs font-medium {editNotifPriority === p.value ? 'text-[var(--cairn-accent)]' : 'text-[var(--text-primary)]'}">{p.label}</span>
+							<span class="block text-[10px] text-[var(--text-tertiary)]">{p.desc}</span>
 						</button>
 					{/each}
 				</div>
+			</div>
+
+			<!-- Preferred channel -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center gap-3 mb-3">
+					<Route class="h-4 w-4 text-[var(--cairn-accent)]" />
+					<div>
+						<p class="text-sm font-medium text-[var(--text-primary)]">Default Channel</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Where notifications are sent by default</p>
+					</div>
+				</div>
+				<div class="flex gap-2">
+					{#each CHANNELS as ch}
+						<button
+							class="rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-[var(--dur-fast)]
+								{editPreferredChannel === ch
+								? 'border-[var(--cairn-accent)] bg-[var(--accent-dim)] text-[var(--cairn-accent)]'
+								: 'border-border-subtle text-[var(--text-secondary)] hover:bg-[var(--bg-2)]'}"
+							onclick={() => editPreferredChannel = ch}
+						>
+							{ch}
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Quiet hours -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center gap-3 mb-3">
+					<Clock class="h-4 w-4 text-[var(--cairn-accent)]" />
+					<div>
+						<p class="text-sm font-medium text-[var(--text-primary)]">Quiet Hours</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Suppress notifications during these hours (-1 = disabled)</p>
+					</div>
+				</div>
+				<div class="grid grid-cols-3 gap-3">
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Start (hour)</p>
+						<Input type="number" bind:value={editQuietStart} min={-1} max={23} class="h-7 text-xs font-mono" />
+					</div>
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">End (hour)</p>
+						<Input type="number" bind:value={editQuietEnd} min={-1} max={23} class="h-7 text-xs font-mono" />
+					</div>
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Timezone</p>
+						<Input type="text" bind:value={editQuietTZ} placeholder="UTC" class="h-7 text-xs font-mono" />
+					</div>
+				</div>
+			</div>
+
+			<!-- Muted sources -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center gap-3 mb-3">
+					<BellOff class="h-4 w-4 text-[var(--text-tertiary)]" />
+					<div>
+						<p class="text-sm font-medium text-[var(--text-primary)]">Muted Sources</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">These sources won't trigger notifications (still in feed)</p>
+					</div>
+				</div>
+				<div class="flex flex-wrap gap-2">
+					{#each ALL_SOURCES as src}
+						{@const muted = editMutedSources.split(',').map(s => s.trim()).filter(Boolean).includes(src)}
+						<button
+							class="rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors
+								{muted
+								? 'bg-[var(--color-error)]/10 text-[var(--color-error)] border border-[var(--color-error)]/20'
+								: 'bg-[var(--bg-2)] text-[var(--text-secondary)] hover:bg-[var(--bg-3)] border border-transparent'}"
+							onclick={() => {
+								const current = editMutedSources.split(',').map(s => s.trim()).filter(Boolean);
+								if (muted) {
+									editMutedSources = current.filter(s => s !== src).join(',');
+								} else {
+									editMutedSources = [...current, src].join(',');
+								}
+							}}
+						>
+							{src}
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Channel routing per source -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center gap-3 mb-3">
+					<Route class="h-4 w-4 text-[var(--text-tertiary)]" />
+					<div>
+						<p class="text-sm font-medium text-[var(--text-primary)]">Channel Routing</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Override default channel per source (JSON)</p>
+					</div>
+				</div>
+				<textarea
+					bind:value={editChannelRouting}
+					placeholder={`{"github_signal":"telegram","gmail":"slack"}`}
+					class="w-full rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 py-1.5 text-xs font-mono text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]/40 focus:border-[var(--cairn-accent)] focus:outline-none resize-none h-16"
+				></textarea>
+			</div>
+
+			<div class="flex justify-end">
+				<Button
+					size="sm" class="h-7 text-xs gap-1 px-3"
+					onclick={() => saveConfig('notifications', {
+						preferredChannel: editPreferredChannel,
+						quietHoursStart: editQuietStart,
+						quietHoursEnd: editQuietEnd,
+						quietHoursTZ: editQuietTZ,
+						mutedSources: editMutedSources,
+						notifMinPriority: editNotifPriority,
+						channelRouting: editChannelRouting,
+					})}
+					disabled={saving === 'notifications'}
+				>
+					{#if saving === 'notifications'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
+					Save
+				</Button>
 			</div>
 		</div>
 	</section>

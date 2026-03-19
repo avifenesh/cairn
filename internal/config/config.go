@@ -130,10 +130,13 @@ type Config struct {
 	SlackChannelID string // SLACK_CHANNEL_ID
 
 	// Notification routing
-	PreferredChannel string // PREFERRED_CHANNEL (e.g. "telegram")
-	QuietHoursStart  int    // QUIET_HOURS_START (0-23, -1 = disabled)
-	QuietHoursEnd    int    // QUIET_HOURS_END (0-23, -1 = disabled)
-	QuietHoursTZ     string // QUIET_HOURS_TZ (IANA timezone, default "UTC")
+	PreferredChannel string   // PREFERRED_CHANNEL (e.g. "telegram")
+	QuietHoursStart  int      // QUIET_HOURS_START (0-23, -1 = disabled)
+	QuietHoursEnd    int      // QUIET_HOURS_END (0-23, -1 = disabled)
+	QuietHoursTZ     string   // QUIET_HOURS_TZ (IANA timezone, default "UTC")
+	MutedSources     []string // MUTED_SOURCES — sources that don't generate notifications
+	NotifMinPriority string   // NOTIF_MIN_PRIORITY — "low", "medium", "high" (default "low" = all)
+	ChannelRouting   string   // CHANNEL_ROUTING — JSON: {"github_signal":"telegram","gmail":"slack"}
 
 	// Voice
 	VoiceEnabled bool   // VOICE_ENABLED (default: false)
@@ -267,6 +270,9 @@ func Load() (*Config, error) {
 		QuietHoursStart:         envInt("QUIET_HOURS_START", -1),
 		QuietHoursEnd:           envInt("QUIET_HOURS_END", -1),
 		QuietHoursTZ:            envStr("QUIET_HOURS_TZ", "UTC"),
+		MutedSources:            envSlice("MUTED_SOURCES", nil),
+		NotifMinPriority:        envStr("NOTIF_MIN_PRIORITY", "low"),
+		ChannelRouting:          envStr("CHANNEL_ROUTING", ""),
 		SearXNGURL:              envStr("SEARXNG_URL", ""),
 		WebFetchTimeout:         envInt("WEB_FETCH_TIMEOUT", 30),
 		WebFetchMaxSize:         envInt64("WEB_FETCH_MAX_SIZE", 5*1024*1024),
@@ -450,6 +456,9 @@ type PatchableConfig struct {
 	QuietHoursStart         *int     `json:"quietHoursStart,omitempty"`
 	QuietHoursEnd           *int     `json:"quietHoursEnd,omitempty"`
 	QuietHoursTZ            *string  `json:"quietHoursTZ,omitempty"`
+	MutedSources            *string  `json:"mutedSources,omitempty"`     // comma-sep source names
+	NotifMinPriority        *string  `json:"notifMinPriority,omitempty"` // low, medium, high
+	ChannelRouting          *string  `json:"channelRouting,omitempty"`   // JSON: {"source":"channel"}
 	RSSEnabled              *bool    `json:"rssEnabled,omitempty"`
 	RSSFeeds                *string  `json:"rssFeeds,omitempty"` // comma-sep URLs
 	SOEnabled               *bool    `json:"soEnabled,omitempty"`
@@ -529,6 +538,22 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 	if p.QuietHoursTZ != nil && *p.QuietHoursTZ != "" {
 		c.QuietHoursTZ = *p.QuietHoursTZ
 	}
+	if p.MutedSources != nil {
+		if *p.MutedSources == "" {
+			c.MutedSources = nil
+		} else {
+			c.MutedSources = splitTrimmed(*p.MutedSources)
+		}
+	}
+	if p.NotifMinPriority != nil {
+		prio := *p.NotifMinPriority
+		if prio == "low" || prio == "medium" || prio == "high" {
+			c.NotifMinPriority = prio
+		}
+	}
+	if p.ChannelRouting != nil {
+		c.ChannelRouting = *p.ChannelRouting
+	}
 	if p.RSSEnabled != nil {
 		c.RSSEnabled = *p.RSSEnabled
 	}
@@ -601,6 +626,9 @@ func (c *Config) GetPatchable() PatchableConfig {
 		QuietHoursStart:         &c.QuietHoursStart,
 		QuietHoursEnd:           &c.QuietHoursEnd,
 		QuietHoursTZ:            &c.QuietHoursTZ,
+		MutedSources:            strPtr(strings.Join(c.MutedSources, ",")),
+		NotifMinPriority:        &c.NotifMinPriority,
+		ChannelRouting:          &c.ChannelRouting,
 		RSSEnabled:              &c.RSSEnabled,
 		RSSFeeds:                strPtr(strings.Join(c.RSSFeeds, ",")),
 		SOEnabled:               &c.SOEnabled,

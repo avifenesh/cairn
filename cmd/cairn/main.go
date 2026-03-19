@@ -506,12 +506,13 @@ func runServe(logger *slog.Logger) {
 			}
 
 			// Extract memories from channel conversation (fire-and-forget).
-			if memExtractor != nil && len(session.Events) >= 4 {
-				transcript := response.String() // Use the response as representative text
+			// Use the current exchange text directly (session.Events may be stale).
+			if memExtractor != nil && response.Len() > 0 {
+				transcript := "User: " + text + "\nAssistant: " + response.String()
 				go func() {
 					ectx, ecancel := context.WithTimeout(context.Background(), 2*time.Minute)
 					defer ecancel()
-					memExtractor.Extract(ectx, "User: "+text+"\nAssistant: "+transcript)
+					memExtractor.Extract(ectx, transcript)
 				}()
 			}
 

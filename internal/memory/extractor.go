@@ -139,15 +139,8 @@ func (e *Extractor) extractFacts(ctx context.Context, transcript string) ([]extr
 	}
 
 	// Parse JSON from response (handle markdown fences).
-	raw := result.String()
-	raw = strings.TrimSpace(raw)
-	if strings.HasPrefix(raw, "```") {
-		// Strip markdown code fences.
-		lines := strings.Split(raw, "\n")
-		if len(lines) > 2 {
-			raw = strings.Join(lines[1:len(lines)-1], "\n")
-		}
-	}
+	raw := strings.TrimSpace(result.String())
+	raw = stripMarkdownFences(raw)
 
 	var facts []extractedFact
 	if err := json.Unmarshal([]byte(raw), &facts); err != nil {
@@ -179,8 +172,9 @@ func (e *Extractor) classifyFact(ctx context.Context, fact extractedFact) string
 			return "skip"
 		}
 		if r.Score >= thresholdUpdate {
-			// Similar but different — update existing memory.
+			// Similar but different — update existing memory content and category.
 			r.Memory.Content = fact.Content
+			r.Memory.Category = normCategory(fact.Category)
 			if err := e.memService.Update(ctx, r.Memory); err != nil {
 				e.logger.Warn("memory extraction: update failed",
 					"id", r.Memory.ID, "error", err)
@@ -207,6 +201,28 @@ func normCategory(cat string) Category {
 	default:
 		return CatFact
 	}
+}
+
+// stripMarkdownFences removes ```json ... ``` fences that LLMs commonly wrap JSON in.
+func stripMarkdownFences(s string) string {
+	if !strings.HasPrefix(s, "```") {
+		return s
+	}
+	// Find the first newline (end of opening fence).
+	start := strings.IndexByte(s, '\n')
+	if start < 0 {
+		// Single-line fence like ```json [...] ``` — strip prefix and suffix.
+		s = strings.TrimPrefix(s, "```json")
+		s = strings.TrimPrefix(s, "```")
+		s = strings.TrimSuffix(s, "```")
+		return strings.TrimSpace(s)
+	}
+	// Multi-line: strip first and last lines.
+	end := strings.LastIndex(s, "```")
+	if end <= start {
+		return s[start+1:]
+	}
+	return strings.TrimSpace(s[start+1 : end])
 }
 
 // truncate shortens a string for logging.

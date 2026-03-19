@@ -273,7 +273,9 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 	}
 
 	// Extract memories from completed session (fire-and-forget).
-	if l.extractor != nil && len(session.Events) >= 4 {
+	// Skip trivial sessions — need at least a few exchanges to extract meaningful facts.
+	const minEventsForExtraction = 4
+	if l.extractor != nil && len(session.Events) >= minEventsForExtraction {
 		go func() {
 			ectx, ecancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer ecancel()

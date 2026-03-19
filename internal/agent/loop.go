@@ -339,11 +339,15 @@ func (l *Loop) checkDueCrons(ctx context.Context) {
 		return
 	}
 	for _, job := range dueJobs {
-		input, _ := json.Marshal(map[string]string{"instruction": job.Instruction})
+		input, _ := json.Marshal(map[string]string{
+			"cronJobID":   job.ID,
+			"cronJobName": job.Name,
+			"instruction": job.Instruction,
+		})
 		t, err := l.tasks.Submit(ctx, &task.SubmitRequest{
 			Type:        "cron",
 			Priority:    task.Priority(job.Priority),
-			Description: "Cron: " + job.Name,
+			Description: job.Instruction,
 			Input:       input,
 		})
 		if err != nil {
@@ -351,8 +355,16 @@ func (l *Loop) checkDueCrons(ctx context.Context) {
 			l.cronStore.RecordExecution(ctx, job.ID, "", "failed", err)
 			continue
 		}
-		next, _ := cairncron.NextRun(job.Schedule, time.Now().UTC())
-		l.cronStore.UpdateAfterRun(ctx, job.ID, time.Now().UTC(), next)
+		// Compute next run in the job's timezone, store as UTC.
+		now := time.Now()
+		loc := time.UTC
+		if job.Timezone != "" && job.Timezone != "UTC" {
+			if l, err := time.LoadLocation(job.Timezone); err == nil {
+				loc = l
+			}
+		}
+		next, _ := cairncron.NextRun(job.Schedule, now.In(loc))
+		l.cronStore.UpdateAfterRun(ctx, job.ID, time.Now().UTC(), next.UTC())
 		l.cronStore.RecordExecution(ctx, job.ID, t.ID, "fired", nil)
 		l.logger.Info("cron: task submitted", "job", job.Name, "task", t.ID, "nextRun", next)
 	}

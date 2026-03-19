@@ -9,11 +9,10 @@ import (
 )
 
 type createCronParams struct {
-	Name        string  `json:"name" desc:"Unique name for the cron job (e.g. morning-email)"`
-	Schedule    string  `json:"schedule" desc:"5-field cron expression (e.g. '0 9 * * 1-5' for weekdays at 9am)"`
-	Instruction string  `json:"instruction" desc:"Natural language instruction for what the agent should do each time"`
-	Priority    *int    `json:"priority" desc:"Task priority 0-4 (0=critical, 2=normal, 4=idle). Default: 3 (low)"`
-	Description *string `json:"description" desc:"Optional description of the cron job"`
+	Name        string `json:"name" desc:"Unique name for the cron job (e.g. morning-email)"`
+	Schedule    string `json:"schedule" desc:"5-field cron expression (e.g. '0 9 * * 1-5' for weekdays at 9am)"`
+	Instruction string `json:"instruction" desc:"Natural language instruction for what the agent should do each time"`
+	Priority    *int   `json:"priority" desc:"Task priority 0-4 (0=critical, 2=normal, 4=idle). Default: 3 (low)"`
 }
 
 var createCron = tool.Define("cairn.createCron",

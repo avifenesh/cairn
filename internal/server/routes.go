@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -1581,9 +1582,9 @@ func (s *Server) handleCreateCron(w http.ResponseWriter, r *http.Request) {
 		Schedule    string `json:"schedule"`
 		Instruction string `json:"instruction"`
 		Description string `json:"description"`
-		Priority    int    `json:"priority"`
+		Priority    *int   `json:"priority"`
 		Timezone    string `json:"timezone"`
-		CooldownMs  int64  `json:"cooldownMs"`
+		CooldownMs  *int64 `json:"cooldownMs"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
@@ -1593,14 +1594,17 @@ func (s *Server) handleCreateCron(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "name, schedule, and instruction are required")
 		return
 	}
-	if req.Priority == 0 {
-		req.Priority = 3
+	priority := 3
+	if req.Priority != nil {
+		priority = *req.Priority
 	}
-	if req.Timezone == "" {
-		req.Timezone = "UTC"
+	tz := req.Timezone
+	if tz == "" {
+		tz = "UTC"
 	}
-	if req.CooldownMs == 0 {
-		req.CooldownMs = 3600000
+	var cooldown int64 = 3600000
+	if req.CooldownMs != nil {
+		cooldown = *req.CooldownMs
 	}
 
 	job := &cron.CronJob{
@@ -1609,9 +1613,9 @@ func (s *Server) handleCreateCron(w http.ResponseWriter, r *http.Request) {
 		Description: req.Description,
 		Schedule:    req.Schedule,
 		Instruction: req.Instruction,
-		Timezone:    req.Timezone,
-		Priority:    req.Priority,
-		CooldownMs:  req.CooldownMs,
+		Timezone:    tz,
+		Priority:    priority,
+		CooldownMs:  cooldown,
 	}
 	if err := s.cronStore.Create(r.Context(), job); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -1645,17 +1649,29 @@ func (s *Server) handleUpdateCron(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.cronStore.Update(r.Context(), id, req.Enabled, req.Schedule, req.Instruction, req.Description, req.Priority); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		if err == sql.ErrNoRows {
+			writeError(w, http.StatusNotFound, "cron job not found")
+		} else {
+			writeError(w, http.StatusBadRequest, err.Error())
+		}
 		return
 	}
-	job, _ := s.cronStore.Get(r.Context(), id)
+	job, err := s.cronStore.Get(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "cron job not found")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "job": job})
 }
 
 func (s *Server) handleDeleteCron(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := s.cronStore.Delete(r.Context(), id); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+		if err == sql.ErrNoRows {
+			writeError(w, http.StatusNotFound, "cron job not found")
+		} else {
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})

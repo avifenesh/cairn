@@ -20,6 +20,9 @@ type LoopState struct {
 // Returns the restored state (zero values if no prior state exists).
 func RecoverOnStartup(ctx context.Context, db *sql.DB, logger *slog.Logger) LoopState {
 	state := LoopState{}
+	if db == nil {
+		return state
+	}
 
 	// 1. Restore loop state.
 	var tickCount int64
@@ -44,11 +47,11 @@ func RecoverOnStartup(ctx context.Context, db *sql.DB, logger *slog.Logger) Loop
 	now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
 	result, err := db.ExecContext(ctx,
 		`UPDATE tasks SET status = 'failed', error = 'stuck_task_recovery: server restarted',
-		 updated_at = ?, completed_at = ?
+		 completed_at = ?
 		 WHERE status IN ('running', 'claimed')
 		   AND lease_expires_at IS NOT NULL
 		   AND lease_expires_at < ?`,
-		now, now, now)
+		now, now)
 	if err != nil {
 		logger.Warn("stuck task recovery failed", "error", err)
 	} else if n, _ := result.RowsAffected(); n > 0 {

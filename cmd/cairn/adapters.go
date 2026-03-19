@@ -417,6 +417,7 @@ func (a *cronAdapter) Create(ctx context.Context, name, schedule, instruction st
 		Name:        name,
 		Schedule:    schedule,
 		Instruction: instruction,
+		Timezone:    "UTC",
 		Priority:    priority,
 		CooldownMs:  3600000,
 	}
@@ -449,10 +450,11 @@ func (a *cronAdapter) List(ctx context.Context) ([]tool.CronJobInfo, error) {
 }
 
 func (a *cronAdapter) Delete(ctx context.Context, idOrName string) error {
-	// Try by ID first, then by name.
+	// Try by ID first.
 	if err := a.store.Delete(ctx, idOrName); err == nil {
 		return nil
 	}
+	// Fall back to name lookup.
 	job, err := a.store.GetByName(ctx, idOrName)
 	if err != nil {
 		return fmt.Errorf("cron job %q not found", idOrName)

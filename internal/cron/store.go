@@ -60,9 +60,16 @@ func (s *Store) Create(ctx context.Context, job *CronJob) error {
 	job.CreatedAt = now
 	job.UpdatedAt = now
 
-	// Compute initial next_run.
-	if next, err := NextRun(job.Schedule, now); err == nil {
-		job.NextRunAt = &next
+	// Compute initial next_run in the job's timezone.
+	loc := time.UTC
+	if job.Timezone != "" && job.Timezone != "UTC" {
+		if l, err := time.LoadLocation(job.Timezone); err == nil {
+			loc = l
+		}
+	}
+	if next, err := NextRun(job.Schedule, now.In(loc)); err == nil {
+		nextUTC := next.UTC()
+		job.NextRunAt = &nextUTC
 	}
 
 	_, err := s.db.ExecContext(ctx,
@@ -150,14 +157,29 @@ func (s *Store) Update(ctx context.Context, id string, enabled *bool, schedule, 
 
 	args = append(args, id)
 	query := "UPDATE cron_jobs SET " + joinStrings(sets, ", ") + " WHERE id = ?"
-	_, err := s.db.ExecContext(ctx, query, args...)
-	return err
+	result, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // Delete removes a cron job by ID. Cascade deletes executions.
+// Returns an error if the job does not exist.
 func (s *Store) Delete(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx, "DELETE FROM cron_jobs WHERE id = ?", id)
-	return err
+	result, err := s.db.ExecContext(ctx, "DELETE FROM cron_jobs WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // GetDueJobs returns enabled jobs that are due to run.

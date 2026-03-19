@@ -26,7 +26,7 @@ func testRecoveryDB(t *testing.T) *sql.DB {
 			id TEXT PRIMARY KEY, type TEXT, status TEXT NOT NULL,
 			description TEXT, error TEXT, priority INTEGER DEFAULT 0,
 			lease_owner TEXT, lease_expires_at TEXT,
-			created_at TEXT, updated_at TEXT, completed_at TEXT)`,
+			created_at TEXT, completed_at TEXT)`,
 	} {
 		if _, err := db.Exec(ddl); err != nil {
 			t.Fatalf("create table: %v", err)
@@ -72,15 +72,15 @@ func TestRecoverOnStartup_FailsStuckTasks(t *testing.T) {
 	// Insert stuck task (claimed, lease expired 10 min ago).
 	expired := time.Now().UTC().Add(-10 * time.Minute).Format("2006-01-02T15:04:05Z")
 	now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
-	db.Exec(`INSERT INTO tasks (id, type, status, description, lease_owner, lease_expires_at, created_at, updated_at)
-		VALUES ('stuck1', 'general', 'running', 'stuck task', 'engine', ?, ?, ?)`,
-		expired, now, now)
+	db.Exec(`INSERT INTO tasks (id, type, status, description, lease_owner, lease_expires_at, created_at)
+		VALUES ('stuck1', 'general', 'running', 'stuck task', 'engine', ?, ?)`,
+		expired, now)
 
 	// Insert active task (claimed, lease not expired).
 	future := time.Now().UTC().Add(5 * time.Minute).Format("2006-01-02T15:04:05Z")
-	db.Exec(`INSERT INTO tasks (id, type, status, description, lease_owner, lease_expires_at, created_at, updated_at)
-		VALUES ('active1', 'general', 'running', 'active task', 'engine', ?, ?, ?)`,
-		future, now, now)
+	db.Exec(`INSERT INTO tasks (id, type, status, description, lease_owner, lease_expires_at, created_at)
+		VALUES ('active1', 'general', 'running', 'active task', 'engine', ?, ?)`,
+		future, now)
 
 	RecoverOnStartup(context.Background(), db, logger)
 

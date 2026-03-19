@@ -58,6 +58,13 @@ type Config struct {
 	MemoryDecayHalfLife   float64 // Days (default: 30)
 	MemoryStaleThreshold  float64 // Days (default: 14)
 
+	// Embeddings
+	EmbeddingEnabled    bool   // EMBEDDING_ENABLED (default: true when API key present)
+	EmbeddingModel      string // EMBEDDING_MODEL (auto: "embedding-3" for GLM)
+	EmbeddingDimensions int    // EMBEDDING_DIMENSIONS (default: 2048)
+	EmbeddingBaseURL    string // EMBEDDING_BASE_URL (defaults to LLM base URL)
+	EmbeddingAPIKey     string // EMBEDDING_API_KEY (defaults to LLM API key)
+
 	// Budget
 	BudgetDailyCap  float64 // Daily LLM spend cap USD (0 = unlimited)
 	BudgetWeeklyCap float64 // Weekly LLM spend cap USD (0 = unlimited)
@@ -174,6 +181,11 @@ func Load() (*Config, error) {
 		MemoryHardRuleReserve: envInt("MEMORY_HARD_RULE_RESERVE", 500),
 		MemoryDecayHalfLife:   envFloat("MEMORY_DECAY_HALF_LIFE", 30),
 		MemoryStaleThreshold:  envFloat("MEMORY_STALE_THRESHOLD", 14),
+		EmbeddingEnabled:      envBool("EMBEDDING_ENABLED", apiKey != ""),
+		EmbeddingModel:        embeddingModel(provider),
+		EmbeddingDimensions:   envInt("EMBEDDING_DIMENSIONS", 2048),
+		EmbeddingBaseURL:      envStr("EMBEDDING_BASE_URL", baseURL),
+		EmbeddingAPIKey:       envStr("EMBEDDING_API_KEY", apiKey),
 		BudgetDailyCap:        envFloat("BUDGET_DAILY_CAP", envFloat("BEDROCK_DAILY_BUDGET_USD", envFloat("IDLE_BUDGET_CAP_USD", 0))),
 		BudgetWeeklyCap:       envFloat("BUDGET_WEEKLY_CAP", envFloat("BEDROCK_WEEKLY_BUDGET_USD", 0)),
 		AgentTickInterval:     envInt("AGENT_TICK_INTERVAL", 60),
@@ -318,6 +330,21 @@ func skillDirs() []string {
 	}
 
 	return dirs
+}
+
+// embeddingModel returns the default embedding model for the given LLM provider.
+func embeddingModel(provider string) string {
+	if v := envStr("EMBEDDING_MODEL", ""); v != "" {
+		return v
+	}
+	switch provider {
+	case "glm", "zhipu":
+		return "embedding-3"
+	case "openai":
+		return "text-embedding-3-small"
+	default:
+		return "embedding-3"
+	}
 }
 
 // envMap parses JSON from an env var into map[string]string.

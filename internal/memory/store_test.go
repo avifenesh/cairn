@@ -319,3 +319,73 @@ func TestStore_EmbeddingRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestStore_AllAcceptedWithoutEmbeddings(t *testing.T) {
+	d := openTestDB(t)
+	store := NewStore(d)
+	ctx := context.Background()
+
+	// Create memory with embedding.
+	m1 := &Memory{Content: "has embedding", Status: StatusAccepted, Embedding: []float32{0.1, 0.2}}
+	if err := store.Create(ctx, m1); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create memory without embedding.
+	m2 := &Memory{Content: "no embedding", Status: StatusAccepted}
+	if err := store.Create(ctx, m2); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create proposed memory without embedding (should not appear).
+	m3 := &Memory{Content: "proposed", Status: StatusProposed}
+	if err := store.Create(ctx, m3); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := store.AllAcceptedWithoutEmbeddings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if results[0].ID != m2.ID {
+		t.Fatalf("expected ID %s, got %s", m2.ID, results[0].ID)
+	}
+}
+
+func TestStore_UpdateEmbedding(t *testing.T) {
+	d := openTestDB(t)
+	store := NewStore(d)
+	ctx := context.Background()
+
+	// Create memory without embedding.
+	m := &Memory{Content: "test", Status: StatusAccepted}
+	if err := store.Create(ctx, m); err != nil {
+		t.Fatal(err)
+	}
+
+	// Update embedding.
+	vec := []float32{0.5, 0.6, 0.7}
+	if err := store.UpdateEmbedding(ctx, m.ID, vec); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify.
+	got, err := store.Get(ctx, m.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Embedding) != 3 {
+		t.Fatalf("expected 3 dims, got %d", len(got.Embedding))
+	}
+	if got.Embedding[0] != 0.5 {
+		t.Fatalf("expected 0.5, got %f", got.Embedding[0])
+	}
+
+	// Update non-existent ID should fail.
+	if err := store.UpdateEmbedding(ctx, "nonexistent", vec); err == nil {
+		t.Fatal("expected error for non-existent ID")
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
+	cairnchannel "github.com/avifenesh/cairn/internal/channel"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/signal"
 	"github.com/avifenesh/cairn/internal/skill"
@@ -382,4 +383,24 @@ func skillToItem(sk *skill.Skill) *tool.SkillItem {
 		Location:     filepath.Dir(sk.Location),
 		DisableModel: sk.DisableModel,
 	}
+}
+
+// notifierAdapter bridges channel.Router to tool.NotifyService.
+type notifierAdapter struct {
+	router *cairnchannel.Router
+}
+
+func (a *notifierAdapter) Notify(ctx context.Context, text string, priority int) {
+	a.router.Notify(ctx, &cairnchannel.OutgoingMessage{
+		Text:     text,
+		Priority: cairnchannel.Priority(priority),
+	})
+}
+
+func (a *notifierAdapter) FlushDigest(ctx context.Context) int {
+	return a.router.FlushDigest(ctx)
+}
+
+func (a *notifierAdapter) DigestLen() int {
+	return a.router.DigestLen()
 }

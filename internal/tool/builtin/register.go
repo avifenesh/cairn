@@ -43,6 +43,8 @@ func All() []tool.Tool {
 		// Skill tools.
 		loadSkill,
 		listSkills,
+		// Notification tool.
+		notify,
 	}
 
 	// Web tools: Z.ai (GLM) or SearXNG/direct.

@@ -461,6 +461,9 @@ func runServe(logger *slog.Logger) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Notify adapter — set when channels are configured, nil otherwise.
+	var notifyAdapt tool.NotifyService
+
 	// Start channel router if any channels are configured.
 	if cfg.TelegramBotToken != "" || cfg.DiscordBotToken != "" || cfg.SlackBotToken != "" {
 		channelSessionStore := cairnchannel.NewSessionStore(database.DB)
@@ -544,6 +547,7 @@ func runServe(logger *slog.Logger) {
 				ToolTasks:      taskAdapt,
 				ToolStatus:     statusAdapt,
 				ToolSkills:     skillAdapt,
+				ToolNotifier:   notifyAdapt,
 				Config:         &agent.AgentConfig{Model: cfg.LLMModel},
 				CompactionConfig: agent.CompactionConfig{
 					TriggerTokens:   cfg.CompactionTriggerTokens,
@@ -612,6 +616,21 @@ func runServe(logger *slog.Logger) {
 		}
 
 		channelRouter := cairnchannel.NewRouter(channelHandler, logger)
+		notifyCfg := &cairnchannel.NotifyConfig{
+			PreferredChannel: cfg.PreferredChannel,
+			QuietHoursStart:  cfg.QuietHoursStart,
+			QuietHoursEnd:    cfg.QuietHoursEnd,
+			QuietHoursTZ:     cfg.QuietHoursTZ,
+		}
+		channelRouter.SetNotifyConfig(notifyCfg)
+
+		// Sync NotifyConfig when runtime config is patched.
+		srv.OnConfigPatch = func() {
+			notifyCfg.PreferredChannel = cfg.PreferredChannel
+			notifyCfg.QuietHoursStart = cfg.QuietHoursStart
+			notifyCfg.QuietHoursEnd = cfg.QuietHoursEnd
+			notifyCfg.QuietHoursTZ = cfg.QuietHoursTZ
+		}
 
 		if cfg.TelegramBotToken != "" {
 			tg, err := cairnchannel.NewTelegram(cairnchannel.TelegramConfig{
@@ -653,6 +672,9 @@ func runServe(logger *slog.Logger) {
 			}
 		}
 
+		// Wire notifier adapter for tools.
+		notifyAdapt = &notifierAdapter{router: channelRouter}
+
 		// Start router in background — stopped by ctx cancel on shutdown.
 		go func() {
 			if err := channelRouter.Start(ctx); err != nil && err != context.Canceled {
@@ -676,6 +698,7 @@ func runServe(logger *slog.Logger) {
 			Tasks:    taskAdapt,
 			Status:   statusAdapt,
 			Skills:   skillAdapt,
+			Notifier: notifyAdapt,
 		}
 		mcpSrv := cairnmcp.New(cairnmcp.Config{
 			Port:           cfg.MCPPort,

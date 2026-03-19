@@ -1209,6 +1209,10 @@ func (s *Server) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
 		s.logger.Warn("failed to save config overrides", "error", err)
 	}
 
+	if s.OnConfigPatch != nil {
+		s.OnConfigPatch()
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "config": s.config.GetPatchable()})
 }
 

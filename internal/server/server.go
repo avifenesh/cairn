@@ -55,6 +55,10 @@ type Server struct {
 
 	// Voice service (optional).
 	voice *voice.Service
+
+	// OnConfigPatch is called after PATCH /v1/config is applied.
+	// Allows external subsystems to react to config changes.
+	OnConfigPatch func()
 }
 
 // ServerConfig carries all dependencies needed to construct a Server.

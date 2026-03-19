@@ -163,6 +163,13 @@ type PollerInfo struct {
 	Active bool
 }
 
+// NotifyService sends priority-routed notifications to channels.
+type NotifyService interface {
+	Notify(ctx context.Context, text string, priority int)
+	FlushDigest(ctx context.Context) int
+	DigestLen() int
+}
+
 // SkillService provides access to the skill system.
 type SkillService interface {
 	Get(name string) *SkillItem
@@ -216,6 +223,7 @@ type ToolContext struct {
 	Tasks    TaskService
 	Status   StatusService
 	Skills   SkillService
+	Notifier NotifyService
 
 	// ActivateSkill is called by cairn.loadSkill to register a skill in the session.
 	// Set by the ReAct loop before tool execution. Nil = activation not supported.

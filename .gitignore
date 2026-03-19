@@ -29,5 +29,8 @@ data/
 .env
 .env.*
 
+# Soul (personal, machine-specific)
+SOUL.md
+
 # Test
 coverage.out

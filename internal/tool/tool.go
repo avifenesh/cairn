@@ -42,8 +42,11 @@ type MemorySearchResult struct {
 // EventService is the interface tools use to interact with the signal plane.
 type EventService interface {
 	List(ctx context.Context, f EventFilter) ([]*StoredEvent, error)
+	Count(ctx context.Context, f EventFilter) (int, error)
 	MarkRead(ctx context.Context, id string) error
 	MarkAllRead(ctx context.Context) (int, error)
+	Archive(ctx context.Context, id string) error
+	DeleteByID(ctx context.Context, id string) error
 	Ingest(ctx context.Context, events []*IngestEvent) ([]*IngestEvent, error)
 }
 
@@ -65,19 +68,23 @@ type EventFilter struct {
 	Kind       string
 	UnreadOnly bool
 	Limit      int
+	Before     string // cursor: events before this ID (for pagination)
 }
 
 // StoredEvent is a tool-level representation of a signal event.
 type StoredEvent struct {
-	ID        string
-	Source    string
-	Kind      string
-	Title     string
-	Body      string
-	URL       string
-	Actor     string
-	CreatedAt time.Time
-	ReadAt    *time.Time
+	ID         string
+	Source     string
+	Kind       string
+	Title      string
+	Body       string
+	URL        string
+	Actor      string
+	GroupKey   string
+	Metadata   map[string]any
+	CreatedAt  time.Time
+	ReadAt     *time.Time
+	ArchivedAt *time.Time
 }
 
 // DigestService generates feed digests.

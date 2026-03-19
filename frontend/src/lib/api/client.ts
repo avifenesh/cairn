@@ -134,6 +134,7 @@ export const getFeed = (params?: {
 	limit?: number;
 	before?: string;
 	source?: string;
+	kind?: string;
 	unread?: boolean;
 }) => {
 	if (useMocks()) return Promise.resolve({ items: mockFeedItems, hasMore: false });
@@ -141,18 +142,27 @@ export const getFeed = (params?: {
 	if (params?.limit) q.set('limit', String(params.limit));
 	if (params?.before) q.set('before', params.before);
 	if (params?.source) q.set('source', params.source);
+	if (params?.kind) q.set('kind', params.kind);
 	if (params?.unread !== undefined) q.set('unread', String(params.unread));
 	const qs = q.toString();
 	return get<{ items: FeedItem[]; hasMore: boolean }>(`/v1/feed${qs ? '?' + qs : ''}`);
 };
 
-export const markRead = (id: number) => {
+export const markRead = (id: string) => {
 	if (useMocks()) return Promise.resolve({ ok: true });
 	return post<{ ok: boolean }>(`/v1/feed/${id}/read`);
 };
 export const markAllRead = () => {
 	if (useMocks()) return Promise.resolve({ changed: 0 });
 	return post<{ changed: number }>('/v1/feed/read-all');
+};
+export const archiveFeedItem = (id: string) => {
+	if (useMocks()) return Promise.resolve({ ok: true });
+	return post<{ ok: boolean }>(`/v1/feed/${id}/archive`);
+};
+export const deleteFeedItem = (id: string) => {
+	if (useMocks()) return Promise.resolve({ ok: true });
+	return del<{ ok: boolean }>(`/v1/feed/${id}`);
 };
 
 // Tasks

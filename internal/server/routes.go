@@ -37,6 +37,10 @@ func (s *Server) registerRoutes() {
 
 	// Feed.
 	s.mux.HandleFunc("GET /v1/feed", s.handleListFeed)
+	s.mux.HandleFunc("POST /v1/feed/{id}/read", s.handleMarkFeedRead)
+	s.mux.HandleFunc("POST /v1/feed/read-all", s.handleMarkAllFeedRead)
+	s.mux.HandleFunc("POST /v1/feed/{id}/archive", s.handleArchiveFeed)
+	s.mux.HandleFunc("DELETE /v1/feed/{id}", s.handleDeleteFeed)
 	s.mux.HandleFunc("GET /v1/dashboard", s.handleDashboard)
 
 	// Tasks.
@@ -126,19 +130,191 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 // --- Feed ---
 
 func (s *Server) handleListFeed(w http.ResponseWriter, r *http.Request) {
-	// Stub: feed events would come from a feed store.
-	// For now return empty list.
+	if s.toolEvents == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"items": []any{}, "hasMore": false})
+		return
+	}
+
+	q := r.URL.Query()
+	limit := 50
+	if v := q.Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
+			limit = n
+		}
+	}
+
+	f := tool.EventFilter{
+		Source:     q.Get("source"),
+		Kind:       q.Get("kind"),
+		UnreadOnly: q.Get("unread") == "true",
+		Limit:      limit + 1, // fetch one extra to determine hasMore
+		Before:     q.Get("before"),
+	}
+
+	events, err := s.toolEvents.List(r.Context(), f)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	hasMore := len(events) > limit
+	if hasMore {
+		events = events[:limit]
+	}
+
+	items := make([]map[string]any, 0, len(events))
+	for _, ev := range events {
+		item := map[string]any{
+			"id":        ev.ID,
+			"source":    ev.Source,
+			"kind":      ev.Kind,
+			"title":     ev.Title,
+			"body":      ev.Body,
+			"url":       ev.URL,
+			"author":    ev.Actor,
+			"groupKey":  ev.GroupKey,
+			"isRead":    ev.ReadAt != nil,
+			"isArchived": ev.ArchivedAt != nil,
+			"createdAt": ev.CreatedAt.Format(time.RFC3339),
+		}
+		if ev.Metadata != nil {
+			item["metadata"] = ev.Metadata
+		}
+		items = append(items, item)
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items": []any{},
-		"total": 0,
+		"items":   items,
+		"hasMore": hasMore,
 	})
+}
+
+func (s *Server) handleMarkFeedRead(w http.ResponseWriter, r *http.Request) {
+	if s.toolEvents == nil {
+		writeError(w, http.StatusServiceUnavailable, "event service not available")
+		return
+	}
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "id is required")
+		return
+	}
+	if err := s.toolEvents.MarkRead(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleMarkAllFeedRead(w http.ResponseWriter, r *http.Request) {
+	if s.toolEvents == nil {
+		writeError(w, http.StatusServiceUnavailable, "event service not available")
+		return
+	}
+	count, err := s.toolEvents.MarkAllRead(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"changed": count})
+}
+
+func (s *Server) handleArchiveFeed(w http.ResponseWriter, r *http.Request) {
+	if s.toolEvents == nil {
+		writeError(w, http.StatusServiceUnavailable, "event service not available")
+		return
+	}
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "id is required")
+		return
+	}
+	if err := s.toolEvents.Archive(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleDeleteFeed(w http.ResponseWriter, r *http.Request) {
+	if s.toolEvents == nil {
+		writeError(w, http.StatusServiceUnavailable, "event service not available")
+		return
+	}
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "id is required")
+		return
+	}
+	if err := s.toolEvents.DeleteByID(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	// Populate feed items from event store.
+	var feedItems []map[string]any
+	var stats map[string]any
+
+	if s.toolEvents != nil {
+		q := r.URL.Query()
+		limit := 20
+		if v := q.Get("limit"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
+				limit = n
+			}
+		}
+
+		events, err := s.toolEvents.List(ctx, tool.EventFilter{Limit: limit})
+		if err == nil {
+			feedItems = make([]map[string]any, 0, len(events))
+			for _, ev := range events {
+				feedItems = append(feedItems, map[string]any{
+					"id":         ev.ID,
+					"source":     ev.Source,
+					"kind":       ev.Kind,
+					"title":      ev.Title,
+					"body":       ev.Body,
+					"url":        ev.URL,
+					"author":     ev.Actor,
+					"groupKey":   ev.GroupKey,
+					"isRead":     ev.ReadAt != nil,
+					"isArchived": ev.ArchivedAt != nil,
+					"createdAt":  ev.CreatedAt.Format(time.RFC3339),
+				})
+			}
+		}
+
+		total, _ := s.toolEvents.Count(ctx, tool.EventFilter{})
+		unread, _ := s.toolEvents.Count(ctx, tool.EventFilter{UnreadOnly: true})
+
+		// Count by source.
+		bySource := map[string]int{}
+		for _, ev := range events {
+			bySource[ev.Source]++
+		}
+
+		stats = map[string]any{
+			"total":    total,
+			"unread":   unread,
+			"bySource": bySource,
+		}
+	}
+
+	if feedItems == nil {
+		feedItems = []map[string]any{}
+	}
+	if stats == nil {
+		stats = map[string]any{}
+	}
+
 	result := map[string]any{
-		"feed":  []any{},
-		"stats": map[string]any{},
+		"feed":  feedItems,
+		"stats": stats,
 	}
 
 	// Populate task counts if available.
@@ -160,7 +336,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	if s.memories != nil {
 		mems, err := s.memories.List(ctx, memory.ListOpts{Limit: 1})
 		if err == nil {
-			result["stats"].(map[string]any)["memories"] = len(mems)
+			stats["memories"] = len(mems)
 		}
 	}
 

@@ -164,6 +164,33 @@ func (s *EventStore) MarkAllRead(ctx context.Context) (int, error) {
 	return int(n), nil
 }
 
+// Archive sets archived_at on a single event.
+func (s *EventStore) Archive(ctx context.Context, id string) error {
+	now := time.Now().UTC().Format(timeFormat)
+	res, err := s.db.ExecContext(ctx, "UPDATE events SET archived_at = ? WHERE id = ? AND archived_at IS NULL", now, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("signal: event %s not found or already archived", id)
+	}
+	return nil
+}
+
+// DeleteByID hard-deletes a single event by ID.
+func (s *EventStore) DeleteByID(ctx context.Context, id string) error {
+	res, err := s.db.ExecContext(ctx, "DELETE FROM events WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("signal: event %s not found", id)
+	}
+	return nil
+}
+
 // Delete removes events older than the given duration.
 func (s *EventStore) Delete(ctx context.Context, olderThan time.Duration) (int, error) {
 	cutoff := time.Now().UTC().Add(-olderThan).Format(timeFormat)

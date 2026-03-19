@@ -6,11 +6,12 @@ import type { FeedItem as FeedItemType } from '$lib/types';
 // Mock the API client
 vi.mock('$lib/api/client', () => ({
 	markRead: vi.fn(() => Promise.resolve({ ok: true })),
+	archiveFeedItem: vi.fn(() => Promise.resolve({ ok: true })),
 }));
 
 function makeItem(overrides: Partial<FeedItemType> = {}): FeedItemType {
 	return {
-		id: 1,
+		id: 'ev_test1',
 		source: 'github',
 		kind: 'push',
 		title: 'Test push event',
@@ -70,6 +71,24 @@ describe('FeedItem', () => {
 	it('does not show mark-read button for read items', () => {
 		const { container } = render(FeedItem, { item: makeItem({ isRead: true }) });
 		const button = container.querySelector('button[title="Mark as read"]');
+		expect(button).toBeFalsy();
+	});
+
+	it('shows archive button', () => {
+		const { container } = render(FeedItem, { item: makeItem() });
+		const button = container.querySelector('button[title="Archive"]');
+		expect(button).toBeTruthy();
+	});
+
+	it('shows delete button when ondelete prop is provided', () => {
+		const { container } = render(FeedItem, { item: makeItem(), ondelete: () => {} });
+		const button = container.querySelector('button[title="Delete"]');
+		expect(button).toBeTruthy();
+	});
+
+	it('does not show delete button when ondelete is not provided', () => {
+		const { container } = render(FeedItem, { item: makeItem() });
+		const button = container.querySelector('button[title="Delete"]');
 		expect(button).toBeFalsy();
 	});
 });

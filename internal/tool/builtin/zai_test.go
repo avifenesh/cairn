@@ -41,9 +41,9 @@ func TestZaiToolCount(t *testing.T) {
 
 	SetZaiConfig("test-key", "http://localhost")
 	tools := All()
-	// 22 base + 5 Z.ai tools = 27
-	if len(tools) != 27 {
-		t.Fatalf("expected 27 tools with Z.ai enabled, got %d", len(tools))
+	// 24 base + 5 Z.ai tools = 29
+	if len(tools) != 29 {
+		t.Fatalf("expected 29 tools with Z.ai enabled, got %d", len(tools))
 	}
 
 	names := make(map[string]bool)
@@ -67,9 +67,9 @@ func TestZaiDefaultToolCount(t *testing.T) {
 
 	SetZaiConfig("", "")
 	tools := All()
-	// 22 base + 2 SearXNG tools = 24
-	if len(tools) != 24 {
-		t.Fatalf("expected 24 tools with Z.ai disabled, got %d", len(tools))
+	// 24 base + 2 SearXNG tools = 26
+	if len(tools) != 26 {
+		t.Fatalf("expected 26 tools with Z.ai disabled, got %d", len(tools))
 	}
 }
 

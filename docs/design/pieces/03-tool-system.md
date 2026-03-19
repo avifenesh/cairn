@@ -80,21 +80,19 @@ func EvaluatePermission(tool, pattern string, rules []PermissionRule) Permission
 
 | Tool | Modes | Permission | Description |
 |------|-------|------------|-------------|
-| `pub.readFile` | all | allow | Read file contents |
-| `pub.writeFile` | work, coding | ask(*.env,*.key) | Write file |
-| `pub.editFile` | work, coding | ask(*.env,*.key) | Patch file with search/replace |
-| `pub.deleteFile` | coding | ask | Delete file |
-| `pub.listFiles` | all | allow | List directory |
-| `pub.searchFiles` | all | allow | Grep/ripgrep search |
-| `pub.shell` | work, coding | ask | Execute shell command |
-| `pub.gitRun` | coding | allow | Git operations |
-| `pub.createPR` | coding | allow(branches), ask(main) | Create GitHub PR |
-| `pub.webSearch` | all | allow | Search via SearXNG |
-| `pub.webFetch` | all | allow | Fetch URL content |
-| `pub.createMemory` | all | allow | Store a memory |
-| `pub.searchMemories` | all | allow | RAG memory search |
-| `pub.createArtifact` | work, coding | allow | Create doc/patch artifact |
-| `pub.deploy` | coding | ask | Deploy (systemd restart) |
+| `cairn.readFile` | all | allow | Read file contents |
+| `cairn.writeFile` | work, coding | ask(*.env,*.key) | Write file |
+| `cairn.editFile` | work, coding | ask(*.env,*.key) | Patch file with search/replace |
+| `cairn.deleteFile` | coding | ask | Delete file |
+| `cairn.listFiles` | all | allow | List directory |
+| `cairn.searchFiles` | all | allow | Grep/ripgrep search |
+| `cairn.shell` | work, coding | ask | Execute shell command (deny patterns, env filter, output cap) |
+| `cairn.gitRun` | work, coding | allow | Git operations (protected branch check) |
+| `cairn.webSearch` | all | allow | Search via SearXNG/Z.ai |
+| `cairn.webFetch` | all | allow | Fetch URL content |
+| `cairn.createMemory` | all | allow | Store a memory |
+| `cairn.searchMemory` | all | allow | RAG memory search |
+| `cairn.compose` | work, coding | allow | Create feed event |
 | `system.status` | all | allow | System health check |
 
 ## MCP Integration

@@ -16,15 +16,15 @@ const gitTimeout = 60 // seconds
 // protectedBranches are branches that cannot be pushed to directly.
 var protectedBranches = []string{"main", "master"}
 
-// gitRunParams are the parameters for pub.gitRun.
+// gitRunParams are the parameters for cairn.gitRun.
 type gitRunParams struct {
 	Args    []string `json:"args" desc:"Git command arguments (e.g., [\"status\", \"--short\"])"`
 	WorkDir string   `json:"workDir" desc:"Working directory (relative to work directory, default: work directory root)"`
 }
 
-var gitRun = tool.Define("pub.gitRun",
+var gitRun = tool.Define("cairn.gitRun",
 	"Run a git command in the worktree. Rejects push to main/master unless explicitly allowed.",
-	[]tool.Mode{tool.ModeCoding},
+	[]tool.Mode{tool.ModeWork, tool.ModeCoding},
 	func(ctx *tool.ToolContext, p gitRunParams) (*tool.ToolResult, error) {
 		if len(p.Args) == 0 {
 			return &tool.ToolResult{Error: "no git arguments provided"}, nil
@@ -60,6 +60,7 @@ var gitRun = tool.Define("pub.gitRun",
 
 		cmd := exec.CommandContext(execCtx, "git", p.Args...)
 		cmd.Dir = workDir
+		cmd.Env = filteredEnv()
 
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout

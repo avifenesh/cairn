@@ -8,8 +8,8 @@ import (
 
 // testKnownTools is a shared list of tool names for validation tests.
 var testKnownTools = []string{
-	"pub.readFile", "pub.writeFile", "pub.editFile", "pub.deleteFile",
-	"pub.listFiles", "pub.searchFiles", "pub.shell", "pub.gitRun",
+	"cairn.readFile", "cairn.writeFile", "cairn.editFile", "cairn.deleteFile",
+	"cairn.listFiles", "cairn.searchFiles", "cairn.shell", "cairn.gitRun",
 	"cairn.loadSkill", "cairn.listSkills",
 }
 
@@ -17,7 +17,7 @@ func TestValidate_Clean(t *testing.T) {
 	sk := &Skill{
 		Name:         "deploy",
 		Description:  "Use when user asks to deploy the application",
-		AllowedTools: []string{"pub.readFile", "pub.shell"},
+		AllowedTools: []string{"cairn.readFile", "cairn.shell"},
 		DisableModel: true,
 		Location:     filepath.Join("skills", "deploy", "SKILL.md"),
 	}
@@ -35,7 +35,7 @@ func TestValidate_UnknownTool(t *testing.T) {
 	sk := &Skill{
 		Name:         "test-skill",
 		Description:  "Use when running tests on the project",
-		AllowedTools: []string{"pub.readFile", "pub.nonExistent"},
+		AllowedTools: []string{"cairn.readFile", "cairn.nonExistent"},
 		DisableModel: true,
 		Location:     filepath.Join("skills", "test-skill", "SKILL.md"),
 	}
@@ -44,12 +44,12 @@ func TestValidate_UnknownTool(t *testing.T) {
 
 	found := false
 	for _, iss := range issues {
-		if iss.Severity == SeverityWarning && strings.Contains(iss.Message, "pub.nonExistent") {
+		if iss.Severity == SeverityWarning && strings.Contains(iss.Message, "cairn.nonExistent") {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected warning about unknown tool pub.nonExistent")
+		t.Error("expected warning about unknown tool cairn.nonExistent")
 	}
 }
 
@@ -57,7 +57,7 @@ func TestValidate_ShellWithoutDisableModel(t *testing.T) {
 	sk := &Skill{
 		Name:         "risky",
 		Description:  "Use when user needs shell access for debugging",
-		AllowedTools: []string{"pub.shell"},
+		AllowedTools: []string{"cairn.shell"},
 		DisableModel: false, // should trigger warning
 		Location:     filepath.Join("skills", "risky", "SKILL.md"),
 	}
@@ -66,12 +66,12 @@ func TestValidate_ShellWithoutDisableModel(t *testing.T) {
 
 	found := false
 	for _, iss := range issues {
-		if iss.Severity == SeverityWarning && strings.Contains(iss.Message, "pub.shell") && strings.Contains(iss.Message, "disable-model-invocation") && strings.Contains(iss.Message, "security risk") {
+		if iss.Severity == SeverityWarning && strings.Contains(iss.Message, "cairn.shell") && strings.Contains(iss.Message, "disable-model-invocation") && strings.Contains(iss.Message, "security risk") {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("expected warning about pub.shell without disable-model-invocation")
+		t.Error("expected warning about cairn.shell without disable-model-invocation")
 	}
 }
 
@@ -133,11 +133,11 @@ func TestValidate_NoIssuesWhenNameMatchesDir(t *testing.T) {
 }
 
 func TestValidate_ShellWithDisableModel(t *testing.T) {
-	// pub.shell with disable-model-invocation=true should NOT warn.
+	// cairn.shell with disable-model-invocation=true should NOT warn.
 	sk := &Skill{
 		Name:         "safe-shell",
 		Description:  "Use when user asks to run safe shell commands",
-		AllowedTools: []string{"pub.shell"},
+		AllowedTools: []string{"cairn.shell"},
 		DisableModel: true,
 		Location:     filepath.Join("skills", "safe-shell", "SKILL.md"),
 	}
@@ -145,8 +145,8 @@ func TestValidate_ShellWithDisableModel(t *testing.T) {
 	issues := Validate(sk, testKnownTools)
 
 	for _, iss := range issues {
-		if strings.Contains(iss.Message, "pub.shell") && strings.Contains(iss.Message, "disable-model-invocation") && strings.Contains(iss.Message, "security risk") {
-			t.Error("should not warn about pub.shell when disable-model-invocation is true")
+		if strings.Contains(iss.Message, "cairn.shell") && strings.Contains(iss.Message, "disable-model-invocation") && strings.Contains(iss.Message, "security risk") {
+			t.Error("should not warn about cairn.shell when disable-model-invocation is true")
 		}
 	}
 }
@@ -155,7 +155,7 @@ func TestValidate_EmptyKnownTools(t *testing.T) {
 	sk := &Skill{
 		Name:         "any-tool",
 		Description:  "Use when user asks for anything involving tools",
-		AllowedTools: []string{"pub.readFile", "pub.writeFile"},
+		AllowedTools: []string{"cairn.readFile", "cairn.writeFile"},
 		DisableModel: true,
 		Location:     filepath.Join("skills", "any-tool", "SKILL.md"),
 	}

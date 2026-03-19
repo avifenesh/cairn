@@ -145,7 +145,7 @@ func TestSessionStore_ToolParts(t *testing.T) {
 		Parts: []Part{
 			TextPart{Text: "Let me read that file"},
 			ToolPart{
-				ToolName: "pub.readFile",
+				ToolName: "cairn.readFile",
 				CallID:   "call_123",
 				Status:   ToolCompleted,
 				Output:   "file contents here",

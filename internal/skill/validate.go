@@ -67,13 +67,13 @@ func Validate(sk *Skill, knownTools []string) []ValidationIssue {
 		}
 	}
 
-	// Check pub.shell without disable-model-invocation.
+	// Check cairn.shell without disable-model-invocation.
 	if !sk.DisableModel {
 		for _, t := range sk.AllowedTools {
-			if t == "pub.shell" {
+			if t == "cairn.shell" {
 				issues = append(issues, ValidationIssue{
 					Severity: SeverityWarning,
-					Message:  "skill allows 'pub.shell' without 'disable-model-invocation' being set to 'true', which is a security risk",
+					Message:  "skill allows 'cairn.shell' without 'disable-model-invocation' being set to 'true', which is a security risk",
 				})
 				break
 			}

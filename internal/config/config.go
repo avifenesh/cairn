@@ -73,6 +73,9 @@ type Config struct {
 	AgentTickInterval  int // Seconds (default: 60)
 	ReflectionInterval int // Seconds (default: 1800)
 
+	// Memory auto-extraction
+	MemoryAutoExtract bool // MEMORY_AUTO_EXTRACT (default: true)
+
 	// Session compaction
 	CompactionTriggerTokens int // COMPACTION_TRIGGER_TOKENS (default: 80000)
 	CompactionKeepRecent    int // COMPACTION_KEEP_RECENT (default: 10)
@@ -196,6 +199,7 @@ func Load() (*Config, error) {
 		BudgetWeeklyCap:         envFloat("BUDGET_WEEKLY_CAP", envFloat("BEDROCK_WEEKLY_BUDGET_USD", 0)),
 		AgentTickInterval:       envInt("AGENT_TICK_INTERVAL", 60),
 		ReflectionInterval:      envInt("REFLECTION_INTERVAL", 1800),
+		MemoryAutoExtract:       envBool("MEMORY_AUTO_EXTRACT", true),
 		CompactionTriggerTokens: envInt("COMPACTION_TRIGGER_TOKENS", 80000),
 		CompactionKeepRecent:    envInt("COMPACTION_KEEP_RECENT", 10),
 		CompactionMaxToolOutput: envInt("COMPACTION_MAX_TOOL_OUTPUT", 8000),

@@ -328,6 +328,13 @@ func runServe(logger *slog.Logger) {
 		logger.Info("signal: webhook handler ready", "webhooks", len(cfg.WebhookSecrets))
 	}
 
+	// Initialize memory extractor (used by both agent loop and channel handler).
+	var memExtractor *memory.Extractor
+	if cfg.MemoryAutoExtract && memService != nil && provider != nil {
+		memExtractor = memory.NewExtractor(memService, provider, cfg.LLMModel, logger)
+		logger.Info("memory auto-extraction enabled")
+	}
+
 	// Start always-on agent loop (if idle mode enabled and agent available).
 	if cfg.IdleModeEnabled && reactAgent != nil && provider != nil {
 		journaler := agent.NewJournaler(journalStore, provider, cfg.LLMModel)
@@ -350,6 +357,7 @@ func runServe(logger *slog.Logger) {
 			Provider:     provider,
 			Bus:          bus,
 			Journaler:    journaler,
+			Extractor:    memExtractor,
 			Reflector:    reflector,
 			Logger:       logger,
 			ToolMemories: memAdapter,
@@ -495,6 +503,16 @@ func runServe(logger *slog.Logger) {
 				if err := sessionStore.AppendEvent(ctx, sessionID, assistantEv); err != nil {
 					logger.Warn("channel: failed to persist assistant event", "error", err)
 				}
+			}
+
+			// Extract memories from channel conversation (fire-and-forget).
+			if memExtractor != nil && len(session.Events) >= 4 {
+				transcript := response.String() // Use the response as representative text
+				go func() {
+					ectx, ecancel := context.WithTimeout(context.Background(), 2*time.Minute)
+					defer ecancel()
+					memExtractor.Extract(ectx, "User: "+text+"\nAssistant: "+transcript)
+				}()
 			}
 
 			return &cairnchannel.OutgoingMessage{Text: response.String()}, nil

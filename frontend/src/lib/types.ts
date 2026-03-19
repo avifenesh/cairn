@@ -1,7 +1,7 @@
 // Core domain types matching the Go backend API contract
 
 export interface FeedItem {
-	id: number;
+	id: string;
 	source: string;
 	kind: string;
 	title: string;
@@ -13,6 +13,7 @@ export interface FeedItem {
 	isRead: boolean;
 	isArchived: boolean;
 	groupKey?: string;
+	metadata?: Record<string, unknown>;
 	createdAt: string;
 }
 

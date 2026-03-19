@@ -96,6 +96,9 @@ func buildWhere(f EventFilter) (string, []any) {
 	if f.UnreadOnly {
 		clauses = append(clauses, "read_at IS NULL")
 	}
+	if f.ExcludeArchived {
+		clauses = append(clauses, "archived_at IS NULL")
+	}
 	if f.Before != "" {
 		// Stable cursor: tie-break on id for events sharing the same timestamp.
 		clauses = append(clauses, "(created_at, id) < ((SELECT created_at FROM events WHERE id = ?), ?)")
@@ -146,6 +149,25 @@ func (s *EventStore) Count(ctx context.Context, f EventFilter) (int, error) {
 	return count, err
 }
 
+// CountBySource returns event counts grouped by source (excluding archived).
+func (s *EventStore) CountBySource(ctx context.Context) (map[string]int, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT source, COUNT(*) FROM events WHERE archived_at IS NULL GROUP BY source")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := map[string]int{}
+	for rows.Next() {
+		var source string
+		var count int
+		if err := rows.Scan(&source, &count); err != nil {
+			return nil, err
+		}
+		result[source] = count
+	}
+	return result, rows.Err()
+}
+
 // MarkRead marks an event as read.
 func (s *EventStore) MarkRead(ctx context.Context, id string) error {
 	now := time.Now().UTC().Format(timeFormat)
@@ -162,6 +184,33 @@ func (s *EventStore) MarkAllRead(ctx context.Context) (int, error) {
 	}
 	n, _ := res.RowsAffected()
 	return int(n), nil
+}
+
+// Archive sets archived_at on a single event.
+func (s *EventStore) Archive(ctx context.Context, id string) error {
+	now := time.Now().UTC().Format(timeFormat)
+	res, err := s.db.ExecContext(ctx, "UPDATE events SET archived_at = ? WHERE id = ? AND archived_at IS NULL", now, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("signal: event %s not found or already archived", id)
+	}
+	return nil
+}
+
+// DeleteByID hard-deletes a single event by ID.
+func (s *EventStore) DeleteByID(ctx context.Context, id string) error {
+	res, err := s.db.ExecContext(ctx, "DELETE FROM events WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("signal: event %s not found", id)
+	}
+	return nil
 }
 
 // Delete removes events older than the given duration.

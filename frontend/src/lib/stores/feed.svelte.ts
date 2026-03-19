@@ -29,12 +29,20 @@ export const feedStore = {
 		items = [item, ...items];
 	},
 
-	markItemRead(id: number) {
+	markItemRead(id: string) {
 		items = items.map((i) => (i.id === id ? { ...i, isRead: true } : i));
 	},
 
 	markAllItemsRead() {
 		items = items.map((i) => ({ ...i, isRead: true }));
+	},
+
+	archiveItem(id: string) {
+		items = items.filter((i) => i.id !== id);
+	},
+
+	removeItem(id: string) {
+		items = items.filter((i) => i.id !== id);
 	},
 
 	setLoading(v: boolean) { loading = v; },

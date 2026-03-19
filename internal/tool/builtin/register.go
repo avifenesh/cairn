@@ -28,6 +28,8 @@ func All() []tool.Tool {
 		// Feed tools.
 		readFeed,
 		markRead,
+		archiveFeedItem,
+		deleteFeedItem,
 		digest,
 		// Journal tool.
 		journalSearch,

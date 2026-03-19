@@ -1,16 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getDashboard, getFeed, triggerPoll, markAllRead } from '$lib/api/client';
+	import { getDashboard, getFeed, triggerPoll, markAllRead, deleteFeedItem } from '$lib/api/client';
 	import { feedStore } from '$lib/stores/feed.svelte';
 	import FeedItemComponent from '$lib/components/feed/FeedItem.svelte';
 	import type { DashboardResponse } from '$lib/types';
-	import { Activity, Eye, Zap, TrendingUp, RefreshCw, CheckCheck, Loader2 } from '@lucide/svelte';
+	import { Activity, Eye, Zap, TrendingUp, RefreshCw, CheckCheck, Loader2, Filter } from '@lucide/svelte';
 	import { createPullToRefresh } from '$lib/utils/touch.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	let dashboard = $state<DashboardResponse | null>(null);
 	let error = $state<string | null>(null);
+	let activeSource = $state<string | null>(null);
 
 	async function loadDashboard() {
 		dashboard = await getDashboard({ limit: 20 });
@@ -40,11 +41,27 @@
 
 	async function handleSync() {
 		await triggerPoll().catch(() => {});
+		await loadDashboard().catch(() => {});
 	}
 
 	async function handleMarkAllRead() {
 		feedStore.markAllItemsRead();
 		await markAllRead().catch(() => {});
+	}
+
+	function toggleSource(source: string) {
+		activeSource = activeSource === source ? null : source;
+	}
+
+	const filteredItems = $derived(
+		activeSource
+			? feedStore.items.filter((i) => i.source === activeSource)
+			: feedStore.items
+	);
+
+	async function handleDelete(id: string) {
+		feedStore.removeItem(id);
+		await deleteFeedItem(id).catch(() => {});
 	}
 
 	const MAX_FEED_ITEMS = 200;
@@ -58,7 +75,11 @@
 		loadMoreError = null;
 		try {
 			const remaining = MAX_FEED_ITEMS - feedStore.items.length;
-			const res = await getFeed({ limit: Math.min(20, remaining), before: lastItem.createdAt });
+			const res = await getFeed({
+				limit: Math.min(20, remaining),
+				before: lastItem.id,
+				source: activeSource ?? undefined,
+			});
 			feedStore.appendItems(res.items, res.hasMore);
 		} catch (e) {
 			loadMoreError = e instanceof Error ? e.message : 'Failed to load more';
@@ -66,6 +87,13 @@
 			loadingMore = false;
 		}
 	}
+
+	// Compute active sources from dashboard stats
+	const activeSources = $derived(
+		dashboard?.stats?.bySource
+			? Object.keys(dashboard.stats.bySource).sort()
+			: []
+	);
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -145,8 +173,37 @@
 			</div>
 		</div>
 
+		<!-- Source filter chips -->
+		{#if activeSources.length > 0}
+			<div class="mb-4 flex items-center gap-2 flex-wrap">
+				<Filter class="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+				{#each activeSources as source}
+					<button
+						class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors
+							{activeSource === source
+								? 'bg-[var(--cairn-accent)] text-white'
+								: 'bg-[var(--bg-2)] text-[var(--text-secondary)] hover:bg-[var(--bg-3)]'}"
+						onclick={() => toggleSource(source)}
+					>
+						{source}
+						{#if dashboard.stats.bySource?.[source]}
+							<span class="tabular-nums opacity-70">{dashboard.stats.bySource[source]}</span>
+						{/if}
+					</button>
+				{/each}
+				{#if activeSource}
+					<button
+						class="text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] underline"
+						onclick={() => activeSource = null}
+					>
+						Clear
+					</button>
+				{/if}
+			</div>
+		{/if}
+
 		<!-- Quick actions -->
-		<div class="mb-6 flex items-center gap-2">
+		<div class="mb-4 flex items-center gap-2">
 			<Button variant="outline" size="sm" onclick={handleSync} class="h-7 text-xs gap-1.5">
 				<RefreshCw class="h-3 w-3" /> Sync
 			</Button>
@@ -157,23 +214,33 @@
 			{/if}
 			<span class="flex-1"></span>
 			<span class="text-[11px] text-[var(--text-tertiary)] tabular-nums font-mono">
-				{feedStore.items.length} items
+				{filteredItems.length} items{activeSource ? ` (${activeSource})` : ''}
 			</span>
 		</div>
 
 		<!-- Feed -->
-		<div class="flex flex-col gap-1" role="feed" aria-label="Recent activity">
-			{#each feedStore.items as item, i (item.id)}
-				<div class="animate-in" style="animation-delay: {Math.min(i * 30, 300)}ms">
-					<FeedItemComponent {item} />
-				</div>
-			{/each}
-		</div>
+		{#if filteredItems.length === 0}
+			<div class="flex flex-col items-center justify-center py-16 text-[var(--text-tertiary)]">
+				<Activity class="h-8 w-8 mb-3 opacity-40" />
+				<p class="text-sm">
+					{activeSource ? `No ${activeSource} events` : 'No events yet'}
+				</p>
+				<p class="text-xs mt-1 opacity-60">Events will appear as sources are polled</p>
+			</div>
+		{:else}
+			<div class="flex flex-col gap-1" role="feed" aria-label="Recent activity">
+				{#each filteredItems as item, i (item.id)}
+					<div class="animate-in" style="animation-delay: {Math.min(i * 30, 300)}ms">
+						<FeedItemComponent {item} ondelete={handleDelete} />
+					</div>
+				{/each}
+			</div>
+		{/if}
 
 		{#if loadMoreError}
 			<p class="mt-3 text-center text-xs text-[var(--color-error)]">{loadMoreError}</p>
 		{/if}
-		{#if feedStore.hasMore && feedStore.items.length < MAX_FEED_ITEMS}
+		{#if feedStore.hasMore && feedStore.items.length < MAX_FEED_ITEMS && !activeSource}
 			<Button
 				variant="ghost"
 				class="mt-4 w-full text-xs text-[var(--text-tertiary)]"

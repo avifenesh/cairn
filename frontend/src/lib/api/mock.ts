@@ -14,14 +14,14 @@ import type {
 } from '$lib/types';
 
 export const mockFeedItems: FeedItem[] = [
-	{ id: 1, source: 'github', kind: 'pull_request', title: 'feat: add streaming SSE support #142', url: 'https://github.com/avifenesh/cairn/pull/142', author: 'avifenesh', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 300_000).toISOString() },
-	{ id: 2, source: 'github', kind: 'issue', title: 'Bug: SQLite WAL checkpoint stalls under load', url: 'https://github.com/avifenesh/cairn/issues/87', author: 'contributor', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 1_200_000).toISOString() },
-	{ id: 3, source: 'reddit', kind: 'post', title: 'Show HN: Personal agent OS in Go - single binary', url: 'https://reddit.com/r/golang/foo', author: 'u/avifenesh', isRead: true, isArchived: false, createdAt: new Date(Date.now() - 3_600_000).toISOString() },
-	{ id: 4, source: 'hackernews', kind: 'story', title: 'Why We Switched from TypeScript to Go for Our Agent Runtime', url: 'https://news.ycombinator.com/item?id=99999', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 7_200_000).toISOString() },
-	{ id: 5, source: 'npm', kind: 'release', title: '@anthropic-ai/sdk@4.2.0 released', isRead: true, isArchived: false, createdAt: new Date(Date.now() - 14_400_000).toISOString() },
-	{ id: 6, source: 'gmail', kind: 'email', title: 'Re: Cairn open-source launch timeline', author: 'collaborator@example.com', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 18_000_000).toISOString() },
-	{ id: 7, source: 'github', kind: 'push', title: 'Push to main: 3 commits (event bus + LLM client)', author: 'avifenesh', isRead: true, isArchived: false, createdAt: new Date(Date.now() - 43_200_000).toISOString() },
-	{ id: 8, source: 'crates', kind: 'release', title: 'mcp-sdk 0.3.0 - breaking: new transport API', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 86_400_000).toISOString() },
+	{ id: 'ev_mock001', source: 'github', kind: 'pull_request', title: 'feat: add streaming SSE support #142', url: 'https://github.com/avifenesh/cairn/pull/142', author: 'avifenesh', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 300_000).toISOString() },
+	{ id: 'ev_mock002', source: 'github', kind: 'issue', title: 'Bug: SQLite WAL checkpoint stalls under load', url: 'https://github.com/avifenesh/cairn/issues/87', author: 'contributor', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 1_200_000).toISOString() },
+	{ id: 'ev_mock003', source: 'reddit', kind: 'post', title: 'Show HN: Personal agent OS in Go - single binary', url: 'https://reddit.com/r/golang/foo', author: 'u/avifenesh', isRead: true, isArchived: false, createdAt: new Date(Date.now() - 3_600_000).toISOString() },
+	{ id: 'ev_mock004', source: 'hn', kind: 'story', title: 'Why We Switched from TypeScript to Go for Our Agent Runtime', url: 'https://news.ycombinator.com/item?id=99999', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 7_200_000).toISOString() },
+	{ id: 'ev_mock005', source: 'npm', kind: 'release', title: '@anthropic-ai/sdk@4.2.0 released', isRead: true, isArchived: false, createdAt: new Date(Date.now() - 14_400_000).toISOString() },
+	{ id: 'ev_mock006', source: 'gmail', kind: 'email', title: 'Re: Cairn open-source launch timeline', author: 'collaborator@example.com', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 18_000_000).toISOString() },
+	{ id: 'ev_mock007', source: 'github', kind: 'push', title: 'Push to main: 3 commits (event bus + LLM client)', author: 'avifenesh', isRead: true, isArchived: false, createdAt: new Date(Date.now() - 43_200_000).toISOString() },
+	{ id: 'ev_mock008', source: 'crates', kind: 'release', title: 'mcp-sdk 0.3.0 - breaking: new transport API', isRead: false, isArchived: false, createdAt: new Date(Date.now() - 86_400_000).toISOString() },
 ];
 
 export const mockDashboard: DashboardResponse = {

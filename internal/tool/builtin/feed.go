@@ -109,6 +109,56 @@ var markRead = tool.Define("cairn.markRead",
 	},
 )
 
+// archiveFeedItemParams are the parameters for cairn.archiveFeedItem.
+type archiveFeedItemParams struct {
+	ID string `json:"id" desc:"Event ID to archive"`
+}
+
+var archiveFeedItem = tool.Define("cairn.archiveFeedItem",
+	"Archive a feed event by ID. Archived events are hidden from the default feed view.",
+	[]tool.Mode{tool.ModeTalk, tool.ModeWork},
+	func(ctx *tool.ToolContext, p archiveFeedItemParams) (*tool.ToolResult, error) {
+		if ctx.Events == nil {
+			return &tool.ToolResult{Error: "event service not available"}, nil
+		}
+		if p.ID == "" {
+			return &tool.ToolResult{Error: "id is required"}, nil
+		}
+		if err := ctx.Events.Archive(ctx.Cancel, p.ID); err != nil {
+			return &tool.ToolResult{Error: fmt.Sprintf("failed to archive: %v", err)}, nil
+		}
+		return &tool.ToolResult{
+			Output:   fmt.Sprintf("Event %s archived.", p.ID),
+			Metadata: map[string]any{"id": p.ID},
+		}, nil
+	},
+)
+
+// deleteFeedItemParams are the parameters for cairn.deleteFeedItem.
+type deleteFeedItemParams struct {
+	ID string `json:"id" desc:"Event ID to delete permanently"`
+}
+
+var deleteFeedItem = tool.Define("cairn.deleteFeedItem",
+	"Permanently delete a feed event by ID. This cannot be undone.",
+	[]tool.Mode{tool.ModeTalk, tool.ModeWork},
+	func(ctx *tool.ToolContext, p deleteFeedItemParams) (*tool.ToolResult, error) {
+		if ctx.Events == nil {
+			return &tool.ToolResult{Error: "event service not available"}, nil
+		}
+		if p.ID == "" {
+			return &tool.ToolResult{Error: "id is required"}, nil
+		}
+		if err := ctx.Events.DeleteByID(ctx.Cancel, p.ID); err != nil {
+			return &tool.ToolResult{Error: fmt.Sprintf("failed to delete: %v", err)}, nil
+		}
+		return &tool.ToolResult{
+			Output:   fmt.Sprintf("Event %s deleted.", p.ID),
+			Metadata: map[string]any{"id": p.ID},
+		}, nil
+	},
+)
+
 // digestParams has no inputs.
 type digestParams struct{}
 

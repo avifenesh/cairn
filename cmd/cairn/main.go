@@ -162,7 +162,8 @@ func runServe(logger *slog.Logger) {
 	builtin.SetWebConfig(cfg.SearXNGURL, time.Duration(cfg.WebFetchTimeout)*time.Second, cfg.WebFetchMaxSize)
 
 	// Configure Google Workspace CLI tools if gws is available.
-	if gwsPath, err := exec.LookPath("gws"); err == nil {
+	gwsPath, gwsErr := exec.LookPath("gws")
+	if gwsErr == nil {
 		builtin.SetGWSConfig(gwsPath)
 		logger.Info("google workspace tools enabled", "gws", gwsPath)
 	}
@@ -289,6 +290,27 @@ func runServe(logger *slog.Logger) {
 			Crates: cfg.CratesPackages,
 		}), 15*time.Minute)
 		logger.Info("signal: crates poller registered", "crates", cfg.CratesPackages)
+	}
+
+	// Gmail poller (via gws CLI).
+	if gwsErr == nil && cfg.GmailEnabled {
+		scheduler.Register(signalplane.NewGmailPoller(signalplane.GmailConfig{
+			GWSPath:     gwsPath,
+			FilterQuery: cfg.GmailFilterQuery,
+			State:       sourceState,
+			Logger:      logger,
+		}), pollInterval)
+		logger.Info("signal: gmail poller registered")
+	}
+
+	// Calendar poller (via gws CLI).
+	if gwsErr == nil && cfg.CalendarEnabled {
+		scheduler.Register(signalplane.NewCalendarPoller(signalplane.CalendarConfig{
+			GWSPath:    gwsPath,
+			LookaheadH: cfg.CalendarLookaheadH,
+			Logger:     logger,
+		}), 15*time.Minute)
+		logger.Info("signal: calendar poller registered", "lookahead", cfg.CalendarLookaheadH)
 	}
 
 	scheduler.Start()

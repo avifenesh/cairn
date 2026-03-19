@@ -28,6 +28,7 @@ export interface FeedStats {
 	total: number;
 	unread: number;
 	bySource: Record<string, number>;
+	archivedBySource?: Record<string, number>;
 }
 
 export interface PollerStatus {

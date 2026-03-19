@@ -77,6 +77,10 @@ func (m *mockEventService) DeleteByID(_ context.Context, id string) error {
 	return nil
 }
 
+func (m *mockEventService) CountArchivedBySource(_ context.Context) (map[string]int, error) {
+	return map[string]int{}, nil
+}
+
 func (m *mockEventService) CountBySource(_ context.Context) (map[string]int, error) {
 	result := map[string]int{}
 	for _, ev := range m.events {

@@ -30,6 +30,9 @@
 				processing = true;
 				try {
 					const res = await uploadVoice(blob, chatStore.mode, chatStore.currentSessionId ?? undefined);
+					if (res.sessionId && !chatStore.currentSessionId) {
+						chatStore.setCurrentSession(res.sessionId);
+					}
 					chatStore.addUserMessage(res.transcript);
 					chatStore.startStreaming(res.taskId);
 				} catch {

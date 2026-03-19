@@ -29,6 +29,7 @@ import (
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 	"github.com/avifenesh/cairn/internal/tool/builtin"
+	"github.com/avifenesh/cairn/internal/voice"
 )
 
 // Set by goreleaser ldflags.
@@ -374,6 +375,19 @@ func runServe(logger *slog.Logger) {
 		logger.Info("agent loop started", "tick", cfg.AgentTickInterval, "reflection", cfg.ReflectionInterval)
 	}
 
+	// Initialize voice service (optional).
+	var voiceSvc *voice.Service
+	if cfg.VoiceEnabled {
+		voiceSvc = voice.New(voice.Config{
+			WhisperURL: cfg.WhisperURL,
+			TTSVoice:   cfg.TTSVoice,
+			TTSEnabled: true,
+			STTEnabled: true,
+			TempDir:    cfg.DataDir,
+		}, logger)
+		logger.Info("voice enabled", "whisper", cfg.WhisperURL, "ttsVoice", cfg.TTSVoice)
+	}
+
 	// Create and start the server.
 	srv := server.New(server.ServerConfig{
 		Agent:          reactAgent,
@@ -397,6 +411,7 @@ func runServe(logger *slog.Logger) {
 		ToolTasks:      taskAdapt,
 		ToolStatus:     statusAdapt,
 		ToolSkills:     skillAdapt,
+		Voice:          voiceSvc,
 	})
 
 	// Graceful shutdown context — all subsystems observe this.

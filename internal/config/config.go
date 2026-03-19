@@ -113,6 +113,11 @@ type Config struct {
 	SlackAppToken  string // SLACK_APP_TOKEN (Socket Mode)
 	SlackChannelID string // SLACK_CHANNEL_ID
 
+	// Voice
+	VoiceEnabled bool   // VOICE_ENABLED (default: false)
+	WhisperURL   string // WHISPER_URL (default: http://127.0.0.1:8178)
+	TTSVoice     string // TTS_VOICE (default: en-US-BrianNeural)
+
 	// Paths
 	SoulPath  string
 	SkillDirs []string
@@ -223,6 +228,9 @@ func Load() (*Config, error) {
 		SearXNGURL:              envStr("SEARXNG_URL", ""),
 		WebFetchTimeout:         envInt("WEB_FETCH_TIMEOUT", 30),
 		WebFetchMaxSize:         envInt64("WEB_FETCH_MAX_SIZE", 5*1024*1024),
+		VoiceEnabled:            envBool("VOICE_ENABLED", false),
+		WhisperURL:              envStr("WHISPER_URL", "http://127.0.0.1:8178"),
+		TTSVoice:                envStr("TTS_VOICE", "en-US-BrianNeural"),
 		SoulPath:                envStr("SOUL_PATH", "./SOUL.md"),
 		SkillDirs:               skillDirs(),
 		DataDir:                 envStr("DATA_DIR", "./data"),

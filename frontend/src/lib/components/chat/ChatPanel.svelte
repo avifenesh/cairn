@@ -12,7 +12,7 @@
 	import ActiveSkillChip from './ActiveSkillChip.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import ReasoningBlock from './ReasoningBlock.svelte';
-	import { Bot, Send, Loader2, X } from '@lucide/svelte';
+	import { Bot, Send, Loader2, X, Plus } from '@lucide/svelte';
 	import type { Attachment } from '$lib/types';
 	import { uploadFile } from '$lib/api/client';
 
@@ -35,6 +35,13 @@
 			// ignore
 		}
 	});
+
+	function startNewChat() {
+		chatStore.setCurrentSession(null);
+		chatStore.setMessages([]);
+		chatStore.clearStreaming();
+		inputText = '';
+	}
 
 	async function handleSend() {
 		const text = inputText.trim();
@@ -251,6 +258,15 @@
 			<div class="mb-2 flex items-center gap-2">
 				<ModeSelector />
 				<SessionPicker />
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-7 text-xs gap-1 px-2"
+					onclick={startNewChat}
+					title="New chat"
+				>
+					<Plus class="h-3 w-3" /> New
+				</Button>
 				<ActiveSkillChip />
 			</div>
 

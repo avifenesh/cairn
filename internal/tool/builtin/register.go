@@ -49,6 +49,9 @@ func All() []tool.Tool {
 		createCron,
 		listCrons,
 		deleteCron,
+		// Config tools (agent can modify settings behind approval gate).
+		patchConfig,
+		getConfig,
 	}
 
 	// Web tools: Z.ai (GLM) or SearXNG/direct.

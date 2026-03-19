@@ -190,6 +190,14 @@ type CronJobInfo struct {
 	NextRun     *time.Time
 }
 
+// ConfigService provides agent access to runtime config (behind approval gate).
+type ConfigService interface {
+	// PatchConfig applies partial config updates. Returns the updated config summary.
+	PatchConfig(ctx context.Context, changes map[string]any) (map[string]any, error)
+	// GetConfig returns the current patchable config as a map.
+	GetConfig(ctx context.Context) (map[string]any, error)
+}
+
 // SkillService provides access to the skill system.
 type SkillService interface {
 	Get(name string) *SkillItem
@@ -245,6 +253,8 @@ type ToolContext struct {
 	Skills   SkillService
 	Notifier NotifyService
 	Crons    CronService
+
+	Config ConfigService
 
 	// ActivateSkill is called by cairn.loadSkill to register a skill in the session.
 	// Set by the ReAct loop before tool execution. Nil = activation not supported.

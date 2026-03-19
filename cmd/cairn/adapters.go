@@ -10,6 +10,7 @@ import (
 
 	"github.com/avifenesh/cairn/internal/agent"
 	cairnchannel "github.com/avifenesh/cairn/internal/channel"
+	"github.com/avifenesh/cairn/internal/config"
 	cairncron "github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/signal"
@@ -460,4 +461,37 @@ func (a *cronAdapter) Delete(ctx context.Context, idOrName string) error {
 		return fmt.Errorf("cron job %q not found", idOrName)
 	}
 	return a.store.Delete(ctx, job.ID)
+}
+
+// configAdapter bridges config.Config to tool.ConfigService.
+type configAdapter struct {
+	cfg *config.Config
+}
+
+func (a *configAdapter) PatchConfig(ctx context.Context, changes map[string]any) (map[string]any, error) {
+	// Convert map to PatchableConfig JSON and back.
+	data, err := json.Marshal(changes)
+	if err != nil {
+		return nil, err
+	}
+	var patch config.PatchableConfig
+	if err := json.Unmarshal(data, &patch); err != nil {
+		return nil, err
+	}
+	a.cfg.ApplyPatch(patch)
+	if err := a.cfg.SaveOverrides(a.cfg.DataDir); err != nil {
+		return nil, fmt.Errorf("save config: %w", err)
+	}
+	return a.GetConfig(ctx)
+}
+
+func (a *configAdapter) GetConfig(_ context.Context) (map[string]any, error) {
+	p := a.cfg.GetPatchable()
+	data, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	var result map[string]any
+	json.Unmarshal(data, &result)
+	return result, nil
 }

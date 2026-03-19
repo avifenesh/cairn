@@ -41,6 +41,7 @@
 		chatStore.setMessages([]);
 		chatStore.clearStreaming();
 		inputText = '';
+		attachment = null;
 	}
 
 	async function handleSend() {

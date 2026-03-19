@@ -598,6 +598,7 @@ func runServe(logger *slog.Logger) {
 				ToolSkills:     skillAdapt,
 				ToolNotifier:   notifyAdapt,
 				ToolCrons:      cronAdapt,
+				ToolConfig:     &configAdapter{cfg: cfg},
 				Config:         &agent.AgentConfig{Model: cfg.LLMModel},
 				CompactionConfig: agent.CompactionConfig{
 					TriggerTokens:   cfg.CompactionTriggerTokens,
@@ -750,6 +751,7 @@ func runServe(logger *slog.Logger) {
 			Skills:   skillAdapt,
 			Notifier: notifyAdapt,
 			Crons:    cronAdapt,
+			Config:   &configAdapter{cfg: cfg},
 		}
 		mcpSrv := cairnmcp.New(cairnmcp.Config{
 			Port:           cfg.MCPPort,

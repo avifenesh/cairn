@@ -60,6 +60,7 @@ type InvocationContext struct {
 	ToolSkills   tool.SkillService
 	ToolNotifier tool.NotifyService
 	ToolCrons    tool.CronService
+	ToolConfig   tool.ConfigService
 }
 
 // AgentConfig holds per-invocation agent configuration.

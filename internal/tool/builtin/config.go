@@ -14,8 +14,8 @@ type patchConfigParams struct {
 }
 
 var patchConfig = tool.Define("cairn.patchConfig",
-	"Update cairn's runtime configuration. Requires user approval before applying. "+
-		"Use this to add tracked repos, enable/disable pollers, configure cron jobs, change notification settings, etc.\n\n"+
+	"Update cairn's runtime configuration. "+
+		"Use this to add tracked repos, enable/disable pollers, change notification settings, etc.\n\n"+
 		"Available fields:\n"+
 		"- ghOwner, ghTrackedRepos, ghBotFilter, ghMetricsInterval\n"+
 		"- gmailEnabled, calendarEnabled, gmailFilterQuery, calendarLookaheadH\n"+
@@ -53,13 +53,10 @@ var patchConfig = tool.Define("cairn.patchConfig",
 
 		var b strings.Builder
 		fmt.Fprintf(&b, "Configuration updated:\n%s\n", summary)
-		if result != nil {
-			b.WriteString("\nCurrent config applied successfully.")
-		}
 
 		return &tool.ToolResult{
 			Output:   b.String(),
-			Metadata: map[string]any{"changes": changes},
+			Metadata: map[string]any{"changes": changes, "config": result},
 		}, nil
 	},
 )

@@ -71,5 +71,13 @@ func All() []tool.Tool {
 		)
 	}
 
+	// Google Workspace tools (when gws CLI is available).
+	if GWSEnabled() {
+		tools = append(tools,
+			gwsQuery,   // cairn.gwsQuery (read-only)
+			gwsExecute, // cairn.gwsExecute (write, Gmail gated)
+		)
+	}
+
 	return tools
 }

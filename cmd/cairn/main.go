@@ -161,6 +161,12 @@ func runServe(logger *slog.Logger) {
 	}
 	builtin.SetWebConfig(cfg.SearXNGURL, time.Duration(cfg.WebFetchTimeout)*time.Second, cfg.WebFetchMaxSize)
 
+	// Configure Google Workspace CLI tools if gws is available.
+	if gwsPath, err := exec.LookPath("gws"); err == nil {
+		builtin.SetGWSConfig(gwsPath)
+		logger.Info("google workspace tools enabled", "gws", gwsPath)
+	}
+
 	// Initialize tool registry.
 	toolRegistry := tool.NewRegistry()
 	toolRegistry.Register(builtin.All()...)

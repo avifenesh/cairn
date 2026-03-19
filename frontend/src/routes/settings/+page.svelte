@@ -5,11 +5,13 @@
 	import type { McpStatus, ChannelStatus } from '$lib/types';
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Radio } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers } from '@lucide/svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
 	let mcpStatus = $state<McpStatus | null>(null);
 	let channelStatus = $state<ChannelStatus | null>(null);
+	let embeddingStatus = $state<{ enabled: boolean; model: string; dimensions: number } | null>(null);
+	let compactionConfig = $state<{ triggerTokens: number; keepRecent: number; maxToolOutput: number } | null>(null);
 
 	const knownChannels = [
 		{ id: 'telegram', label: 'Telegram', icon: Send },
@@ -23,6 +25,8 @@
 			costs = c as unknown as Record<string, number>;
 			mcpStatus = details.mcp;
 			channelStatus = details.channels;
+			embeddingStatus = details.embeddings ?? null;
+			compactionConfig = details.compaction ?? null;
 		} catch {
 			// handled
 		}
@@ -354,5 +358,62 @@
 				</div>
 			</div>
 		{/if}
+	</section>
+
+	<Separator class="mb-8" />
+
+	<!-- Intelligence -->
+	<section class="mb-8">
+		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">Intelligence</h2>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">Embeddings and session compaction</p>
+
+		<div class="space-y-3">
+			<!-- Embeddings -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center gap-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-md {embeddingStatus?.enabled ? 'bg-[var(--color-success)]/10' : 'bg-[var(--bg-2)]'}">
+						<Database class="h-4 w-4 {embeddingStatus?.enabled ? 'text-[var(--color-success)]' : 'text-[var(--text-tertiary)]'}" />
+					</div>
+					<div>
+						<p class="text-sm font-medium text-[var(--text-primary)]">Embeddings</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">
+							{embeddingStatus?.enabled ? `${embeddingStatus.model} · ${embeddingStatus.dimensions}d` : 'Not configured'}
+						</p>
+					</div>
+					<span class="ml-auto h-2 w-2 rounded-full {embeddingStatus?.enabled ? 'bg-[var(--color-success)]' : 'bg-[var(--text-tertiary)]'}"></span>
+				</div>
+			</div>
+
+			<!-- Compaction -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center gap-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--cairn-accent)]/10">
+						<Layers class="h-4 w-4 text-[var(--cairn-accent)]" />
+					</div>
+					<div>
+						<p class="text-sm font-medium text-[var(--text-primary)]">Session Compaction</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">
+							Triggers at {compactionConfig?.triggerTokens ? `${Math.round(compactionConfig.triggerTokens / 1000)}K` : '80K'} tokens · keeps last {compactionConfig?.keepRecent ?? 10} pairs
+						</p>
+					</div>
+				</div>
+				{#if compactionConfig}
+					<div class="grid grid-cols-3 gap-3 pt-3 mt-3 border-t border-border-subtle">
+						<div>
+							<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Trigger</p>
+							<p class="text-xs text-[var(--text-primary)] font-mono">{Math.round(compactionConfig.triggerTokens / 1000)}K tokens</p>
+						</div>
+						<div>
+							<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Keep Recent</p>
+							<p class="text-xs text-[var(--text-primary)] font-mono">{compactionConfig.keepRecent} pairs</p>
+						</div>
+						<div>
+							<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Tool Output</p>
+							<p class="text-xs text-[var(--text-primary)] font-mono">{Math.round(compactionConfig.maxToolOutput / 1000)}K chars</p>
+						</div>
+					</div>
+				{/if}
+			</div>
+		</div>
 	</section>
 </div>

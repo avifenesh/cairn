@@ -350,9 +350,13 @@ export const getStatusDetails = async () => {
 		const raw = await get<Record<string, unknown>>('/v1/status');
 		const mcp = raw.mcp as Record<string, unknown> | undefined;
 		const ch = raw.channels as Record<string, unknown> | undefined;
+		const emb = raw.embeddings as Record<string, unknown> | undefined;
+		const comp = raw.compaction as Record<string, unknown> | undefined;
 		return {
 			mcp: mcp ? { enabled: !!mcp.enabled, port: (mcp.port ?? 3001) as number, transport: (mcp.transport ?? 'http') as string } : null,
 			channels: ch ? { items: ((ch.items ?? []) as { name: string; connected: boolean }[]), sessionTimeout: (ch.sessionTimeout ?? 240) as number } : null,
+			embeddings: emb ? { enabled: !!emb.enabled, model: (emb.model ?? '') as string, dimensions: (emb.dimensions ?? 0) as number } : null,
+			compaction: comp ? { triggerTokens: (comp.triggerTokens ?? 80000) as number, keepRecent: (comp.keepRecent ?? 10) as number, maxToolOutput: (comp.maxToolOutput ?? 8000) as number } : null,
 		};
 	} catch { return { mcp: null, channels: null }; }
 };

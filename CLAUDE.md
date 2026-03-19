@@ -235,7 +235,7 @@ Full design specs live in `docs/design/`:
 - Commit frequently with meaningful messages - logical changes separated.
 - For non-trivial tasks, go into plan mode unless instructed not to.
 - Report script/tool failures before manual fallback. Never silently work around broken tooling - report error, diagnose, fix.
-- Address ALL review comments before merging - every single one, no exceptions. There are no ignorable issues. Fix them all. Disagree = respond in the review explaining why, but still fix or improve.
+- **Address ALL review comments before merging — ALL means ALL.** Every high, medium, and low priority comment must be fixed. No skipping "medium" or "low" severity. No "that's just a suggestion". If a reviewer (human or bot) flags it, fix it. The only exception: if a comment is factually wrong, respond in the review explaining why — but still improve the code. This is non-negotiable.
 
 ### Pre-Push Checklist (MANDATORY)
 

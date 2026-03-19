@@ -29,7 +29,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 13 | Intelligence - embeddings, session compaction | Done | `internal/memory/`, `internal/agent/compaction.go` |
 | 14 | Voice - Whisper STT + edge-tts TTS | Done | `internal/voice/` |
 
-Frontend feature-complete. 227 tests, 27 files. 35 tools (GLM+Vision) / 24 (other). All chat features done: text, voice (C.7 Whisper STT + TTS), file upload (C.6 paperclip + paste + DnD), vision (8 tools). Settings editable with file persistence. Memory CRUD. Remaining backend: auto-extract memories (Mem0), Gmail/Calendar pollers.
+Frontend feature-complete. 227 tests, 27 files. 35 tools (GLM+Vision) / 24 (other). All chat features done: text, voice (C.7 Whisper STT + TTS playback button), file upload (C.6 paperclip + paste + DnD), vision (8 tools). Settings editable with file persistence. Memory CRUD. TTS playback on assistant messages (PR #76). Remaining backend: auto-extract memories (Mem0), Gmail/Calendar pollers.
 
 ## Phases
 

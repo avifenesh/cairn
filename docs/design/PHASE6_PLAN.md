@@ -321,9 +321,9 @@ Phase 8 Intelligence (see docs/design/INTELLIGENCE_PLAN.md):
 | 7 | 1 PR ✅ DONE (MCP server) | 1 PR ✅ DONE | MCP tool exposure |
 | 8 Channels | 3 PRs ✅ DONE | 1 PR ✅ DONE | Telegram + Discord + Slack, channel UI |
 | 8 Intelligence | 4/4 PRs ✅ DONE | 1 PR ✅ DONE | Embeddings + compaction + settings UI |
-| 8 Voice | 1 PR ✅ DONE | 1 PR ✅ DONE | Whisper STT + edge-tts TTS (C.7) |
+| 8 Voice | 2 PRs ✅ DONE | 2 PRs ✅ DONE | Whisper STT + edge-tts TTS + playback button (C.7) |
 | Z.ai HTTP | 3 PRs ✅ DONE | — | Web search (GLM built-in + SearXNG), reader, zread |
 | Z.ai Vision | 1 PR ✅ DONE | — | 8 vision tools via stdio subprocess (GLM-4.6V) |
 | File Upload | 1 PR ✅ DONE | 1 PR ✅ DONE | C.6 — paperclip, paste, drag-and-drop, POST /v1/upload |
 | Polish | — | 4 PRs ✅ DONE | Mode dropdown, DnD, memory edit/delete, editable settings |
-| **Total** | **26 merged** | **24/24 done** | **35 tools, 5 skills, MCP, 3 channels, file upload, voice, embeddings, compaction** |
+| **Total** | **28 merged** | **25/25 done** | **35 tools, 5 skills, MCP, 3 channels, file upload, voice + TTS, embeddings, compaction** |

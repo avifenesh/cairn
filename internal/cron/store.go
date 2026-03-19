@@ -13,29 +13,29 @@ const timeFormat = "2006-01-02T15:04:05Z"
 
 // CronJob represents a scheduled recurring task.
 type CronJob struct {
-	ID          string
-	Enabled     bool
-	Name        string
-	Description string
-	Schedule    string // 5-field cron expression
-	Instruction string // Natural language instruction
-	Timezone    string
-	Priority    int
-	CooldownMs  int64
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	LastRunAt   *time.Time
-	NextRunAt   *time.Time
+	ID          string     `json:"id"`
+	Enabled     bool       `json:"enabled"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Schedule    string     `json:"schedule"`
+	Instruction string     `json:"instruction"`
+	Timezone    string     `json:"timezone"`
+	Priority    int        `json:"priority"`
+	CooldownMs  int64      `json:"cooldownMs"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	UpdatedAt   time.Time  `json:"updatedAt"`
+	LastRunAt   *time.Time `json:"lastRunAt,omitempty"`
+	NextRunAt   *time.Time `json:"nextRunAt,omitempty"`
 }
 
 // CronExecution records a single fire of a cron job.
 type CronExecution struct {
-	ID        string
-	CronJobID string
-	TaskID    string
-	Status    string // fired, completed, failed, skipped_cooldown
-	Error     string
-	CreatedAt time.Time
+	ID        string    `json:"id"`
+	CronJobID string    `json:"cronJobId"`
+	TaskID    string    `json:"taskId"`
+	Status    string    `json:"status"`
+	Error     string    `json:"error,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // Store manages cron jobs in SQLite.

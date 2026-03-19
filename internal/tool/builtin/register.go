@@ -52,6 +52,18 @@ func All() []tool.Tool {
 			zaiRepoStructure, // cairn.repoStructure (Z.ai only)
 			zaiReadRepoFile,  // cairn.readRepoFile (Z.ai only)
 		)
+		if VisionEnabled() {
+			tools = append(tools,
+				visionImageAnalysis,  // cairn.imageAnalysis
+				visionExtractText,    // cairn.extractText
+				visionDiagnoseError,  // cairn.diagnoseError
+				visionAnalyzeDiagram, // cairn.analyzeDiagram
+				visionAnalyzeChart,   // cairn.analyzeChart
+				visionUIToArtifact,   // cairn.uiToArtifact
+				visionUIDiffCheck,    // cairn.uiDiffCheck
+				visionVideoAnalysis,  // cairn.videoAnalysis
+			)
+		}
 	} else {
 		tools = append(tools,
 			webSearch, // cairn.webSearch backed by SearXNG

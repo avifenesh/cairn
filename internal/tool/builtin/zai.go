@@ -42,6 +42,25 @@ func ZaiEnabled() bool {
 	return zaiConfig.enabled.Load()
 }
 
+// visionConfig holds Z.ai Vision MCP subprocess configuration.
+var visionConfig struct {
+	enabled atomic.Bool
+	apiKey  string
+	npxPath string
+}
+
+// SetVisionConfig configures the Z.ai Vision MCP subprocess tools.
+func SetVisionConfig(apiKey, npxPath string) {
+	visionConfig.apiKey = apiKey
+	visionConfig.npxPath = npxPath
+	visionConfig.enabled.Store(apiKey != "" && npxPath != "")
+}
+
+// VisionEnabled returns true if Z.ai Vision tools are configured.
+func VisionEnabled() bool {
+	return visionConfig.enabled.Load()
+}
+
 // --- JSON-RPC types for Z.ai MCP HTTP transport ---
 
 type jsonRPCRequest struct {

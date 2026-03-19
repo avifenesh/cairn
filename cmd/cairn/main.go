@@ -136,6 +136,16 @@ func runServe(logger *slog.Logger) {
 		builtin.SetZaiConfig(zaiKey, cfg.ZaiBaseURL)
 		logger.Info("zai web tools enabled", "baseURL", cfg.ZaiBaseURL)
 	}
+	if cfg.ZaiVisionEnabled && zaiKey != "" {
+		npxPath, err := exec.LookPath("npx")
+		if err != nil {
+			logger.Warn("vision tools disabled: npx not found in PATH", "error", err)
+		} else {
+			builtin.SetVisionConfig(zaiKey, npxPath)
+			defer builtin.CloseVision()
+			logger.Info("zai vision tools enabled", "npx", npxPath)
+		}
+	}
 	builtin.SetWebConfig(cfg.SearXNGURL, time.Duration(cfg.WebFetchTimeout)*time.Second, cfg.WebFetchMaxSize)
 
 	// Initialize tool registry.

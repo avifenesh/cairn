@@ -382,6 +382,7 @@ func runServe(logger *slog.Logger) {
 			TTSVoice:   cfg.TTSVoice,
 			TTSEnabled: true,
 			STTEnabled: true,
+			TempDir:    cfg.DataDir,
 		}, logger)
 		logger.Info("voice enabled", "whisper", cfg.WhisperURL, "ttsVoice", cfg.TTSVoice)
 	}

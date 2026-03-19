@@ -23,11 +23,7 @@ import (
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
-	"github.com/avifenesh/cairn/internal/voice"
 )
-
-// voiceService returns the voice service or nil.
-func (s *Server) voiceService() *voice.Service { return s.voice }
 
 // registerRoutes sets up all HTTP route handlers on the server's mux.
 func (s *Server) registerRoutes() {
@@ -1251,10 +1247,10 @@ func truncate(s string, maxLen int) string {
 var startTime = time.Now()
 
 // handleVoiceTranscribe accepts audio (multipart file) and returns transcribed text.
-// Also runs the transcribed text through the assistant and returns both.
 func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10MB max
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid multipart form"})
+	r.Body = http.MaxBytesReader(w, r.Body, 10<<20) // 10MB hard limit
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid multipart form or file too large"})
 		return
 	}
 
@@ -1274,7 +1270,7 @@ func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
 	text, err := s.voice.Transcribe(r.Context(), audioData, header.Filename)
 	if err != nil {
 		s.logger.Error("voice transcribe failed", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "transcription failed: " + err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "transcription failed"})
 		return
 	}
 
@@ -1299,10 +1295,10 @@ func (s *Server) handleVoiceTTS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	audio, err := s.voice.Synthesize(r.Context(), body.Text)
+	audio, err := s.voice.Synthesize(r.Context(), body.Text, body.Voice)
 	if err != nil {
 		s.logger.Error("voice TTS failed", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "synthesis failed: " + err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "speech synthesis failed"})
 		return
 	}
 

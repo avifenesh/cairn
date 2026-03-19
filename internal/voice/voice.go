@@ -122,8 +122,9 @@ func (s *Service) Transcribe(ctx context.Context, audio []byte, filename string)
 }
 
 // Synthesize converts text to speech using edge-tts.
+// If voiceOverride is non-empty, it overrides the configured voice.
 // Returns MP3 audio bytes.
-func (s *Service) Synthesize(ctx context.Context, text string) ([]byte, error) {
+func (s *Service) Synthesize(ctx context.Context, text string, voiceOverride string) ([]byte, error) {
 	if !s.cfg.TTSEnabled {
 		return nil, fmt.Errorf("voice: TTS is disabled")
 	}
@@ -132,23 +133,34 @@ func (s *Service) Synthesize(ctx context.Context, text string) ([]byte, error) {
 	}
 
 	// Create temp file for output.
-	outFile := filepath.Join(s.cfg.TempDir, fmt.Sprintf("cairn-tts-%d.mp3", time.Now().UnixNano()))
-	defer os.Remove(outFile)
+	outFile, err := os.CreateTemp(s.cfg.TempDir, "cairn-tts-*.mp3")
+	if err != nil {
+		return nil, fmt.Errorf("voice: create temp: %w", err)
+	}
+	outPath := outFile.Name()
+	outFile.Close()
+	defer os.Remove(outPath)
+
+	// Determine voice.
+	ttsVoice := s.cfg.TTSVoice
+	if voiceOverride != "" {
+		ttsVoice = voiceOverride
+	}
 
 	// Run edge-tts CLI.
 	cmd := exec.CommandContext(ctx, "edge-tts",
-		"--voice", s.cfg.TTSVoice,
+		"--voice", ttsVoice,
 		"--text", text,
-		"--write-media", outFile,
+		"--write-media", outPath,
 	)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("voice: edge-tts failed: %w (stderr: %s)", err, stderr.String())
+		return nil, fmt.Errorf("voice: TTS synthesis failed: %w", err)
 	}
 
-	data, err := os.ReadFile(outFile)
+	data, err := os.ReadFile(outPath)
 	if err != nil {
 		return nil, fmt.Errorf("voice: read output: %w", err)
 	}
@@ -159,35 +171,48 @@ func (s *Service) Synthesize(ctx context.Context, text string) ([]byte, error) {
 
 // convertToWav uses ffmpeg to convert audio to WAV format.
 func (s *Service) convertToWav(ctx context.Context, audio []byte, filename string) ([]byte, error) {
-	// Write input to temp file.
 	ext := filepath.Ext(filename)
 	if ext == "" {
 		ext = ".ogg"
 	}
-	inFile := filepath.Join(s.cfg.TempDir, fmt.Sprintf("cairn-stt-in-%d%s", time.Now().UnixNano(), ext))
-	outFile := filepath.Join(s.cfg.TempDir, fmt.Sprintf("cairn-stt-out-%d.wav", time.Now().UnixNano()))
-	defer os.Remove(inFile)
-	defer os.Remove(outFile)
 
-	if err := os.WriteFile(inFile, audio, 0600); err != nil {
+	// Create temp input file.
+	inFile, err := os.CreateTemp(s.cfg.TempDir, "cairn-stt-in-*"+ext)
+	if err != nil {
+		return nil, fmt.Errorf("create temp input: %w", err)
+	}
+	inPath := inFile.Name()
+	defer os.Remove(inPath)
+	if _, err := inFile.Write(audio); err != nil {
+		inFile.Close()
 		return nil, fmt.Errorf("write temp input: %w", err)
 	}
+	inFile.Close()
+
+	// Create temp output file.
+	outFile, err := os.CreateTemp(s.cfg.TempDir, "cairn-stt-out-*.wav")
+	if err != nil {
+		return nil, fmt.Errorf("create temp output: %w", err)
+	}
+	outPath := outFile.Name()
+	outFile.Close()
+	defer os.Remove(outPath)
 
 	// Convert with ffmpeg: mono, 16kHz, 16-bit PCM (whisper.cpp preferred format).
 	cmd := exec.CommandContext(ctx, "ffmpeg",
-		"-i", inFile,
+		"-i", inPath,
 		"-ar", "16000",
 		"-ac", "1",
 		"-c:a", "pcm_s16le",
 		"-y",
-		outFile,
+		outPath,
 	)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("ffmpeg convert: %w (stderr: %s)", err, stderr.String())
+		return nil, fmt.Errorf("voice: audio conversion failed: %w", err)
 	}
 
-	return os.ReadFile(outFile)
+	return os.ReadFile(outPath)
 }

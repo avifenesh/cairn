@@ -9,12 +9,14 @@ import (
 
 // Source name constants.
 const (
-	SourceGitHub  = "github"
-	SourceHN      = "hn"
-	SourceReddit  = "reddit"
-	SourceNPM     = "npm"
-	SourceCrates  = "crates"
-	SourceWebhook = "webhook"
+	SourceGitHub   = "github"
+	SourceHN       = "hn"
+	SourceReddit   = "reddit"
+	SourceNPM      = "npm"
+	SourceCrates   = "crates"
+	SourceWebhook  = "webhook"
+	SourceGmail    = "gmail"
+	SourceCalendar = "calendar"
 )
 
 // Event kind constants.
@@ -36,6 +38,9 @@ const (
 	KindFollow     = "follow"
 	KindMetrics    = "metrics"
 	KindNewRepo    = "new_repo"
+	KindEmail      = "email"
+	KindEvent      = "event"
+	KindInvitation = "invitation"
 
 	SourceGitHubSignal = "github_signal"
 )
@@ -63,6 +68,9 @@ type RawEvent struct {
 	GroupKey   string         `json:"groupKey"` // for grouping related events
 	Metadata   map[string]any `json:"metadata"`
 	OccurredAt time.Time      `json:"occurredAt"`
+
+	// autoArchiveID is set internally by EventStore.Ingest for post-commit auto-archiving.
+	autoArchiveID string `json:"-"`
 }
 
 // StoredEvent is a persisted event with DB-assigned fields.

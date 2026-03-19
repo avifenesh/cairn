@@ -44,6 +44,7 @@ type EventService interface {
 	List(ctx context.Context, f EventFilter) ([]*StoredEvent, error)
 	Count(ctx context.Context, f EventFilter) (int, error)
 	CountBySource(ctx context.Context) (map[string]int, error)
+	CountArchivedBySource(ctx context.Context) (map[string]int, error)
 	MarkRead(ctx context.Context, id string) error
 	MarkAllRead(ctx context.Context) (int, error)
 	Archive(ctx context.Context, id string) error

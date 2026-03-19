@@ -43,19 +43,23 @@ type Config struct {
 	IdleModeEnabled bool
 
 	// Signal plane
-	GHToken           string            // GitHub personal access token
-	GHOrgs            []string          // GitHub orgs to track
-	GHOwner           string            // Your GitHub login (for self-filter)
-	GHTrackedRepos    []string          // Explicit repos to track (empty = auto-detect)
-	GHBotFilter       []string          // Additional bot logins to filter
-	GHMetricsInterval int               // Seconds between metrics polls (default 14400 = 4h)
-	HNKeywords        []string          // HN keyword filter
-	HNMinScore        int               // HN minimum score filter
-	PollInterval      int               // Poll interval in seconds (default 300 = 5min)
-	RedditSubs        []string          // Subreddits to monitor
-	NPMPackages       []string          // npm packages to track
-	CratesPackages    []string          // crates.io crates to track
-	WebhookSecrets    map[string]string // webhook name -> HMAC secret
+	GHToken            string            // GitHub personal access token
+	GHOrgs             []string          // GitHub orgs to track
+	GHOwner            string            // Your GitHub login (for self-filter)
+	GHTrackedRepos     []string          // Explicit repos to track (empty = auto-detect)
+	GHBotFilter        []string          // Additional bot logins to filter
+	GHMetricsInterval  int               // Seconds between metrics polls (default 14400 = 4h)
+	GmailEnabled       bool              // Enable Gmail poller
+	CalendarEnabled    bool              // Enable Calendar poller
+	GmailFilterQuery   string            // Gmail search query filter
+	CalendarLookaheadH int               // Calendar lookahead hours (default 48)
+	HNKeywords         []string          // HN keyword filter
+	HNMinScore         int               // HN minimum score filter
+	PollInterval       int               // Poll interval in seconds (default 300 = 5min)
+	RedditSubs         []string          // Subreddits to monitor
+	NPMPackages        []string          // npm packages to track
+	CratesPackages     []string          // crates.io crates to track
+	WebhookSecrets     map[string]string // webhook name -> HMAC secret
 
 	// Memory context builder
 	MemoryContextBudget   int     // Token budget (default: 4000)
@@ -193,6 +197,10 @@ func Load() (*Config, error) {
 		GHTrackedRepos:          envSlice("GH_TRACKED_REPOS", nil),
 		GHBotFilter:             envSlice("GH_BOT_FILTER", nil),
 		GHMetricsInterval:       envInt("GH_METRICS_INTERVAL", 14400),
+		GmailEnabled:            envBool("GMAIL_ENABLED", false),
+		CalendarEnabled:         envBool("CALENDAR_ENABLED", false),
+		GmailFilterQuery:        envStr("GMAIL_FILTER_QUERY", "-category:promotions -category:social -category:forums"),
+		CalendarLookaheadH:      envInt("CALENDAR_LOOKAHEAD_H", 48),
 		HNKeywords:              envSlice("HN_KEYWORDS", nil),
 		HNMinScore:              envInt("HN_MIN_SCORE", 0),
 		PollInterval:            pollIntervalSeconds(),
@@ -408,6 +416,10 @@ type PatchableConfig struct {
 	GHTrackedRepos          *string  `json:"ghTrackedRepos,omitempty"`    // comma-separated
 	GHBotFilter             *string  `json:"ghBotFilter,omitempty"`       // comma-separated
 	GHMetricsInterval       *int     `json:"ghMetricsInterval,omitempty"` // seconds
+	GmailEnabled            *bool    `json:"gmailEnabled,omitempty"`
+	CalendarEnabled         *bool    `json:"calendarEnabled,omitempty"`
+	GmailFilterQuery        *string  `json:"gmailFilterQuery,omitempty"`
+	CalendarLookaheadH      *int     `json:"calendarLookaheadH,omitempty"`
 }
 
 var configMu sync.RWMutex
@@ -454,6 +466,18 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 	if p.GHMetricsInterval != nil && *p.GHMetricsInterval > 0 {
 		c.GHMetricsInterval = *p.GHMetricsInterval
 	}
+	if p.GmailEnabled != nil {
+		c.GmailEnabled = *p.GmailEnabled
+	}
+	if p.CalendarEnabled != nil {
+		c.CalendarEnabled = *p.CalendarEnabled
+	}
+	if p.GmailFilterQuery != nil {
+		c.GmailFilterQuery = *p.GmailFilterQuery
+	}
+	if p.CalendarLookaheadH != nil && *p.CalendarLookaheadH > 0 {
+		c.CalendarLookaheadH = *p.CalendarLookaheadH
+	}
 }
 
 // GetPatchable returns the current runtime-editable config values.
@@ -471,6 +495,10 @@ func (c *Config) GetPatchable() PatchableConfig {
 		GHTrackedRepos:          strPtr(strings.Join(c.GHTrackedRepos, ",")),
 		GHBotFilter:             strPtr(strings.Join(c.GHBotFilter, ",")),
 		GHMetricsInterval:       &c.GHMetricsInterval,
+		GmailEnabled:            &c.GmailEnabled,
+		CalendarEnabled:         &c.CalendarEnabled,
+		GmailFilterQuery:        &c.GmailFilterQuery,
+		CalendarLookaheadH:      &c.CalendarLookaheadH,
 	}
 }
 

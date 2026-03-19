@@ -398,6 +398,10 @@ export interface EditableConfig {
 	ghTrackedRepos?: string;
 	ghBotFilter?: string;
 	ghMetricsInterval?: number;
+	gmailEnabled?: boolean;
+	calendarEnabled?: boolean;
+	gmailFilterQuery?: string;
+	calendarLookaheadH?: number;
 	budgetDailyCap?: number;
 	budgetWeeklyCap?: number;
 	channelSessionTimeout?: number;

@@ -6,7 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar } from '@lucide/svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
 	let mcpStatus = $state<McpStatus | null>(null);
@@ -25,6 +25,10 @@
 	let editGhTrackedRepos = $state('');
 	let editGhBotFilter = $state('');
 	let editGhMetricsHours = $state(4);
+	let editGmailEnabled = $state(false);
+	let editCalendarEnabled = $state(false);
+	let editGmailFilter = $state('-category:promotions -category:social -category:forums');
+	let editCalendarLookahead = $state(48);
 	let saving = $state('');
 
 	const knownChannels = [
@@ -52,6 +56,10 @@
 				editGhTrackedRepos = cfg.ghTrackedRepos ?? '';
 				editGhBotFilter = cfg.ghBotFilter ?? '';
 				editGhMetricsHours = Math.round((cfg.ghMetricsInterval ?? 14400) / 3600);
+				editGmailEnabled = cfg.gmailEnabled ?? false;
+				editCalendarEnabled = cfg.calendarEnabled ?? false;
+				editGmailFilter = cfg.gmailFilterQuery ?? '-category:promotions -category:social -category:forums';
+				editCalendarLookahead = cfg.calendarLookaheadH ?? 48;
 			}
 		} catch {
 			// handled
@@ -550,6 +558,82 @@
 					disabled={saving === 'ghsignal'}
 				>
 					{#if saving === 'ghsignal'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
+					Save
+				</Button>
+			</div>
+		</div>
+	</section>
+
+	<Separator class="mb-8" />
+
+	<!-- Gmail & Calendar -->
+	<section class="mb-8">
+		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">Gmail & Calendar</h2>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">Email monitoring and calendar awareness via Google Workspace</p>
+
+		<div class="space-y-3">
+			<!-- Gmail -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 space-y-3">
+				<div class="flex items-center gap-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-md {editGmailEnabled ? 'bg-[var(--color-success)]/10' : 'bg-[var(--bg-2)]'}">
+						<Mail class="h-4 w-4 {editGmailEnabled ? 'text-[var(--color-success)]' : 'text-[var(--text-tertiary)]'}" />
+					</div>
+					<div class="flex-1">
+						<p class="text-sm font-medium text-[var(--text-primary)]">Gmail</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">GitHub notification emails auto-archived (cairn knows, feed stays clean)</p>
+					</div>
+					<label class="relative inline-flex items-center cursor-pointer">
+						<input type="checkbox" bind:checked={editGmailEnabled} class="sr-only peer" />
+						<div class="w-9 h-5 bg-[var(--bg-3)] peer-checked:bg-[var(--cairn-accent)] rounded-full transition-colors after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+					</label>
+				</div>
+
+				{#if editGmailEnabled}
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Filter Query</p>
+						<Input type="text" bind:value={editGmailFilter} class="h-7 text-xs font-mono" />
+						<p class="text-[10px] text-[var(--text-tertiary)]/60 mt-0.5">Gmail search syntax to exclude unwanted emails</p>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Calendar -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 space-y-3">
+				<div class="flex items-center gap-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-md {editCalendarEnabled ? 'bg-[var(--color-success)]/10' : 'bg-[var(--bg-2)]'}">
+						<Calendar class="h-4 w-4 {editCalendarEnabled ? 'text-[var(--color-success)]' : 'text-[var(--text-tertiary)]'}" />
+					</div>
+					<div class="flex-1">
+						<p class="text-sm font-medium text-[var(--text-primary)]">Calendar</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Upcoming events and invitations in your feed</p>
+					</div>
+					<label class="relative inline-flex items-center cursor-pointer">
+						<input type="checkbox" bind:checked={editCalendarEnabled} class="sr-only peer" />
+						<div class="w-9 h-5 bg-[var(--bg-3)] peer-checked:bg-[var(--cairn-accent)] rounded-full transition-colors after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"></div>
+					</label>
+				</div>
+
+				{#if editCalendarEnabled}
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Lookahead (hours)</p>
+						<Input type="number" bind:value={editCalendarLookahead} min={1} max={168} class="h-7 w-24 text-xs font-mono" />
+						<p class="text-[10px] text-[var(--text-tertiary)]/60 mt-0.5">How far ahead to show events (default 48h)</p>
+					</div>
+				{/if}
+			</div>
+
+			<div class="flex justify-end">
+				<Button
+					size="sm" class="h-7 text-xs gap-1 px-3"
+					onclick={() => saveConfig('gws-pollers', {
+						gmailEnabled: editGmailEnabled,
+						calendarEnabled: editCalendarEnabled,
+						gmailFilterQuery: editGmailFilter,
+						calendarLookaheadH: editCalendarLookahead,
+					})}
+					disabled={saving === 'gws-pollers'}
+				>
+					{#if saving === 'gws-pollers'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
 					Save
 				</Button>
 			</div>

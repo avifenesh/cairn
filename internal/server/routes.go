@@ -305,10 +305,13 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		unread, _ := s.toolEvents.Count(ctx, tool.EventFilter{UnreadOnly: true, ExcludeArchived: true})
 		bySource, _ := s.toolEvents.CountBySource(ctx)
 
+		archivedBySource, _ := s.toolEvents.CountArchivedBySource(ctx)
+
 		stats = map[string]any{
-			"total":    total,
-			"unread":   unread,
-			"bySource": bySource,
+			"total":            total,
+			"unread":           unread,
+			"bySource":         bySource,
+			"archivedBySource": archivedBySource,
 		}
 	}
 

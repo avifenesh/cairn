@@ -135,6 +135,10 @@ func (a *eventAdapter) CountBySource(ctx context.Context) (map[string]int, error
 	return a.store.CountBySource(ctx)
 }
 
+func (a *eventAdapter) CountArchivedBySource(ctx context.Context) (map[string]int, error) {
+	return a.store.CountArchivedBySource(ctx)
+}
+
 func (a *eventAdapter) Archive(ctx context.Context, id string) error {
 	return a.store.Archive(ctx, id)
 }

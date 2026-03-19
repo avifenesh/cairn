@@ -4,7 +4,7 @@
 	import { feedStore } from '$lib/stores/feed.svelte';
 	import FeedItemComponent from '$lib/components/feed/FeedItem.svelte';
 	import type { DashboardResponse } from '$lib/types';
-	import { Activity, Eye, Zap, TrendingUp, RefreshCw, CheckCheck, Loader2, Filter } from '@lucide/svelte';
+	import { Activity, Eye, Zap, TrendingUp, RefreshCw, CheckCheck, Loader2, Filter, Mail } from '@lucide/svelte';
 	import { createPullToRefresh } from '$lib/utils/touch.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
@@ -172,6 +172,18 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- Archived email counter (non-intrusive) -->
+		{#if dashboard.stats.archivedBySource && Object.values(dashboard.stats.archivedBySource).some(v => v > 0)}
+			<div class="mb-4 flex items-center gap-2 text-[11px] text-[var(--text-tertiary)]">
+				<Mail class="h-3 w-3 opacity-60" />
+				{#each Object.entries(dashboard.stats.archivedBySource) as [src, count]}
+					{#if count > 0}
+						<span class="tabular-nums">{count} {src} archived</span>
+					{/if}
+				{/each}
+			</div>
+		{/if}
 
 		<!-- Source filter chips -->
 		{#if activeSources.length > 0}

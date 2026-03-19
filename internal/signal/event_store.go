@@ -70,6 +70,7 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 			return inserted, fmt.Errorf("signal: insert event: %w", err)
 		}
 		if n, _ := res.RowsAffected(); n > 0 {
+			ev.autoArchiveID = id // track ID for post-commit auto-archive
 			inserted = append(inserted, ev)
 		}
 	}
@@ -77,6 +78,16 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("signal: commit: %w", err)
 	}
+
+	// Auto-archive events flagged with Metadata["autoArchive"]=true.
+	for _, ev := range inserted {
+		if ev.autoArchiveID != "" && ev.Metadata != nil {
+			if autoArchive, ok := ev.Metadata["autoArchive"].(bool); ok && autoArchive {
+				_ = s.Archive(ctx, ev.autoArchiveID)
+			}
+		}
+	}
+
 	return inserted, nil
 }
 
@@ -152,6 +163,25 @@ func (s *EventStore) Count(ctx context.Context, f EventFilter) (int, error) {
 // CountBySource returns event counts grouped by source (excluding archived).
 func (s *EventStore) CountBySource(ctx context.Context) (map[string]int, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT source, COUNT(*) FROM events WHERE archived_at IS NULL GROUP BY source")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := map[string]int{}
+	for rows.Next() {
+		var source string
+		var count int
+		if err := rows.Scan(&source, &count); err != nil {
+			return nil, err
+		}
+		result[source] = count
+	}
+	return result, rows.Err()
+}
+
+// CountArchivedBySource returns archived event counts grouped by source.
+func (s *EventStore) CountArchivedBySource(ctx context.Context) (map[string]int, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT source, COUNT(*) FROM events WHERE archived_at IS NOT NULL GROUP BY source")
 	if err != nil {
 		return nil, err
 	}

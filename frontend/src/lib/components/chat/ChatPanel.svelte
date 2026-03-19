@@ -12,7 +12,7 @@
 	import ActiveSkillChip from './ActiveSkillChip.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import ReasoningBlock from './ReasoningBlock.svelte';
-	import { Bot, Send, Loader2, X } from '@lucide/svelte';
+	import { Bot, Send, Loader2, X, Plus, Square } from '@lucide/svelte';
 	import type { Attachment } from '$lib/types';
 	import { uploadFile } from '$lib/api/client';
 
@@ -35,6 +35,19 @@
 			// ignore
 		}
 	});
+
+	function stopStreaming() {
+		chatStore.clearStreaming();
+		sending = false;
+	}
+
+	function startNewChat() {
+		chatStore.setCurrentSession(null);
+		chatStore.setMessages([]);
+		chatStore.clearStreaming();
+		inputText = '';
+		attachment = null;
+	}
 
 	async function handleSend() {
 		const text = inputText.trim();
@@ -251,6 +264,15 @@
 			<div class="mb-2 flex items-center gap-2">
 				<ModeSelector />
 				<SessionPicker />
+				<Button
+					variant="outline"
+					size="sm"
+					class="h-7 text-xs gap-1 px-2"
+					onclick={startNewChat}
+					title="New chat"
+				>
+					<Plus class="h-3 w-3" /> New
+				</Button>
 				<ActiveSkillChip />
 			</div>
 
@@ -288,20 +310,28 @@
 				</div>
 				<FileButton onattach={(a) => { attachment = a; }} disabled={sending} />
 				<VoiceButton />
+				{#if sending}
+				<Button
+					size="icon"
+					class="h-10 w-10 rounded-lg bg-[var(--color-error)] hover:bg-[var(--color-error)]/80"
+					onclick={stopStreaming}
+					aria-label="Stop"
+					title="Stop generating"
+				>
+					<Square class="h-4 w-4" />
+				</Button>
+			{:else}
 				<Button
 					size="icon"
 					class="h-10 w-10 rounded-lg"
 					style="background-color: {modeColor}"
 					onclick={handleSend}
-					disabled={(!inputText.trim() && !attachment) || sending}
+					disabled={!inputText.trim() && !attachment}
 					aria-label="Send"
 				>
-					{#if sending}
-						<Loader2 class="h-4 w-4 animate-spin" />
-					{:else}
-						<Send class="h-4 w-4" />
-					{/if}
+					<Send class="h-4 w-4" />
 				</Button>
+			{/if}
 			</div>
 		</div>
 	</div>

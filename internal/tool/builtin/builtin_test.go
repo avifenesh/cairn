@@ -279,8 +279,8 @@ func TestSearchFiles(t *testing.T) {
 
 func TestAll(t *testing.T) {
 	tools := All()
-	if len(tools) != 30 {
-		t.Fatalf("expected 30 built-in tools, got %d", len(tools))
+	if len(tools) != 32 {
+		t.Fatalf("expected 32 built-in tools, got %d", len(tools))
 	}
 
 	names := make(map[string]bool)
@@ -300,6 +300,7 @@ func TestAll(t *testing.T) {
 		"cairn.loadSkill", "cairn.listSkills",
 		"cairn.notify",
 		"cairn.createCron", "cairn.listCrons", "cairn.deleteCron",
+		"cairn.patchConfig", "cairn.getConfig",
 	}
 	for _, name := range expected {
 		if !names[name] {

@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getDashboard, getFeed, triggerPoll, markAllRead, deleteFeedItem } from '$lib/api/client';
+	import { getDashboard, getFeed, triggerPoll, markAllRead, deleteFeedItem, archiveFeedItem } from '$lib/api/client';
 	import { feedStore } from '$lib/stores/feed.svelte';
 	import FeedItemComponent from '$lib/components/feed/FeedItem.svelte';
 	import type { DashboardResponse } from '$lib/types';
-	import { Activity, Eye, Zap, TrendingUp, RefreshCw, CheckCheck, Loader2, Filter, Mail } from '@lucide/svelte';
+	import { Activity, Eye, Zap, TrendingUp, RefreshCw, CheckCheck, Loader2, Filter, Mail, Archive, Trash2 } from '@lucide/svelte';
 	import { createPullToRefresh } from '$lib/utils/touch.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
@@ -58,6 +58,26 @@
 			? feedStore.items.filter((i) => i.source === activeSource)
 			: feedStore.items
 	);
+
+	async function handleArchiveAll() {
+		const ids = filteredItems.map((i) => i.id);
+		for (const id of ids) {
+			feedStore.archiveItem(id);
+		}
+		const results = await Promise.allSettled(ids.map((id) => archiveFeedItem(id)));
+		const failed = results.filter((r) => r.status === 'rejected').length;
+		if (failed > 0) console.error(`Failed to archive ${failed} items`);
+	}
+
+	async function handleDeleteAll() {
+		const ids = filteredItems.map((i) => i.id);
+		for (const id of ids) {
+			feedStore.removeItem(id);
+		}
+		const results = await Promise.allSettled(ids.map((id) => deleteFeedItem(id)));
+		const failed = results.filter((r) => r.status === 'rejected').length;
+		if (failed > 0) console.error(`Failed to delete ${failed} items`);
+	}
 
 	async function handleDelete(id: string) {
 		feedStore.removeItem(id);
@@ -222,6 +242,14 @@
 			{#if feedStore.unreadCount > 0}
 				<Button variant="outline" size="sm" onclick={handleMarkAllRead} class="h-7 text-xs gap-1.5">
 					<CheckCheck class="h-3 w-3" /> Mark all read
+				</Button>
+			{/if}
+			{#if filteredItems.length > 0}
+				<Button variant="outline" size="sm" onclick={handleArchiveAll} class="h-7 text-xs gap-1.5 text-[var(--color-warning)]">
+					<Archive class="h-3 w-3" /> Archive all
+				</Button>
+				<Button variant="outline" size="sm" onclick={handleDeleteAll} class="h-7 text-xs gap-1.5 text-[var(--color-error)]">
+					<Trash2 class="h-3 w-3" /> Delete all
 				</Button>
 			{/if}
 			<span class="flex-1"></span>

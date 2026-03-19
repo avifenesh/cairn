@@ -306,6 +306,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			Skills:    invCtx.ToolSkills,
 			Notifier:  invCtx.ToolNotifier,
 			Crons:     invCtx.ToolCrons,
+			Config:    invCtx.ToolConfig,
 			ActivateSkill: func(name, content string, allowedTools []string) {
 				if invCtx.Session != nil {
 					invCtx.Session.ActiveSkills = append(invCtx.Session.ActiveSkills, ActiveSkill{

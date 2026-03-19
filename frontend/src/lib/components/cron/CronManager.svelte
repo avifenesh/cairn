@@ -8,13 +8,19 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Clock, Plus, Trash2, ChevronDown, ChevronUp, Play, Pause, Loader2, Calendar } from '@lucide/svelte';
+	import { Clock, Plus, Trash2, ChevronDown, ChevronUp, Play, Pause, Loader2, Calendar, Pencil, Save } from '@lucide/svelte';
 
 	let jobs = $state<CronJob[]>([]);
 	let loading = $state(true);
 	let expandedId = $state<string | null>(null);
 	let executions = $state<CronExecution[]>([]);
 	let loadingExecs = $state(false);
+	let editingId = $state<string | null>(null);
+	let editSchedule = $state('');
+	let editInstruction = $state('');
+	let editPriority = $state(3);
+	let savingEdit = $state(false);
+	let editError = $state('');
 
 	// Create form state
 	let newName = $state('');
@@ -63,7 +69,7 @@
 				name: newName.trim(),
 				schedule: newSchedule.trim(),
 				instruction: newInstruction.trim(),
-				priority: newPriority,
+				priority: Number(newPriority),
 				timezone: newTimezone.trim() || 'UTC',
 			});
 			jobs = [job, ...jobs];
@@ -94,6 +100,32 @@
 			if (expandedId === id) expandedId = null;
 		} catch (e) {
 			console.error('Failed to delete cron job:', e);
+		}
+	}
+
+	function startEditing(job: CronJob) {
+		editingId = job.id;
+		editSchedule = job.schedule;
+		editInstruction = job.instruction;
+		editPriority = job.priority;
+	}
+
+	async function saveEdit(id: string) {
+		savingEdit = true;
+		editError = '';
+		try {
+			const res = await updateCron(id, {
+				schedule: editSchedule.trim(),
+				instruction: editInstruction.trim(),
+				priority: Number(editPriority),
+			});
+			jobs = jobs.map((j) => (j.id === id ? res.job : j));
+			editingId = null;
+		} catch (e) {
+			editError = e instanceof Error ? e.message : 'Failed to save changes';
+			console.error('Failed to update cron job:', e);
+		} finally {
+			savingEdit = false;
 		}
 	}
 
@@ -199,31 +231,78 @@
 				<!-- Expanded details -->
 				{#if expandedId === job.id}
 					<div class="px-4 pb-4 pt-1 border-t border-border-subtle">
-						<!-- Instruction -->
-						<div class="mb-3">
-							<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Instruction</p>
-							<p class="text-xs text-[var(--text-secondary)] bg-[var(--bg-1)] rounded-md px-3 py-2 font-mono whitespace-pre-wrap">{job.instruction}</p>
-						</div>
+						{#if editingId === job.id}
+							<!-- Edit mode -->
+							<div class="space-y-3 mb-3">
+								<div>
+									<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Schedule</p>
+									<Input type="text" bind:value={editSchedule} class="h-7 text-xs font-mono" />
+									{#if editSchedule.trim() && cronToHuman(editSchedule.trim()) !== editSchedule.trim()}
+										<p class="text-[10px] text-[var(--cairn-accent)] mt-0.5"><Calendar class="h-3 w-3 inline" /> {cronToHuman(editSchedule.trim())}</p>
+									{/if}
+								</div>
+								<div>
+									<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Instruction</p>
+									<textarea
+										bind:value={editInstruction}
+										class="w-full rounded-md border border-border-subtle bg-[var(--bg-1)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] font-mono focus:border-[var(--cairn-accent)] focus:outline-none resize-y h-16"
+									></textarea>
+								</div>
+								<div>
+									<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Priority</p>
+									<select bind:value={editPriority} class="h-7 rounded-md border border-border-subtle bg-[var(--bg-1)] px-2 text-xs text-[var(--text-primary)] focus:border-[var(--cairn-accent)] focus:outline-none">
+										{#each PRIORITIES as p}
+											<option value={p.value}>{p.label}</option>
+										{/each}
+									</select>
+								</div>
+								{#if editError}
+									<p class="text-[10px] text-[var(--color-error)]">{editError}</p>
+								{/if}
+								<div class="flex gap-2 justify-end">
+									<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => { editingId = null; editError = ''; }}>Cancel</Button>
+									<Button size="sm" class="h-7 text-xs gap-1" onclick={() => saveEdit(job.id)} disabled={savingEdit}>
+										{#if savingEdit}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
+										Save
+									</Button>
+								</div>
+							</div>
+						{:else}
+							<!-- View mode -->
+							<div class="flex items-center justify-between mb-3">
+								<div class="flex-1">
+									<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Instruction</p>
+									<p class="text-xs text-[var(--text-secondary)] bg-[var(--bg-1)] rounded-md px-3 py-2 font-mono whitespace-pre-wrap">{job.instruction}</p>
+								</div>
+								<button
+									class="ml-3 flex-shrink-0 rounded-md p-1.5 text-[var(--text-tertiary)] hover:text-[var(--cairn-accent)] hover:bg-[var(--bg-2)] transition-colors"
+									title="Edit"
+									onclick={() => startEditing(job)}
+								>
+									<Pencil class="h-3.5 w-3.5" />
+								</button>
+							</div>
 
-						<!-- Details grid -->
-						<div class="grid grid-cols-4 gap-3 mb-3">
-							<div>
-								<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Schedule</p>
-								<p class="text-xs text-[var(--text-primary)] font-mono">{job.schedule}</p>
+							<!-- Details grid -->
+							<div class="grid grid-cols-4 gap-3 mb-3">
+								<div>
+									<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Schedule</p>
+									<p class="text-xs text-[var(--text-primary)] font-mono">{job.schedule}</p>
+								</div>
+								<div>
+									<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Priority</p>
+									<p class="text-xs text-[var(--text-primary)]">{PRIORITIES.find(p => p.value === job.priority)?.label ?? job.priority}</p>
+								</div>
+								<div>
+									<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Timezone</p>
+									<p class="text-xs text-[var(--text-primary)] font-mono">{job.timezone}</p>
+								</div>
+								<div>
+									<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Cooldown</p>
+									<p class="text-xs text-[var(--text-primary)]">{job.cooldownMs >= 60000 ? Math.round(job.cooldownMs / 60000) + 'min' : Math.round(job.cooldownMs / 1000) + 's'}</p>
+								</div>
 							</div>
-							<div>
-								<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Priority</p>
-								<p class="text-xs text-[var(--text-primary)]">{PRIORITIES.find(p => p.value === job.priority)?.label ?? job.priority}</p>
-							</div>
-							<div>
-								<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Timezone</p>
-								<p class="text-xs text-[var(--text-primary)] font-mono">{job.timezone}</p>
-							</div>
-							<div>
-								<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Cooldown</p>
-								<p class="text-xs text-[var(--text-primary)]">{job.cooldownMs >= 60000 ? Math.round(job.cooldownMs / 60000) + 'min' : Math.round(job.cooldownMs / 1000) + 's'}</p>
-							</div>
-						</div>
+						{/if}
 
 						<!-- Execution history -->
 						<div>

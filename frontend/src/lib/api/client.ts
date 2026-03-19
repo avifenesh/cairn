@@ -394,6 +394,10 @@ export interface EditableConfig {
 	compactionTriggerTokens?: number;
 	compactionKeepRecent?: number;
 	compactionMaxToolOutput?: number;
+	ghOwner?: string;
+	ghTrackedRepos?: string;
+	ghBotFilter?: string;
+	ghMetricsInterval?: number;
 	budgetDailyCap?: number;
 	budgetWeeklyCap?: number;
 	channelSessionTimeout?: number;

@@ -32,6 +32,12 @@ const (
 	KindPost       = "post"
 	KindPackage    = "package"
 	KindWebhook    = "webhook"
+	KindComment    = "comment"
+	KindFollow     = "follow"
+	KindMetrics    = "metrics"
+	KindNewRepo    = "new_repo"
+
+	SourceGitHubSignal = "github_signal"
 )
 
 // Poller fetches new events from an external source.

@@ -6,7 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2 } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github } from '@lucide/svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
 	let mcpStatus = $state<McpStatus | null>(null);
@@ -21,6 +21,10 @@
 	let editBudgetDaily = $state(0);
 	let editBudgetWeekly = $state(0);
 	let editSessionTimeout = $state(240);
+	let editGhOwner = $state('');
+	let editGhTrackedRepos = $state('');
+	let editGhBotFilter = $state('');
+	let editGhMetricsHours = $state(4);
 	let saving = $state('');
 
 	const knownChannels = [
@@ -44,6 +48,10 @@
 				editBudgetDaily = cfg.budgetDailyCap ?? 0;
 				editBudgetWeekly = cfg.budgetWeeklyCap ?? 0;
 				editSessionTimeout = cfg.channelSessionTimeout ?? 240;
+				editGhOwner = cfg.ghOwner ?? '';
+				editGhTrackedRepos = cfg.ghTrackedRepos ?? '';
+				editGhBotFilter = cfg.ghBotFilter ?? '';
+				editGhMetricsHours = Math.round((cfg.ghMetricsInterval ?? 14400) / 3600);
 			}
 		} catch {
 			// handled
@@ -480,6 +488,70 @@
 						Save
 					</Button>
 				</div>
+			</div>
+		</div>
+	</section>
+
+	<Separator class="mb-8" />
+
+	<!-- GitHub Signal -->
+	<section class="mb-8">
+		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">GitHub Signal</h2>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">External engagement tracking, growth metrics, stargazers, followers</p>
+
+		<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 space-y-4">
+			<div class="flex items-center gap-3 mb-1">
+				<div class="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--cairn-accent)]/10">
+					<Github class="h-4 w-4 text-[var(--cairn-accent)]" />
+				</div>
+				<div>
+					<p class="text-sm font-medium text-[var(--text-primary)]">Signal Intelligence</p>
+					<p class="text-[10px] text-[var(--text-tertiary)]">Tracks external issues, PRs, comments, stars, forks, followers. Filters bots.</p>
+				</div>
+			</div>
+
+			<div>
+				<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">GitHub Username</p>
+				<Input type="text" bind:value={editGhOwner} placeholder="avifenesh" class="h-7 text-xs font-mono" />
+				<p class="text-[10px] text-[var(--text-tertiary)]/60 mt-0.5">Your login - used to filter out your own activity</p>
+			</div>
+
+			<div>
+				<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Tracked Repos</p>
+				<textarea
+					bind:value={editGhTrackedRepos}
+					placeholder="owner/repo1, owner/repo2 (empty = auto-detect)"
+					class="w-full rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 py-1.5 text-xs font-mono text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]/40 focus:border-[var(--cairn-accent)] focus:outline-none resize-none h-16"
+				></textarea>
+				<p class="text-[10px] text-[var(--text-tertiary)]/60 mt-0.5">Comma-separated. Empty = auto-detect from your repos + orgs</p>
+			</div>
+
+			<div>
+				<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Additional Bot Filter</p>
+				<Input type="text" bind:value={editGhBotFilter} placeholder="my-ci-bot, internal-bot" class="h-7 text-xs font-mono" />
+				<p class="text-[10px] text-[var(--text-tertiary)]/60 mt-0.5">Extra bot logins to filter (common bots already included)</p>
+			</div>
+
+			<div>
+				<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Metrics Interval (hours)</p>
+				<Input type="number" bind:value={editGhMetricsHours} min={1} max={48} class="h-7 w-24 text-xs font-mono" />
+				<p class="text-[10px] text-[var(--text-tertiary)]/60 mt-0.5">How often to check stars, forks, followers (default 4h)</p>
+			</div>
+
+			<div class="flex justify-end pt-1">
+				<Button
+					size="sm" class="h-7 text-xs gap-1 px-3"
+					onclick={() => saveConfig('ghsignal', {
+						ghOwner: editGhOwner,
+						ghTrackedRepos: editGhTrackedRepos,
+						ghBotFilter: editGhBotFilter,
+						ghMetricsInterval: editGhMetricsHours * 3600,
+					})}
+					disabled={saving === 'ghsignal'}
+				>
+					{#if saving === 'ghsignal'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
+					Save
+				</Button>
 			</div>
 		</div>
 	</section>

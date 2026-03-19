@@ -43,15 +43,19 @@ type Config struct {
 	IdleModeEnabled bool
 
 	// Signal plane
-	GHToken        string            // GitHub personal access token
-	GHOrgs         []string          // GitHub orgs to track
-	HNKeywords     []string          // HN keyword filter
-	HNMinScore     int               // HN minimum score filter
-	PollInterval   int               // Poll interval in seconds (default 300 = 5min)
-	RedditSubs     []string          // Subreddits to monitor
-	NPMPackages    []string          // npm packages to track
-	CratesPackages []string          // crates.io crates to track
-	WebhookSecrets map[string]string // webhook name -> HMAC secret
+	GHToken           string            // GitHub personal access token
+	GHOrgs            []string          // GitHub orgs to track
+	GHOwner           string            // Your GitHub login (for self-filter)
+	GHTrackedRepos    []string          // Explicit repos to track (empty = auto-detect)
+	GHBotFilter       []string          // Additional bot logins to filter
+	GHMetricsInterval int               // Seconds between metrics polls (default 14400 = 4h)
+	HNKeywords        []string          // HN keyword filter
+	HNMinScore        int               // HN minimum score filter
+	PollInterval      int               // Poll interval in seconds (default 300 = 5min)
+	RedditSubs        []string          // Subreddits to monitor
+	NPMPackages       []string          // npm packages to track
+	CratesPackages    []string          // crates.io crates to track
+	WebhookSecrets    map[string]string // webhook name -> HMAC secret
 
 	// Memory context builder
 	MemoryContextBudget   int     // Token budget (default: 4000)
@@ -185,6 +189,10 @@ func Load() (*Config, error) {
 		IdleModeEnabled:         envBool("IDLE_MODE_ENABLED", false),
 		GHToken:                 envStr("GH_TOKEN", envStr("GITHUB_TOKEN", "")),
 		GHOrgs:                  envSlice("GH_ORGS", nil),
+		GHOwner:                 envStr("GH_OWNER", ""),
+		GHTrackedRepos:          envSlice("GH_TRACKED_REPOS", nil),
+		GHBotFilter:             envSlice("GH_BOT_FILTER", nil),
+		GHMetricsInterval:       envInt("GH_METRICS_INTERVAL", 14400),
 		HNKeywords:              envSlice("HN_KEYWORDS", nil),
 		HNMinScore:              envInt("HN_MIN_SCORE", 0),
 		PollInterval:            pollIntervalSeconds(),
@@ -396,6 +404,10 @@ type PatchableConfig struct {
 	BudgetDailyCap          *float64 `json:"budgetDailyCap,omitempty"`
 	BudgetWeeklyCap         *float64 `json:"budgetWeeklyCap,omitempty"`
 	ChannelSessionTimeout   *int     `json:"channelSessionTimeout,omitempty"`
+	GHOwner                 *string  `json:"ghOwner,omitempty"`
+	GHTrackedRepos          *string  `json:"ghTrackedRepos,omitempty"`    // comma-separated
+	GHBotFilter             *string  `json:"ghBotFilter,omitempty"`       // comma-separated
+	GHMetricsInterval       *int     `json:"ghMetricsInterval,omitempty"` // seconds
 }
 
 var configMu sync.RWMutex
@@ -422,6 +434,26 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 	if p.ChannelSessionTimeout != nil && *p.ChannelSessionTimeout > 0 {
 		c.ChannelSessionTimeout = *p.ChannelSessionTimeout
 	}
+	if p.GHOwner != nil {
+		c.GHOwner = *p.GHOwner
+	}
+	if p.GHTrackedRepos != nil {
+		if *p.GHTrackedRepos == "" {
+			c.GHTrackedRepos = nil
+		} else {
+			c.GHTrackedRepos = strings.Split(*p.GHTrackedRepos, ",")
+		}
+	}
+	if p.GHBotFilter != nil {
+		if *p.GHBotFilter == "" {
+			c.GHBotFilter = nil
+		} else {
+			c.GHBotFilter = strings.Split(*p.GHBotFilter, ",")
+		}
+	}
+	if p.GHMetricsInterval != nil && *p.GHMetricsInterval > 0 {
+		c.GHMetricsInterval = *p.GHMetricsInterval
+	}
 }
 
 // GetPatchable returns the current runtime-editable config values.
@@ -435,8 +467,14 @@ func (c *Config) GetPatchable() PatchableConfig {
 		BudgetDailyCap:          &c.BudgetDailyCap,
 		BudgetWeeklyCap:         &c.BudgetWeeklyCap,
 		ChannelSessionTimeout:   &c.ChannelSessionTimeout,
+		GHOwner:                 &c.GHOwner,
+		GHTrackedRepos:          strPtr(strings.Join(c.GHTrackedRepos, ",")),
+		GHBotFilter:             strPtr(strings.Join(c.GHBotFilter, ",")),
+		GHMetricsInterval:       &c.GHMetricsInterval,
 	}
 }
+
+func strPtr(s string) *string { return &s }
 
 // SaveOverrides writes the current patchable config to $dataDir/config.json.
 func (c *Config) SaveOverrides(dataDir string) error {

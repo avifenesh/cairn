@@ -245,6 +245,21 @@ func runServe(logger *slog.Logger) {
 			Orgs:  cfg.GHOrgs,
 		}), pollInterval)
 		logger.Info("signal: github poller registered", "orgs", cfg.GHOrgs)
+
+		// GitHub signal intelligence: external engagement, growth metrics, stargazers, followers, new repos.
+		if cfg.GHOwner != "" {
+			scheduler.Register(signalplane.NewGitHubSignalPoller(signalplane.GitHubSignalConfig{
+				Token:           cfg.GHToken,
+				Owner:           cfg.GHOwner,
+				TrackedRepos:    cfg.GHTrackedRepos,
+				Orgs:            cfg.GHOrgs,
+				BotFilter:       cfg.GHBotFilter,
+				State:           sourceState,
+				Logger:          logger,
+				MetricsInterval: time.Duration(cfg.GHMetricsInterval) * time.Second,
+			}), pollInterval)
+			logger.Info("signal: github_signal poller registered", "owner", cfg.GHOwner, "repos", len(cfg.GHTrackedRepos))
+		}
 	}
 
 	if len(cfg.HNKeywords) > 0 || cfg.HNMinScore > 0 {

@@ -8,13 +8,10 @@
 	import { createPullToRefresh } from '$lib/utils/touch.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Badge } from '$lib/components/ui/badge';
 
 	let dashboard = $state<DashboardResponse | null>(null);
 	let error = $state<string | null>(null);
 	let activeSource = $state<string | null>(null);
-
-	const SOURCES = ['github', 'gmail', 'calendar', 'hn', 'reddit', 'npm', 'crates', 'webhook'];
 
 	async function loadDashboard() {
 		dashboard = await getDashboard({ limit: 20 });

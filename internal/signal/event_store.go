@@ -96,6 +96,9 @@ func buildWhere(f EventFilter) (string, []any) {
 	if f.UnreadOnly {
 		clauses = append(clauses, "read_at IS NULL")
 	}
+	if f.ExcludeArchived {
+		clauses = append(clauses, "archived_at IS NULL")
+	}
 	if f.Before != "" {
 		// Stable cursor: tie-break on id for events sharing the same timestamp.
 		clauses = append(clauses, "(created_at, id) < ((SELECT created_at FROM events WHERE id = ?), ?)")
@@ -144,6 +147,25 @@ func (s *EventStore) Count(ctx context.Context, f EventFilter) (int, error) {
 	var count int
 	err := s.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM events %s", where), args...).Scan(&count)
 	return count, err
+}
+
+// CountBySource returns event counts grouped by source (excluding archived).
+func (s *EventStore) CountBySource(ctx context.Context) (map[string]int, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT source, COUNT(*) FROM events WHERE archived_at IS NULL GROUP BY source")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := map[string]int{}
+	for rows.Next() {
+		var source string
+		var count int
+		if err := rows.Scan(&source, &count); err != nil {
+			return nil, err
+		}
+		result[source] = count
+	}
+	return result, rows.Err()
 }
 
 // MarkRead marks an event as read.

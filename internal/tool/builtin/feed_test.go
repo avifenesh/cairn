@@ -77,6 +77,14 @@ func (m *mockEventService) DeleteByID(_ context.Context, id string) error {
 	return nil
 }
 
+func (m *mockEventService) CountBySource(_ context.Context) (map[string]int, error) {
+	result := map[string]int{}
+	for _, ev := range m.events {
+		result[ev.Source]++
+	}
+	return result, nil
+}
+
 func toolCtxWithEvents(svc tool.EventService) *tool.ToolContext {
 	return &tool.ToolContext{
 		SessionID: "test",

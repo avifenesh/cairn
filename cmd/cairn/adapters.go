@@ -93,11 +93,12 @@ type eventAdapter struct {
 
 func (a *eventAdapter) List(ctx context.Context, f tool.EventFilter) ([]*tool.StoredEvent, error) {
 	events, err := a.store.List(ctx, signal.EventFilter{
-		Source:     f.Source,
-		Kind:       f.Kind,
-		UnreadOnly: f.UnreadOnly,
-		Limit:      f.Limit,
-		Before:     f.Before,
+		Source:          f.Source,
+		Kind:            f.Kind,
+		UnreadOnly:      f.UnreadOnly,
+		ExcludeArchived: f.ExcludeArchived,
+		Limit:           f.Limit,
+		Before:          f.Before,
 	})
 	if err != nil {
 		return nil, err
@@ -128,6 +129,10 @@ func (a *eventAdapter) Count(ctx context.Context, f tool.EventFilter) (int, erro
 		Kind:       f.Kind,
 		UnreadOnly: f.UnreadOnly,
 	})
+}
+
+func (a *eventAdapter) CountBySource(ctx context.Context) (map[string]int, error) {
+	return a.store.CountBySource(ctx)
 }
 
 func (a *eventAdapter) Archive(ctx context.Context, id string) error {

@@ -144,11 +144,12 @@ func (s *Server) handleListFeed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f := tool.EventFilter{
-		Source:     q.Get("source"),
-		Kind:       q.Get("kind"),
-		UnreadOnly: q.Get("unread") == "true",
-		Limit:      limit + 1, // fetch one extra to determine hasMore
-		Before:     q.Get("before"),
+		Source:          q.Get("source"),
+		Kind:            q.Get("kind"),
+		UnreadOnly:      q.Get("unread") == "true",
+		ExcludeArchived: q.Get("archived") != "true", // exclude archived by default
+		Limit:           limit + 1,                   // fetch one extra to determine hasMore
+		Before:          q.Get("before"),
 	}
 
 	events, err := s.toolEvents.List(r.Context(), f)
@@ -230,6 +231,10 @@ func (s *Server) handleArchiveFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.toolEvents.Archive(r.Context(), id); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -247,6 +252,10 @@ func (s *Server) handleDeleteFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.toolEvents.DeleteByID(r.Context(), id); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			writeError(w, http.StatusNotFound, "event not found")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -269,7 +278,10 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		events, err := s.toolEvents.List(ctx, tool.EventFilter{Limit: limit})
+		events, err := s.toolEvents.List(ctx, tool.EventFilter{
+			ExcludeArchived: true,
+			Limit:           limit,
+		})
 		if err == nil {
 			feedItems = make([]map[string]any, 0, len(events))
 			for _, ev := range events {
@@ -289,14 +301,9 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		total, _ := s.toolEvents.Count(ctx, tool.EventFilter{})
-		unread, _ := s.toolEvents.Count(ctx, tool.EventFilter{UnreadOnly: true})
-
-		// Count by source.
-		bySource := map[string]int{}
-		for _, ev := range events {
-			bySource[ev.Source]++
-		}
+		total, _ := s.toolEvents.Count(ctx, tool.EventFilter{ExcludeArchived: true})
+		unread, _ := s.toolEvents.Count(ctx, tool.EventFilter{UnreadOnly: true, ExcludeArchived: true})
+		bySource, _ := s.toolEvents.CountBySource(ctx)
 
 		stats = map[string]any{
 			"total":    total,

@@ -92,8 +92,8 @@
 		</div>
 	</div>
 
-	<!-- Action buttons (hover reveal) -->
-	<div class="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-[var(--dur-fast)]">
+	<!-- Action buttons (hover/focus reveal) -->
+	<div class="flex items-center gap-0.5 flex-shrink-0 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity duration-[var(--dur-fast)]">
 		{#if !item.isRead}
 			<button
 				class="rounded-md p-1 text-[var(--text-tertiary)] hover:text-[var(--cairn-accent)] hover:bg-[var(--bg-2)]"

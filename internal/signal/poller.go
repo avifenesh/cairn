@@ -78,9 +78,10 @@ type StoredEvent struct {
 
 // EventFilter controls which events to list.
 type EventFilter struct {
-	Source     string // filter by source
-	Kind       string // filter by kind
-	UnreadOnly bool   // only events with read_at IS NULL
-	Limit      int    // max results (0 = default 50)
-	Before     string // cursor: events before this ID (for pagination)
+	Source          string // filter by source
+	Kind            string // filter by kind
+	UnreadOnly      bool   // only events with read_at IS NULL
+	ExcludeArchived bool   // only events with archived_at IS NULL
+	Limit           int    // max results (0 = default 50)
+	Before          string // cursor: events before this ID (for pagination)
 }

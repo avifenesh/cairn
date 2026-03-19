@@ -171,6 +171,13 @@ export interface ChannelStatus {
 	sessionTimeout: number;
 }
 
+export interface Attachment {
+	path: string;
+	name: string;
+	size: number;
+	mimeType: string;
+}
+
 // SSE event types
 export type SSEEventType =
 	| 'ready'

@@ -2,13 +2,17 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -55,6 +59,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /v1/assistant/sessions", s.handleListSessions)
 	s.mux.HandleFunc("GET /v1/assistant/sessions/{id}", s.handleGetSession)
 	s.mux.HandleFunc("POST /v1/assistant/message", s.rateLimitMiddleware(10, time.Minute, s.handleAssistantMessage))
+	s.mux.HandleFunc("POST /v1/upload", s.handleUpload)
 
 	// Skills.
 	s.mux.HandleFunc("GET /v1/skills", s.handleListSkills)
@@ -884,6 +889,98 @@ func (s *Server) handleCosts(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePollRun(w http.ResponseWriter, r *http.Request) {
 	// Stub: manual poll trigger would integrate with the signal plane.
 	writeJSON(w, http.StatusAccepted, map[string]any{"ok": true, "message": "poll triggered"})
+}
+
+// handleUpload accepts a multipart file upload (images/videos for vision tools).
+// Files are saved to {DataDir}/uploads/ with a random filename.
+func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
+	const maxUpload = 32 << 20 // 32MB
+	r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
+
+	if err := r.ParseMultipartForm(maxUpload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "file too large (max 32MB)"})
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "missing file field"})
+		return
+	}
+	defer file.Close()
+
+	// Validate MIME type.
+	ct := header.Header.Get("Content-Type")
+	allowed := map[string]bool{
+		"image/png": true, "image/jpeg": true, "image/gif": true, "image/webp": true,
+		"video/mp4": true, "video/quicktime": true, "video/x-m4v": true,
+	}
+	if !allowed[ct] {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": fmt.Sprintf("unsupported file type: %s", ct)})
+		return
+	}
+
+	// Generate random filename.
+	var buf [12]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to generate filename"})
+		return
+	}
+	exts, _ := mime.ExtensionsByType(ct)
+	ext := ".bin"
+	if len(exts) > 0 {
+		ext = exts[0]
+	}
+	// Prefer common extensions.
+	switch ct {
+	case "image/png":
+		ext = ".png"
+	case "image/jpeg":
+		ext = ".jpg"
+	case "image/gif":
+		ext = ".gif"
+	case "image/webp":
+		ext = ".webp"
+	case "video/mp4":
+		ext = ".mp4"
+	case "video/quicktime":
+		ext = ".mov"
+	}
+	filename := hex.EncodeToString(buf[:]) + ext
+
+	// Save to uploads directory.
+	dataDir := "./data"
+	if s.config != nil && s.config.DataDir != "" {
+		dataDir = s.config.DataDir
+	}
+	uploadDir := filepath.Join(dataDir, "uploads")
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to create upload directory"})
+		return
+	}
+
+	destPath := filepath.Join(uploadDir, filename)
+	dest, err := os.Create(destPath)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to save file"})
+		return
+	}
+	defer dest.Close()
+
+	written, err := io.Copy(dest, file)
+	if err != nil {
+		os.Remove(destPath)
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to write file"})
+		return
+	}
+
+	absPath, _ := filepath.Abs(destPath)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"path":     absPath,
+		"name":     header.Filename,
+		"size":     written,
+		"mimeType": ct,
+	})
 }
 
 // --- JSON helpers ---

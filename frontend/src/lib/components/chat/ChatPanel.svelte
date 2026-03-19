@@ -8,15 +8,19 @@
 	import ModeSelector from './ModeSelector.svelte';
 	import SessionPicker from './SessionPicker.svelte';
 	import VoiceButton from './VoiceButton.svelte';
+	import FileButton from './FileButton.svelte';
 	import ActiveSkillChip from './ActiveSkillChip.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import ReasoningBlock from './ReasoningBlock.svelte';
-	import { Bot, Send, Loader2 } from '@lucide/svelte';
+	import { Bot, Send, Loader2, X } from '@lucide/svelte';
+	import type { Attachment } from '$lib/types';
+	import { uploadFile } from '$lib/api/client';
 
 	let inputText = $state('');
 	let messagesEnd: HTMLDivElement;
 	let textareaEl: HTMLTextAreaElement;
 	let sending = $state(false);
+	let attachment = $state<Attachment | null>(null);
 
 	onMount(async () => {
 		try {
@@ -34,16 +38,25 @@
 
 	async function handleSend() {
 		const text = inputText.trim();
-		if (!text || sending) return;
+		if (!text && !attachment) return;
+		if (sending) return;
 
+		let message = text;
+		if (attachment) {
+			message = `[Attached file: ${attachment.name} at ${attachment.path}]\n${text}`;
+		}
+
+		const displayText = attachment ? `📎 ${attachment.name}\n${text}` : text;
 		inputText = '';
+		const currentAttachment = attachment;
+		attachment = null;
 		sending = true;
-		chatStore.addUserMessage(text);
+		chatStore.addUserMessage(displayText);
 		await tick();
 		scrollToBottom();
 
 		try {
-			const res = await sendMessage(text, chatStore.mode, chatStore.currentSessionId ?? undefined);
+			const res = await sendMessage(message, chatStore.mode, chatStore.currentSessionId ?? undefined);
 			if (res.sessionId && !chatStore.currentSessionId) {
 				chatStore.setCurrentSession(res.sessionId);
 			}
@@ -52,6 +65,25 @@
 			// error handled via notification
 		} finally {
 			sending = false;
+		}
+	}
+
+	async function handlePaste(e: ClipboardEvent) {
+		const items = e.clipboardData?.items;
+		if (!items) return;
+		for (const item of items) {
+			if (item.type.startsWith('image/')) {
+				e.preventDefault();
+				const file = item.getAsFile();
+				if (!file) return;
+				try {
+					const result = await uploadFile(file);
+					attachment = { path: result.path, name: result.name || 'pasted-image.png', size: result.size, mimeType: result.mimeType };
+				} catch {
+					// upload failed
+				}
+				return;
+			}
 		}
 	}
 
@@ -187,22 +219,41 @@
 					class="flex-1 rounded-lg border bg-[var(--bg-0)] transition-colors focus-within:ring-1"
 					style="border-color: color-mix(in srgb, {modeColor} 25%, transparent); --tw-ring-color: color-mix(in srgb, {modeColor} 30%, transparent)"
 				>
+					{#if attachment}
+						<div class="flex items-center gap-2 px-3 pt-2">
+							<span class="flex items-center gap-1 rounded-md bg-[var(--bg-2)] px-2 py-1 text-xs text-[var(--text-secondary)]">
+								{#if attachment.mimeType.startsWith('image/')}
+									<img src={`/v1/uploads/${attachment.path.split('/').pop()}`} alt="" class="h-6 w-6 rounded object-cover" onerror={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+								{/if}
+								<span class="max-w-[200px] truncate">{attachment.name}</span>
+								<button
+									class="ml-1 rounded p-0.5 hover:bg-[var(--bg-0)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+									onclick={() => { attachment = null; }}
+									title="Remove attachment"
+								>
+									<X class="h-3 w-3" />
+								</button>
+							</span>
+						</div>
+					{/if}
 					<textarea
 						bind:this={textareaEl}
 						bind:value={inputText}
 						onkeydown={handleKeydown}
+						onpaste={handlePaste}
 						placeholder={modePlaceholder}
 						rows="1"
 						class="w-full resize-none bg-transparent px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
 					></textarea>
 				</div>
+				<FileButton onattach={(a) => { attachment = a; }} disabled={sending} />
 				<VoiceButton />
 				<Button
 					size="icon"
 					class="h-10 w-10 rounded-lg"
 					style="background-color: {modeColor}"
 					onclick={handleSend}
-					disabled={!inputText.trim() || sending}
+					disabled={(!inputText.trim() && !attachment) || sending}
 					aria-label="Send"
 				>
 					{#if sending}

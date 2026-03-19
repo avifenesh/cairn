@@ -243,6 +243,23 @@ export const uploadVoice = async (audio: Blob, mode?: ChatMode, sessionId?: stri
 	return res.json() as Promise<{ taskId: string; transcript: string }>;
 };
 
+// File upload (for vision tools)
+export const uploadFile = async (file: File): Promise<{ path: string; name: string; size: number; mimeType: string }> => {
+	const form = new FormData();
+	form.append('file', file);
+	const h: HeadersInit = {};
+	const token = localStorage.getItem('cairn_api_token');
+	if (token) h['X-Api-Token'] = token;
+	const res = await fetch(`${BASE_URL}/v1/upload`, {
+		method: 'POST',
+		credentials: 'include',
+		headers: h,
+		body: form,
+	});
+	if (!res.ok) throw new ApiError(res.status, await res.text());
+	return res.json();
+};
+
 // Memories
 export const getMemories = async (params?: { status?: string; category?: string }) => {
 	if (useMocks()) return { items: mockMemories, hasMore: false };

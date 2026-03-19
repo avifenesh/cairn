@@ -182,7 +182,7 @@ func (c *CalendarPoller) callGWS(ctx context.Context, service, resource, subReso
 	}
 	args = append(args, "--format", "json")
 
-	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	execCtx, cancel := context.WithTimeout(ctx, gwsTimeout) // gwsTimeout defined in gmail.go
 	defer cancel()
 
 	cmd := exec.CommandContext(execCtx, c.gwsPath, args...)

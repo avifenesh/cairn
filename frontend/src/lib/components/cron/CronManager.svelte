@@ -44,8 +44,8 @@
 		try {
 			const res = await getCrons();
 			jobs = res.items ?? [];
-		} catch {
-			// handled
+		} catch (e) {
+			console.error('Failed to load cron jobs:', e);
 		} finally {
 			loading = false;
 		}
@@ -82,8 +82,8 @@
 		try {
 			const res = await updateCron(job.id, { enabled: !job.enabled });
 			jobs = jobs.map((j) => (j.id === job.id ? res.job : j));
-		} catch {
-			// revert silently
+		} catch (e) {
+			console.error('Failed to toggle cron job:', e);
 		}
 	}
 
@@ -92,8 +92,8 @@
 			await deleteCron(id);
 			jobs = jobs.filter((j) => j.id !== id);
 			if (expandedId === id) expandedId = null;
-		} catch {
-			// handled
+		} catch (e) {
+			console.error('Failed to delete cron job:', e);
 		}
 	}
 
@@ -107,7 +107,8 @@
 		try {
 			const detail = await getCronDetail(id);
 			executions = detail.executions ?? [];
-		} catch {
+		} catch (e) {
+			console.error('Failed to load cron executions:', e);
 			executions = [];
 		} finally {
 			loadingExecs = false;
@@ -220,7 +221,7 @@
 							</div>
 							<div>
 								<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Cooldown</p>
-								<p class="text-xs text-[var(--text-primary)]">{Math.round(job.cooldownMs / 60000)}min</p>
+								<p class="text-xs text-[var(--text-primary)]">{job.cooldownMs >= 60000 ? Math.round(job.cooldownMs / 60000) + 'min' : Math.round(job.cooldownMs / 1000) + 's'}</p>
 							</div>
 						</div>
 

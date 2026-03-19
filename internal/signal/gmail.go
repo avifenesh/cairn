@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// gwsTimeout is the maximum time for a gws CLI call. 30s is generous for local subprocess.
+const gwsTimeout = 30 * time.Second
+
 // GmailConfig configures the Gmail poller.
 type GmailConfig struct {
 	GWSPath     string       // path to gws binary
@@ -220,7 +223,7 @@ func (g *GmailPoller) callGWS(ctx context.Context, service, resource, subResourc
 	}
 	args = append(args, "--format", "json")
 
-	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	execCtx, cancel := context.WithTimeout(ctx, gwsTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(execCtx, g.gwsPath, args...)

@@ -17,9 +17,7 @@ describe('CronManager', () => {
 
 	it('renders empty state when no jobs', async () => {
 		render(CronManager);
-		// Wait for mount
-		await new Promise((r) => setTimeout(r, 50));
-		expect(screen.getByText('No scheduled jobs')).toBeInTheDocument();
+		expect(await screen.findByText('No scheduled jobs')).toBeInTheDocument();
 	});
 
 	it('renders create form with required fields', () => {

@@ -337,7 +337,7 @@ func runServe(logger *slog.Logger) {
 			Tags:   cfg.SOTags,
 			APIKey: cfg.SOAPIKey,
 			Logger: logger,
-		}), 60*time.Minute)
+		}), time.Duration(cfg.SOPollInterval)*time.Minute)
 		logger.Info("signal: stackoverflow poller registered", "tags", cfg.SOTags)
 	}
 
@@ -347,7 +347,7 @@ func runServe(logger *slog.Logger) {
 			Tags:     cfg.DevToTags,
 			Username: cfg.DevToUsername,
 			Logger:   logger,
-		}), 30*time.Minute)
+		}), time.Duration(cfg.DevToPollInterval)*time.Minute)
 		logger.Info("signal: devto poller registered", "tags", cfg.DevToTags, "user", cfg.DevToUsername)
 	}
 

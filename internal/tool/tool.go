@@ -170,6 +170,26 @@ type NotifyService interface {
 	DigestLen() int
 }
 
+// CronService manages scheduled recurring tasks.
+type CronService interface {
+	Create(ctx context.Context, name, schedule, instruction string, priority int) (string, error)
+	List(ctx context.Context) ([]CronJobInfo, error)
+	Delete(ctx context.Context, idOrName string) error
+}
+
+// CronJobInfo is a tool-level representation of a cron job.
+type CronJobInfo struct {
+	ID          string
+	Name        string
+	Schedule    string
+	Instruction string
+	Timezone    string
+	Enabled     bool
+	Priority    int
+	LastRun     *time.Time
+	NextRun     *time.Time
+}
+
 // SkillService provides access to the skill system.
 type SkillService interface {
 	Get(name string) *SkillItem
@@ -224,6 +244,7 @@ type ToolContext struct {
 	Status   StatusService
 	Skills   SkillService
 	Notifier NotifyService
+	Crons    CronService
 
 	// ActivateSkill is called by cairn.loadSkill to register a skill in the session.
 	// Set by the ReAct loop before tool execution. Nil = activation not supported.

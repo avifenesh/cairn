@@ -13,6 +13,7 @@ import (
 
 	"github.com/avifenesh/cairn/internal/agent"
 	"github.com/avifenesh/cairn/internal/config"
+	"github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
@@ -56,6 +57,9 @@ type Server struct {
 	// Voice service (optional).
 	voice *voice.Service
 
+	// Cron store (optional).
+	cronStore *cron.Store
+
 	// OnConfigPatch is called after PATCH /v1/config is applied.
 	// Allows external subsystems to react to config changes.
 	OnConfigPatch func()
@@ -89,6 +93,9 @@ type ServerConfig struct {
 
 	// Voice service (optional: STT/TTS).
 	Voice *voice.Service
+
+	// Cron store (optional: scheduled tasks).
+	CronStore *cron.Store
 }
 
 // New creates a fully wired Server with all routes and middleware registered.
@@ -124,6 +131,7 @@ func New(cfg ServerConfig) *Server {
 		toolStatus:     cfg.ToolStatus,
 		toolSkills:     cfg.ToolSkills,
 		voice:          cfg.Voice,
+		cronStore:      cfg.CronStore,
 	}
 
 	// Create SSE broadcaster.

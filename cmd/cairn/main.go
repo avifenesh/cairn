@@ -17,6 +17,7 @@ import (
 	"github.com/avifenesh/cairn/internal/agent"
 	cairnchannel "github.com/avifenesh/cairn/internal/channel"
 	"github.com/avifenesh/cairn/internal/config"
+	cairncron "github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/db"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
@@ -225,7 +226,11 @@ func runServe(logger *slog.Logger) {
 	// Initialize task engine.
 	taskStore := task.NewStore(database)
 	taskEngine := task.NewEngine(taskStore, bus, nil)
+	taskEngine.StartReaper(1 * time.Minute)
 	defer taskEngine.Close()
+
+	// Initialize cron store.
+	cronStore := cairncron.NewStore(database.DB)
 
 	// Create the ReAct agent.
 	var reactAgent agent.Agent
@@ -421,6 +426,9 @@ func runServe(logger *slog.Logger) {
 			Interval: time.Duration(cfg.ReflectionInterval) * time.Second,
 		})
 
+		// Recover agent state from previous run.
+		loopState := agent.RecoverOnStartup(context.Background(), database.DB, logger)
+
 		agentLoop := agent.NewLoop(agent.LoopConfig{
 			TickInterval:       time.Duration(cfg.AgentTickInterval) * time.Second,
 			ReflectionInterval: time.Duration(cfg.ReflectionInterval) * time.Second,
@@ -445,10 +453,14 @@ func runServe(logger *slog.Logger) {
 			ToolTasks:    taskAdapt,
 			ToolStatus:   statusAdapt,
 			ToolSkills:   skillAdapt,
+			CronStore:    cronStore,
+			DB:           database.DB,
 		})
+		agentLoop.SetInitialState(loopState)
 		agentLoop.Start()
 		defer agentLoop.Close()
-		logger.Info("agent loop started", "tick", cfg.AgentTickInterval, "reflection", cfg.ReflectionInterval)
+		logger.Info("agent loop started", "tick", cfg.AgentTickInterval, "reflection", cfg.ReflectionInterval,
+			"restoredTicks", loopState.TickCount)
 	}
 
 	// Initialize voice service (optional).
@@ -488,6 +500,7 @@ func runServe(logger *slog.Logger) {
 		ToolStatus:     statusAdapt,
 		ToolSkills:     skillAdapt,
 		Voice:          voiceSvc,
+		CronStore:      cronStore,
 	})
 
 	// Graceful shutdown context — all subsystems observe this.
@@ -496,6 +509,9 @@ func runServe(logger *slog.Logger) {
 
 	// Notify adapter — set when channels are configured, nil otherwise.
 	var notifyAdapt tool.NotifyService
+
+	// Cron adapter for tools.
+	cronAdapt := &cronAdapter{store: cronStore}
 
 	// Start channel router if any channels are configured.
 	if cfg.TelegramBotToken != "" || cfg.DiscordBotToken != "" || cfg.SlackBotToken != "" {
@@ -581,6 +597,7 @@ func runServe(logger *slog.Logger) {
 				ToolStatus:     statusAdapt,
 				ToolSkills:     skillAdapt,
 				ToolNotifier:   notifyAdapt,
+				ToolCrons:      cronAdapt,
 				Config:         &agent.AgentConfig{Model: cfg.LLMModel},
 				CompactionConfig: agent.CompactionConfig{
 					TriggerTokens:   cfg.CompactionTriggerTokens,
@@ -732,6 +749,7 @@ func runServe(logger *slog.Logger) {
 			Status:   statusAdapt,
 			Skills:   skillAdapt,
 			Notifier: notifyAdapt,
+			Crons:    cronAdapt,
 		}
 		mcpSrv := cairnmcp.New(cairnmcp.Config{
 			Port:           cfg.MCPPort,

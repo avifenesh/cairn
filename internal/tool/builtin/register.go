@@ -45,6 +45,10 @@ func All() []tool.Tool {
 		listSkills,
 		// Notification tool.
 		notify,
+		// Cron tools.
+		createCron,
+		listCrons,
+		deleteCron,
 	}
 
 	// Web tools: Z.ai (GLM) or SearXNG/direct.

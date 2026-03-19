@@ -19,6 +19,7 @@ import (
 	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
+	"github.com/avifenesh/cairn/internal/voice"
 )
 
 // Server is the main HTTP server for Cairn, wiring together all API routes,
@@ -51,6 +52,9 @@ type Server struct {
 	toolTasks    tool.TaskService
 	toolStatus   tool.StatusService
 	toolSkills   tool.SkillService
+
+	// Voice service (optional).
+	voice *voice.Service
 }
 
 // ServerConfig carries all dependencies needed to construct a Server.
@@ -78,6 +82,9 @@ type ServerConfig struct {
 	ToolTasks    tool.TaskService
 	ToolStatus   tool.StatusService
 	ToolSkills   tool.SkillService
+
+	// Voice service (optional: STT/TTS).
+	Voice *voice.Service
 }
 
 // New creates a fully wired Server with all routes and middleware registered.
@@ -112,6 +119,7 @@ func New(cfg ServerConfig) *Server {
 		toolTasks:      cfg.ToolTasks,
 		toolStatus:     cfg.ToolStatus,
 		toolSkills:     cfg.ToolSkills,
+		voice:          cfg.Voice,
 	}
 
 	// Create SSE broadcaster.

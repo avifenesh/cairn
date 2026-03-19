@@ -23,7 +23,11 @@ import (
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
+	"github.com/avifenesh/cairn/internal/voice"
 )
+
+// voiceService returns the voice service or nil.
+func (s *Server) voiceService() *voice.Service { return s.voice }
 
 // registerRoutes sets up all HTTP route handlers on the server's mux.
 func (s *Server) registerRoutes() {
@@ -74,6 +78,12 @@ func (s *Server) registerRoutes() {
 	// Webhooks (optional, wired when WEBHOOK_SECRETS is configured).
 	if s.webhooks != nil {
 		s.mux.Handle("POST /v1/webhooks/{name}", s.webhooks)
+	}
+
+	// Voice (optional — requires whisper + edge-tts).
+	if s.voice != nil {
+		s.mux.HandleFunc("POST /v1/assistant/voice", s.handleVoiceTranscribe)
+		s.mux.HandleFunc("POST /v1/assistant/voice/tts", s.handleVoiceTTS)
 	}
 
 	// System.
@@ -1239,3 +1249,65 @@ func truncate(s string, maxLen int) string {
 }
 
 var startTime = time.Now()
+
+// handleVoiceTranscribe accepts audio (multipart file) and returns transcribed text.
+// Also runs the transcribed text through the assistant and returns both.
+func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10MB max
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid multipart form"})
+		return
+	}
+
+	file, header, err := r.FormFile("audio")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "missing 'audio' file field"})
+		return
+	}
+	defer file.Close()
+
+	audioData, err := io.ReadAll(file)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "read audio failed"})
+		return
+	}
+
+	text, err := s.voice.Transcribe(r.Context(), audioData, header.Filename)
+	if err != nil {
+		s.logger.Error("voice transcribe failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "transcription failed: " + err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":   true,
+		"text": text,
+	})
+}
+
+// handleVoiceTTS converts text to speech and returns MP3 audio.
+func (s *Server) handleVoiceTTS(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Text  string `json:"text"`
+		Voice string `json:"voice"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid JSON body"})
+		return
+	}
+	if body.Text == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "text is required"})
+		return
+	}
+
+	audio, err := s.voice.Synthesize(r.Context(), body.Text)
+	if err != nil {
+		s.logger.Error("voice TTS failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "synthesis failed: " + err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "audio/mpeg")
+	w.Header().Set("Content-Length", strconv.Itoa(len(audio)))
+	w.WriteHeader(http.StatusOK)
+	w.Write(audio)
+}

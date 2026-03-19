@@ -409,6 +409,8 @@ export interface EditableConfig {
 	devtoEnabled?: boolean;
 	devtoTags?: string;
 	devtoUsername?: string;
+	npmPackages?: string;
+	cratesPackages?: string;
 	budgetDailyCap?: number;
 	budgetWeeklyCap?: number;
 	channelSessionTimeout?: number;

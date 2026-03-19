@@ -457,6 +457,8 @@ type PatchableConfig struct {
 	DevToEnabled            *bool    `json:"devtoEnabled,omitempty"`
 	DevToTags               *string  `json:"devtoTags,omitempty"` // comma-sep
 	DevToUsername           *string  `json:"devtoUsername,omitempty"`
+	NPMPackages             *string  `json:"npmPackages,omitempty"`    // comma-sep
+	CratesPackages          *string  `json:"cratesPackages,omitempty"` // comma-sep
 }
 
 var configMu sync.RWMutex
@@ -560,6 +562,20 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 	if p.DevToUsername != nil {
 		c.DevToUsername = *p.DevToUsername
 	}
+	if p.NPMPackages != nil {
+		if *p.NPMPackages == "" {
+			c.NPMPackages = nil
+		} else {
+			c.NPMPackages = splitTrimmed(*p.NPMPackages)
+		}
+	}
+	if p.CratesPackages != nil {
+		if *p.CratesPackages == "" {
+			c.CratesPackages = nil
+		} else {
+			c.CratesPackages = splitTrimmed(*p.CratesPackages)
+		}
+	}
 }
 
 // GetPatchable returns the current runtime-editable config values.
@@ -592,6 +608,8 @@ func (c *Config) GetPatchable() PatchableConfig {
 		DevToEnabled:            &c.DevToEnabled,
 		DevToTags:               strPtr(strings.Join(c.DevToTags, ",")),
 		DevToUsername:           &c.DevToUsername,
+		NPMPackages:             strPtr(strings.Join(c.NPMPackages, ",")),
+		CratesPackages:          strPtr(strings.Join(c.CratesPackages, ",")),
 	}
 }
 

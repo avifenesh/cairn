@@ -74,24 +74,32 @@ func TestRedditPoller_Source(t *testing.T) {
 
 // --- npm poller tests ---
 
-func TestNPMPoller_Poll(t *testing.T) {
+func TestNPMPoller_Metrics(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{
-			"name": "svelte",
-			"dist-tags": {"latest": "5.0.0"},
-			"time": {"5.0.0": "%s", "4.0.0": "2024-01-01T00:00:00.000Z"}
-		}`, time.Now().UTC().Format(time.RFC3339))
+		if strings.Contains(r.URL.Path, "downloads/point/last-week") {
+			fmt.Fprintf(w, `{"downloads": 50000, "package": "svelte"}`)
+		} else if strings.Contains(r.URL.Path, "downloads/point/2020") {
+			fmt.Fprintf(w, `{"downloads": 1000000, "package": "svelte"}`)
+		}
 	}))
 	defer srv.Close()
 
-	poller := NewNPMPoller(NPMConfig{Packages: []string{"svelte"}})
-	poller.client = srv.Client()
-	poller.client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		req.URL.Scheme = "http"
-		req.URL.Host = srv.Listener.Addr().String()
-		return http.DefaultTransport.RoundTrip(req)
+	db := setupTestDB(t)
+	state := NewSourceState(db)
+
+	poller := NewNPMPoller(NPMConfig{
+		Packages: []string{"svelte"},
+		State:    state,
+		Logger:   noopLogger(),
 	})
+	poller.client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			req.URL.Scheme = "http"
+			req.URL.Host = srv.Listener.Addr().String()
+			return http.DefaultTransport.RoundTrip(req)
+		}),
+	}
 
 	events, err := poller.Poll(context.Background(), time.Now().Add(-1*time.Hour))
 	if err != nil {
@@ -100,64 +108,48 @@ func TestNPMPoller_Poll(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("events = %d, want 1", len(events))
 	}
-	if events[0].Kind != KindPackage {
-		t.Errorf("kind = %q, want %q", events[0].Kind, KindPackage)
+	if events[0].Kind != KindMetrics {
+		t.Errorf("kind = %q, want %q", events[0].Kind, KindMetrics)
 	}
-	if !strings.Contains(events[0].Title, "svelte 5.0.0") {
-		t.Errorf("title = %q, want to contain 'svelte 5.0.0'", events[0].Title)
+	if !strings.Contains(events[0].Title, "50000 weekly") {
+		t.Errorf("title = %q, want to contain '50000 weekly'", events[0].Title)
 	}
-}
-
-func TestNPMPoller_OldVersion(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{
-			"name": "old-pkg",
-			"dist-tags": {"latest": "1.0.0"},
-			"time": {"1.0.0": "2020-01-01T00:00:00.000Z"}
-		}`)
-	}))
-	defer srv.Close()
-
-	poller := NewNPMPoller(NPMConfig{Packages: []string{"old-pkg"}})
-	poller.client = srv.Client()
-	poller.client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		req.URL.Scheme = "http"
-		req.URL.Host = srv.Listener.Addr().String()
-		return http.DefaultTransport.RoundTrip(req)
-	})
-
-	events, err := poller.Poll(context.Background(), time.Now().Add(-1*time.Hour))
-	if err != nil {
-		t.Fatalf("poll: %v", err)
-	}
-	if len(events) != 0 {
-		t.Errorf("events = %d, want 0 (old version)", len(events))
+	if events[0].Metadata["weeklyDownloads"] != 50000 {
+		t.Errorf("weeklyDownloads = %v, want 50000", events[0].Metadata["weeklyDownloads"])
 	}
 }
 
 // --- crates.io poller tests ---
 
-func TestCratesPoller_Poll(t *testing.T) {
+func TestCratesPoller_Metrics(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{
 			"crate": {
 				"name": "tokio",
 				"max_version": "2.0.0",
-				"updated_at": "%s"
+				"downloads": 5000000,
+				"recent_downloads": 100000
 			}
-		}`, time.Now().UTC().Format(time.RFC3339))
+		}`)
 	}))
 	defer srv.Close()
 
-	poller := NewCratesPoller(CratesConfig{Crates: []string{"tokio"}})
-	poller.client = srv.Client()
-	poller.client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		req.URL.Scheme = "http"
-		req.URL.Host = srv.Listener.Addr().String()
-		return http.DefaultTransport.RoundTrip(req)
+	db := setupTestDB(t)
+	state := NewSourceState(db)
+
+	poller := NewCratesPoller(CratesConfig{
+		Crates: []string{"tokio"},
+		State:  state,
+		Logger: noopLogger(),
 	})
+	poller.client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			req.URL.Scheme = "http"
+			req.URL.Host = srv.Listener.Addr().String()
+			return http.DefaultTransport.RoundTrip(req)
+		}),
+	}
 
 	events, err := poller.Poll(context.Background(), time.Now().Add(-1*time.Hour))
 	if err != nil {
@@ -166,8 +158,14 @@ func TestCratesPoller_Poll(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("events = %d, want 1", len(events))
 	}
-	if !strings.Contains(events[0].Title, "tokio 2.0.0") {
-		t.Errorf("title = %q, want to contain 'tokio 2.0.0'", events[0].Title)
+	if events[0].Kind != KindMetrics {
+		t.Errorf("kind = %q, want %q", events[0].Kind, KindMetrics)
+	}
+	if !strings.Contains(events[0].Title, "100000 recent") {
+		t.Errorf("title = %q, want to contain '100000 recent'", events[0].Title)
+	}
+	if events[0].Metadata["downloads"] != 5000000 {
+		t.Errorf("downloads = %v, want 5000000", events[0].Metadata["downloads"])
 	}
 }
 

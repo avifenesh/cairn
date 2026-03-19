@@ -414,6 +414,13 @@ export interface EditableConfig {
 	budgetDailyCap?: number;
 	budgetWeeklyCap?: number;
 	channelSessionTimeout?: number;
+	preferredChannel?: string;
+	quietHoursStart?: number;
+	quietHoursEnd?: number;
+	quietHoursTZ?: string;
+	mutedSources?: string;
+	notifMinPriority?: string;
+	channelRouting?: string;
 }
 export const getEditableConfig = () => get<EditableConfig>('/v1/config');
 export const patchConfig = (cfg: Partial<EditableConfig>) =>

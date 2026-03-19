@@ -1,7 +1,10 @@
 # Binaries (root level only)
 /cairn
 /cairn-server
+/cairn-prod
 *.exe
+*.pid
+cairn-server.log
 
 # Frontend
 frontend/node_modules/

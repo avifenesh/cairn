@@ -60,4 +60,16 @@ describe('FeedItem', () => {
 		const link = container.querySelector('a');
 		expect(link?.className).toContain('opacity-50');
 	});
+
+	it('shows mark-read button for unread items', () => {
+		const { container } = render(FeedItem, { item: makeItem({ isRead: false }) });
+		const button = container.querySelector('button[title="Mark as read"]');
+		expect(button).toBeTruthy();
+	});
+
+	it('does not show mark-read button for read items', () => {
+		const { container } = render(FeedItem, { item: makeItem({ isRead: true }) });
+		const button = container.querySelector('button[title="Mark as read"]');
+		expect(button).toBeFalsy();
+	});
 });

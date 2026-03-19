@@ -5,6 +5,7 @@
 	import { feedStore } from '$lib/stores/feed.svelte';
 	import { createSwipeToDismiss, SWIPE_THRESHOLD } from '$lib/utils/touch.svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Check } from '@lucide/svelte';
 
 	let { item }: { item: FeedItem } = $props();
 
@@ -61,6 +62,14 @@
 	</div>
 
 	{#if !item.isRead}
+		<button
+			class="flex-shrink-0 rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-[var(--dur-fast)]
+				text-[var(--text-tertiary)] hover:text-[var(--cairn-accent)] hover:bg-[var(--bg-2)]"
+			title="Mark as read"
+			onclick={(e) => { e.preventDefault(); e.stopPropagation(); markItemRead(); }}
+		>
+			<Check class="h-3.5 w-3.5" />
+		</button>
 		<span class="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[var(--cairn-accent)]"></span>
 	{/if}
 </a>

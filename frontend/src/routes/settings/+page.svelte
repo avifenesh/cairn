@@ -1,20 +1,28 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { appStore, type Theme, type Density, type Mood } from '$lib/stores/app.svelte';
-	import { getCosts, getMcpStatus } from '$lib/api/client';
-	import type { McpStatus } from '$lib/types';
+	import { getCosts, getStatusDetails } from '$lib/api/client';
+	import type { McpStatus, ChannelStatus } from '$lib/types';
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Radio } from '@lucide/svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
 	let mcpStatus = $state<McpStatus | null>(null);
+	let channelStatus = $state<ChannelStatus | null>(null);
+
+	const knownChannels = [
+		{ id: 'telegram', label: 'Telegram', icon: Send },
+		{ id: 'discord', label: 'Discord', icon: MessageSquare },
+		{ id: 'slack', label: 'Slack', icon: Hash },
+	];
 
 	onMount(async () => {
 		try {
-			const [c, mcp] = await Promise.all([getCosts(), getMcpStatus()]);
+			const [c, details] = await Promise.all([getCosts(), getStatusDetails()]);
 			costs = c as unknown as Record<string, number>;
-			mcpStatus = mcp;
+			mcpStatus = details.mcp;
+			channelStatus = details.channels;
 		} catch {
 			// handled
 		}
@@ -306,5 +314,45 @@
 				</div>
 			</div>
 		</div>
+	</section>
+
+	<Separator class="mb-8" />
+
+	<!-- Channels -->
+	<section class="mb-8">
+		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">Channels</h2>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">External messaging platform integrations</p>
+
+		<div class="space-y-3">
+			{#each knownChannels as ch}
+				{@const active = channelStatus?.items.some(i => i.name === ch.id && i.connected) ?? false}
+				<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+					<div class="flex items-center gap-3">
+						<div class="flex h-8 w-8 items-center justify-center rounded-md {active ? 'bg-[var(--color-success)]/10' : 'bg-[var(--bg-2)]'}">
+							<ch.icon class="h-4 w-4 {active ? 'text-[var(--color-success)]' : 'text-[var(--text-tertiary)]'}" />
+						</div>
+						<div>
+							<p class="text-sm font-medium text-[var(--text-primary)]">{ch.label}</p>
+							<p class="text-[10px] text-[var(--text-tertiary)]">
+								{active ? 'Connected' : 'Not configured'}
+							</p>
+						</div>
+						<span class="ml-auto h-2 w-2 rounded-full {active ? 'bg-[var(--color-success)]' : 'bg-[var(--text-tertiary)]'}"></span>
+					</div>
+				</div>
+			{/each}
+		</div>
+
+		{#if channelStatus?.sessionTimeout}
+			<div class="mt-3 rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-sm text-[var(--text-primary)]">Session timeout</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Idle channel sessions expire after this duration</p>
+					</div>
+					<span class="text-xs text-[var(--text-primary)] font-mono">{channelStatus.sessionTimeout}min</span>
+				</div>
+			</div>
+		{/if}
 	</section>
 </div>

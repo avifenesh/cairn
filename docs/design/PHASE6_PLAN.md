@@ -225,16 +225,28 @@ Phase 7 PRs 6-7 (MCP client, A2A) deferred. Phase 8 Intelligence remains. C.7 (v
 | 8af.3 | Channel indicator | Header | `ChannelBadge.svelte` — active channel icon |
 | 8af.4 | API + tests | | |
 
-### PR 11 — Backend: Intelligence (`internal/memory/`, `internal/signal/`, `internal/voice/`)
+### PR 11 — Backend: Intelligence — SPLIT INTO 3 SUB-PRs
 
-| # | What |
-|---|------|
-| 8b.1 | Real embedding provider (OpenAI/GLM API) |
-| 8b.2 | Vectors on memory create |
-| 8b.3 | Session compaction (LLM summarize old events) |
-| 8b.4 | Gmail + Calendar pollers (OAuth2) |
-| 8b.5 | Voice: Whisper STT + TTS + endpoint |
-| 8b.6 | Tests |
+Full plan: `docs/design/INTELLIGENCE_PLAN.md` (108 research sources analyzed)
+
+**PR 11a — Embeddings ✅ MERGED (#63)**
+- OpenAIEmbedder (local Ollama nomic-embed-text, 768d)
+- Backfill on startup, hybrid search active
+
+**PR 11b — Session Compaction** (`internal/agent/compaction.go`)
+- SummaryBufferMemory pattern (keep system + last N pairs + summarize old)
+- Tool output truncation (60/40 head/tail)
+- Orphaned tool result stripping
+- Integration in react.go before LLM call
+
+**PR 11c — Auto-Extract Memories** (`internal/memory/extractor.go`)
+- Mem0 two-stage pipeline (extract facts → classify ADD/UPDATE/DELETE/NONE)
+- Post-session fire-and-forget extraction
+- Contradiction detection via embedding similarity + LLM judge
+
+**PR 11d — Remaining Intelligence** (separate)
+- Gmail + Calendar pollers (OAuth2)
+- Voice: Whisper STT + TTS + endpoint
 
 ### PR 12 — Frontend: Intelligence UI
 
@@ -283,9 +295,12 @@ Chat Features:
   PR 65 (File upload C.6)         ─── merged #65 (paperclip, paste, preview)
   C.7 (Voice input/output)        ─── needs backend /v1/assistant/voice endpoint
 
-Phase 8 Intelligence (REMAINING):
-  PR 12 (Embeddings, Gmail, voice) ─── independent
-  PR 13 (Frontend Intelligence)    ─── needs PR 12
+Phase 8 Intelligence (see docs/design/INTELLIGENCE_PLAN.md):
+  PR 11a (Embeddings)              ─── merged #63 (local Ollama, 768d)
+  PR 11b (Session Compaction)      ─── next (SummaryBuffer + tool truncation)
+  PR 11c (Auto-Extract Memories)   ─── after 11b (Mem0 extract→classify pipeline)
+  PR 11d (Gmail, Calendar, Voice)  ─── independent
+  PR 13  (Frontend Intelligence)   ─── needs PR 11b+11c
 ```
 
 ## Summary
@@ -296,7 +311,7 @@ Phase 8 Intelligence (REMAINING):
 | 6.5 | 2 PRs ✅ DONE | — | Skill activation, install, validation |
 | 7 | 1 PR ✅ DONE (MCP server) | 1 PR ✅ DONE | MCP tool exposure |
 | 8 Channels | 3 PRs ✅ DONE | 1 PR ✅ DONE | Telegram + Discord + Slack, channel UI |
-| 8 Intelligence | 0/2 PRs | 0/1 PR | Embeddings, Gmail, voice |
+| 8 Intelligence | 1/4 PRs ✅ (Embeddings) | 0/1 PR | Local embeddings, compaction + extraction next |
 | Z.ai HTTP | 3 PRs ✅ DONE | — | Web search (GLM built-in + SearXNG), reader, zread |
 | Z.ai Vision | 1 PR ✅ DONE | — | 8 vision tools via stdio subprocess (GLM-4.6V) |
 | File Upload | 1 PR ✅ DONE | 1 PR ✅ DONE | C.6 — paperclip, paste, preview, POST /v1/upload |

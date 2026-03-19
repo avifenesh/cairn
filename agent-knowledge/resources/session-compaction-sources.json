@@ -1,0 +1,334 @@
+{
+  "topic": "LLM Session Compaction and Conversation Summarization",
+  "slug": "session-compaction",
+  "generated": "2026-03-19T00:00:00Z",
+  "depth": "deep",
+  "totalSources": 14,
+  "methodology": "Direct source code analysis of local research repos and Cairn internals. No web fetching required — all sources are local codebases.",
+  "sources": [
+    {
+      "url": "file:///home/ubuntu/research/go-agents/eino/adk/middlewares/summarization/summarization.go",
+      "title": "Eino ADK Summarization Middleware",
+      "qualityScore": 98,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 10,
+        "examples": 10,
+        "uniqueness": 10
+      },
+      "keyInsights": [
+        "Trigger: total tokens > ContextTokens (default 190K). Checked in BeforeModelRewriteState middleware hook.",
+        "Token counting: pluggable TokenCounterFunc, defaults to 4-chars/token heuristic including tool schemas.",
+        "System messages are separated from context messages before summarization; system messages always preserved.",
+        "PostProcessSummary: replaces <all_user_messages> tag in summary with actual recent user messages (up to 1/3 of trigger budget).",
+        "TranscriptFilePath: optional path appended to summary so agent can re-read full context if needed.",
+        "Summary emitted as User role with two multi-content parts: summary text + continue instruction.",
+        "EmitInternalEvents: before/after summarize events emitted for observability.",
+        "Finalize hook: caller can fully customize final message list after summary is generated.",
+        "contentTypeSummary tag stored in message Extra field to identify prior summaries during user-message extraction."
+      ],
+      "codeExamples": [
+        {
+          "language": "go",
+          "description": "Config struct with all options",
+          "file": "summarization.go",
+          "lines": "47-110"
+        }
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/research/go-agents/eino/adk/middlewares/summarization/prompt.go",
+      "title": "Eino Summarization Prompts",
+      "qualityScore": 95,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 9,
+        "examples": 9,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "System instruction: 'You are a helpful AI assistant tasked with summarizing conversations.'",
+        "User instruction requests 9 structured sections: Primary Request, Key Technical Concepts, Files and Code Sections, Errors and fixes, Problem Solving, All user messages, Pending Tasks, Current Work, Optional Next Step.",
+        "All user messages wrapped in <all_user_messages>...</all_user_messages> XML block — this section is post-processed and replaced with real recent messages.",
+        "Summary preamble: 'This session is being continued from a previous conversation that ran out of context.'",
+        "Continue instruction: 'Please continue the conversation from where we left it off without asking the user any further questions.'",
+        "Transcript path instruction: 'If you need specific details from before compaction... read the full transcript at: %s'",
+        "Truncated marker format: '...N characters truncated...' (used for individual long user messages).",
+        "Bilingual (English + Chinese) via internal.SelectPrompt — language selected at runtime."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/research/go-agents/eino/adk/middlewares/reduction/reduction.go",
+      "title": "Eino Tool Reduction Middleware",
+      "qualityScore": 97,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 10,
+        "examples": 10,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Two-phase: Truncation (immediate, after tool execution) + Clear (lazy, before LLM call).",
+        "Truncation: if tool output > MaxLengthForTrunc (default 50K chars), saves full content to backend, replaces with truncated preview + file path.",
+        "Clear: if total tokens > MaxTokensForClear (default 30K), iterates historical messages and offloads older tool call args+results to filesystem.",
+        "ClearRetentionSuffixLimit: number of most recent assistant-tool-call pairs to preserve from clearing (default 1).",
+        "Per-tool configuration via ToolConfig map — specific tools can have different truncation/clear handlers or skip either phase.",
+        "Offloaded content in /tmp/trunc/{call_id} (truncation) and /tmp/clear/{call_id} (clear).",
+        "Agent must have read_file tool pointing to same Backend — otherwise offloaded content is inaccessible.",
+        "msgReducedFlag extra field on messages marks which tool call groups have already been processed to avoid duplicate offloading.",
+        "Token caching: each message caches its token count in Extra[msgReducedTokens] to avoid recomputation."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/research/go-agents/gollem/core/autocontext.go",
+      "title": "Gollem AutoContext — Auto-compress Messages",
+      "qualityScore": 97,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 10,
+        "examples": 10,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "AutoContextConfig: MaxTokens threshold, KeepLastN recent messages (default 4), optional SummaryModel.",
+        "Token estimation: word-based (~1.3 tokens/word) via estimateStringTokens — more accurate than char/4 for mixed content.",
+        "currentContextTokenCount: uses max(estimatedTokens, lastProviderReportedInputTokens) — provider-reported is more accurate.",
+        "Summarization prompt: 9 explicit requirements including exact file paths, test pass/fail counts, constraint values, best result so far.",
+        "Individual messages truncated to 500 chars (user/assistant text) and 800 chars (tool results) in the summarization input.",
+        "Summary emitted as ModelResponse (assistant role) with '[Conversation Summary]' prefix.",
+        "BuildInstructionPin: key instructions from first message are extracted and prepended to summary to prevent drift.",
+        "stripOrphanedToolResults: drops ToolReturnParts without matching ToolCallPart, converts content to UserPromptPart '[Previous X result]' to preserve data without API violation.",
+        "RetryPromptParts (tool errors) also cleaned up via same mechanism.",
+        "Placeholder added if all parts removed to prevent consecutive assistant messages."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/research/go-agents/gollem/core/memory/strategy.go",
+      "title": "Gollem Memory Strategies",
+      "qualityScore": 95,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 9,
+        "examples": 10,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Three strategies as HistoryProcessor functions (composable middleware pattern).",
+        "SlidingWindowMemory(windowSize int): keeps messages[0] + last windowSize*2 messages. Corrects start to maintain user/assistant alternation.",
+        "TokenBudgetMemory(maxTokens int): drops pairs from position 1 until under budget. ~4 chars/token estimation.",
+        "SummaryMemory(summarizer, maxMessages): splits at len-keepLast, summarizes middle, reconstructs. Uses model.Request not stream.",
+        "All three always preserve messages[0] (system prompt / first context).",
+        "SummaryMemory emits summary as ModelResponse (assistant role) so providers extracting system prompts to separate field still produce an API message.",
+        "Ensures recentStart points to a ModelRequest (user role) — summary is ModelResponse, so next must be user."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/research/go-agents/gollem/core/truncate.go",
+      "title": "Gollem Tool Output Truncation",
+      "qualityScore": 90,
+      "scores": {
+        "authority": 9,
+        "recency": 10,
+        "depth": 8,
+        "examples": 9,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "TruncationConfig.MaxTokens: default 16000 (~64KB text).",
+        "Head/tail split: 60% head, 40% tail. Retains both beginning and end of output.",
+        "Line-boundary snapping: truncates at nearest newline to avoid mid-line cuts.",
+        "UTF-8 safety: backs up to last rune start byte at both cut points.",
+        "Marker: '\\n\\n... [truncated N tokens] ...\\n\\n' shows how much was dropped.",
+        "Returns original string if within budget — zero cost for normal-sized outputs.",
+        "bytesPerToken = 4 (same as Cairn's EstimateTokens)."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/research/go-agents/plandex/app/server/model/plan/tell_summary.go",
+      "title": "Plandex Conversation Summarization",
+      "qualityScore": 96,
+      "scores": {
+        "authority": 10,
+        "recency": 9,
+        "depth": 10,
+        "examples": 9,
+        "uniqueness": 10
+      },
+      "keyInsights": [
+        "Dual trigger: total tokens > GetPlannerEffectiveMaxTokens() OR conversation-only tokens > GetPlannerMaxConvoTokens().",
+        "Pre-computed summaries stored in DB as ConvoSummary with LatestConvoMessageId and LatestConvoMessageCreatedAt.",
+        "Token savings calculation: for each candidate summary, computes (conversationTokens - tokensUpToTimestamp[summary.timestamp] + summary.Tokens). Picks first that brings total under limit.",
+        "Fallback: timestamp lookup fails gracefully (logs, notifies, continues to next summary).",
+        "Summary in context: inserted as assistant message, then messages after summary timestamp appended after it.",
+        "Latest summary injected as assistant message mid-conversation even when no compaction occurs — reinforces current plan state.",
+        "Async: summarizeConvo called from tell_stream_finish.go after each reply completes.",
+        "Append-only prompt: 'Keep as much information as possible from the existing summary and add the new information from the latest messages.'"
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/research/go-agents/plandex/app/server/model/prompts/summary.go",
+      "title": "Plandex Summary Prompt",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 9,
+        "recency": 9,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Role: 'AI summarizer that summarizes the conversation so far... a plan to complete one or more programming tasks.'",
+        "Section 1: Summary of user messages, focused on tasks. Latest state of each task. Condense while retaining meaning.",
+        "Section 2: Key decisions, major changes, challenges, requirements/constraints.",
+        "Section 3: Latest messages and next steps.",
+        "Explicit constraint: 'Do not include code in the summary. Explain in words.'",
+        "Append-only instruction: critical for incremental summarization to avoid loss of early context."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/research/go-agents/adk-go/session/session.go",
+      "title": "Google ADK-Go Session Model",
+      "qualityScore": 85,
+      "scores": {
+        "authority": 9,
+        "recency": 9,
+        "depth": 7,
+        "examples": 7,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "ADK-Go does not implement in-process summarization — it delegates context management to the caller.",
+        "GetRequest.NumRecentEvents: limits events returned from storage to most recent N, implementing sliding window at storage layer.",
+        "SkipSummarization: flag on EventActions that prevents model-level function-response summarization.",
+        "IncludeContents: LLMAgent option — 'default' (full history) or 'none' (current turn only).",
+        "Branch: sub-agent isolation — agents in different branches don't see each other's history.",
+        "State scopes: app: (shared), user: (per-user), temp: (per-invocation, discarded), session-level (default)."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/research/go-agents/adk-go/session/database/service.go",
+      "title": "Google ADK-Go Database Session Service",
+      "qualityScore": 82,
+      "scores": {
+        "authority": 9,
+        "recency": 9,
+        "depth": 7,
+        "examples": 7,
+        "uniqueness": 6
+      },
+      "keyInsights": [
+        "NumRecentEvents implemented via ORDER BY timestamp DESC + LIMIT N, then reversed to ASC for response.",
+        "req.After: filters events to only those after a given timestamp — enables incremental session loading.",
+        "Stale session detection: compares request session's UpdatedAt with DB — prevents concurrent-write races.",
+        "State scoped transactions: app, user, session state all updated atomically with the event.",
+        "trimTempDeltaState: temp: prefixed state keys stripped before persisting to storage."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/cairn-backend/internal/agent/types.go",
+      "title": "Cairn Agent Types — Session.History()",
+      "qualityScore": 99,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 9,
+        "examples": 9,
+        "uniqueness": 10
+      },
+      "keyInsights": [
+        "Session.History() returns ALL events unconditionally — no compaction, no sliding window.",
+        "Events are []*Event; each Event has Parts []Part (TextPart, ToolPart, ReasoningPart).",
+        "eventToMessage converts: TextPart → TextBlock, ToolPart(completed, assistant) → ToolUseBlock, ReasoningPart → ReasoningBlock.",
+        "Tool results NOT included in History() — ToolPart with completed status on assistant events becomes ToolUseBlock only; tool results are separate role=tool messages.",
+        "The gap: no history size limit. A 100-round coding session will generate 100+ messages with potentially huge tool outputs."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/cairn-backend/internal/agent/react.go",
+      "title": "Cairn ReAct Agent Loop — Insertion Point",
+      "qualityScore": 99,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 9,
+        "examples": 9,
+        "uniqueness": 10
+      },
+      "keyInsights": [
+        "Line 72: messages := invCtx.Session.History() — correct insertion point for compaction (before user message appended at line 75).",
+        "Tool output appended at line 393-402 (messages = append(messages, llm.Message{Role: llm.RoleTool, ...})). Secondary insertion point for per-tool truncation.",
+        "Loop is per-round, not per-message — compaction should happen once per invocation at round 0, not every round.",
+        "Messages slice grows: starts with history, then each round adds assistant message + N tool results. After 20 rounds with 3 tools each, that's 60+ new messages on top of history.",
+        "Max rounds: talk=10, work=10, coding=100. Coding mode is the critical path for context overflow."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/cairn-backend/internal/memory/context.go",
+      "title": "Cairn ContextBuilder — Memory Token Budget",
+      "qualityScore": 99,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 9,
+        "examples": 9,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "memory.Compact() is for semantic memories (memory_items table), not conversation messages. Uses confidence decay, not summarization.",
+        "ContextBuilder manages system prompt injection budget (default 4000 tokens): hard rules → RAG memories → journal → soul.",
+        "EstimateTokens: (len(text)+3)/4 — same formula as all frameworks.",
+        "Stage 3 journal digest: last 48h of session journal entries (summaries of past sessions), outside memory budget.",
+        "Compaction here = discarding old unused facts from the memory store. This is orthogonal to session history compaction.",
+        "The memory system is complete and correct. The gap is purely in the conversation history path."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    },
+    {
+      "url": "file:///home/ubuntu/cairn-backend/internal/memory/service.go",
+      "title": "Cairn Memory Service — Compact()",
+      "qualityScore": 95,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Compact() method: decays memories with UseCount=0 and age > 30 days by factor 0.8. Auto-rejects if confidence < 0.1.",
+        "This is memory store maintenance, NOT conversation compaction.",
+        "BackfillEmbeddings: batch re-embeds accepted memories without vectors, with rate limiting.",
+        "Memory lifecycle: proposed → accepted (user/agent approved) → potentially rejected (Compact or user action)."
+      ],
+      "extractedAt": "2026-03-19T00:00:00Z"
+    }
+  ],
+  "selfEvaluation": {
+    "coverage": 9,
+    "diversity": 8,
+    "examples": 9,
+    "accuracy": 10,
+    "gaps": [
+      "No web sources — all analysis is from local codebases. Academic literature on conversation summarization (e.g., DialogLM, SUMBT) not covered.",
+      "Anthropic's native context caching (prompt caching) not covered — could be relevant as a complementary strategy.",
+      "No benchmarks on summarization quality degradation over multiple compaction cycles."
+    ]
+  }
+}

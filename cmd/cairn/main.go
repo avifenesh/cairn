@@ -550,13 +550,18 @@ func runServe(logger *slog.Logger) {
 
 			out := &cairnchannel.OutgoingMessage{Text: response.String()}
 
-			// Synthesize voice reply if the incoming message was voice.
+			// Synthesize voice reply for voice messages (cap at 500 chars for fast TTS).
 			if len(msg.Audio) > 0 && voiceSvc != nil && response.Len() > 0 {
-				audio, ttsErr := voiceSvc.Synthesize(ctx, response.String(), "")
+				ttsText := response.String()
+				if len(ttsText) > 500 {
+					ttsText = ttsText[:500] // Cap for fast synthesis (~5s vs 70s)
+				}
+				audio, ttsErr := voiceSvc.Synthesize(ctx, ttsText, "")
 				if ttsErr != nil {
 					logger.Warn("channel: TTS synthesis failed", "error", ttsErr)
 				} else {
 					out.Audio = audio
+					logger.Info("channel: voice reply synthesized", "audioBytes", len(audio))
 				}
 			}
 

@@ -99,6 +99,35 @@ func (s *SourceState) GetCursor(ctx context.Context, source string) (string, err
 	return data.Cursor, nil
 }
 
+// GetExtra returns the extra metadata for a source.
+func (s *SourceState) GetExtra(ctx context.Context, source string) (map[string]any, error) {
+	key := "signal:" + source
+	data := s.readState(ctx, key)
+	if data.Extra == nil {
+		return map[string]any{}, nil
+	}
+	return data.Extra, nil
+}
+
+// SetExtra updates the extra metadata for a source, preserving LastPoll/Cursor.
+func (s *SourceState) SetExtra(ctx context.Context, source string, extra map[string]any) error {
+	key := "signal:" + source
+	existing := s.readState(ctx, key)
+	existing.Extra = extra
+
+	value, err := json.Marshal(existing)
+	if err != nil {
+		return fmt.Errorf("signal: marshal extra %q: %w", source, err)
+	}
+	now := time.Now().UTC().Format(timeFormat)
+
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO source_state (key, value, updated_at) VALUES (?, ?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+		key, string(value), now)
+	return err
+}
+
 // SetCursorAndPoll records both cursor and last poll time atomically.
 func (s *SourceState) SetCursorAndPoll(ctx context.Context, source, cursor string, t time.Time) error {
 	key := "signal:" + source

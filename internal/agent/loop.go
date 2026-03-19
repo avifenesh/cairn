@@ -29,6 +29,7 @@ type Loop struct {
 	provider     llm.Provider
 	bus          *eventbus.Bus
 	journaler    *Journaler
+	extractor    *memory.Extractor
 	reflector    *ReflectionEngine
 	logger       *slog.Logger
 	config       LoopConfig
@@ -79,6 +80,7 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		provider:     deps.Provider,
 		bus:          deps.Bus,
 		journaler:    deps.Journaler,
+		extractor:    deps.Extractor,
 		reflector:    deps.Reflector,
 		logger:       logger,
 		config:       cfg,
@@ -103,6 +105,7 @@ type LoopDeps struct {
 	Provider  llm.Provider
 	Bus       *eventbus.Bus
 	Journaler *Journaler
+	Extractor *memory.Extractor
 	Reflector *ReflectionEngine
 	Logger    *slog.Logger
 
@@ -267,6 +270,17 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 	// Journal the session.
 	if l.journaler != nil {
 		l.journaler.Record(ctx, session, time.Since(taskStart))
+	}
+
+	// Extract memories from completed session (fire-and-forget).
+	// Skip trivial sessions — need at least a few exchanges to extract meaningful facts.
+	const minEventsForExtraction = 4
+	if l.extractor != nil && len(session.Events) >= minEventsForExtraction {
+		go func() {
+			ectx, ecancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer ecancel()
+			l.extractor.Extract(ectx, buildTranscript(session))
+		}()
 	}
 
 	return true

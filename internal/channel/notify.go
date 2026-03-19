@@ -145,13 +145,9 @@ func (r *Router) FlushDigest(ctx context.Context) int {
 		Priority: PriorityMedium, // digest itself is medium
 	}
 
-	// Send to digest channel, preferred, or broadcast.
-	target := ""
-	if r.notifyCfg != nil {
-		target = r.notifyCfg.PreferredChannel
-	}
-	if target != "" {
-		if err := r.SendTo(ctx, target, msg); err != nil {
+	// Send to preferred channel or broadcast.
+	if r.notifyCfg != nil && r.notifyCfg.PreferredChannel != "" {
+		if err := r.SendTo(ctx, r.notifyCfg.PreferredChannel, msg); err != nil {
 			r.Broadcast(ctx, msg)
 		}
 	} else {

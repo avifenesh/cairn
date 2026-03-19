@@ -1,0 +1,657 @@
+{
+  "topic": "Automatic Memory Extraction from LLM Conversations",
+  "slug": "auto-memory-extraction",
+  "generated": "2026-03-19T00:00:00Z",
+  "depth": "deep",
+  "totalSources": 42,
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2310.08560",
+      "title": "MemGPT: Towards LLMs as Operating Systems",
+      "qualityScore": 95,
+      "scores": { "authority": 10, "recency": 8, "depth": 10, "examples": 9, "uniqueness": 10 },
+      "keyInsights": [
+        "Three-tier memory: core (RAM-like), archival (disk-like), recall (conversation history)",
+        "Memory management functions: core_memory_append, core_memory_replace, archival_memory_insert, archival_memory_search, conversation_search",
+        "OS-inspired virtual context management paging information between tiers",
+        "LLM autonomously decides when to read/write memory via tool calls",
+        "Enables context beyond native window size"
+      ],
+      "tags": ["MemGPT", "hierarchical memory", "memory management functions", "archival memory"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2304.03442",
+      "title": "Generative Agents: Interactive Simulacra of Human Behavior",
+      "qualityScore": 97,
+      "scores": { "authority": 10, "recency": 8, "depth": 10, "examples": 9, "uniqueness": 10 },
+      "keyInsights": [
+        "Memory stream: complete record of all experiences in natural language",
+        "Retrieval scoring combines recency + importance + relevance (three dimensions)",
+        "Reflection mechanism synthesizes observations into higher-level insights",
+        "Planning uses retrieved memories and reflections to generate future actions",
+        "Ablations show all three components (observation, planning, reflection) are critical",
+        "Emergent social behaviors from simple memory architecture (e.g., party coordination)"
+      ],
+      "tags": ["generative agents", "memory stream", "retrieval scoring", "reflection", "planning"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2501.13956",
+      "title": "Zep: A Temporal Knowledge Graph Architecture for Agent Memory",
+      "qualityScore": 93,
+      "scores": { "authority": 9, "recency": 10, "depth": 9, "examples": 8, "uniqueness": 9 },
+      "keyInsights": [
+        "Graphiti engine: temporally-aware knowledge graph that maintains historical relationships",
+        "Synthesizes both unstructured conversational data and structured business data",
+        "Facts: precise time-stamped information with relationships",
+        "Summaries: contextualized entity histories that update with new information",
+        "Fact invalidation: when new data supersedes old, the invalidation timestamp is stored on the edge",
+        "94.8% accuracy on Deep Memory Retrieval vs MemGPT's 93.4%",
+        "18.5% accuracy improvement on LongMemEval with 90% latency reduction",
+        "Nodes represent entities; edges represent facts/relationships"
+      ],
+      "tags": ["Zep", "Graphiti", "temporal knowledge graph", "entity extraction", "fact extraction"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2504.19413",
+      "title": "Building Production-Ready AI Agents with Scalable Long-Term Memory (Mem0)",
+      "qualityScore": 92,
+      "scores": { "authority": 9, "recency": 10, "depth": 9, "examples": 8, "uniqueness": 9 },
+      "keyInsights": [
+        "Scalable memory-centric architecture: dynamically extracts, consolidates, and retrieves salient information",
+        "Two-stage LLM pipeline: fact extraction then ADD/UPDATE/DELETE/NOOP decision",
+        "Vector similarity search to find existing memories before deciding action",
+        "Graph-based variant captures relational structures between conversational elements",
+        "26% relative improvement on LLM-as-a-Judge vs OpenAI",
+        "91% lower p95 latency vs full-context approaches",
+        "90%+ token cost reduction",
+        "Evaluated on single-hop, temporal, multi-hop, and open-domain questions"
+      ],
+      "tags": ["Mem0", "memory extraction pipeline", "ADD/UPDATE/DELETE", "contradiction resolution"]
+    },
+    {
+      "url": "https://github.com/mem0ai/mem0",
+      "title": "Mem0 GitHub Repository - main.py implementation",
+      "qualityScore": 90,
+      "scores": { "authority": 9, "recency": 10, "depth": 9, "examples": 10, "uniqueness": 8 },
+      "keyInsights": [
+        "Uses gpt-4.1-nano-2025-04-14 for fact extraction by default, text-embedding-3-small for vectors",
+        "get_fact_retrieval_messages() generates extraction prompts based on agent vs user context",
+        "LLM returns JSON { \"facts\": [...] } array; robust parsing handles malformed JSON",
+        "normalize_facts() post-processes extracted facts",
+        "Vector similarity retrieves existing memories; temporary UUIDs prevent hallucinations in update prompt",
+        "get_update_memory_messages() submits old+new facts to LLM for ADD/UPDATE/DELETE/NONE decisions",
+        "Stores in Qdrant vector store + SQLite history database"
+      ],
+      "tags": ["Mem0", "implementation", "extraction pipeline", "code"]
+    },
+    {
+      "url": "https://docs.mem0.ai/open-source/python-quickstart",
+      "title": "Mem0 Python Quickstart Documentation",
+      "qualityScore": 82,
+      "scores": { "authority": 9, "recency": 10, "depth": 6, "examples": 9, "uniqueness": 5 },
+      "keyInsights": [
+        "m.add(messages, user_id=user_id) extracts facts from conversation",
+        "m.search(query, filters={...}) semantic retrieval of relevant memories",
+        "Memory scoped to user_id, agent_id, or session_id",
+        "Three memory types: User (persistent), Agent (context-specific), Session (conversation-specific)",
+        "Multimodal support and custom categories available"
+      ],
+      "tags": ["Mem0", "quickstart", "API", "code examples"]
+    },
+    {
+      "url": "https://help.getzep.com/",
+      "title": "Zep Documentation - Context Engineering Platform",
+      "qualityScore": 88,
+      "scores": { "authority": 9, "recency": 10, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Temporal knowledge graph engine for dynamic fact and entity extraction",
+        "User Graphs: per-user knowledge graphs with facts and summaries",
+        "Group Graphs: shared graphs for non-user-specific information",
+        "Threads: conversation containers that trigger automatic extraction",
+        "thread.get_user_context() returns optimized 'Context Block' with summaries + relevant facts",
+        "graph.search() for low-level graph queries",
+        "Custom entity and edge types via Pydantic-like classes",
+        "User Summary Instructions: up to 5 directives per user to guide summary generation",
+        "200ms retrieval latency"
+      ],
+      "tags": ["Zep", "knowledge graph", "entity extraction", "fact extraction", "summaries"]
+    },
+    {
+      "url": "https://docs.langchain.com/oss/python/langgraph/memory",
+      "title": "LangGraph Memory Concepts Documentation",
+      "qualityScore": 90,
+      "scores": { "authority": 10, "recency": 9, "depth": 8, "examples": 8, "uniqueness": 7 },
+      "keyInsights": [
+        "Short-term (thread-scoped): conversation history within sessions via checkpointers",
+        "Long-term (cross-thread): user/application data across conversations in custom namespaces",
+        "Three memory types: Semantic (facts/profiles), Episodic (past experiences as few-shot examples), Procedural (rules/instructions)",
+        "Profile approach: single continuously updated document (risk of data loss)",
+        "Collection approach: multiple scoped documents appended over time (better recall, needs careful management)",
+        "Hot path writing: real-time updates (higher latency, immediate availability)",
+        "Background writing: async updates (lower latency, requires scheduling logic)"
+      ],
+      "tags": ["LangGraph", "memory types", "cross-thread memory", "semantic memory", "episodic memory"]
+    },
+    {
+      "url": "https://docs.langchain.com/oss/python/langgraph/add-memory",
+      "title": "LangGraph Add Memory Tutorial",
+      "qualityScore": 88,
+      "scores": { "authority": 10, "recency": 9, "depth": 8, "examples": 9, "uniqueness": 6 },
+      "keyInsights": [
+        "Store API: runtime.store.asearch(namespace, query=...) for semantic search",
+        "runtime.store.aput(namespace, id, data) for persisting memories",
+        "Namespace tuple pattern: (user_id, 'memories') for isolation",
+        "Semantic search via embeddings: InMemoryStore(index={'embed': embeddings, 'dims': 1536})",
+        "context_schema pattern for injecting user context at runtime",
+        "Production backends: PostgreSQL, Redis, MongoDB (require .setup())",
+        "Short-term via checkpointer; long-term via store - both on same compiled graph"
+      ],
+      "tags": ["LangGraph", "Store API", "semantic search", "namespace", "code examples"]
+    },
+    {
+      "url": "https://blog.langchain.com/memory-for-agents",
+      "title": "LangChain Blog: Memory for Agents",
+      "qualityScore": 85,
+      "scores": { "authority": 9, "recency": 8, "depth": 8, "examples": 7, "uniqueness": 7 },
+      "keyInsights": [
+        "Procedural memory: LLM weights + agent code (rarely updated directly)",
+        "Semantic memory: factual knowledge for personalization (user profiles, preferences)",
+        "Episodic memory: sequences of past actions as few-shot examples",
+        "In-the-hot-path: agent explicitly decides to remember before responding (adds latency)",
+        "In-the-background: async memory updates (no latency hit, requires scheduling logic)",
+        "User feedback mechanism: marking interactions positively preserves them for recall",
+        "Memory is application-specific: different agents need different extraction criteria"
+      ],
+      "tags": ["LangChain", "memory types", "procedural", "semantic", "episodic", "hot-path", "background"]
+    },
+    {
+      "url": "https://www.pinecone.io/learn/series/langchain/langchain-conversational-memory/",
+      "title": "LangChain Conversational Memory Types - Pinecone Guide",
+      "qualityScore": 84,
+      "scores": { "authority": 8, "recency": 7, "depth": 9, "examples": 9, "uniqueness": 6 },
+      "keyInsights": [
+        "ConversationBufferMemory: raw history, maximum context but unsustainable at scale",
+        "ConversationSummaryMemory: LLM-powered progressive compression, good for long sessions",
+        "ConversationBufferWindowMemory: sliding window of k recent turns, constant token budget",
+        "ConversationSummaryBufferMemory: hybrid - summarize old + buffer recent (best of both)",
+        "All integrate via {history} template parameter in ConversationChain",
+        "Entity/relationship extraction uses separate NER-like prompts to build entity store"
+      ],
+      "tags": ["LangChain", "memory types", "ConversationSummaryMemory", "buffer", "entity memory"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2305.10250",
+      "title": "MemoryBank: Enhancing Large Language Models with Long-Term Memory",
+      "qualityScore": 88,
+      "scores": { "authority": 9, "recency": 7, "depth": 9, "examples": 7, "uniqueness": 9 },
+      "keyInsights": [
+        "Ebbinghaus Forgetting Curve: memory strength decays over time based on elapsed time and significance",
+        "Memory reinforcement: revisiting or referencing a memory increases its strength score",
+        "Enables models to 'forget' irrelevant information and reinforce important memories",
+        "Supports both closed-source (ChatGPT) and open-source (ChatGLM) models",
+        "SiliconFriend chatbot: demonstrated emphatic responses and user personality understanding",
+        "Memory retrieval combines temporal and semantic signals"
+      ],
+      "tags": ["MemoryBank", "Ebbinghaus forgetting curve", "memory decay", "memory confidence", "long-term memory"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2405.14831",
+      "title": "HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models",
+      "qualityScore": 90,
+      "scores": { "authority": 9, "recency": 8, "depth": 9, "examples": 7, "uniqueness": 10 },
+      "keyInsights": [
+        "Inspired by hippocampal indexing theory: neocortex + hippocampus analogy",
+        "LLMs + knowledge graphs + Personalized PageRank algorithm",
+        "Entity extraction to build the knowledge graph from new experiences",
+        "20% better performance than standard RAG on multi-hop QA",
+        "10-30x cheaper and 6-13x faster than iterative retrieval methods like IRCoT",
+        "Handles novel scenarios beyond existing RAG methods' capabilities"
+      ],
+      "tags": ["HippoRAG", "knowledge graph", "entity extraction", "hippocampal indexing", "Personalized PageRank"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2305.14322",
+      "title": "RET-LLM: Towards a General Read-Write Memory for Large Language Models",
+      "qualityScore": 82,
+      "scores": { "authority": 8, "recency": 7, "depth": 8, "examples": 6, "uniqueness": 8 },
+      "keyInsights": [
+        "Knowledge extracted and stored as triplets (Davidsonian semantics)",
+        "Four memory properties: scalable, aggregatable, updatable, interpretable",
+        "Strong performance on temporal QA and general knowledge retrieval",
+        "Basis for the more comprehensive MemLLM system",
+        "Triplet-based representation bridges structured and unstructured knowledge"
+      ],
+      "tags": ["RET-LLM", "knowledge triplets", "semantic memory", "read-write memory"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2312.06648",
+      "title": "Cognitive Architectures for Language Agents (CoALA)",
+      "qualityScore": 92,
+      "scores": { "authority": 10, "recency": 8, "depth": 10, "examples": 7, "uniqueness": 9 },
+      "keyInsights": [
+        "CoALA framework organizes agent architecture around cognitive science principles",
+        "Modular memory components: working memory, episodic memory, semantic memory, procedural memory",
+        "Structured action space for interacting with internal memory and external environments",
+        "Generalized decision-making process that chooses actions based on memory state",
+        "Comprehensive survey and taxonomy of existing LLM agent architectures",
+        "Actionable directions toward language-based general intelligence"
+      ],
+      "tags": ["CoALA", "cognitive architecture", "working memory", "episodic memory", "semantic memory", "procedural memory"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2404.13501",
+      "title": "A Survey on the Memory Mechanism of Large Language Model based Agents",
+      "qualityScore": 88,
+      "scores": { "authority": 9, "recency": 8, "depth": 9, "examples": 6, "uniqueness": 8 },
+      "keyInsights": [
+        "Comprehensive taxonomy of memory mechanisms in LLM-based agents",
+        "Memory essential for agent self-evolution and long-term environment interactions",
+        "Design patterns for memory construction, evaluation, and application",
+        "Four common memory storage forms: in-context, external database, in-weights, in-cache",
+        "Memory operations: read (retrieval) and write (storage, management)",
+        "Survey of 50+ memory systems with comparative analysis"
+      ],
+      "tags": ["survey", "memory mechanisms", "taxonomy", "LLM agents"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2306.07929",
+      "title": "REMEMBERER: Large Language Models Are Semi-Parametric Reinforcement Learning Agents",
+      "qualityScore": 80,
+      "scores": { "authority": 8, "recency": 7, "depth": 7, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Long-term experience memory updated via Reinforcement Learning with Experience Memory (RLEM)",
+        "Learns from both successes and failures without fine-tuning LLM parameters",
+        "Semi-parametric: LLM weights fixed, external memory updated via RL",
+        "4% and 2% improvement over SOTA on two RL task sets",
+        "Memory stores past task experiences as examples for future similar tasks"
+      ],
+      "tags": ["REMEMBERER", "RL memory", "experience memory", "semi-parametric"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2308.01542",
+      "title": "Memory Sandbox: Transparent and Interactive Memory Management for Conversational Agents",
+      "qualityScore": 78,
+      "scores": { "authority": 7, "recency": 7, "depth": 7, "examples": 6, "uniqueness": 9 },
+      "keyInsights": [
+        "Treats memories as data objects that can be viewed, manipulated, recorded, summarized, and shared",
+        "User-facing memory management interface for transparency and control",
+        "Addresses conversational breakdowns caused by poor memory visibility",
+        "Allows sharing memory contexts across multiple conversations",
+        "Users can directly manipulate what agents remember",
+        "Key insight: memory opacity reduces user trust in AI systems"
+      ],
+      "tags": ["Memory Sandbox", "user control", "memory transparency", "HCI"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2406.14928",
+      "title": "iAgents: Information Asymmetry in Multi-Agent LLM Networks",
+      "qualityScore": 76,
+      "scores": { "authority": 8, "recency": 8, "depth": 7, "examples": 6, "uniqueness": 8 },
+      "keyInsights": [
+        "InfoNav mechanism: agents proactively exchange necessary human information for task resolution",
+        "Mixed memory structure organizes human information for accurate access",
+        "InformativeBench: first benchmark for evaluating agents under information asymmetry",
+        "Scaled to 140 individuals, 588 relationships, 70,000+ messages, 30+ communication turns",
+        "Demonstrates memory partitioning and sharing across multi-agent systems"
+      ],
+      "tags": ["multi-agent", "information asymmetry", "memory sharing", "InfoNav"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2402.01680",
+      "title": "A Survey on Large Language Model-based Multi-Agent Systems",
+      "qualityScore": 75,
+      "scores": { "authority": 8, "recency": 8, "depth": 7, "examples": 5, "uniqueness": 6 },
+      "keyInsights": [
+        "Memory mechanisms fundamental to agent cooperation and task solving",
+        "Shared memory enables agent coordination in multi-agent systems",
+        "Agent profiling, communication, and memory interconnected in multi-agent design",
+        "Memory types differ by persistence scope and access patterns across agent roles"
+      ],
+      "tags": ["multi-agent survey", "memory", "agent coordination"]
+    },
+    {
+      "url": "https://huggingface.co/papers?q=memory+extraction+LLM+conversation",
+      "title": "HuggingFace: Papers on Memory Extraction from LLM Conversations",
+      "qualityScore": 88,
+      "scores": { "authority": 9, "recency": 10, "depth": 8, "examples": 7, "uniqueness": 9 },
+      "keyInsights": [
+        "CogCanvas: verbatim-grounded artifact extraction (decisions, facts, reminders), 32.4% on LoCoMo, +7.8pp over RAG",
+        "ProMem: proactive memory extraction with iterative self-questioning feedback loops",
+        "SeCom: segment-level memory construction with conversation segmentation and prompt compression",
+        "EMem: event-centric memory using elementary discourse units (EDUs) in heterogeneous graphs",
+        "MemoChat: iterative memorization-retrieval-response cycles via memo refinement",
+        "On Structural Memory: four structures (chunks, knowledge triples, atomic facts, summaries) - mixed memory resilient to noise",
+        "MemGAS: multi-granularity memory with Gaussian Mixture Model clustering and entropy-based routing",
+        "MemInsight: autonomous memory augmentation for recommendation, QA, event summarization (14% boost)"
+      ],
+      "tags": ["memory extraction papers", "CogCanvas", "ProMem", "SeCom", "EMem", "MemoChat", "MemGAS"]
+    },
+    {
+      "url": "https://arxiv.org/search/?searchtype=all&query=memory+extraction+LLM+conversation",
+      "title": "arXiv: Recent Papers on Memory Extraction for LLM Conversations",
+      "qualityScore": 85,
+      "scores": { "authority": 9, "recency": 10, "depth": 7, "examples": 6, "uniqueness": 8 },
+      "keyInsights": [
+        "Structured Distillation for Personalized Agent Memory: 11x compression, 96% retrieval quality, 4-field structured objects",
+        "TraceMem: three-stage pipeline (topic segmentation → episodic summaries → hierarchical narrative threads → user memory cards)",
+        "Hindsight is 20/20: four logical memory networks (world facts, agent experiences, entity summaries, evolving beliefs)",
+        "Bi-Mem: inductive agent extracts facts from conversations; reflective agent calibrates accuracy with global constraints",
+        "Adaptive Memory Admission Control: five-factor memory value decomposition (future utility, factual confidence, semantic novelty, temporal recency, content type prior)"
+      ],
+      "tags": ["Structured Distillation", "TraceMem", "Bi-Mem", "Adaptive Memory Admission", "recent papers 2025-2026"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2309.02427",
+      "title": "Dense X Retrieval: What Retrieval Granularity Should We Use?",
+      "qualityScore": 80,
+      "scores": { "authority": 9, "recency": 7, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Propositions as retrieval units: atomic expressions each encapsulating a distinct factoid in self-contained natural language",
+        "Fine-grained retrieval units (propositions) significantly outperform passage-level indexing",
+        "Proposition extraction from source text improves downstream QA within context constraints",
+        "Granularity choice impacts both retrieval quality and downstream task performance",
+        "Atomic factoid units enable more precise memory storage and retrieval"
+      ],
+      "tags": ["retrieval granularity", "proposition extraction", "atomic facts", "RAG"]
+    },
+    {
+      "url": "https://mem0.ai/",
+      "title": "Mem0 Homepage",
+      "qualityScore": 72,
+      "scores": { "authority": 8, "recency": 10, "depth": 5, "examples": 5, "uniqueness": 5 },
+      "keyInsights": [
+        "Positions as 'Universal, Self-improving memory layer for LLM applications'",
+        "Three products: Mem0 Platform (managed), Mem0 Open Source (self-hosted), OpenMemory (team workspace)",
+        "MCP protocol integration for universal AI client compatibility",
+        "Integrates with LangChain, CrewAI, Vercel AI SDK"
+      ],
+      "tags": ["Mem0", "product overview"]
+    },
+    {
+      "url": "https://help.getzep.com/concepts",
+      "title": "Zep Concepts Documentation",
+      "qualityScore": 86,
+      "scores": { "authority": 9, "recency": 10, "depth": 8, "examples": 7, "uniqueness": 7 },
+      "keyInsights": [
+        "Graph nodes represent entities; edges represent facts and relationships",
+        "Dynamic graph updates in response to new data continuously",
+        "Fact invalidation: edge stores the timestamp when fact became invalid",
+        "Processes JSON, text, and message formats from diverse sources",
+        "Custom entity/edge types via Pydantic-like class definitions",
+        "Two retrieval paths: low-level graph.search() and high-level thread.get_user_context()"
+      ],
+      "tags": ["Zep", "graph structure", "fact invalidation", "entity types"]
+    },
+    {
+      "url": "https://github.com/cpacker/MemGPT",
+      "title": "Letta (formerly MemGPT) GitHub Repository",
+      "qualityScore": 87,
+      "scores": { "authority": 9, "recency": 10, "depth": 8, "examples": 9, "uniqueness": 7 },
+      "keyInsights": [
+        "Memory blocks as fundamental storage: 'human' block (user info) + 'persona' block (agent identity)",
+        "Tool calling interface for memory operations: web_search, fetch_webpage, memory management",
+        "Model-agnostic: supports various LLMs including GLM, GPT, Opus",
+        "Skills and subagents for composable functionality",
+        "Python and TypeScript SDKs",
+        "Stateful agent persistence enables continuous learning across sessions"
+      ],
+      "tags": ["Letta", "MemGPT", "memory blocks", "stateful agents", "implementation"]
+    },
+    {
+      "url": "https://docs.langchain.com/oss/python/langgraph/memory",
+      "title": "LangGraph Memory Documentation",
+      "qualityScore": 88,
+      "scores": { "authority": 10, "recency": 9, "depth": 8, "examples": 8, "uniqueness": 6 },
+      "keyInsights": [
+        "JSON document storage with hierarchical namespace:key organization",
+        "InMemoryStore with embedding index for semantic search",
+        "Runtime object injection pattern for accessing store in nodes",
+        "PostgreSQL, Redis, MongoDB backends for production scale",
+        "Memory categories map to cognitive science: semantic, episodic, procedural"
+      ],
+      "tags": ["LangGraph", "store", "semantic search", "production backends"]
+    },
+    {
+      "url": "https://research.memgpt.ai/",
+      "title": "MemGPT Research Site",
+      "qualityScore": 83,
+      "scores": { "authority": 9, "recency": 8, "depth": 7, "examples": 6, "uniqueness": 7 },
+      "keyInsights": [
+        "UC Berkeley team released code and experimental data",
+        "Virtual context management: paging between fast and slow memory inspired by OS",
+        "LLM teaches itself to manage its own memory via interrupt-driven control flow",
+        "Validated on document analysis (beyond context window) and multi-session chat",
+        "Agents can 'remember, reflect, and evolve dynamically through long-term interactions'"
+      ],
+      "tags": ["MemGPT", "research", "virtual context management", "UC Berkeley"]
+    },
+    {
+      "url": "https://arxiv.org/pdf/2310.08560",
+      "title": "MemGPT Paper (PDF): Full Technical Details",
+      "qualityScore": 95,
+      "scores": { "authority": 10, "recency": 8, "depth": 10, "examples": 9, "uniqueness": 9 },
+      "keyInsights": [
+        "Core memory: limited, immediately active (like CPU registers/cache)",
+        "Archival memory: unlimited persistent external storage (like disk)",
+        "Recall memory: searchable log of past conversation messages",
+        "Agent autonomously decides to page info in/out using tool calls",
+        "Interrupts manage control flow when memory operations are needed mid-response",
+        "Two primary use cases: long document QA and multi-session personalized chat"
+      ],
+      "tags": ["MemGPT", "PDF", "core memory", "archival memory", "recall memory", "interrupts"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2304.03442",
+      "title": "Generative Agents Paper (Park et al. 2023) - Full Details",
+      "qualityScore": 97,
+      "scores": { "authority": 10, "recency": 8, "depth": 10, "examples": 9, "uniqueness": 10 },
+      "keyInsights": [
+        "25 agents in Smallville sandbox demonstrate emergent social behavior",
+        "Memory stream stores all observations as natural language with timestamps",
+        "Retrieval: score = recency_score + importance_score + relevance_score (weighted sum, all normalized 0-1)",
+        "Importance scoring: LLM rates each observation 1-10 for 'poignancy' (memorability)",
+        "Reflection: periodically asks 'What are 3 most salient questions based on recent memories?' then answers them",
+        "Planning: converts reflections into daily plans decomposed into hourly then 5-min actions",
+        "All three layers (observe, plan, reflect) needed for believable behavior in ablation"
+      ],
+      "tags": ["generative agents", "memory stream", "retrieval scoring", "importance scoring", "reflection", "planning"]
+    },
+    {
+      "url": "https://www.microsoft.com/en-us/research/blog/generative-agents-interactive-simulacra-of-human-behavior/",
+      "title": "Microsoft Research Blog: Generative Agents",
+      "qualityScore": 82,
+      "scores": { "authority": 9, "recency": 7, "depth": 7, "examples": 6, "uniqueness": 5 },
+      "keyInsights": [
+        "Memory stream architecture validated at Microsoft Research",
+        "Emergent social behavior demonstrates effectiveness of memory + reflection",
+        "Natural language memory storage enables reasoning without structured schemas"
+      ],
+      "tags": ["generative agents", "memory stream", "Microsoft Research"]
+    },
+    {
+      "url": "https://docs.mem0.ai/",
+      "title": "Mem0 Documentation Overview",
+      "qualityScore": 75,
+      "scores": { "authority": 9, "recency": 10, "depth": 5, "examples": 6, "uniqueness": 4 },
+      "keyInsights": [
+        "Graph memory, webhooks, multimodal support, custom categories as advanced features",
+        "Rerankers for improving retrieval quality",
+        "Open source self-hosted and managed cloud options",
+        "REST API + Python/TypeScript SDKs"
+      ],
+      "tags": ["Mem0", "documentation", "graph memory"]
+    },
+    {
+      "url": "https://docs.langchain.com/oss/python/langgraph/add-memory",
+      "title": "LangGraph Add Memory How-To",
+      "qualityScore": 86,
+      "scores": { "authority": 10, "recency": 9, "depth": 8, "examples": 9, "uniqueness": 6 },
+      "keyInsights": [
+        "Compile graph with both checkpointer (short-term) and store (long-term)",
+        "runtime.store.asearch() uses semantic similarity when embeddings configured",
+        "runtime.store.aput(namespace, str(uuid.uuid4()), {\"data\": \"...\"}) to persist",
+        "Context schema injected at runtime for per-user memory isolation",
+        "setup() required for DB-backed stores (PostgreSQL, Redis, MongoDB)"
+      ],
+      "tags": ["LangGraph", "code examples", "store API", "checkpointer"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2406.14928",
+      "title": "iAgents: NeurIPS 2024 - Information Asymmetry in Multi-Agent Systems",
+      "qualityScore": 76,
+      "scores": { "authority": 8, "recency": 9, "depth": 7, "examples": 6, "uniqueness": 8 },
+      "keyInsights": [
+        "NeurIPS 2024 accepted paper on agent memory in social networks",
+        "Mixed memory structure: combines user information from multiple sources",
+        "InfoNav: proactive information exchange guided by task requirements",
+        "Scales to realistic social network sizes"
+      ],
+      "tags": ["NeurIPS 2024", "multi-agent", "InfoNav", "mixed memory"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2305.10250",
+      "title": "MemoryBank Paper - Ebbinghaus Forgetting Curve",
+      "qualityScore": 88,
+      "scores": { "authority": 9, "recency": 7, "depth": 9, "examples": 7, "uniqueness": 9 },
+      "keyInsights": [
+        "Memory strength = f(time_elapsed, significance) following forgetting curve",
+        "Strength decays exponentially over time without reinforcement",
+        "Significance score set at memory creation time based on content importance",
+        "Revisiting or using a memory reinforces it (increases strength)",
+        "Below-threshold memories eventually 'forgotten' (not retrieved)",
+        "Tested with SiliconFriend: empathic responses, personality understanding"
+      ],
+      "tags": ["MemoryBank", "forgetting curve", "memory decay", "confidence scoring", "memory strength"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2305.14322",
+      "title": "RET-LLM: General Read-Write Memory via Knowledge Triplets",
+      "qualityScore": 82,
+      "scores": { "authority": 8, "recency": 7, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Triplet extraction: (subject, predicate, object) + event information",
+        "Davidsonian event semantics for richer triplet structure",
+        "Scalable: can grow indefinitely without retraining",
+        "Aggregatable: merges information across triplets for coherent answers",
+        "Updatable: individual triplets can be modified without affecting others",
+        "Interpretable: humans can read and verify stored triplets"
+      ],
+      "tags": ["RET-LLM", "triplets", "knowledge graph", "Davidsonian semantics"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2312.06648",
+      "title": "CoALA: Cognitive Architectures for Language Agents",
+      "qualityScore": 92,
+      "scores": { "authority": 10, "recency": 8, "depth": 10, "examples": 7, "uniqueness": 9 },
+      "keyInsights": [
+        "Working memory: in-context information for current task (temporary)",
+        "Episodic memory: logs of past experiences with retrieval for few-shot learning",
+        "Semantic memory: world knowledge and facts (structured or unstructured)",
+        "Procedural memory: task execution rules encoded in weights or explicit programs",
+        "Action space: retrieval actions, reasoning actions, external environment actions",
+        "Decision procedure: planning (deliberate) vs reactive (immediate) action selection"
+      ],
+      "tags": ["CoALA", "working memory", "episodic memory", "semantic memory", "procedural memory", "action space"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2404.13501",
+      "title": "Survey on Memory Mechanisms of LLM-based Agents",
+      "qualityScore": 88,
+      "scores": { "authority": 9, "recency": 8, "depth": 9, "examples": 6, "uniqueness": 8 },
+      "keyInsights": [
+        "Four memory storage types: in-context (working), external database, in-weights (parametric), in-cache (KV cache)",
+        "Read operations: retrieval by semantic similarity, keyword, structured query, recency, random",
+        "Write operations: storage, fusion (dedup/contradiction), forgetting (decay/deletion), updating",
+        "Memory types compared: in-context fastest but limited; external most scalable; in-weights most permanent",
+        "Evaluation on long-context tasks, multi-session QA, task completion across diverse agent apps"
+      ],
+      "tags": ["survey", "memory types", "storage types", "read operations", "write operations"]
+    },
+    {
+      "url": "https://blog.langchain.com/memory-for-agents",
+      "title": "LangChain Blog: Memory For Agents (Full Details)",
+      "qualityScore": 85,
+      "scores": { "authority": 9, "recency": 8, "depth": 8, "examples": 7, "uniqueness": 7 },
+      "keyInsights": [
+        "Memory is application-specific: one size does not fit all",
+        "LangChain's memory store abstractions support all three writing patterns",
+        "Dynamic few-shot selection tools for episodic memory implementation",
+        "Templates for both hot-path and background extraction",
+        "User feedback (thumbs up/down) as memory extraction trigger"
+      ],
+      "tags": ["LangChain", "memory patterns", "few-shot selection", "user feedback"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2405.14831",
+      "title": "HippoRAG: Neurobiologically Inspired Memory Architecture",
+      "qualityScore": 90,
+      "scores": { "authority": 9, "recency": 8, "depth": 9, "examples": 7, "uniqueness": 10 },
+      "keyInsights": [
+        "OpenIE-based named entity extraction to build knowledge graph nodes",
+        "Pairing KG with vector embeddings for hybrid retrieval",
+        "Personalized PageRank seeds from query entities, propagates to related nodes",
+        "Hippocampal indexing: hippocampus stores indexes to neocortical memories",
+        "Phrase-level nodes in KG enable fine-grained entity matching",
+        "Combines well with other retrieval methods in an ensemble"
+      ],
+      "tags": ["HippoRAG", "OpenIE", "entity extraction", "knowledge graph", "PageRank"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2309.02427",
+      "title": "Dense X Retrieval: Proposition-Level Memory Units",
+      "qualityScore": 80,
+      "scores": { "authority": 9, "recency": 7, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Propositions defined as atomic, self-contained factoid expressions",
+        "LLM extracts propositions from text chunks during indexing phase",
+        "Proposition-level outperforms sentence-level and passage-level in retrieval",
+        "Fine-grained units allow more precise memory content without context loss",
+        "Applicable to conversation memory: each statement can be stored as proposition"
+      ],
+      "tags": ["proposition extraction", "atomic facts", "retrieval units", "memory granularity"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2308.01542",
+      "title": "Memory Sandbox (2023) - User-Controlled Memory Management",
+      "qualityScore": 78,
+      "scores": { "authority": 7, "recency": 7, "depth": 7, "examples": 6, "uniqueness": 9 },
+      "keyInsights": [
+        "Memory as interactive data objects (not opaque internal state)",
+        "Three operations: summarize (compress), manipulate (edit), share (export/import)",
+        "Highlights gap between agent memory capability and user mental models",
+        "Shared memory contexts across conversations without manual re-entry",
+        "User study showed improved trust and task success with transparent memory"
+      ],
+      "tags": ["Memory Sandbox", "user control", "transparency", "memory sharing", "HCI"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2406.00057",
+      "title": "Long-Context Conversational Memory Retrieval (Time/Event-Based QA)",
+      "qualityScore": 82,
+      "scores": { "authority": 8, "recency": 9, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Time/event-based memory queries require specialized retrieval (not just semantic similarity)",
+        "Ambiguous queries need surrounding conversational context to interpret correctly",
+        "Novel dataset of ambiguous and time-based questions from conversational data",
+        "Chain-of-table search + vector retrieval + disambiguation prompting",
+        "Standard RAG fails on temporal and event-ordered memory queries",
+        "Temporal reasoning crucial for realistic conversational memory"
+      ],
+      "tags": ["temporal memory", "time-based queries", "conversational retrieval", "disambiguation"]
+    },
+    {
+      "url": "https://arxiv.org/abs/2306.07929",
+      "title": "REMEMBERER: Semi-Parametric RL Agents with Experience Memory",
+      "qualityScore": 80,
+      "scores": { "authority": 8, "recency": 7, "depth": 7, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "RL-updated external memory without touching LLM parameters",
+        "Memory stores task-specific experiences for future retrieval",
+        "Learns to prefer successful strategies from past episodes",
+        "Semi-parametric: best of both worlds (LLM reasoning + updatable experience)",
+        "Demonstrates memory as a learnable, improving component"
+      ],
+      "tags": ["REMEMBERER", "RL", "experience memory", "semi-parametric"]
+    }
+  ]
+}

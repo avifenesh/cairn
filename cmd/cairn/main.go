@@ -460,10 +460,15 @@ func runServe(logger *slog.Logger) {
 				transcribed, tErr := voiceSvc.Transcribe(ctx, msg.Audio, msg.AudioFilename)
 				if tErr != nil {
 					logger.Warn("channel: voice transcription failed", "error", tErr)
-				} else if transcribed != "" {
+					return &cairnchannel.OutgoingMessage{Text: "Sorry, I couldn't understand the voice message. Please try again or type your message."}, nil
+				}
+				if transcribed != "" {
 					msg.Text = transcribed
 					logger.Info("channel: voice transcribed", "text", transcribed[:min(len(transcribed), 80)])
 				}
+			}
+			if len(msg.Audio) > 0 && voiceSvc == nil {
+				return &cairnchannel.OutgoingMessage{Text: "Voice messages are not enabled. Please type your message."}, nil
 			}
 
 			// Determine message text.

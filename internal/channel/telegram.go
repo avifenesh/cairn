@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
@@ -138,17 +139,15 @@ func (t *TelegramAdapter) Close() error {
 func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *OutgoingMessage) error {
 	// Send voice note if audio is present.
 	if len(msg.Audio) > 0 {
-		voiceFile := tu.FileFromBytes(msg.Audio, "voice.ogg")
+		voiceFile := tu.FileFromBytes(msg.Audio, "voice.mp3")
 		voiceParams := &telego.SendVoiceParams{
 			ChatID: tu.ID(chatID),
 			Voice:  voiceFile,
 		}
 		if _, err := t.bot.SendVoice(ctx, voiceParams); err != nil {
 			t.logger.Warn("telegram: voice send failed, falling back to text", "error", err)
-			// Fall through to send text instead.
-		} else {
-			// Also send text as a follow-up (for readability).
 		}
+		// Always also send text for readability (voice + text).
 	}
 
 	text := Normalize(msg.Text, "telegram")
@@ -287,7 +286,8 @@ func (t *TelegramAdapter) downloadFile(ctx context.Context, fileID string) ([]by
 		return nil, fmt.Errorf("create download request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("download: %w", err)
 	}

@@ -199,3 +199,28 @@ export type SSEEventType =
 	| 'agent_progress'
 	| 'skill_activated'
 	| 'budget_update';
+
+export interface CronJob {
+	id: string;
+	enabled: boolean;
+	name: string;
+	description?: string;
+	schedule: string;
+	instruction: string;
+	timezone: string;
+	priority: number;
+	cooldownMs: number;
+	createdAt: string;
+	updatedAt: string;
+	lastRunAt?: string;
+	nextRunAt?: string;
+}
+
+export interface CronExecution {
+	id: string;
+	cronJobId: string;
+	taskId?: string;
+	status: 'fired' | 'completed' | 'failed' | 'skipped_cooldown';
+	error?: string;
+	createdAt: string;
+}

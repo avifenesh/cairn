@@ -7,6 +7,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar, Rss, Code, BookOpen, Package, Bell, BellOff, Clock, Route } from '@lucide/svelte';
+	import CronManager from '$lib/components/cron/CronManager.svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
 	let mcpStatus = $state<McpStatus | null>(null);
@@ -619,6 +620,15 @@
 				</div>
 			</div>
 		</div>
+	</section>
+
+	<Separator class="mb-8" />
+
+	<!-- Scheduled Jobs -->
+	<section class="mb-8">
+		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">Scheduled Jobs</h2>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">Cron jobs that cairn runs automatically on schedule</p>
+		<CronManager />
 	</section>
 
 	<Separator class="mb-8" />

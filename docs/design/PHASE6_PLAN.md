@@ -302,14 +302,15 @@ Chat Features + Polish:
   PR 65 (File upload C.6)          ─── merged #65 (paperclip, paste, drag-and-drop)
   PR 68 (Mode selector + DnD)      ─── merged #68 (dropdown, drag-and-drop upload)
   PR 69 (Memory edit/delete)        ─── merged #69 (DELETE + PUT endpoints, inline edit)
-  C.7 (Voice input/output)         ─── needs backend /v1/assistant/voice endpoint
+  C.7 (Voice input/output)         ─── merged #73-78 (whisper STT + edge-tts TTS + Telegram voice)
 
-Phase 8 Intelligence (see docs/design/INTELLIGENCE_PLAN.md):
+Phase 8 Intelligence (ALL COMPLETE — see docs/design/INTELLIGENCE_PLAN.md):
   PR 11a (Embeddings)               ─── merged #63 (local Ollama nomic-embed-text, 768d)
   PR 11b (Session Compaction)        ─── merged #67 (SummaryBuffer 80K trigger)
+  PR 11c (Auto-Extract Memories)     ─── merged #70 (Mem0 extract→classify pipeline)
+  PR 11c+ (Contradiction Detection)  ─── merged #79 (LLM YES/NO judge in 0.8-0.9 zone)
   PR 71  (Frontend Intelligence UI)  ─── merged #71 (embeddings + compaction in settings)
-  PR 11c (Auto-Extract Memories)     ─── next (Mem0 extract→classify pipeline)
-  PR 11d (Gmail, Calendar, Voice)    ─── independent
+  PR 73-78 (Voice STT/TTS)          ─── merged (whisper + edge-tts + Telegram + sanitization)
 
 Feed Signal Intelligence (see docs/design/FEED_SIGNAL_PLAN.md):
   PR A (Wire Feed API + types)       ─── next (foundation — unblocks everything)

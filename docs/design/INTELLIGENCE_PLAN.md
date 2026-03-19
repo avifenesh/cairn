@@ -4,12 +4,17 @@ Research-backed plan for session compaction, auto-memory extraction, and contrad
 Based on 108 sources analyzed (Eino, Gollem, Plandex, ADK-Go, MemGPT, Zep, Mem0, LangChain, 42 papers/blogs).
 See `agent-knowledge/session-compaction.md` and `agent-knowledge/auto-memory-extraction.md` for full research.
 
-## Current State
+## Current State — ALL COMPLETE
 
-**Done**: Embeddings (PR #63) — local Ollama nomic-embed-text, 768d, hybrid search (30% keyword + 70% vector + MMR).
-**Gap 1**: No session compaction — long coding sessions (100 tool rounds) will overflow context.
-**Gap 2**: No auto-extraction — memories only created via explicit tool call or reflection engine (every 30min).
-**Gap 3**: No contradiction detection — conflicting memories can coexist.
+| PR | Feature | Status |
+|----|---------|--------|
+| #63 | Embeddings (local Ollama nomic-embed-text 768d) | Merged, deployed |
+| #67 | Session Compaction (SummaryBuffer 80K trigger) | Merged, deployed |
+| #70 | Auto-Extract Memories (Mem0 pipeline) | Merged, deployed |
+| #79 | Contradiction Detection (LLM YES/NO judge) | Merged, deployed |
+| #73-78 | Voice STT/TTS (whisper.cpp + edge-tts + Telegram) | Merged, deployed |
+
+All three intelligence PRs (A, B, C) plus voice are complete. 25 accepted memories with embeddings, semantic search confirmed working.
 
 ---
 

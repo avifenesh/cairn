@@ -3,14 +3,18 @@
 > Not a notification dump. Surface what matters: external human engagement,
 > growth metrics, filtered email, calendar awareness.
 
-## Current State
+## Current State (updated 2026-03-19)
 
 5 pollers working (GitHub notifications, HN, Reddit, NPM, Crates). Event store with dedup.
-Feed API routes **stubbed** (return empty — not wired to EventStore). Tools work (readFeed, markRead, digest).
-FeedItem type mismatch: frontend expects `id: number`, backend produces `ev_<hex>` string.
-No archive/delete API despite `archived_at` column in schema.
+**PR A COMPLETE (#80)**: Feed API wired, types fixed, archive/delete, source filters, pagination.
+- GET /v1/feed wired to EventStore.List() with source/kind/unread/cursor/excludeArchived params
+- GET /v1/dashboard returns real stats (total, unread, bySource via CountBySource SQL)
+- POST /v1/feed/{id}/read, POST /v1/feed/read-all, POST /v1/feed/{id}/archive, DELETE /v1/feed/{id}
+- FeedItem.id fixed: string (was number), archive/delete buttons, source filter chips
+- cairn.archiveFeedItem + cairn.deleteFeedItem tools added
+- 37 tools total (24 base + 5 Z.ai HTTP + 8 Vision), 39 with GWS
+- 232 frontend tests, all backend tests green
 Google Workspace CLI (`gws`) authenticated and available with 17 services.
-37 tools total (22 base + 5 Z.ai HTTP + 8 Vision + 2 GWS).
 
 ## Signal Philosophy
 
@@ -285,23 +289,218 @@ CALENDAR_LOOKAHEAD_H   int      // hours ahead (default 48)
 
 ---
 
-### PR D: Future Integrations (spec only — not implementing now)
+### PR D: Future Integrations Spec (updated 2026-03-19)
 
-Design the poller interface and config for:
+> Detailed spec for each integration. All follow the existing Poller interface:
+> `Source() string` + `Poll(ctx, since) ([]*RawEvent, error)`.
+> Config via env vars + PatchableConfig (settings UI).
 
-| Source | API | Frequency | Signal |
-|--------|-----|-----------|--------|
-| **X/Twitter** | MCP `mcp__twitter__*` or REST API | 5 min | Mentions, replies, DMs, quote tweets |
-| **RSS/Atom** | HTTP GET + XML parse | 30 min | Blog posts, changelogs, release notes |
-| **Stack Overflow** | REST API | 1 hour | Questions tagged with your tech stack |
-| **Product Hunt** | REST API | 1 hour | Launches in your interest areas |
-| **Cron Jobs** | `cairn.createCron` tool | user-defined | Scheduled tasks, reminders |
+---
 
-Tools that already exist and should be documented:
-- `cairn.shell` — shell commands (exists)
-- `cairn.gitRun` — git operations (exists)
-- `cairn.gwsQuery` / `cairn.gwsExecute` — Google Workspace (exists)
-- `cairn.webSearch` / `cairn.webFetch` — web (exists)
+#### 1. X/Twitter Poller
+
+**Available now:** MCP tools (`mcp__twitter__*`) are connected and authenticated.
+
+| Tool | What it does | Polling use |
+|------|-------------|-------------|
+| `search_twitter` | Search by query, sort by Top/Latest | Track mentions, keywords |
+| `get_user_tweets` | User's timeline | Track your own reach |
+| `get_latest_timeline` | Following timeline | Curated feed |
+| `get_timeline` | For You timeline | Discovery |
+| `post_tweet` | Post | Agent can post on your behalf |
+| `send_dm` / `delete_dm` | DMs | Agent can respond to DMs |
+
+**Poller design:**
+```
+Source: "twitter"
+Poll cycle (every 5 min):
+  1. search_twitter(query="@avifenesh OR from:avifenesh", sort="Latest", count=20)
+     → kind=mention for replies/mentions, kind=post for your tweets
+  2. search_twitter(query="cairn OR agent-os OR <keywords>", sort="Latest", count=10)
+     → kind=post for keyword matches
+  Dedup: twitter:<tweet_id>
+  Metadata: {author, likes, retweets, replies, isReply, quotedTweet}
+```
+
+**Config:**
+- `TWITTER_ENABLED` (bool), `TWITTER_KEYWORDS` (comma-sep), `TWITTER_USERNAME` (string)
+- MCP calls via agent tool execution (not HTTP — use existing MCP infrastructure)
+
+**Implementation approach:** Since MCP tools are available, the poller would call them via the tool system rather than HTTP. Requires injecting tool execution capability into the poller, or using a dedicated MCP client. Simplest: exec via the agent's tool context.
+
+**Complexity:** Medium — MCP tool bridge needed. Estimated ~150 lines.
+
+---
+
+#### 2. RSS/Atom Feed Poller
+
+**Available:** No Go RSS library installed yet. Best option: `github.com/mmcdole/gofeed` (universal parser, supports RSS 1.0/2.0, Atom, JSON Feed).
+
+**Poller design:**
+```
+Source: "rss"
+Poll cycle (every 30 min):
+  For each configured feed URL:
+    1. HTTP GET <url>
+    2. Parse with gofeed.NewParser().ParseURL()
+    3. Filter items by since timestamp (item.PublishedParsed)
+    4. Emit events:
+       - kind=post for blog posts
+       - kind=release for changelogs/release notes
+       - Dedup: rss:<feed_url_hash>:<item_guid_or_link>
+       - Metadata: {feedTitle, feedURL, author, categories, enclosure}
+```
+
+**Use cases:**
+- Track competitor blogs, tech blogs (e.g., go.dev/blog, svelte.dev/blog)
+- Monitor project changelogs (GitHub releases have Atom feeds: `https://github.com/{owner}/{repo}/releases.atom`)
+- Track Hacker News RSS for broader coverage than keyword polling
+- Dev.to articles (RSS available: `https://dev.to/feed/{username}`)
+
+**Config:**
+- `RSS_FEEDS` (comma-sep URLs), `RSS_ENABLED` (bool)
+- Settings UI: textarea for feed URLs
+
+**Complexity:** Low — ~100 lines + `go get github.com/mmcdole/gofeed`. Standard HTTP + parse pattern.
+
+---
+
+#### 3. Stack Overflow Poller
+
+**Available:** REST API at `api.stackexchange.com/2.3/` — no auth needed (300 req/day anonymous, 10K/day with key).
+
+**Poller design:**
+```
+Source: "stackoverflow"
+Poll cycle (every 1 hour):
+  1. GET /2.3/questions?tagged=<tags>&sort=creation&order=desc&site=stackoverflow&fromdate=<since_unix>&pagesize=20
+     → kind=post for new questions
+  2. GET /2.3/questions?tagged=<tags>&sort=activity&order=desc&site=stackoverflow&pagesize=10
+     → kind=comment for recently active questions (answers/comments)
+  Dedup: stackoverflow:<question_id>
+  Metadata: {tags, score, answerCount, viewCount, isAnswered, owner}
+```
+
+**Use cases:**
+- Track questions about your projects: tagged `[cairn]`, `[mcp]`, `[agent-os]`
+- Track your tech stack: `[go]`, `[svelte]`, `[sqlite]`
+- Community engagement signal
+
+**Config:**
+- `SO_ENABLED` (bool), `SO_TAGS` (comma-sep), `SO_API_KEY` (optional, for higher rate limit)
+
+**Complexity:** Low — ~80 lines. Simple REST + JSON. No auth needed.
+
+---
+
+#### 4. Dev.to Poller
+
+**Available now:** MCP tools (`mcp__devto__*`) are connected.
+
+| Tool | What it does |
+|------|-------------|
+| `get_articles` | List articles by tag/username/state |
+| `get_article` | Get specific article |
+| `get_comments` | Get comments on article |
+| `get_user` | User profile |
+| `get_tags` | Popular tags |
+| `search_articles` | Search articles |
+
+**Poller design:**
+```
+Source: "devto"
+Poll cycle (every 30 min):
+  1. get_articles(username=<your_username>) → your articles, track comments/reactions
+  2. get_articles(tag=<keywords>) → new articles in your interest areas
+  3. For articles with new comments: get_comments(article_id) → kind=comment
+  Dedup: devto:article:<id> or devto:comment:<id>
+  Metadata: {tags, reactions, comments, readingTime, coverImage}
+```
+
+**Config:**
+- `DEVTO_ENABLED` (bool), `DEVTO_USERNAME` (string), `DEVTO_TAGS` (comma-sep)
+
+**Complexity:** Low — ~100 lines. MCP tools available, similar to Twitter approach.
+
+---
+
+#### 5. Enhanced Reddit (via MCP)
+
+**Available now:** MCP tools (`mcp__reddit__*`) supplement the existing HTTP poller.
+
+The existing `RedditPoller` fetches new posts via anonymous HTTP. MCP tools add:
+- `search_reddit` — search across all of Reddit (not just configured subs)
+- `browse_subreddit` — hot/top/rising (existing poller only does new)
+- `user_analysis` — track your own Reddit presence
+- `get_post_details` — deep comment threading
+
+**Enhancement spec:**
+- Add keyword search across Reddit (not just configured subs): "cairn", "agent os", "mcp protocol"
+- Track mentions of your username
+- Track comment replies on your posts
+
+**Complexity:** Low — extend existing poller with MCP calls.
+
+---
+
+#### 6. Cron/Scheduled Tasks
+
+**Design:**
+```
+New tool: cairn.createCron
+  Inputs: schedule (cron expression), action (tool call or message), description
+  Stored in: source_state or dedicated cron_jobs table
+
+Scheduler integration:
+  - On each tick, check if any cron jobs are due
+  - Execute action (tool call or send message to agent)
+  - Emit event: source=cron, kind=scheduled, title=description
+
+Use cases:
+  - "Remind me to check CI every morning at 9am"
+  - "Run digest every Friday at 5pm"
+  - "Check if my server is up every hour"
+```
+
+**Config:**
+- No env vars — managed via tool (`cairn.createCron`, `cairn.listCrons`, `cairn.deleteCron`)
+- Persisted in SQLite
+
+**Complexity:** Medium — ~200 lines. New table, cron expression parser (`github.com/robfig/cron/v3`).
+
+---
+
+#### 7. Webhook Improvements
+
+**Already exists:** `internal/signal/webhook.go` with HMAC-SHA256 verification.
+
+**Enhancements:**
+- Generic webhook templates (parse JSON body into RawEvent fields via JSONPath)
+- Webhook management UI in settings (list, create, delete, test)
+- Pre-built templates: Stripe (payment events), Vercel (deploy events), Linear (issue events)
+
+---
+
+#### Priority Order (recommended)
+
+1. **RSS/Atom** — lowest effort, highest utility (blogs, changelogs, release feeds)
+2. **Stack Overflow** — low effort, good for community engagement
+3. **Dev.to** — MCP tools ready, low effort
+4. **Twitter/X** — medium effort (MCP bridge), high value for social presence
+5. **Cron** — medium effort, enables proactive agent behavior
+6. **Enhanced Reddit** — extend existing poller
+7. **Webhook templates** — nice-to-have polish
+
+#### Existing Tools (documented)
+
+These tools already exist and work. No implementation needed:
+- `cairn.shell` — shell commands
+- `cairn.gitRun` — git operations
+- `cairn.gwsQuery` / `cairn.gwsExecute` — Google Workspace (17 services)
+- `cairn.webSearch` / `cairn.webFetch` — web search + fetch
+- `cairn.readFeed` / `cairn.markRead` / `cairn.archiveFeedItem` / `cairn.deleteFeedItem` — feed management
+- `cairn.imageAnalysis` + 7 vision tools — visual intelligence
+- `cairn.searchDoc` / `cairn.repoStructure` / `cairn.readRepoFile` — code search (Z.ai)
 
 ---
 
@@ -336,19 +535,19 @@ Tools that already exist and should be documented:
 ## Dependency Graph
 
 ```
-PR A (Wire Feed API)          ← FOUNDATION, do first
+PR A (Wire Feed API)          ← DONE (#80)
   ↓
-PR B (GitHub Signal)          ← depends on A for feed display
-PR C (Gmail + Calendar)       ← depends on A for feed display
+PR B (GitHub Signal)          ← DONE (#81) (engagement, metrics, stargazers, followers, new repos, bot filter)
+PR C (Gmail + Calendar)       ← DONE (#84) (filtered email + auto-archive GH emails + calendar via gws CLI)
   ↓
 PR D (Future Spec)            ← independent, docs only
 ```
 
 ## Implementation Order
 
-1. **PR A** — wire feed API, fix types, archive/delete (~1 session)
-2. **PR B** — GitHub signal intelligence (~1-2 sessions)
-3. **PR C** — Gmail + Calendar pollers (~1 session)
+1. **PR A** — wire feed API, fix types, archive/delete — **DONE (#80)**
+2. **PR B** — GitHub signal intelligence — **DONE (#81)**
+3. **PR C** — Gmail + Calendar pollers — **DONE (#84)**
 4. **PR D** — write specs only
 
 ## Success Criteria

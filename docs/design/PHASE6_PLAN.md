@@ -313,9 +313,9 @@ Phase 8 Intelligence (ALL COMPLETE — see docs/design/INTELLIGENCE_PLAN.md):
   PR 73-78 (Voice STT/TTS)          ─── merged (whisper + edge-tts + Telegram + sanitization)
 
 Feed Signal Intelligence (see docs/design/FEED_SIGNAL_PLAN.md):
-  PR A (Wire Feed API + types)       ─── next (foundation — unblocks everything)
-  PR B (GitHub Signal Intelligence)  ─── after A (external engagement + growth metrics + bot filter)
-  PR C (Gmail + Calendar pollers)    ─── after A (filtered email + calendar via gws CLI)
+  PR A (Wire Feed API + types)       ─── merged #80 (feed wired, archive/delete, source filters, 232 tests)
+  PR B (GitHub Signal Intelligence)  ─── merged #81 (engagement, metrics, stargazers, followers, new repos, bot filter)
+  PR C (Gmail + Calendar pollers)    ─── merged #84 (Gmail + auto-archive GH emails + Calendar via gws CLI)
   PR D (Future integrations spec)    ─── docs only (X, RSS, SO, cron)
 
 Google Workspace:
@@ -336,4 +336,5 @@ Google Workspace:
 | Z.ai Vision | 1 PR ✅ DONE | — | 8 vision tools via stdio subprocess (GLM-4.6V) |
 | File Upload | 1 PR ✅ DONE | 1 PR ✅ DONE | C.6 — paperclip, paste, drag-and-drop, POST /v1/upload |
 | Polish | — | 4 PRs ✅ DONE | Mode dropdown, DnD, memory edit/delete, editable settings |
-| **Total** | **28 merged** | **25/25 done** | **35 tools, 5 skills, MCP, 3 channels, file upload, voice + TTS, embeddings, compaction** |
+| Feed Signal | 3 PRs ✅ DONE | 3 PRs ✅ DONE | Feed API, GitHub signal, Gmail+Calendar, 8 pollers |
+| **Total** | **31 merged** | **28/28 done** | **37 tools, 5 skills, MCP, 3 channels, file upload, voice + TTS, embeddings, compaction, 8 pollers** |

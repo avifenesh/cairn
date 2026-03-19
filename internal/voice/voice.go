@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -128,6 +129,7 @@ func (s *Service) Synthesize(ctx context.Context, text string, voiceOverride str
 	if !s.cfg.TTSEnabled {
 		return nil, fmt.Errorf("voice: TTS is disabled")
 	}
+	text = SanitizeForSpeech(text)
 	if text == "" {
 		return nil, fmt.Errorf("voice: empty text")
 	}
@@ -215,4 +217,62 @@ func (s *Service) convertToWav(ctx context.Context, audio []byte, filename strin
 	}
 
 	return os.ReadFile(outPath)
+}
+
+// Regex patterns for speech sanitization.
+var (
+	reURL          = regexp.MustCompile(`https?://\S+`)
+	reMDLink       = regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
+	reMDImage      = regexp.MustCompile(`!\[([^\]]*)\]\([^)]+\)`)
+	reCodeBlock    = regexp.MustCompile("(?s)```[\\w]*\n.*?```")
+	reInlineCode   = regexp.MustCompile("`[^`]+`")
+	reMDHeading    = regexp.MustCompile(`(?m)^#{1,6}\s+`)
+	reMDBold       = regexp.MustCompile(`\*\*([^*]+)\*\*`)
+	reMDItalic     = regexp.MustCompile(`\*([^*]+)\*`)
+	reMDStrike     = regexp.MustCompile(`~~([^~]+)~~`)
+	reBulletList   = regexp.MustCompile(`(?m)^\s*[-*+]\s+`)
+	reNumberedList = regexp.MustCompile(`(?m)^\s*\d+\.\s+`)
+	reHTMLTags     = regexp.MustCompile(`<[^>]+>`)
+	reMultiNewline = regexp.MustCompile(`\n{3,}`)
+	reMultiSpace   = regexp.MustCompile(`\s{2,}`)
+)
+
+// SanitizeForSpeech strips markdown formatting, URLs, code blocks, and other
+// elements that sound bad when read aloud by TTS.
+func SanitizeForSpeech(text string) string {
+	// Remove code blocks entirely (they're unreadable as speech).
+	text = reCodeBlock.ReplaceAllString(text, "")
+
+	// Remove inline code backticks (keep the text inside).
+	text = reInlineCode.ReplaceAllStringFunc(text, func(s string) string {
+		return strings.Trim(s, "`")
+	})
+
+	// Replace markdown images with alt text or nothing.
+	text = reMDImage.ReplaceAllString(text, "$1")
+
+	// Replace markdown links with just the link text.
+	text = reMDLink.ReplaceAllString(text, "$1")
+
+	// Remove bare URLs.
+	text = reURL.ReplaceAllString(text, "")
+
+	// Remove HTML tags.
+	text = reHTMLTags.ReplaceAllString(text, "")
+
+	// Strip markdown formatting (keep the text).
+	text = reMDHeading.ReplaceAllString(text, "")
+	text = reMDBold.ReplaceAllString(text, "$1")
+	text = reMDItalic.ReplaceAllString(text, "$1")
+	text = reMDStrike.ReplaceAllString(text, "$1")
+
+	// Clean up list markers.
+	text = reBulletList.ReplaceAllString(text, "")
+	text = reNumberedList.ReplaceAllString(text, "")
+
+	// Collapse whitespace.
+	text = reMultiNewline.ReplaceAllString(text, "\n\n")
+	text = reMultiSpace.ReplaceAllString(text, " ")
+
+	return strings.TrimSpace(text)
 }

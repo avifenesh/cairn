@@ -22,10 +22,11 @@ type GmailConfig struct {
 // GmailPoller fetches emails via the gws CLI.
 // GitHub notification emails are auto-archived (ingested but hidden from feed).
 type GmailPoller struct {
-	gwsPath     string
-	filterQuery string
-	state       *SourceState
-	logger      *slog.Logger
+	gwsPath          string
+	filterQuery      string
+	autoArchiveAddrs []string // email addresses whose messages get auto-archived
+	state            *SourceState
+	logger           *slog.Logger
 }
 
 // NewGmailPoller creates a Gmail poller.
@@ -38,11 +39,13 @@ func NewGmailPoller(cfg GmailConfig) *GmailPoller {
 	if logger == nil {
 		logger = slog.Default()
 	}
+	autoArchive := []string{"notifications@github.com", "noreply@github.com"}
 	return &GmailPoller{
-		gwsPath:     cfg.GWSPath,
-		filterQuery: filter,
-		state:       cfg.State,
-		logger:      logger,
+		gwsPath:          cfg.GWSPath,
+		filterQuery:      filter,
+		autoArchiveAddrs: autoArchive,
+		state:            cfg.State,
+		logger:           logger,
 	}
 }
 
@@ -52,7 +55,7 @@ func (g *GmailPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, e
 	// List recent messages.
 	params := map[string]any{
 		"userId":     "me",
-		"maxResults": 20,
+		"maxResults": 50,
 		"q":          g.filterQuery,
 	}
 	listOut, err := g.callGWS(ctx, "gmail", "users", "messages", "list", params)
@@ -125,12 +128,15 @@ func (g *GmailPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, e
 
 		// Parse timestamp.
 		occurredAt := parseEmailDate(date)
+		if occurredAt.IsZero() {
+			occurredAt = time.Now().UTC()
+		}
 		if occurredAt.Before(since) {
 			continue
 		}
 
-		// Check if this is a GitHub notification email.
-		autoArchive := isGitHubEmail(from)
+		// Check if this email should be auto-archived.
+		autoArchive := g.shouldAutoArchive(from)
 
 		actor := parseEmailName(from)
 
@@ -156,11 +162,15 @@ func (g *GmailPoller) Poll(ctx context.Context, since time.Time) ([]*RawEvent, e
 	return events, nil
 }
 
-// isGitHubEmail returns true if the sender is a GitHub notification address.
-func isGitHubEmail(from string) bool {
+// shouldAutoArchive returns true if the sender matches an auto-archive address.
+func (g *GmailPoller) shouldAutoArchive(from string) bool {
 	lower := strings.ToLower(from)
-	return strings.Contains(lower, "notifications@github.com") ||
-		strings.Contains(lower, "noreply@github.com")
+	for _, addr := range g.autoArchiveAddrs {
+		if strings.Contains(lower, addr) {
+			return true
+		}
+	}
+	return false
 }
 
 // parseEmailName extracts the display name from a From header.
@@ -183,7 +193,7 @@ func parseEmailName(from string) string {
 	return from
 }
 
-// parseEmailDate tries common email date formats.
+// parseEmailDate tries common email date formats. Returns zero time on failure.
 func parseEmailDate(s string) time.Time {
 	formats := []string{
 		time.RFC1123Z,
@@ -198,7 +208,7 @@ func parseEmailDate(s string) time.Time {
 			return t.UTC()
 		}
 	}
-	return time.Now().UTC()
+	return time.Time{}
 }
 
 // callGWS executes a gws CLI command and returns the JSON output.

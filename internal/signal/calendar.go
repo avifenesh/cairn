@@ -51,7 +51,7 @@ func (c *CalendarPoller) Poll(ctx context.Context, _ time.Time) ([]*RawEvent, er
 
 	params := map[string]any{
 		"calendarId":   "primary",
-		"maxResults":   20,
+		"maxResults":   50,
 		"timeMin":      timeMin,
 		"timeMax":      timeMax,
 		"singleEvents": true,
@@ -109,6 +109,9 @@ func (c *CalendarPoller) Poll(ctx context.Context, _ time.Time) ([]*RawEvent, er
 		}
 
 		occurredAt := parseCalTime(startStr)
+		if occurredAt.IsZero() {
+			occurredAt = time.Now().UTC()
+		}
 
 		// Dedup key includes start time so recurring events are separate.
 		sourceID := fmt.Sprintf("calendar:%s:%s", item.ID, startStr)
@@ -164,7 +167,7 @@ func parseCalTime(s string) time.Time {
 	if t, err := time.Parse("2006-01-02", s); err == nil {
 		return t.UTC()
 	}
-	return time.Now().UTC()
+	return time.Time{} // zero time on parse failure
 }
 
 func (c *CalendarPoller) callGWS(ctx context.Context, service, resource, subResource, method string, params map[string]any) ([]byte, error) {

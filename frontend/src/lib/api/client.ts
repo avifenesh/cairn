@@ -58,6 +58,16 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
 	return res.json();
 }
 
+async function del<T>(path: string): Promise<T> {
+	const res = await fetch(`${BASE_URL}${path}`, {
+		method: 'DELETE',
+		credentials: 'include',
+		headers: headers(),
+	});
+	if (!res.ok) throw new ApiError(res.status, await res.text());
+	return res.json();
+}
+
 async function put<T>(path: string, body: unknown): Promise<T> {
 	const res = await fetch(`${BASE_URL}${path}`, {
 		method: 'PUT',
@@ -281,6 +291,9 @@ export const createMemory = (content: string, category: string) =>
 	post<Memory>('/v1/memories', { content, category });
 export const acceptMemory = (id: string) => post<{ ok: boolean }>(`/v1/memories/${id}/accept`);
 export const rejectMemory = (id: string) => post<{ ok: boolean }>(`/v1/memories/${id}/reject`);
+export const deleteMemory = (id: string) => del<{ ok: boolean }>(`/v1/memories/${id}`);
+export const updateMemory = (id: string, content: string, category?: string) =>
+	put<{ ok: boolean; memory: Memory }>(`/v1/memories/${id}`, { content, category });
 
 // Fleet / Agents
 export const getFleet = async () => {

@@ -69,7 +69,7 @@
 				name: newName.trim(),
 				schedule: newSchedule.trim(),
 				instruction: newInstruction.trim(),
-				priority: newPriority,
+				priority: Number(newPriority),
 				timezone: newTimezone.trim() || 'UTC',
 			});
 			jobs = [job, ...jobs];
@@ -117,7 +117,7 @@
 			const res = await updateCron(id, {
 				schedule: editSchedule.trim(),
 				instruction: editInstruction.trim(),
-				priority: editPriority,
+				priority: Number(editPriority),
 			});
 			jobs = jobs.map((j) => (j.id === id ? res.job : j));
 			editingId = null;

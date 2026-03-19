@@ -7,16 +7,34 @@
 	import CreateTaskButton from './CreateTaskButton.svelte';
 	import { relativeTime } from '$lib/utils/time';
 	import { Button } from '$lib/components/ui/button';
-	import { Bot, User, Copy, Check } from '@lucide/svelte';
+	import { Bot, User, Copy, Check, Volume2, Loader2, VolumeOff } from '@lucide/svelte';
+	import { playTTS, stopTTS } from '$lib/utils/tts';
 
 	let { message }: { message: ChatMessage } = $props();
 
 	let copied = $state(false);
+	let speaking = $state(false);
 
 	async function copyContent() {
 		await navigator.clipboard.writeText(message.content);
 		copied = true;
 		setTimeout(() => { copied = false; }, 2000);
+	}
+
+	async function toggleSpeak() {
+		if (speaking) {
+			stopTTS();
+			speaking = false;
+			return;
+		}
+		speaking = true;
+		try {
+			await playTTS(message.content);
+		} catch {
+			// TTS failed silently
+		} finally {
+			speaking = false;
+		}
 	}
 </script>
 
@@ -61,6 +79,20 @@
 					{/if}
 				</Button>
 				{#if message.role === 'assistant'}
+					<Button
+						variant="ghost"
+						size="icon"
+						class="h-6 w-6"
+						onclick={toggleSpeak}
+						aria-label={speaking ? 'Stop speaking' : 'Read aloud'}
+						title={speaking ? 'Stop' : 'Read aloud'}
+					>
+						{#if speaking}
+							<VolumeOff class="h-3 w-3 text-[var(--cairn-accent)]" />
+						{:else}
+							<Volume2 class="h-3 w-3 text-[var(--text-tertiary)]" />
+						{/if}
+					</Button>
 					<span title="Remember this">
 						<QuickMemoryButton content={message.content} />
 					</span>

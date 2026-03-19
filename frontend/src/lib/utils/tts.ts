@@ -3,15 +3,16 @@
 let currentAudio: HTMLAudioElement | null = null;
 let currentObjectUrl: string | null = null;
 
-export async function playTTS(text: string, format: string = 'mp3'): Promise<void> {
+export async function playTTS(text: string): Promise<void> {
 	stopTTS();
-	const params = new URLSearchParams({ text, format });
-	const h: HeadersInit = {};
+	const h: HeadersInit = { 'Content-Type': 'application/json' };
 	const token = localStorage.getItem('cairn_api_token');
 	if (token) h['X-Api-Token'] = token;
-	const res = await fetch(`/v1/assistant/voice/tts?${params}`, {
+	const res = await fetch('/v1/assistant/voice/tts', {
+		method: 'POST',
 		credentials: 'include',
 		headers: h,
+		body: JSON.stringify({ text }),
 	});
 	if (!res.ok) throw new Error(`TTS fetch failed: ${res.status}`);
 	const blob = await res.blob();

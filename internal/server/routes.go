@@ -54,6 +54,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /v1/memories", s.handleCreateMemory)
 	s.mux.HandleFunc("POST /v1/memories/{id}/accept", s.handleAcceptMemory)
 	s.mux.HandleFunc("POST /v1/memories/{id}/reject", s.handleRejectMemory)
+	s.mux.HandleFunc("DELETE /v1/memories/{id}", s.handleDeleteMemory)
+	s.mux.HandleFunc("PUT /v1/memories/{id}", s.handleUpdateMemory)
 
 	// Assistant / sessions.
 	s.mux.HandleFunc("GET /v1/assistant/sessions", s.handleListSessions)
@@ -435,6 +437,70 @@ func (s *Server) handleRejectMemory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "id": id})
+}
+
+func (s *Server) handleDeleteMemory(w http.ResponseWriter, r *http.Request) {
+	if s.memories == nil {
+		writeError(w, http.StatusServiceUnavailable, "memory service not available")
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "missing memory id")
+		return
+	}
+
+	if err := s.memories.Delete(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "id": id})
+}
+
+func (s *Server) handleUpdateMemory(w http.ResponseWriter, r *http.Request) {
+	if s.memories == nil {
+		writeError(w, http.StatusServiceUnavailable, "memory service not available")
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "missing memory id")
+		return
+	}
+
+	var req struct {
+		Content  string `json:"content"`
+		Category string `json:"category"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	if req.Content == "" {
+		writeError(w, http.StatusBadRequest, "content is required")
+		return
+	}
+
+	m, err := s.memories.Get(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "memory not found")
+		return
+	}
+
+	m.Content = req.Content
+	if req.Category != "" {
+		m.Category = memory.Category(req.Category)
+	}
+
+	if err := s.memories.Update(r.Context(), m); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "memory": marshalMemory(m)})
 }
 
 // --- Assistant / Sessions ---

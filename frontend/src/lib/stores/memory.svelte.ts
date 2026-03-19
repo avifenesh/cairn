@@ -22,4 +22,14 @@ export const memoryStore = {
 	resolveMemory(id: string, status: 'accepted' | 'rejected') {
 		memories = memories.map((m) => (m.id === id ? { ...m, status } : m));
 	},
+
+	removeMemory(id: string) {
+		memories = memories.filter((m) => m.id !== id);
+		searchResults = searchResults.filter((m) => m.id !== id);
+	},
+
+	updateMemoryContent(id: string, content: string) {
+		memories = memories.map((m) => (m.id === id ? { ...m, content } : m));
+		searchResults = searchResults.map((m) => (m.id === id ? { ...m, content } : m));
+	},
 };

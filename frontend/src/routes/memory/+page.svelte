@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getMemories, searchMemories, acceptMemory, rejectMemory, createMemory } from '$lib/api/client';
+	import { getMemories, searchMemories, acceptMemory, rejectMemory, createMemory, deleteMemory, updateMemory } from '$lib/api/client';
 	import { memoryStore } from '$lib/stores/memory.svelte';
 	import MemoryCard from '$lib/components/memory/MemoryCard.svelte';
 	import MemorySearch from '$lib/components/memory/MemorySearch.svelte';
@@ -62,6 +62,16 @@
 		} catch {
 			// handled
 		}
+	}
+
+	async function handleDelete(id: string) {
+		memoryStore.removeMemory(id);
+		try { await deleteMemory(id); } catch { /* optimistic */ }
+	}
+
+	async function handleUpdate(id: string, content: string) {
+		memoryStore.updateMemoryContent(id, content);
+		try { await updateMemory(id, content); } catch { /* optimistic */ }
 	}
 
 	function toggleSelect(id: string) {
@@ -195,7 +205,7 @@
 						</button>
 					{/if}
 					<div class="flex-1">
-						<MemoryCard {memory} onaccept={handleAccept} onreject={handleReject} />
+						<MemoryCard {memory} onaccept={handleAccept} onreject={handleReject} ondelete={handleDelete} onupdate={handleUpdate} />
 					</div>
 				</div>
 			{/each}

@@ -3,8 +3,11 @@ package channel
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/mymmrac/telego"
 	tu "github.com/mymmrac/telego/telegoutil"
@@ -75,14 +78,29 @@ func (t *TelegramAdapter) Start(ctx context.Context) error {
 		}
 
 		incoming := parseMessage(msg)
+
+		// Handle voice messages — download audio file.
+		if msg.Voice != nil {
+			audio, err := t.downloadFile(ctx, msg.Voice.FileID)
+			if err != nil {
+				t.logger.Error("telegram: download voice failed", "error", err)
+			} else {
+				incoming.Audio = audio
+				incoming.AudioFilename = "voice.ogg"
+				incoming.Metadata["voiceDuration"] = fmt.Sprintf("%d", msg.Voice.Duration)
+			}
+		}
+
 		username := ""
 		if msg.From != nil {
 			username = msg.From.Username
 		}
+		isVoice := len(incoming.Audio) > 0
 		t.logger.Info("telegram message received",
 			"from", username,
 			"text", truncate(incoming.Text, 100),
 			"command", incoming.Command,
+			"voice", isVoice,
 		)
 
 		if t.handler == nil {
@@ -119,6 +137,19 @@ func (t *TelegramAdapter) Close() error {
 }
 
 func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *OutgoingMessage) error {
+	// Send voice note if audio is present.
+	if len(msg.Audio) > 0 {
+		voiceFile := tu.FileFromBytes(msg.Audio, "voice.mp3")
+		voiceParams := &telego.SendVoiceParams{
+			ChatID: tu.ID(chatID),
+			Voice:  voiceFile,
+		}
+		if _, err := t.bot.SendVoice(ctx, voiceParams); err != nil {
+			t.logger.Warn("telegram: voice send failed, falling back to text", "error", err)
+		}
+		// Always also send text for readability (voice + text).
+	}
+
 	text := Normalize(msg.Text, "telegram")
 	if text == "" {
 		return nil
@@ -238,6 +269,35 @@ func parseMessage(msg *telego.Message) *IncomingMessage {
 	}
 
 	return in
+}
+
+// downloadFile downloads a Telegram file by its file ID.
+func (t *TelegramAdapter) downloadFile(ctx context.Context, fileID string) ([]byte, error) {
+	file, err := t.bot.GetFile(ctx, &telego.GetFileParams{FileID: fileID})
+	if err != nil {
+		return nil, fmt.Errorf("get file: %w", err)
+	}
+
+	token := t.bot.Token()
+	url := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", token, file.FilePath)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create download request: %w", err)
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download HTTP %d", resp.StatusCode)
+	}
+
+	return io.ReadAll(resp.Body)
 }
 
 func truncate(s string, max int) string {

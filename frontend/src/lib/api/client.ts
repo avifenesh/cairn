@@ -245,12 +245,10 @@ export const getSessionMessages = async (sessionId: string) => {
 export const sendMessage = (message: string, mode?: ChatMode, sessionId?: string) =>
 	post<{ taskId: string; sessionId?: string }>('/v1/assistant/message', { message, mode, sessionId });
 
-// Voice
-export const uploadVoice = async (audio: Blob, mode?: ChatMode, sessionId?: string) => {
+// Voice — transcribe audio to text via Whisper STT
+export const transcribeVoice = async (audio: Blob): Promise<string> => {
 	const form = new FormData();
 	form.append('audio', audio);
-	if (mode) form.append('mode', mode);
-	if (sessionId) form.append('sessionId', sessionId);
 	const h: HeadersInit = {};
 	const token = localStorage.getItem('cairn_api_token');
 	if (token) h['X-Api-Token'] = token;
@@ -261,7 +259,15 @@ export const uploadVoice = async (audio: Blob, mode?: ChatMode, sessionId?: stri
 		body: form,
 	});
 	if (!res.ok) throw new ApiError(res.status, await res.text());
-	return res.json() as Promise<{ taskId: string; transcript: string }>;
+	const data = await res.json() as { ok: boolean; text: string };
+	return data.text;
+};
+
+// Voice — kept for backward compat, chains transcribe → sendMessage
+export const uploadVoice = async (audio: Blob, mode?: ChatMode, sessionId?: string) => {
+	const transcript = await transcribeVoice(audio);
+	const res = await sendMessage(transcript, mode, sessionId);
+	return { taskId: res.taskId, sessionId: res.sessionId, transcript };
 };
 
 // File upload (for vision tools)

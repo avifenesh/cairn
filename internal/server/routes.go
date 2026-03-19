@@ -854,6 +854,20 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 			"port":      s.config.MCPPort,
 			"transport": s.config.MCPTransport,
 		}
+		channels := make([]map[string]any, 0)
+		if s.config.TelegramBotToken != "" {
+			channels = append(channels, map[string]any{"name": "telegram", "connected": true})
+		}
+		if s.config.DiscordBotToken != "" {
+			channels = append(channels, map[string]any{"name": "discord", "connected": true})
+		}
+		if s.config.SlackBotToken != "" {
+			channels = append(channels, map[string]any{"name": "slack", "connected": true})
+		}
+		status["channels"] = map[string]any{
+			"items":          channels,
+			"sessionTimeout": s.config.ChannelSessionTimeout,
+		}
 	}
 	writeJSON(w, http.StatusOK, status)
 }

@@ -161,6 +161,16 @@ export interface McpStatus {
 	transport: string;
 }
 
+export interface ChannelInfo {
+	name: string;
+	connected: boolean;
+}
+
+export interface ChannelStatus {
+	items: ChannelInfo[];
+	sessionTimeout: number;
+}
+
 // SSE event types
 export type SSEEventType =
 	| 'ready'

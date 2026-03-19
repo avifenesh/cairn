@@ -315,6 +315,18 @@ export const getMcpStatus = async () => {
 	} catch { return null; }
 };
 
+export const getStatusDetails = async () => {
+	try {
+		const raw = await get<Record<string, unknown>>('/v1/status');
+		const mcp = raw.mcp as Record<string, unknown> | undefined;
+		const ch = raw.channels as Record<string, unknown> | undefined;
+		return {
+			mcp: mcp ? { enabled: !!mcp.enabled, port: (mcp.port ?? 3001) as number, transport: (mcp.transport ?? 'http') as string } : null,
+			channels: ch ? { items: ((ch.items ?? []) as { name: string; connected: boolean }[]), sessionTimeout: (ch.sessionTimeout ?? 240) as number } : null,
+		};
+	} catch { return { mcp: null, channels: null }; }
+};
+
 // Poll
 export const triggerPoll = () => post<{ ok: boolean }>('/v1/poll/run');
 

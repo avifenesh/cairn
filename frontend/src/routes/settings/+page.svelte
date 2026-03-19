@@ -1,17 +1,27 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { appStore, type Theme, type Density, type Mood } from '$lib/stores/app.svelte';
-	import { getCosts, getStatusDetails } from '$lib/api/client';
+	import { getCosts, getStatusDetails, getEditableConfig, patchConfig, type EditableConfig } from '$lib/api/client';
 	import type { McpStatus, ChannelStatus } from '$lib/types';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2 } from '@lucide/svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
 	let mcpStatus = $state<McpStatus | null>(null);
 	let channelStatus = $state<ChannelStatus | null>(null);
 	let embeddingStatus = $state<{ enabled: boolean; model: string; dimensions: number } | null>(null);
 	let compactionConfig = $state<{ triggerTokens: number; keepRecent: number; maxToolOutput: number } | null>(null);
+
+	// Editable config state
+	let editTriggerTokens = $state(80000);
+	let editKeepRecent = $state(10);
+	let editMaxToolOutput = $state(8000);
+	let editBudgetDaily = $state(0);
+	let editBudgetWeekly = $state(0);
+	let editSessionTimeout = $state(240);
+	let saving = $state('');
 
 	const knownChannels = [
 		{ id: 'telegram', label: 'Telegram', icon: Send },
@@ -21,16 +31,36 @@
 
 	onMount(async () => {
 		try {
-			const [c, details] = await Promise.all([getCosts(), getStatusDetails()]);
+			const [c, details, cfg] = await Promise.all([getCosts(), getStatusDetails(), getEditableConfig()]);
 			costs = c as unknown as Record<string, number>;
 			mcpStatus = details.mcp;
 			channelStatus = details.channels;
 			embeddingStatus = details.embeddings ?? null;
 			compactionConfig = details.compaction ?? null;
+			if (cfg) {
+				editTriggerTokens = cfg.compactionTriggerTokens ?? 80000;
+				editKeepRecent = cfg.compactionKeepRecent ?? 10;
+				editMaxToolOutput = cfg.compactionMaxToolOutput ?? 8000;
+				editBudgetDaily = cfg.budgetDailyCap ?? 0;
+				editBudgetWeekly = cfg.budgetWeeklyCap ?? 0;
+				editSessionTimeout = cfg.channelSessionTimeout ?? 240;
+			}
 		} catch {
 			// handled
 		}
 	});
+
+	async function saveConfig(section: string, patch: Partial<EditableConfig>) {
+		saving = section;
+		try {
+			await patchConfig(patch);
+			appStore.addNotification('Settings saved', 'success');
+		} catch {
+			appStore.addNotification('Failed to save settings', 'error');
+		} finally {
+			saving = '';
+		}
+	}
 
 	function budgetPercent(spent: number, cap: number): number {
 		if (!cap || cap <= 0) return 0;
@@ -232,6 +262,30 @@
 					<span>Loading budget data...</span>
 				</div>
 			{/if}
+
+			<div class="border-t border-border-subtle pt-3 mt-1">
+				<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-2">Budget Caps (USD, 0 = unlimited)</p>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] mb-1">Daily</p>
+						<Input type="number" bind:value={editBudgetDaily} min={0} step={0.5} class="h-7 text-xs font-mono" />
+					</div>
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] mb-1">Weekly</p>
+						<Input type="number" bind:value={editBudgetWeekly} min={0} step={1} class="h-7 text-xs font-mono" />
+					</div>
+				</div>
+				<div class="flex justify-end mt-2">
+					<Button
+						size="sm" class="h-7 text-xs gap-1 px-3"
+						onclick={() => saveConfig('budget', { budgetDailyCap: editBudgetDaily, budgetWeeklyCap: editBudgetWeekly })}
+						disabled={saving === 'budget'}
+					>
+						{#if saving === 'budget'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
+						Save
+					</Button>
+				</div>
+			</div>
 		</div>
 	</section>
 
@@ -347,17 +401,24 @@
 			{/each}
 		</div>
 
-		{#if channelStatus?.sessionTimeout}
-			<div class="mt-3 rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
-				<div class="flex items-center justify-between">
-					<div>
-						<p class="text-sm text-[var(--text-primary)]">Session timeout</p>
-						<p class="text-[10px] text-[var(--text-tertiary)]">Idle channel sessions expire after this duration</p>
-					</div>
-					<span class="text-xs text-[var(--text-primary)] font-mono">{channelStatus.sessionTimeout}min</span>
+		<div class="mt-3 rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+			<div class="flex items-center justify-between">
+				<div class="flex-1">
+					<p class="text-sm text-[var(--text-primary)]">Session timeout</p>
+					<p class="text-[10px] text-[var(--text-tertiary)]">Idle channel sessions expire after this duration (minutes)</p>
+				</div>
+				<div class="flex items-center gap-2">
+					<Input type="number" bind:value={editSessionTimeout} min={1} max={1440} class="h-7 w-20 text-xs font-mono text-right" />
+					<Button
+						size="sm" class="h-7 text-xs gap-1 px-2"
+						onclick={() => saveConfig('channels', { channelSessionTimeout: editSessionTimeout })}
+						disabled={saving === 'channels'}
+					>
+						{#if saving === 'channels'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
+					</Button>
 				</div>
 			</div>
-		{/if}
+		</div>
 	</section>
 
 	<Separator class="mb-8" />
@@ -384,35 +445,41 @@
 				</div>
 			</div>
 
-			<!-- Compaction -->
+			<!-- Compaction (editable) -->
 			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
-				<div class="flex items-center gap-3">
+				<div class="flex items-center gap-3 mb-3">
 					<div class="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--cairn-accent)]/10">
 						<Layers class="h-4 w-4 text-[var(--cairn-accent)]" />
 					</div>
 					<div>
 						<p class="text-sm font-medium text-[var(--text-primary)]">Session Compaction</p>
-						<p class="text-[10px] text-[var(--text-tertiary)]">
-							Triggers at {compactionConfig?.triggerTokens ? `${Math.round(compactionConfig.triggerTokens / 1000)}K` : '80K'} tokens · keeps last {compactionConfig?.keepRecent ?? 10} pairs
-						</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Controls when long conversations are summarized</p>
 					</div>
 				</div>
-				{#if compactionConfig}
-					<div class="grid grid-cols-3 gap-3 pt-3 mt-3 border-t border-border-subtle">
-						<div>
-							<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Trigger</p>
-							<p class="text-xs text-[var(--text-primary)] font-mono">{Math.round(compactionConfig.triggerTokens / 1000)}K tokens</p>
-						</div>
-						<div>
-							<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Keep Recent</p>
-							<p class="text-xs text-[var(--text-primary)] font-mono">{compactionConfig.keepRecent} pairs</p>
-						</div>
-						<div>
-							<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Tool Output</p>
-							<p class="text-xs text-[var(--text-primary)] font-mono">{Math.round(compactionConfig.maxToolOutput / 1000)}K chars</p>
-						</div>
+				<div class="grid grid-cols-3 gap-3">
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Trigger (tokens)</p>
+						<Input type="number" bind:value={editTriggerTokens} min={10000} max={200000} step={10000} class="h-7 text-xs font-mono" />
 					</div>
-				{/if}
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Keep Recent (pairs)</p>
+						<Input type="number" bind:value={editKeepRecent} min={1} max={50} class="h-7 text-xs font-mono" />
+					</div>
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Max Tool Output</p>
+						<Input type="number" bind:value={editMaxToolOutput} min={1000} max={50000} step={1000} class="h-7 text-xs font-mono" />
+					</div>
+				</div>
+				<div class="flex justify-end mt-3">
+					<Button
+						size="sm" class="h-7 text-xs gap-1 px-3"
+						onclick={() => saveConfig('compaction', { compactionTriggerTokens: editTriggerTokens, compactionKeepRecent: editKeepRecent, compactionMaxToolOutput: editMaxToolOutput })}
+						disabled={saving === 'compaction'}
+					>
+						{#if saving === 'compaction'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
+						Save
+					</Button>
+				</div>
 			</div>
 		</div>
 	</section>

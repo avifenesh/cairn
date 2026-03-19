@@ -91,8 +91,9 @@ func newEmbedder(cfg *config.Config) memory.Embedder {
 }
 
 func runServe(logger *slog.Logger) {
-	// Load config.
+	// Load config + apply persisted overrides from config.json.
 	cfg := config.LoadOptional()
+	cfg.LoadOverrides(cfg.DataDir)
 
 	// Initialize event bus.
 	bus := eventbus.New(eventbus.WithLogger(logger))

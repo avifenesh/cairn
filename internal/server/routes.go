@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
+	"github.com/avifenesh/cairn/internal/config"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
@@ -62,6 +63,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /v1/assistant/sessions/{id}", s.handleGetSession)
 	s.mux.HandleFunc("POST /v1/assistant/message", s.rateLimitMiddleware(10, time.Minute, s.handleAssistantMessage))
 	s.mux.HandleFunc("POST /v1/upload", s.handleUpload)
+	s.mux.HandleFunc("GET /v1/config", s.handleGetConfig)
+	s.mux.HandleFunc("PATCH /v1/config", s.handlePatchConfig)
 
 	// Skills.
 	s.mux.HandleFunc("GET /v1/skills", s.handleListSkills)
@@ -965,6 +968,35 @@ func (s *Server) handleCosts(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePollRun(w http.ResponseWriter, r *http.Request) {
 	// Stub: manual poll trigger would integrate with the signal plane.
 	writeJSON(w, http.StatusAccepted, map[string]any{"ok": true, "message": "poll triggered"})
+}
+
+func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) {
+	if s.config == nil {
+		writeJSON(w, http.StatusOK, config.PatchableConfig{})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.config.GetPatchable())
+}
+
+func (s *Server) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
+	if s.config == nil {
+		writeError(w, http.StatusServiceUnavailable, "config not available")
+		return
+	}
+
+	var patch config.PatchableConfig
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	s.config.ApplyPatch(patch)
+
+	if err := s.config.SaveOverrides(s.config.DataDir); err != nil {
+		s.logger.Warn("failed to save config overrides", "error", err)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "config": s.config.GetPatchable()})
 }
 
 // handleUpload accepts a multipart file upload (images/videos for vision tools).

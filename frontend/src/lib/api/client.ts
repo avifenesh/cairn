@@ -14,6 +14,8 @@ import type {
 	SoulHistoryEntry,
 	CostData,
 	Agent,
+	CronJob,
+	CronExecution,
 } from '$lib/types';
 
 import {
@@ -428,6 +430,28 @@ export const patchConfig = (cfg: Partial<EditableConfig>) =>
 
 // Poll
 export const triggerPoll = () => post<{ ok: boolean }>('/v1/poll/run');
+
+// Cron Jobs
+export const getCrons = () => get<{ items: CronJob[]; count: number }>('/v1/crons');
+export const createCron = (body: {
+	name: string;
+	schedule: string;
+	instruction: string;
+	description?: string;
+	priority?: number;
+	timezone?: string;
+	cooldownMs?: number;
+}) => post<CronJob>('/v1/crons', body);
+export const getCronDetail = (id: string) =>
+	get<{ job: CronJob; executions: CronExecution[] }>(`/v1/crons/${id}`);
+export const updateCron = (id: string, body: {
+	enabled?: boolean;
+	schedule?: string;
+	instruction?: string;
+	description?: string;
+	priority?: number;
+}) => patch<{ ok: boolean; job: CronJob }>(`/v1/crons/${id}`, body);
+export const deleteCron = (id: string) => del<{ ok: boolean }>(`/v1/crons/${id}`);
 
 // Auth (WebAuthn)
 export const authLoginStart = () => post<{ challenge: string }>('/v1/auth/login/start');

@@ -465,7 +465,7 @@ func runServe(logger *slog.Logger) {
 				CompactionConfig: agent.CompactionConfig{
 					TriggerTokens:   cfg.CompactionTriggerTokens,
 					KeepRecentPairs: cfg.CompactionKeepRecent,
-					MaxToolOutput:   8000,
+					MaxToolOutput:   cfg.CompactionMaxToolOutput,
 				},
 			}
 

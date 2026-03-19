@@ -110,7 +110,7 @@ func CompactMessages(ctx context.Context, messages []llm.Message, provider llm.P
 
 	// Build compacted message list: summary + cleaned recent messages.
 	summaryMsg := llm.Message{
-		Role: llm.RoleUser,
+		Role: llm.RoleAssistant,
 		Content: []llm.ContentBlock{
 			llm.TextBlock{Text: "[Previous conversation summary]\n" + summary.String()},
 		},

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/avifenesh/cairn/internal/llm"
@@ -49,7 +50,7 @@ func TestTruncateToolOutput_Long(t *testing.T) {
 	if result[len(result)-4:] != "CCCC" {
 		t.Fatalf("expected tail 'CCCC', got %q", result[len(result)-4:])
 	}
-	if !contains(result, "truncated") {
+	if !strings.Contains(result, "truncated") {
 		t.Fatalf("expected truncation marker, got %q", result)
 	}
 }
@@ -86,7 +87,6 @@ func TestStripOrphanedToolResults(t *testing.T) {
 		t.Fatalf("expected 3 messages (orphan removed), got %d", len(cleaned))
 	}
 
-	// Verify the orphaned one is gone
 	for _, msg := range cleaned {
 		for _, block := range msg.Content {
 			if tr, ok := block.(llm.ToolResultBlock); ok {
@@ -144,15 +144,75 @@ func TestCompactMessages_DisabledWithZeroThreshold(t *testing.T) {
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+// mockProvider is a test LLM provider that returns a fixed response.
+type mockProvider struct {
+	response string
 }
 
-func containsHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
+func (m *mockProvider) ID() string { return "mock" }
+func (m *mockProvider) Models() []llm.ModelInfo {
+	return []llm.ModelInfo{{ID: "mock"}}
+}
+func (m *mockProvider) Stream(_ context.Context, _ *llm.Request) (<-chan llm.Event, error) {
+	ch := make(chan llm.Event, 2)
+	ch <- llm.TextDelta{Text: m.response}
+	ch <- llm.MessageEnd{FinishReason: "stop"}
+	close(ch)
+	return ch, nil
+}
+
+func TestCompactMessages_OverThreshold(t *testing.T) {
+	// Build a conversation that exceeds a low threshold.
+	longText := strings.Repeat("x", 1000) // 1000 chars = ~250 tokens
+	messages := []llm.Message{
+		// Old messages (will be summarized)
+		{Role: llm.RoleUser, Content: []llm.ContentBlock{llm.TextBlock{Text: "old question 1"}}},
+		{Role: llm.RoleAssistant, Content: []llm.ContentBlock{llm.TextBlock{Text: longText}}},
+		{Role: llm.RoleUser, Content: []llm.ContentBlock{llm.TextBlock{Text: "old question 2"}}},
+		{Role: llm.RoleAssistant, Content: []llm.ContentBlock{llm.TextBlock{Text: longText}}},
+		// Recent messages (will be kept)
+		{Role: llm.RoleUser, Content: []llm.ContentBlock{llm.TextBlock{Text: "recent question"}}},
+		{Role: llm.RoleAssistant, Content: []llm.ContentBlock{llm.TextBlock{Text: "recent answer"}}},
+	}
+
+	mock := &mockProvider{response: "Summary of the old conversation."}
+	cfg := CompactionConfig{
+		TriggerTokens:   100, // Low threshold to force compaction
+		KeepRecentPairs: 1,   // Keep only last 1 pair (2 messages)
+	}
+
+	result, err := CompactMessages(context.Background(), messages, mock, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Expect: 1 summary + 2 recent = 3 messages
+	if len(result) != 3 {
+		t.Fatalf("expected 3 messages (summary + 2 recent), got %d", len(result))
+	}
+
+	// First message should be the summary (assistant role).
+	if result[0].Role != llm.RoleAssistant {
+		t.Fatalf("expected summary role=assistant, got %s", result[0].Role)
+	}
+	summaryText := ""
+	for _, block := range result[0].Content {
+		if tb, ok := block.(llm.TextBlock); ok {
+			summaryText = tb.Text
 		}
 	}
-	return false
+	if !strings.Contains(summaryText, "Summary of the old conversation") {
+		t.Fatalf("expected summary content, got %q", summaryText)
+	}
+
+	// Last two messages should be the recent ones.
+	recentText := ""
+	for _, block := range result[1].Content {
+		if tb, ok := block.(llm.TextBlock); ok {
+			recentText = tb.Text
+		}
+	}
+	if recentText != "recent question" {
+		t.Fatalf("expected recent question preserved, got %q", recentText)
+	}
 }

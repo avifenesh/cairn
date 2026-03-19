@@ -76,6 +76,7 @@ type Config struct {
 	// Session compaction
 	CompactionTriggerTokens int // COMPACTION_TRIGGER_TOKENS (default: 80000)
 	CompactionKeepRecent    int // COMPACTION_KEEP_RECENT (default: 10)
+	CompactionMaxToolOutput int // COMPACTION_MAX_TOOL_OUTPUT (default: 8000)
 
 	// MCP server
 	MCPServerEnabled  bool   // MCP_SERVER_ENABLED (default false)
@@ -197,6 +198,7 @@ func Load() (*Config, error) {
 		ReflectionInterval:      envInt("REFLECTION_INTERVAL", 1800),
 		CompactionTriggerTokens: envInt("COMPACTION_TRIGGER_TOKENS", 80000),
 		CompactionKeepRecent:    envInt("COMPACTION_KEEP_RECENT", 10),
+		CompactionMaxToolOutput: envInt("COMPACTION_MAX_TOOL_OUTPUT", 8000),
 		MCPServerEnabled:        envBool("MCP_SERVER_ENABLED", false),
 		MCPPort:                 envInt("MCP_PORT", 3001),
 		MCPTransport:            envStr("MCP_TRANSPORT", "http"),

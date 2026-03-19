@@ -5,8 +5,8 @@
 
 ## Current State (updated 2026-03-19)
 
-~400 backend tests, 227 frontend tests, 16 packages, ~30K lines of Go.
-35 built-in tools (GLM+Vision) / 24 (other providers). 5 bundled SKILL.md files.
+~418 backend tests, 227 frontend tests, 16 packages, ~30K lines of Go.
+35 built-in tools (all `cairn.*` prefix, GLM+Vision) / 26 (other providers). 5 bundled SKILL.md files.
 
 **Phase 6 COMPLETE** — backend PRs #21, #24, #26. Frontend PRs #28-50 (15/15 done).
 **Phase 6.5 COMPLETE** — PR A (#37), PR B (#39).
@@ -24,7 +24,8 @@
 **Polish COMPLETE** — PR #68 (mode selector dropdown, drag-and-drop upload).
 **Editable Settings COMPLETE** — PR #72 (PATCH /v1/config, file persistence, editable compaction/budget/channels).
 **Voice COMPLETE** — PR #73 (backend Whisper STT + edge-tts), PR #74 (frontend VoiceButton wiring).
-Phase 7 PRs 6-7 (MCP client, A2A) deferred. Remaining: auto-extract memories (PR 11c), Gmail/Calendar pollers (PR 11d).
+**Shell Tool Upgrade COMPLETE** — PR #82 (policy engine, env filter, shell detection, pub.*→cairn.* rename, 418 tests).
+Phase 7 PRs 6-7 (MCP client, A2A) deferred. Remaining: notification routing, Gmail/Calendar pollers (PR 11d).
 
 ---
 

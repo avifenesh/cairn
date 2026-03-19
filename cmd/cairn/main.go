@@ -616,12 +616,21 @@ func runServe(logger *slog.Logger) {
 		}
 
 		channelRouter := cairnchannel.NewRouter(channelHandler, logger)
-		channelRouter.SetNotifyConfig(&cairnchannel.NotifyConfig{
+		notifyCfg := &cairnchannel.NotifyConfig{
 			PreferredChannel: cfg.PreferredChannel,
 			QuietHoursStart:  cfg.QuietHoursStart,
 			QuietHoursEnd:    cfg.QuietHoursEnd,
 			QuietHoursTZ:     cfg.QuietHoursTZ,
-		})
+		}
+		channelRouter.SetNotifyConfig(notifyCfg)
+
+		// Sync NotifyConfig when runtime config is patched.
+		srv.OnConfigPatch = func() {
+			notifyCfg.PreferredChannel = cfg.PreferredChannel
+			notifyCfg.QuietHoursStart = cfg.QuietHoursStart
+			notifyCfg.QuietHoursEnd = cfg.QuietHoursEnd
+			notifyCfg.QuietHoursTZ = cfg.QuietHoursTZ
+		}
 
 		if cfg.TelegramBotToken != "" {
 			tg, err := cairnchannel.NewTelegram(cairnchannel.TelegramConfig{

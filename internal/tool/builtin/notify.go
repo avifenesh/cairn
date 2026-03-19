@@ -8,9 +8,9 @@ import (
 )
 
 type notifyParams struct {
-	Message  string `json:"message" desc:"Notification text (markdown)"`
-	Priority string `json:"priority" desc:"Priority: low, medium, high, critical (default: medium)"`
-	Action   string `json:"action" desc:"Optional action: 'flush' to send queued digest immediately"`
+	Message  string  `json:"message" desc:"Notification text (markdown)"`
+	Priority *string `json:"priority" desc:"Priority: low, medium, high, critical (default: medium)"`
+	Action   *string `json:"action" desc:"Optional action: 'flush' to send queued digest immediately"`
 }
 
 var notify = tool.Define("cairn.notify",
@@ -22,7 +22,7 @@ var notify = tool.Define("cairn.notify",
 		}
 
 		// Handle flush action.
-		if strings.EqualFold(p.Action, "flush") {
+		if p.Action != nil && strings.EqualFold(*p.Action, "flush") {
 			count := ctx.Notifier.FlushDigest(ctx.Cancel)
 			if count == 0 {
 				return &tool.ToolResult{Output: "Digest queue is empty, nothing to flush."}, nil
@@ -39,7 +39,11 @@ var notify = tool.Define("cairn.notify",
 
 		// Parse priority.
 		priority := 1 // default: medium
-		switch strings.ToLower(p.Priority) {
+		priStr := ""
+		if p.Priority != nil {
+			priStr = *p.Priority
+		}
+		switch strings.ToLower(priStr) {
 		case "low", "0":
 			priority = 0
 		case "medium", "1", "":
@@ -49,14 +53,18 @@ var notify = tool.Define("cairn.notify",
 		case "critical", "3":
 			priority = 3
 		default:
-			return &tool.ToolResult{Error: fmt.Sprintf("unknown priority %q (use: low, medium, high, critical)", p.Priority)}, nil
+			return &tool.ToolResult{Error: fmt.Sprintf("unknown priority %q (use: low, medium, high, critical)", priStr)}, nil
 		}
 
 		ctx.Notifier.Notify(ctx.Cancel, p.Message, priority)
 
-		labels := []string{"low (queued)", "medium", "high", "critical (all channels)"}
+		labels := []string{"low", "medium", "high", "critical"}
+		action := "sent"
+		if priority == 0 {
+			action = "queued for digest"
+		}
 		return &tool.ToolResult{
-			Output: fmt.Sprintf("Notification sent with priority %s: %s", labels[priority], truncateStr(p.Message, 100)),
+			Output: fmt.Sprintf("Notification %s (priority: %s): %s", action, labels[priority], truncateStr(p.Message, 100)),
 			Metadata: map[string]any{
 				"priority":    labels[priority],
 				"digestQueue": ctx.Notifier.DigestLen(),

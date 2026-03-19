@@ -42,6 +42,8 @@ func (c *NotifyConfig) isQuietHours() bool {
 }
 
 // SetNotifyConfig sets the notification routing configuration.
+// The caller may update the NotifyConfig fields at runtime (e.g. after
+// PATCH /v1/config). Changes take effect on the next Notify() call.
 func (r *Router) SetNotifyConfig(cfg *NotifyConfig) {
 	r.notifyCfg = cfg
 }
@@ -91,7 +93,11 @@ func (r *Router) Notify(ctx context.Context, msg *OutgoingMessage) {
 
 	default:
 		// Unknown priority — treat as medium.
-		r.sendPreferredOrBroadcast(ctx, msg)
+		if quiet {
+			r.enqueueDigest(msg)
+		} else {
+			r.sendPreferredOrBroadcast(ctx, msg)
+		}
 	}
 }
 
@@ -145,14 +151,7 @@ func (r *Router) FlushDigest(ctx context.Context) int {
 		Priority: PriorityMedium, // digest itself is medium
 	}
 
-	// Send to preferred channel or broadcast.
-	if r.notifyCfg != nil && r.notifyCfg.PreferredChannel != "" {
-		if err := r.SendTo(ctx, r.notifyCfg.PreferredChannel, msg); err != nil {
-			r.Broadcast(ctx, msg)
-		}
-	} else {
-		r.Broadcast(ctx, msg)
-	}
+	r.sendPreferredOrBroadcast(ctx, msg)
 
 	r.logger.Info("notify: digest flushed", "items", len(items))
 	return len(items)
@@ -162,6 +161,9 @@ func (r *Router) FlushDigest(ctx context.Context) int {
 func (r *Router) DigestLen() int {
 	return r.digest.len()
 }
+
+// maxDigestItems prevents unbounded memory growth in long-running processes.
+const maxDigestItems = 500
 
 // digestQueue holds low-priority messages for batch delivery.
 type digestQueue struct {
@@ -178,6 +180,10 @@ type digestItem struct {
 func (q *digestQueue) enqueue(text string, priority Priority) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if len(q.items) >= maxDigestItems {
+		// Drop oldest to make room.
+		q.items = q.items[1:]
+	}
 	q.items = append(q.items, digestItem{
 		text:     text,
 		priority: priority,

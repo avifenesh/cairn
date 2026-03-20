@@ -241,12 +241,8 @@ func runServe(logger *slog.Logger) {
 		} else {
 			worktreeDir := filepath.Join(os.TempDir(), "cairn-worktrees")
 			worktreeMgr = task.NewWorktreeManager(repoDir, worktreeDir)
-			if len(cfg.CodingAllowedRepos) > 0 {
-				logger.Info("worktree manager initialized", "repoDir", repoDir, "worktreeDir", worktreeDir,
-					"allowedRepos", cfg.CodingAllowedRepos)
-			} else {
-				logger.Info("worktree manager initialized", "repoDir", repoDir, "worktreeDir", worktreeDir)
-			}
+			logger.Info("worktree manager initialized", "repoDir", repoDir, "worktreeDir", worktreeDir,
+				"allowedRepos", len(cfg.CodingAllowedRepos))
 		}
 	}
 

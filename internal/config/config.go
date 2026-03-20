@@ -97,8 +97,10 @@ type Config struct {
 	WorkMaxRounds   int // WORK_MAX_ROUNDS (default: 20)
 	CodingMaxRounds int // CODING_MAX_ROUNDS (default: 100)
 
-	// Coding allowed repos — CSV of repo paths where agent can create worktrees and code.
-	// Empty = only the main repo (cwd). Paths are resolved to absolute.
+	// Coding allowed repos — CSV of absolute repo paths where agent can create worktrees.
+	// Empty = only the default repo (cwd), no restriction. When set, the default repo
+	// must be included explicitly if coding should be allowed there.
+	// Paths are normalized to absolute+clean on load.
 	CodingAllowedRepos []string // CODING_ALLOWED_REPOS (comma-separated)
 
 	// Memory auto-extraction
@@ -382,9 +384,14 @@ func envCSV(key string) []string {
 	result := make([]string, 0, len(parts))
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
-		if p != "" {
-			result = append(result, p)
+		if p == "" {
+			continue
 		}
+		// Normalize to absolute canonical path for security.
+		if abs, err := filepath.Abs(p); err == nil {
+			p = filepath.Clean(abs)
+		}
+		result = append(result, p)
 	}
 	return result
 }

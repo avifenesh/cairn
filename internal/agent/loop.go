@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -277,17 +278,19 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 
 	// Create isolated worktree for coding tasks.
 	if mode == tool.ModeCoding && l.worktreeManager != nil {
-		// Determine which repo to create worktree from.
-		// If task input specifies a repo, validate against allowed list.
-		repoDir := l.worktreeManager.RepoDir()
-		if inputRepo := extractRepoFromInput(t.Input); inputRepo != "" {
-			if l.isRepoAllowed(inputRepo) {
-				repoDir = inputRepo
-			} else {
-				l.logger.Warn("agent loop: repo not in allowed list", "repo", inputRepo, "allowed", l.config.CodingAllowedRepos)
+		// If allowlist is configured, verify the repo is permitted.
+		if len(l.config.CodingAllowedRepos) > 0 {
+			targetRepo := l.worktreeManager.RepoDir()
+			if inputRepo := extractRepoFromInput(t.Input); inputRepo != "" {
+				targetRepo = inputRepo
+			}
+			if !l.isRepoAllowed(targetRepo) {
+				l.logger.Error("agent loop: repo not in allowed list, failing task",
+					"repo", targetRepo, "allowed", l.config.CodingAllowedRepos)
+				l.tasks.Fail(ctx, t.ID, fmt.Errorf("repo %q not in CODING_ALLOWED_REPOS", targetRepo))
+				return true
 			}
 		}
-		_ = repoDir // TODO: support multi-repo worktrees when WorktreeManager supports it
 
 		wtPath, _, wtErr := l.worktreeManager.Create(t.ID, "HEAD")
 		if wtErr != nil {
@@ -403,13 +406,19 @@ func (l *Loop) runReflection(ctx context.Context) {
 }
 
 // isRepoAllowed checks if a repo path is in the allowed coding repos list.
-// Empty allowed list means only the default repo (worktree manager's repo) is allowed.
+// Returns false if the allowlist is empty (caller should skip the check).
+// Normalizes the input path before comparison to prevent bypasses.
 func (l *Loop) isRepoAllowed(repoPath string) bool {
 	if len(l.config.CodingAllowedRepos) == 0 {
-		return false // only default repo allowed
+		return false
+	}
+	// Normalize input path to match config (which was normalized on load).
+	normalized := repoPath
+	if abs, err := filepath.Abs(repoPath); err == nil {
+		normalized = filepath.Clean(abs)
 	}
 	for _, allowed := range l.config.CodingAllowedRepos {
-		if repoPath == allowed {
+		if normalized == allowed {
 			return true
 		}
 	}

@@ -519,13 +519,22 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 }
 
 func (l *Loop) runReflection(ctx context.Context) {
+	start := time.Now()
 	result, err := l.reflector.Reflect(ctx)
+	dur := time.Since(start).Milliseconds()
+
 	if err != nil {
 		l.logger.Warn("agent loop: reflection failed", "error", err)
+		if l.activityStore != nil {
+			l.activityStore.Record(ctx, ActivityEntry{
+				Type: "reflection", Summary: "Reflection failed", Details: err.Error(), DurationMs: dur,
+			})
+		}
 		return
 	}
 
 	if len(result.Memories) == 0 && result.SoulPatch == "" {
+		l.logger.Debug("agent loop: reflection found no patterns")
 		return
 	}
 
@@ -535,6 +544,27 @@ func (l *Loop) runReflection(ctx context.Context) {
 
 	if err := l.reflector.Apply(ctx, result); err != nil {
 		l.logger.Warn("agent loop: reflection apply failed", "error", err)
+	}
+
+	// Record activity.
+	if l.activityStore != nil {
+		summary := fmt.Sprintf("Reflection: %d memories proposed", len(result.Memories))
+		details := fmt.Sprintf("Memories proposed: %d\n", len(result.Memories))
+		for _, m := range result.Memories {
+			details += fmt.Sprintf("- [%s] %s (%.0f%%)\n", m.Category, m.Content, m.Confidence*100)
+		}
+		if result.SoulPatch != "" {
+			summary += " + SOUL patch"
+			details += fmt.Sprintf("\nSOUL.md patch proposed:\n%s\n", result.SoulPatch)
+		}
+		l.activityStore.Record(ctx, ActivityEntry{
+			Type: "reflection", Summary: summary, Details: details, DurationMs: dur,
+		})
+	}
+
+	// Surface soul patch via notification.
+	if result.SoulPatch != "" && l.notifier != nil {
+		l.notifier.Notify(ctx, fmt.Sprintf("SOUL.md patch proposed from reflection:\n\n%s", result.SoulPatch), 1)
 	}
 }
 

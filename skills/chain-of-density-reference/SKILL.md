@@ -1,9 +1,10 @@
 ---
 name: chain-of-density-reference
 description: "Reference material on chain-of-density summarization. Use when user asks how to make summaries denser, improve digest quality, apply chain-of-density prompting, or write more concise notification summaries. Keywords: chain of density, densification, summary quality, entity density, digest improvement, concise summaries"
-allowed-tools: "Read"
 inclusion: on-demand
+allowed-tools: "Read"
 ---
+
 
 # Chain-of-Density Summarization — Reference
 
@@ -50,3 +51,4 @@ Cairn's DigestRunner uses a single LLM pass (Strategy A) with densification prin
 
 - Adams et al., "From Sparse to Dense: GPT-4 Summarization with Chain of Density Prompting" (2023)
 - Applicable patterns: news aggregation, changelog summarization, alert triage
+

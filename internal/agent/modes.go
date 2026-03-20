@@ -97,10 +97,27 @@ func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilde
 		}
 	}
 
-	// Active skills: inject full content of loaded skills.
+	// Always-included skills: inject full content of skills with inclusion=always.
+	// These provide core behavioral guidance (proactive-agent, self-improving, etc.)
+	if ctx.ToolSkills != nil {
+		var alwaysBuf strings.Builder
+		for _, sk := range ctx.ToolSkills.List() {
+			if sk.Inclusion == "always" && sk.Content != "" {
+				if alwaysBuf.Len() == 0 {
+					alwaysBuf.WriteString("## Core Skills (always active)\n")
+				}
+				fmt.Fprintf(&alwaysBuf, "### %s\n%s\n\n", sk.Name, sk.Content)
+			}
+		}
+		if alwaysBuf.Len() > 0 {
+			parts = append(parts, alwaysBuf.String())
+		}
+	}
+
+	// Session-loaded skills: inject full content of explicitly loaded skills.
 	if ctx.Session != nil && len(ctx.Session.ActiveSkills) > 0 {
 		var sb strings.Builder
-		sb.WriteString("## Active Skills\n")
+		sb.WriteString("## Active Skills (session-loaded)\n")
 		for _, sk := range ctx.Session.ActiveSkills {
 			fmt.Fprintf(&sb, "### %s\n%s\n\n", sk.Name, sk.Content)
 		}

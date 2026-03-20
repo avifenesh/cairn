@@ -1,9 +1,10 @@
 ---
 name: plan-check
 description: "Compare roadmap and plans against actual code state — find drift between what's documented and what's built. Keywords: plan check, drift, roadmap, reality check, what's done, progress, status, compare plan, alignment, gaps"
-inclusion: "on-demand"
+inclusion: on-demand
 allowed-tools: "cairn.shell,cairn.readFile,cairn.searchFiles,cairn.gitRun"
 ---
+
 
 # Plan Check
 
@@ -106,3 +107,4 @@ cairn.shell: ls ~/cairn-backend/.pub/skills/*/SKILL.md | wc -l
 - Don't mark items complete without verifying the PR actually merged
 - Stale `[~]` items (>7 days with no activity) should be flagged
 - Check TECHNICAL_DEBT.md for items that were fixed but not removed
+

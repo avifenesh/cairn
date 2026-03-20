@@ -201,6 +201,26 @@ export interface McpStatus {
 	transport: string;
 }
 
+export interface MCPConnection {
+	name: string;
+	transport: string;
+	status: 'connected' | 'connecting' | 'disconnected' | 'error';
+	toolCount: number;
+	error?: string;
+	connectedAt?: string;
+}
+
+export interface MCPServerConfig {
+	name: string;
+	transport: 'stdio' | 'http';
+	command?: string;
+	args?: string[];
+	env?: string[];
+	url?: string;
+	headers?: Record<string, string>;
+	disabled?: boolean;
+}
+
 export interface ChannelInfo {
 	name: string;
 	connected: boolean;

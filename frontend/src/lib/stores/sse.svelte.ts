@@ -209,6 +209,11 @@ export const sseStore = {
 			appStore.addNotification('skill', `Skill activated: ${d.skillName}`);
 		});
 
+		// MCP connections
+		handle('mcp_connection', source, (d) => {
+			appStore.addNotification('mcp', `MCP ${d.serverName}: ${d.status}`);
+		});
+
 		// Budget
 		handle('budget_update', source, (d) => statusStore.setBudget(d as Record<string, number>));
 	},

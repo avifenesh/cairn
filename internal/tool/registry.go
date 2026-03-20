@@ -102,6 +102,17 @@ func (r *Registry) Execute(ctx *ToolContext, name string, args json.RawMessage) 
 	return t.Execute(ctx, args)
 }
 
+// Deregister removes a tool from the registry by name. Returns true if found and removed.
+func (r *Registry) Deregister(name string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.tools[name]; ok {
+		delete(r.tools, name)
+		return true
+	}
+	return false
+}
+
 // All returns every registered tool, sorted by name.
 func (r *Registry) All() []Tool {
 	r.mu.RLock()

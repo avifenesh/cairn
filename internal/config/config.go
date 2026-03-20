@@ -117,6 +117,9 @@ type Config struct {
 	MCPTransport      string // MCP_TRANSPORT ("stdio"/"http"/"both", default "http")
 	MCPWriteRateLimit int    // MCP_WRITE_RATE_LIMIT (default 100 per minute)
 
+	// MCP client connections
+	MCPClientServers json.RawMessage // MCP_SERVERS JSON array of server configs
+
 	// Z.ai MCP tools (default for GLM provider)
 	ZaiWebEnabled    bool   // ZAI_WEB_ENABLED (default true when LLM_PROVIDER=glm)
 	ZaiBaseURL       string // ZAI_BASE_URL (default https://api.z.ai/api/mcp)
@@ -273,6 +276,7 @@ func Load() (*Config, error) {
 		MCPPort:                 envInt("MCP_PORT", 3001),
 		MCPTransport:            envStr("MCP_TRANSPORT", "http"),
 		MCPWriteRateLimit:       envInt("MCP_WRITE_RATE_LIMIT", 100),
+		MCPClientServers:        envJSON("MCP_SERVERS"),
 		ZaiWebEnabled:           envBool("ZAI_WEB_ENABLED", provider == "glm"),
 		ZaiBaseURL:              envStr("ZAI_BASE_URL", "https://api.z.ai/api/mcp"),
 		ZaiAPIKey:               envStr("ZAI_API_KEY", ""),
@@ -325,6 +329,7 @@ func LoadOptional() *Config {
 			MCPPort:           envInt("MCP_PORT", 3001),
 			MCPTransport:      envStr("MCP_TRANSPORT", "http"),
 			MCPWriteRateLimit: envInt("MCP_WRITE_RATE_LIMIT", 100),
+			MCPClientServers:  envJSON("MCP_SERVERS"),
 			SoulPath:          envStr("SOUL_PATH", "./SOUL.md"),
 			SkillDirs:         skillDirs(),
 			DataDir:           envStr("DATA_DIR", "./data"),
@@ -476,6 +481,18 @@ func envMap(key string) map[string]string {
 	return m
 }
 
+func envJSON(key string) json.RawMessage {
+	v := os.Getenv(key)
+	if v == "" {
+		return nil
+	}
+	if !json.Valid([]byte(v)) {
+		fmt.Fprintf(os.Stderr, "warning: %s contains invalid JSON, ignoring\n", key)
+		return nil
+	}
+	return json.RawMessage(v)
+}
+
 // --- Runtime-editable config ---
 
 // PatchableConfig holds fields that can be changed at runtime via PATCH /v1/config.
@@ -509,8 +526,9 @@ type PatchableConfig struct {
 	DevToEnabled            *bool    `json:"devtoEnabled,omitempty"`
 	DevToTags               *string  `json:"devtoTags,omitempty"` // comma-sep
 	DevToUsername           *string  `json:"devtoUsername,omitempty"`
-	NPMPackages             *string  `json:"npmPackages,omitempty"`    // comma-sep
-	CratesPackages          *string  `json:"cratesPackages,omitempty"` // comma-sep
+	NPMPackages             *string  `json:"npmPackages,omitempty"`      // comma-sep
+	CratesPackages          *string  `json:"cratesPackages,omitempty"`   // comma-sep
+	MCPClientServers        *string  `json:"mcpClientServers,omitempty"` // JSON array of server configs
 }
 
 var configMu sync.RWMutex
@@ -644,6 +662,13 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 			c.CratesPackages = splitTrimmed(*p.CratesPackages)
 		}
 	}
+	if p.MCPClientServers != nil {
+		if *p.MCPClientServers == "" || *p.MCPClientServers == "[]" {
+			c.MCPClientServers = nil
+		} else {
+			c.MCPClientServers = json.RawMessage(*p.MCPClientServers)
+		}
+	}
 }
 
 // GetPatchable returns the current runtime-editable config values.
@@ -681,6 +706,13 @@ func (c *Config) GetPatchable() PatchableConfig {
 		DevToUsername:           &c.DevToUsername,
 		NPMPackages:             strPtr(strings.Join(c.NPMPackages, ", ")),
 		CratesPackages:          strPtr(strings.Join(c.CratesPackages, ", ")),
+		MCPClientServers: func() *string {
+			if len(c.MCPClientServers) == 0 {
+				return strPtr("[]")
+			}
+			s := string(c.MCPClientServers)
+			return &s
+		}(),
 	}
 }
 

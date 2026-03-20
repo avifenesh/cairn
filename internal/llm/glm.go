@@ -14,7 +14,7 @@ import (
 const (
 	defaultGLMModel     = "glm-5-turbo"
 	defaultGLMBaseURL   = "https://api.z.ai/api/coding/paas/v4"
-	defaultGLMMaxTokens = 65536
+	defaultGLMMaxTokens = 131072 // 128K — GLM models support 200K context, output budget shared with thinking
 	defaultGLMTemp      = 0.7
 )
 
@@ -60,14 +60,14 @@ func (p *GLMProvider) Models() []ModelInfo {
 		{
 			ID:              "glm-5-turbo",
 			DisplayName:     "GLM-5 Turbo",
-			MaxTokens:       128000,
+			MaxTokens:       200000,
 			CostPer1MInput:  0.0, // included in subscription
 			CostPer1MOutput: 0.0,
 		},
 		{
 			ID:              "glm-4.7",
 			DisplayName:     "GLM-4.7",
-			MaxTokens:       128000,
+			MaxTokens:       200000,
 			CostPer1MInput:  0.0,
 			CostPer1MOutput: 0.0,
 		},

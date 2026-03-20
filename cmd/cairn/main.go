@@ -452,6 +452,7 @@ func runServe(logger *slog.Logger) {
 			WorkMaxRounds:      cfg.WorkMaxRounds,
 			CodingMaxRounds:    cfg.CodingMaxRounds,
 			CodingAllowedRepos: cfg.CodingAllowedRepos,
+			BriefingModel:      cfg.LLMFallbackModel,
 		}, agent.LoopDeps{
 			Agent:           reactAgent,
 			Tasks:           taskEngine,

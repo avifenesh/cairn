@@ -25,6 +25,9 @@ var createSkill = tool.Define("cairn.createSkill",
 		if p.Name == "" || p.Description == "" || p.Content == "" {
 			return &tool.ToolResult{Error: "name, description, and content are required"}, nil
 		}
+		if p.Inclusion != "" && p.Inclusion != "always" && p.Inclusion != "on-demand" {
+			return &tool.ToolResult{Error: "inclusion must be 'always' or 'on-demand'"}, nil
+		}
 
 		var tools []string
 		if p.AllowedTools != "" {
@@ -64,6 +67,10 @@ var editSkill = tool.Define("cairn.editSkill",
 		}
 		if p.Name == "" {
 			return &tool.ToolResult{Error: "name is required"}, nil
+		}
+
+		if p.Inclusion != "" && p.Inclusion != "always" && p.Inclusion != "on-demand" {
+			return &tool.ToolResult{Error: "inclusion must be 'always' or 'on-demand'"}, nil
 		}
 
 		var tools []string

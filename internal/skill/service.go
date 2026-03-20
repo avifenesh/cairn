@@ -213,9 +213,12 @@ func (s *Service) hasChanges() bool {
 	return false
 }
 
-// Create writes a new SKILL.md to the first writable skill directory and re-discovers.
+// Create writes a new SKILL.md to the last (user override) skill directory and re-discovers.
 func (s *Service) Create(name, description, content, inclusion string, allowedTools []string) error {
 	if err := ValidateName(name); err != nil {
+		return err
+	}
+	if err := validateInclusion(inclusion); err != nil {
 		return err
 	}
 	if s.Get(name) != nil {
@@ -225,12 +228,17 @@ func (s *Service) Create(name, description, content, inclusion string, allowedTo
 		return fmt.Errorf("no skill directories configured")
 	}
 
-	dir := filepath.Join(s.dirs[0], name)
+	// Use last directory (user override), not first (bundled/project skills).
+	targetDir := s.dirs[len(s.dirs)-1]
+	dir := filepath.Join(targetDir, name)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("create skill dir: %w", err)
 	}
 
-	md := buildSkillMD(name, description, content, inclusion, allowedTools)
+	// Auto-gate skills with cairn.shell behind approval.
+	disableModel := hasShellTool(allowedTools)
+
+	md := buildSkillMD(name, description, content, inclusion, allowedTools, disableModel)
 	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(md), 0644); err != nil {
 		os.RemoveAll(dir)
 		return fmt.Errorf("write SKILL.md: %w", err)
@@ -239,13 +247,26 @@ func (s *Service) Create(name, description, content, inclusion string, allowedTo
 	return s.Discover()
 }
 
+func hasShellTool(tools []string) bool {
+	for _, t := range tools {
+		if t == "cairn.shell" {
+			return true
+		}
+	}
+	return false
+}
+
 // Update modifies an existing skill's SKILL.md and re-discovers.
 func (s *Service) Update(name, description, content, inclusion string, allowedTools []string) error {
 	sk := s.Get(name)
 	if sk == nil {
 		return fmt.Errorf("skill %q not found", name)
 	}
+	if err := validateInclusion(inclusion); err != nil {
+		return err
+	}
 
+	// Merge: use existing values for empty fields.
 	if description == "" {
 		description = sk.Description
 	}
@@ -259,7 +280,10 @@ func (s *Service) Update(name, description, content, inclusion string, allowedTo
 		allowedTools = sk.AllowedTools
 	}
 
-	md := buildSkillMD(name, description, content, inclusion, allowedTools)
+	// Preserve existing disable-model-invocation flag, or auto-set for shell tools.
+	disableModel := sk.DisableModel || hasShellTool(allowedTools)
+
+	md := buildSkillMD(name, description, content, inclusion, allowedTools, disableModel)
 	loc := sk.Location
 	if filepath.Base(loc) == "SKILL.md" {
 		loc = filepath.Dir(loc)
@@ -289,7 +313,19 @@ func (s *Service) Delete(name string) error {
 	return s.Discover()
 }
 
-func buildSkillMD(name, description, content, inclusion string, allowedTools []string) string {
+// validateInclusion checks if inclusion is a valid value.
+func validateInclusion(inclusion string) error {
+	if inclusion == "" {
+		return nil // will default to on-demand
+	}
+	if inclusion != "always" && inclusion != "on-demand" {
+		return fmt.Errorf("inclusion must be 'always' or 'on-demand', got %q", inclusion)
+	}
+	return nil
+}
+
+// buildSkillMD generates a SKILL.md with optional disable-model-invocation flag.
+func buildSkillMD(name, description, content, inclusion string, allowedTools []string, disableModel bool) string {
 	if inclusion == "" {
 		inclusion = "on-demand"
 	}
@@ -300,6 +336,9 @@ func buildSkillMD(name, description, content, inclusion string, allowedTools []s
 	fmt.Fprintf(&b, "inclusion: %s\n", inclusion)
 	if len(allowedTools) > 0 {
 		fmt.Fprintf(&b, "allowed-tools: %q\n", strings.Join(allowedTools, ","))
+	}
+	if disableModel {
+		b.WriteString("disable-model-invocation: true\n")
 	}
 	b.WriteString("---\n\n")
 	b.WriteString(content)

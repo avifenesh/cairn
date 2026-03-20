@@ -3,6 +3,7 @@ name: pr-workflow
 description: "Use when creating PRs, monitoring CI, addressing review comments, or shipping code. Keywords: create PR, push, CI, review, merge, ship"
 inclusion: on-demand
 allowed-tools: "cairn.shell,cairn.gitRun,cairn.readFile,cairn.editFile"
+disable-model-invocation: true
 ---
 
 # PR Workflow

@@ -211,7 +211,7 @@ func (r *ReflectionEngine) callLLM(ctx context.Context, prompt string) (string, 
 		Messages: []llm.Message{
 			{Role: llm.RoleUser, Content: []llm.ContentBlock{llm.TextBlock{Text: prompt}}},
 		},
-		MaxTokens: 4096, // room for thinking + JSON output
+		MaxTokens: 8192, // unlimited sub — let it think deeply about patterns
 	}
 
 	ch, err := r.provider.Stream(ctx, req)
@@ -225,7 +225,7 @@ func (r *ReflectionEngine) callLLM(ctx context.Context, prompt string) (string, 
 		case llm.TextDelta:
 			result.WriteString(e.Text)
 		case llm.ReasoningDelta:
-			// Thinking output — let it reason, JSON comes in TextDelta
+			// Thinking — let it reason about patterns, JSON comes in TextDelta
 		case llm.StreamError:
 			return "", fmt.Errorf("stream error: %w", e.Err)
 		}

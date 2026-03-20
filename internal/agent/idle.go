@@ -17,8 +17,8 @@ import (
 const (
 	minIdleInterval   = 5 * time.Minute
 	briefingMaxAge    = 30 * time.Minute // rebuild briefing every 30min
-	briefingMaxTokens = 1024             // cheap model output for briefing
-	decisionMaxTokens = 512              // decision model output
+	briefingMaxTokens = 4096             // cheap model briefing output
+	decisionMaxTokens = 4096             // decision — thinking + JSON (unlimited sub)
 )
 
 // FeedItem is a summary of an unread feed event for idle reasoning.
@@ -261,8 +261,7 @@ func (l *Loop) reasonAboutAction(ctx context.Context, obs *Observations) *IdleDe
 		Messages: []llm.Message{
 			{Role: llm.RoleUser, Content: []llm.ContentBlock{llm.TextBlock{Text: prompt}}},
 		},
-		MaxTokens:       decisionMaxTokens,
-		DisableThinking: true,
+		MaxTokens: decisionMaxTokens,
 	}
 
 	ch, err := l.provider.Stream(ctx, req)
@@ -276,6 +275,8 @@ func (l *Loop) reasonAboutAction(ctx context.Context, obs *Observations) *IdleDe
 		switch e := ev.(type) {
 		case llm.TextDelta:
 			result.WriteString(e.Text)
+		case llm.ReasoningDelta:
+			// Let it think — JSON answer comes in TextDelta
 		case llm.StreamError:
 			l.logger.Warn("idle: LLM stream error", "error", e.Err)
 			return &IdleDecision{Action: "wait", Reason: "LLM stream error"}

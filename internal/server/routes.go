@@ -935,7 +935,8 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 		ToolStatus:     s.toolStatus,
 		ToolSkills:     s.toolSkills,
 		Config: &agent.AgentConfig{
-			Model: s.config.LLMModel,
+			Model:     s.config.LLMModel,
+			MaxRounds: s.config.MaxRoundsForMode(string(mode)),
 		},
 	}
 

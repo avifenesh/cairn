@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -43,8 +44,9 @@ type Loop struct {
 	toolStatus   tool.StatusService
 	toolSkills   tool.SkillService
 
-	cronStore *cairncron.Store // nil = cron disabled
-	db        *sql.DB          // for state checkpoint
+	cronStore       *cairncron.Store      // nil = cron disabled
+	db              *sql.DB               // for state checkpoint
+	worktreeManager *task.WorktreeManager // nil = no worktree isolation
 
 	cancel  context.CancelFunc
 	stopped atomic.Bool
@@ -61,6 +63,31 @@ type LoopConfig struct {
 	ReflectionInterval time.Duration // Default: 30min
 	Model              string
 	IdleEnabled        bool
+	TalkMaxRounds      int // Default: 10
+	WorkMaxRounds      int // Default: 20
+	CodingMaxRounds    int // Default: 100
+}
+
+func (c LoopConfig) maxRoundsForMode(mode tool.Mode) int {
+	switch mode {
+	case tool.ModeTalk:
+		if c.TalkMaxRounds > 0 {
+			return c.TalkMaxRounds
+		}
+		return 10
+	case tool.ModeWork:
+		if c.WorkMaxRounds > 0 {
+			return c.WorkMaxRounds
+		}
+		return 20
+	case tool.ModeCoding:
+		if c.CodingMaxRounds > 0 {
+			return c.CodingMaxRounds
+		}
+		return 100
+	default:
+		return 10
+	}
 }
 
 // NewLoop creates an always-on agent loop.
@@ -77,28 +104,29 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 	}
 
 	return &Loop{
-		agent:        deps.Agent,
-		tasks:        deps.Tasks,
-		events:       deps.Events,
-		memories:     deps.Memories,
-		soul:         deps.Soul,
-		tools:        deps.Tools,
-		provider:     deps.Provider,
-		bus:          deps.Bus,
-		journaler:    deps.Journaler,
-		extractor:    deps.Extractor,
-		reflector:    deps.Reflector,
-		logger:       logger,
-		config:       cfg,
-		toolMemories: deps.ToolMemories,
-		toolEvents:   deps.ToolEvents,
-		toolDigest:   deps.ToolDigest,
-		toolJournal:  deps.ToolJournal,
-		toolTasks:    deps.ToolTasks,
-		toolStatus:   deps.ToolStatus,
-		toolSkills:   deps.ToolSkills,
-		cronStore:    deps.CronStore,
-		db:           deps.DB,
+		agent:           deps.Agent,
+		tasks:           deps.Tasks,
+		events:          deps.Events,
+		memories:        deps.Memories,
+		soul:            deps.Soul,
+		tools:           deps.Tools,
+		provider:        deps.Provider,
+		bus:             deps.Bus,
+		journaler:       deps.Journaler,
+		extractor:       deps.Extractor,
+		reflector:       deps.Reflector,
+		logger:          logger,
+		config:          cfg,
+		toolMemories:    deps.ToolMemories,
+		toolEvents:      deps.ToolEvents,
+		toolDigest:      deps.ToolDigest,
+		toolJournal:     deps.ToolJournal,
+		toolTasks:       deps.ToolTasks,
+		toolStatus:      deps.ToolStatus,
+		toolSkills:      deps.ToolSkills,
+		cronStore:       deps.CronStore,
+		db:              deps.DB,
+		worktreeManager: deps.WorktreeManager,
 	}
 }
 
@@ -126,8 +154,9 @@ type LoopDeps struct {
 	ToolStatus   tool.StatusService
 	ToolSkills   tool.SkillService
 
-	CronStore *cairncron.Store // optional: enables cron job checking in tick
-	DB        *sql.DB          // optional: enables state checkpoint
+	CronStore       *cairncron.Store      // optional: enables cron job checking in tick
+	DB              *sql.DB               // optional: enables state checkpoint
+	WorktreeManager *task.WorktreeManager // optional: worktree isolation for coding tasks
 }
 
 // Start begins the agent loop in a background goroutine. Safe to call only once.
@@ -232,17 +261,43 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 	l.logger.Info("agent loop: executing task", "task", t.ID, "type", t.Type, "description", t.Description)
 
 	sessionID := "loop-" + t.ID
+
+	// Determine mode based on task type.
+	mode := tool.ModeWork
+	if t.Type == "coding" {
+		mode = tool.ModeCoding
+	}
+
 	session := &Session{
 		ID:    sessionID,
-		Mode:  tool.ModeWork,
+		Mode:  mode,
 		State: map[string]any{"taskId": t.ID},
+	}
+
+	// Create isolated worktree for coding tasks.
+	if mode == tool.ModeCoding && l.worktreeManager != nil {
+		wtPath, _, wtErr := l.worktreeManager.Create(t.ID, "HEAD")
+		if wtErr != nil {
+			l.logger.Error("agent loop: worktree creation failed, failing task", "task", t.ID, "error", wtErr)
+			l.tasks.Fail(ctx, t.ID, fmt.Errorf("worktree creation failed: %w", wtErr))
+			return true
+		} else {
+			session.State["workDir"] = wtPath
+			defer func() {
+				if rmErr := l.worktreeManager.Remove(t.ID); rmErr != nil {
+					l.logger.Warn("agent loop: worktree cleanup failed", "task", t.ID, "error", rmErr)
+				} else {
+					l.logger.Info("agent loop: worktree cleaned", "task", t.ID)
+				}
+			}()
+		}
 	}
 
 	invCtx := &InvocationContext{
 		Context:      ctx,
 		SessionID:    sessionID,
 		UserMessage:  t.Description,
-		Mode:         tool.ModeWork,
+		Mode:         mode,
 		Session:      session,
 		Tools:        l.tools,
 		LLM:          l.provider,
@@ -256,7 +311,7 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 		ToolTasks:    l.toolTasks,
 		ToolStatus:   l.toolStatus,
 		ToolSkills:   l.toolSkills,
-		Config:       &AgentConfig{Model: l.config.Model, MaxRounds: 10},
+		Config:       &AgentConfig{Model: l.config.Model, MaxRounds: l.config.maxRoundsForMode(mode)},
 	}
 
 	// Run agent, collect assistant response only (skip user events).

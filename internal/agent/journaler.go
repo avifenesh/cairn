@@ -285,7 +285,7 @@ func (j *Journaler) callLLM(ctx context.Context, prompt string) (string, error) 
 		Messages: []llm.Message{
 			{Role: llm.RoleUser, Content: []llm.ContentBlock{llm.TextBlock{Text: prompt}}},
 		},
-		MaxTokens: 512,
+		MaxTokens: 4096,
 	}
 
 	ch, err := j.provider.Stream(ctx, req)

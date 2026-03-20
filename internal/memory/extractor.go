@@ -136,7 +136,7 @@ func (e *Extractor) extractFacts(ctx context.Context, transcript string) ([]extr
 			{Role: llm.RoleUser, Content: []llm.ContentBlock{llm.TextBlock{Text: transcript}}},
 		},
 		System:    extractionPrompt,
-		MaxTokens: 1024,
+		MaxTokens: 4096,
 	}
 
 	ch, err := e.provider.Stream(ctx, req)

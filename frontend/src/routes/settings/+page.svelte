@@ -241,8 +241,8 @@
 		<div class="space-y-4">
 			<!-- Theme -->
 			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
-				<label class="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Theme</label>
-				<div class="mt-2 flex gap-2">
+				<span class="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Theme</span>
+				<div class="mt-2 flex gap-2" role="radiogroup" aria-label="Theme">
 					{#each themes as t}
 						<button
 							class="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm transition-all duration-[var(--dur-fast)]
@@ -260,8 +260,8 @@
 
 			<!-- Density -->
 			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
-				<label class="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Density</label>
-				<div class="mt-2 flex gap-2">
+				<span class="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Density</span>
+				<div class="mt-2 flex gap-2" role="radiogroup" aria-label="Density">
 					{#each densities as d}
 						<button
 							class="flex flex-col items-start rounded-lg border px-3 py-2 text-left transition-all duration-[var(--dur-fast)]
@@ -279,8 +279,8 @@
 
 			<!-- Mood -->
 			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
-				<label class="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Accent Color</label>
-				<div class="mt-2 flex gap-3">
+				<span class="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Accent Color</span>
+				<div class="mt-2 flex gap-3" role="radiogroup" aria-label="Accent color">
 					{#each moods as m}
 						<button
 							class="flex flex-col items-center gap-1.5 rounded-lg border px-3 py-2.5 transition-all duration-[var(--dur-fast)]

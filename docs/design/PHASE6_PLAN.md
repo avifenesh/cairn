@@ -3,10 +3,10 @@
 > Tools and skills first — the agent must be useful before it connects to others.
 > Based on patterns from OpenCode, Gollem, ADK-Go research repos.
 
-## Current State (updated 2026-03-19)
+## Current State (updated 2026-03-20)
 
-~418 backend tests, 227 frontend tests, 16 packages, ~30K lines of Go.
-35 built-in tools (all `cairn.*` prefix, GLM+Vision) / 26 (other providers). 5 bundled SKILL.md files.
+498 backend tests, 242 frontend tests, 20 packages, ~43K lines of Go.
+49 built-in tools (all `cairn.*` prefix, GLM+Vision). 41 bundled SKILL.md files.
 
 **Phase 6 COMPLETE** — backend PRs #21, #24, #26. Frontend PRs #28-50 (15/15 done).
 **Phase 6.5 COMPLETE** — PR A (#37), PR B (#39).

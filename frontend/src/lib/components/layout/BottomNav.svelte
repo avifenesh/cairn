@@ -62,11 +62,12 @@
 	</div>
 
 	{#if moreOpen}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="fixed inset-0 bottom-[var(--bottom-nav-h)]"
+		<button
+			type="button"
+			class="fixed inset-0 bottom-[var(--bottom-nav-h)] appearance-none bg-transparent border-none cursor-default"
+			aria-label="Close menu"
 			onclick={() => (moreOpen = false)}
-		></div>
+		></button>
 		<div
 			class="absolute bottom-full left-0 right-0 border-t border-border-subtle bg-[var(--bg-1)] p-2 shadow-lg"
 			role="menu"

@@ -106,20 +106,22 @@
 					onclick={() => selectCustom(m)}
 				>
 					{m.name}
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<span
+					<button
+						type="button"
 						class="text-[var(--text-tertiary)] hover:text-[var(--color-error)] p-0.5 rounded"
+						aria-label="Remove mode {m.name}"
 						onclick={(e) => { e.stopPropagation(); removeMode(m.name); }}
 					>
 						<X class="h-3 w-3" />
-					</span>
+					</button>
 				</DropdownMenu.Item>
 			{/each}
 		{/if}
 
 		<DropdownMenu.Separator />
 		{#if showAdd}
-			<div class="p-2 space-y-2" onclick={(e) => e.stopPropagation()}>
+			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
+		<div class="p-2 space-y-2" onclick={(e) => e.stopPropagation()}>
 				<Input
 					bind:value={newName}
 					placeholder="Mode name"

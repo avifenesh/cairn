@@ -22,7 +22,7 @@
 	let { children } = $props();
 
 	// Token gate: check once on mount, reload on auth
-	let isAuthed = false;
+	let isAuthed = $state(false);
 	try {
 		isAuthed = !!localStorage.getItem('cairn_api_token');
 	} catch {}

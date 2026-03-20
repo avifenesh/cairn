@@ -111,13 +111,15 @@
 </script>
 
 {#if appStore.commandPaletteOpen}
-	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-	<div
-		class="fixed inset-0 z-50 bg-black/50"
-		onclick={close}
-	>
+	<div class="fixed inset-0 z-50 bg-black/50" role="presentation">
+		<button
+			type="button"
+			class="absolute inset-0 w-full h-full appearance-none bg-transparent border-none cursor-default"
+			aria-label="Close command palette"
+			onclick={close}
+		></button>
 		<div
-			class="mx-auto mt-[20vh] w-full max-w-lg rounded-xl border border-border-subtle bg-[var(--bg-1)] shadow-lg backdrop-blur-sm"
+			class="relative mx-auto mt-[20vh] w-full max-w-lg rounded-xl border border-border-subtle bg-[var(--bg-1)] shadow-lg backdrop-blur-sm"
 			role="dialog"
 			aria-modal="true"
 			aria-label="Command palette"

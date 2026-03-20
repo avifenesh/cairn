@@ -16,6 +16,7 @@ import (
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
+	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/signal"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
@@ -44,6 +45,12 @@ type Loop struct {
 	toolTasks    tool.TaskService
 	toolStatus   tool.StatusService
 	toolSkills   tool.SkillService
+	toolNotifier tool.NotifyService
+	toolCrons    tool.CronService
+	toolConfig   tool.ConfigService
+
+	contextBuilder *memory.ContextBuilder // token-budgeted context (nil = fallback)
+	plugins        *plugin.Manager        // lifecycle hooks (nil = no plugins)
 
 	cronStore       *cairncron.Store      // nil = cron disabled
 	activityStore   *ActivityStore        // nil = activity tracking disabled
@@ -136,6 +143,11 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		toolTasks:       deps.ToolTasks,
 		toolStatus:      deps.ToolStatus,
 		toolSkills:      deps.ToolSkills,
+		toolNotifier:    deps.ToolNotifier,
+		toolCrons:       deps.ToolCrons,
+		toolConfig:      deps.ToolConfig,
+		contextBuilder:  deps.ContextBuilder,
+		plugins:         deps.Plugins,
 		cronStore:       deps.CronStore,
 		activityStore:   deps.ActivityStore,
 		db:              deps.DB,
@@ -167,6 +179,12 @@ type LoopDeps struct {
 	ToolTasks    tool.TaskService
 	ToolStatus   tool.StatusService
 	ToolSkills   tool.SkillService
+	ToolNotifier tool.NotifyService
+	ToolCrons    tool.CronService
+	ToolConfig   tool.ConfigService
+
+	ContextBuilder *memory.ContextBuilder // optional: token-budgeted context
+	Plugins        *plugin.Manager        // optional: lifecycle hooks
 
 	CronStore       *cairncron.Store      // optional: enables cron job checking in tick
 	ActivityStore   *ActivityStore        // optional: enables activity recording
@@ -206,6 +224,37 @@ func (l *Loop) TickCount() int64 {
 // SetNotifier sets the notification service (called after channels are configured).
 func (l *Loop) SetNotifier(n tool.NotifyService) {
 	l.notifier = n
+	l.toolNotifier = n // also wire to tool context
+}
+
+// buildInvocationContext creates a complete InvocationContext with all available
+// deps. Single source of truth — prevents field divergence across code paths.
+func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessage string, mode tool.Mode, session *Session) *InvocationContext {
+	return &InvocationContext{
+		Context:        ctx,
+		SessionID:      sessionID,
+		UserMessage:    userMessage,
+		Mode:           mode,
+		Session:        session,
+		Tools:          l.tools,
+		LLM:            l.provider,
+		Memory:         l.memories,
+		Soul:           l.soul,
+		Bus:            l.bus,
+		ContextBuilder: l.contextBuilder,
+		Plugins:        l.plugins,
+		ToolMemories:   l.toolMemories,
+		ToolEvents:     l.toolEvents,
+		ToolDigest:     l.toolDigest,
+		ToolJournal:    l.toolJournal,
+		ToolTasks:      l.toolTasks,
+		ToolStatus:     l.toolStatus,
+		ToolSkills:     l.toolSkills,
+		ToolNotifier:   l.toolNotifier,
+		ToolCrons:      l.toolCrons,
+		ToolConfig:     l.toolConfig,
+		Config:         &AgentConfig{Model: l.config.Model, MaxRounds: l.config.maxRoundsForMode(mode)},
+	}
 }
 
 // SetInitialState restores tick count and reflection time from crash recovery.
@@ -412,26 +461,7 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 		}
 	}
 
-	invCtx := &InvocationContext{
-		Context:      ctx,
-		SessionID:    sessionID,
-		UserMessage:  userMessage,
-		Mode:         mode,
-		Session:      session,
-		Tools:        l.tools,
-		LLM:          l.provider,
-		Memory:       l.memories,
-		Soul:         l.soul,
-		Bus:          l.bus,
-		ToolMemories: l.toolMemories,
-		ToolEvents:   l.toolEvents,
-		ToolDigest:   l.toolDigest,
-		ToolJournal:  l.toolJournal,
-		ToolTasks:    l.toolTasks,
-		ToolStatus:   l.toolStatus,
-		ToolSkills:   l.toolSkills,
-		Config:       &AgentConfig{Model: l.config.Model, MaxRounds: l.config.maxRoundsForMode(mode)},
-	}
+	invCtx := l.buildInvocationContext(ctx, sessionID, userMessage, mode, session)
 
 	// Run agent, collect assistant response only (skip user events).
 	var response strings.Builder

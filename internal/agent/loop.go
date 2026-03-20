@@ -45,6 +45,7 @@ type Loop struct {
 	toolSkills   tool.SkillService
 
 	cronStore       *cairncron.Store      // nil = cron disabled
+	activityStore   *ActivityStore        // nil = activity tracking disabled
 	db              *sql.DB               // for state checkpoint
 	worktreeManager *task.WorktreeManager // nil = no worktree isolation
 
@@ -125,6 +126,7 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		toolStatus:      deps.ToolStatus,
 		toolSkills:      deps.ToolSkills,
 		cronStore:       deps.CronStore,
+		activityStore:   deps.ActivityStore,
 		db:              deps.DB,
 		worktreeManager: deps.WorktreeManager,
 	}
@@ -155,6 +157,7 @@ type LoopDeps struct {
 	ToolSkills   tool.SkillService
 
 	CronStore       *cairncron.Store      // optional: enables cron job checking in tick
+	ActivityStore   *ActivityStore        // optional: enables activity recording
 	DB              *sql.DB               // optional: enables state checkpoint
 	WorktreeManager *task.WorktreeManager // optional: worktree isolation for coding tasks
 }
@@ -237,13 +240,40 @@ func (l *Loop) tick(ctx context.Context) {
 	CheckpointState(ctx, l.db, l.tickCount.Load(), l.lastReflect)
 
 	// 5. Publish heartbeat.
+	dur := time.Since(start).Milliseconds()
 	if l.bus != nil {
 		eventbus.Publish(l.bus, AgentHeartbeat{
 			EventMeta:  eventbus.NewMeta("agent"),
 			TickNumber: l.tickCount.Load(),
 			TaskRun:    executed,
-			DurationMs: time.Since(start).Milliseconds(),
+			DurationMs: dur,
 		})
+	}
+
+	// 6. Record tick activity.
+	if l.activityStore != nil {
+		actType := "idle"
+		summary := "Idle tick — no pending work"
+		if executed {
+			actType = "task"
+			summary = "Executed pending task"
+		} else if cronSubmitted {
+			actType = "cron"
+			summary = "Submitted cron job(s)"
+		}
+		entry := ActivityEntry{
+			Type:       actType,
+			Summary:    summary,
+			DurationMs: dur,
+		}
+		if err := l.activityStore.Record(ctx, entry); err != nil {
+			l.logger.Warn("agent loop: failed to record activity", "error", err)
+		} else if l.bus != nil {
+			eventbus.Publish(l.bus, AgentActivityEvent{
+				EventMeta: eventbus.NewMeta("agent"),
+				Entry:     entry,
+			})
+		}
 	}
 }
 

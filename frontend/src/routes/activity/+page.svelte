@@ -22,29 +22,25 @@
 
 	const TYPES = ['all', 'task', 'idle', 'reflection', 'cron', 'error'];
 
-	onMount(async () => {
+	async function loadActivity(params?: Parameters<typeof getAgentActivity>[0]) {
 		try {
-			const res = await getAgentActivity({ limit: 100 });
+			const res = await getAgentActivity(params);
 			activityStore.setEntries(res.items ?? []);
 			if (res.stats) activityStore.setToolStats(res.stats);
 		} catch (e) {
 			console.error('Failed to load activity:', e);
-		} finally {
-			activityStore.setLoading(false);
 		}
+	}
+
+	onMount(async () => {
+		await loadActivity({ limit: 100 });
+		activityStore.setLoading(false);
 	});
 
 	async function refresh() {
 		activityStore.setLoading(true);
-		try {
-			const res = await getAgentActivity({ limit: 100, type: filterType === 'all' ? undefined : filterType });
-			activityStore.setEntries(res.items ?? []);
-			if (res.stats) activityStore.setToolStats(res.stats);
-		} catch (e) {
-			console.error('Failed to refresh activity:', e);
-		} finally {
-			activityStore.setLoading(false);
-		}
+		await loadActivity({ limit: 100 }); // always fetch all, filter client-side
+		activityStore.setLoading(false);
 	}
 
 	const filteredEntries = $derived(

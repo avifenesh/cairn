@@ -471,6 +471,16 @@ export const getSkillSuggestions = () =>
 export const dismissSkillSuggestion = (slug: string) =>
 	post<{ ok: boolean }>('/v1/skills/suggestions/dismiss', { slug });
 
+// MCP Connections
+export const getMCPConnections = () =>
+	get<{ connections: import('$lib/types').MCPConnection[] }>('/v1/mcp/connections');
+export const addMCPConnection = (cfg: import('$lib/types').MCPServerConfig) =>
+	post<{ ok: boolean; name: string }>('/v1/mcp/connections', cfg);
+export const removeMCPConnection = (name: string) =>
+	del<{ ok: boolean }>(`/v1/mcp/connections/${encodeURIComponent(name)}`);
+export const reconnectMCPConnection = (name: string) =>
+	post<{ ok: boolean }>(`/v1/mcp/connections/${encodeURIComponent(name)}/reconnect`);
+
 // Marketplace (ClawHub)
 export const searchMarketplace = (query: string, limit = 10) =>
 	get<{ results: import('$lib/types').MarketplaceSearchResult[]; installed: Record<string, boolean> }>(

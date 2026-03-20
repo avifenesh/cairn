@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { appStore, type Theme, type Density, type Mood } from '$lib/stores/app.svelte';
-	import { getCosts, getStatusDetails, getEditableConfig, patchConfig, type EditableConfig, authRegisterStart, authRegisterComplete, listAuthCredentials, deleteAuthCredential, authLogout, type AuthCredential } from '$lib/api/client';
+	import { getCosts, getStatusDetails, getEditableConfig, patchConfig, type EditableConfig, authRegisterStart, authRegisterComplete, listAuthCredentials, deleteAuthCredential, authLogout, type AuthCredential, getMCPConnections, addMCPConnection, removeMCPConnection, reconnectMCPConnection } from '$lib/api/client';
 	import { base64urlToBuffer, bufferToBase64url } from '$lib/utils/webauthn';
-	import type { McpStatus, ChannelStatus } from '$lib/types';
+	import type { McpStatus, ChannelStatus, MCPConnection, MCPServerConfig } from '$lib/types';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
@@ -12,6 +12,14 @@
 
 	let costs = $state<Record<string, number> | null>(null);
 	let mcpStatus = $state<McpStatus | null>(null);
+	let mcpConnections = $state<MCPConnection[]>([]);
+	let showAddConn = $state(false);
+	let newConnName = $state('');
+	let newConnTransport = $state<'stdio' | 'http'>('stdio');
+	let newConnCommand = $state('');
+	let newConnArgs = $state('');
+	let newConnURL = $state('');
+	let addingConn = $state(false);
 	let channelStatus = $state<ChannelStatus | null>(null);
 	let embeddingStatus = $state<{ enabled: boolean; model: string; dimensions: number } | null>(null);
 	let compactionConfig = $state<{ triggerTokens: number; keepRecent: number; maxToolOutput: number } | null>(null);
@@ -110,6 +118,11 @@
 		try {
 			const res = await listAuthCredentials();
 			credentials = res.credentials ?? [];
+		} catch {}
+		// Load MCP connections.
+		try {
+			const res = await getMCPConnections();
+			mcpConnections = res.connections ?? [];
 		} catch {}
 	});
 
@@ -631,18 +644,128 @@
 
 	<!-- MCP Connections -->
 	<section class="mb-8">
-		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">MCP Connections</h2>
-		<p class="mb-4 text-xs text-[var(--text-tertiary)]">External MCP client connections</p>
+		<div class="flex items-center justify-between mb-1">
+			<h2 class="text-sm font-medium text-[var(--text-primary)]">MCP Connections</h2>
+			<Button size="sm" class="h-6 text-[10px] px-2 gap-1" onclick={() => showAddConn = !showAddConn}>
+				<Plug class="h-3 w-3" /> Add
+			</Button>
+		</div>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">External MCP server connections</p>
 
-		<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
-			<div class="flex items-center gap-3">
-				<Plug class="h-4 w-4 text-[var(--text-tertiary)]" />
-				<div>
-					<p class="text-sm text-[var(--text-tertiary)]">No MCP clients connected</p>
-					<p class="text-[10px] text-[var(--text-tertiary)]/60">Connect Claude Code, Cursor, or other MCP clients</p>
+		{#if showAddConn}
+			<div class="rounded-lg border border-[var(--cairn-accent)]/30 bg-[var(--bg-1)] p-3 mb-3 space-y-2">
+				<div class="grid grid-cols-2 gap-2">
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Name</p>
+						<Input type="text" bind:value={newConnName} placeholder="my-server" class="h-7 text-xs font-mono" />
+					</div>
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Transport</p>
+						<select bind:value={newConnTransport} class="w-full h-7 rounded-md border border-border-subtle bg-[var(--bg-0)] px-2 text-xs text-[var(--text-primary)] focus:border-[var(--cairn-accent)] focus:outline-none">
+							<option value="stdio">stdio</option>
+							<option value="http">http</option>
+						</select>
+					</div>
+				</div>
+				{#if newConnTransport === 'stdio'}
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Command</p>
+						<Input type="text" bind:value={newConnCommand} placeholder="npx" class="h-7 text-xs font-mono" />
+					</div>
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Args (space-separated)</p>
+						<Input type="text" bind:value={newConnArgs} placeholder="-y @modelcontextprotocol/server-filesystem /tmp" class="h-7 text-xs font-mono" />
+					</div>
+				{:else}
+					<div>
+						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">URL</p>
+						<Input type="text" bind:value={newConnURL} placeholder="http://localhost:9090/mcp" class="h-7 text-xs font-mono" />
+					</div>
+				{/if}
+				<div class="flex justify-end gap-2">
+					<Button variant="outline" size="sm" class="h-6 text-[10px]" onclick={() => showAddConn = false}>Cancel</Button>
+					<Button size="sm" class="h-6 text-[10px] gap-1" disabled={addingConn || !newConnName.trim()} onclick={async () => {
+						addingConn = true;
+						try {
+							const cfg: MCPServerConfig = {
+								name: newConnName.trim(),
+								transport: newConnTransport,
+								enabled: true,
+							};
+							if (newConnTransport === 'stdio') {
+								cfg.command = newConnCommand.trim();
+								cfg.args = newConnArgs.trim().split(/\s+/).filter(Boolean);
+							} else {
+								cfg.url = newConnURL.trim();
+							}
+							await addMCPConnection(cfg);
+							const res = await getMCPConnections();
+							mcpConnections = res.connections ?? [];
+							showAddConn = false;
+							newConnName = '';
+							newConnCommand = '';
+							newConnArgs = '';
+							newConnURL = '';
+						} catch (e) { console.error('Add MCP connection failed:', e); }
+						finally { addingConn = false; }
+					}}>
+						{#if addingConn}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Plug class="h-3 w-3" />{/if}
+						Connect
+					</Button>
 				</div>
 			</div>
-		</div>
+		{/if}
+
+		{#if mcpConnections.length === 0}
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center gap-3">
+					<Plug class="h-4 w-4 text-[var(--text-tertiary)]" />
+					<div>
+						<p class="text-sm text-[var(--text-tertiary)]">No MCP servers connected</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]/60">Connect external MCP servers to extend cairn's tools</p>
+					</div>
+				</div>
+			</div>
+		{:else}
+			<div class="space-y-2">
+				{#each mcpConnections as conn (conn.name)}
+					<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-3">
+						<div class="flex items-center gap-3">
+							<span class="h-2 w-2 rounded-full flex-shrink-0 {
+								conn.status === 'connected' ? 'bg-[var(--color-success)]' :
+								conn.status === 'connecting' ? 'bg-[var(--color-warning)] animate-pulse' :
+								conn.status === 'error' ? 'bg-[var(--color-error)]' :
+								'bg-[var(--bg-3)]'
+							}"></span>
+							<div class="min-w-0 flex-1">
+								<div class="flex items-center gap-2">
+									<p class="text-sm font-medium text-[var(--text-primary)]">{conn.name}</p>
+									<span class="text-[10px] text-[var(--text-tertiary)] font-mono">{conn.transport}</span>
+									{#if conn.toolCount > 0}
+										<span class="text-[10px] text-[var(--text-tertiary)]">{conn.toolCount} tools</span>
+									{/if}
+								</div>
+								{#if conn.error}
+									<p class="text-[10px] text-[var(--color-error)] truncate">{conn.error}</p>
+								{/if}
+							</div>
+							<div class="flex gap-1.5 flex-shrink-0">
+								<Button variant="outline" size="sm" class="h-6 text-[10px] px-2" title="Reconnect" onclick={async () => {
+									try { await reconnectMCPConnection(conn.name); const res = await getMCPConnections(); mcpConnections = res.connections ?? []; } catch (e) { console.error('Reconnect failed:', e); }
+								}}>
+									<Wifi class="h-3 w-3" />
+								</Button>
+								<Button variant="outline" size="sm" class="h-6 text-[10px] px-2 text-[var(--color-error)]" title="Remove" onclick={async () => {
+									try { await removeMCPConnection(conn.name); mcpConnections = mcpConnections.filter(c => c.name !== conn.name); } catch (e) { console.error('Remove failed:', e); }
+								}}>
+									<Trash2 class="h-3 w-3" />
+								</Button>
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
 	</section>
 
 	<Separator class="mb-8" />

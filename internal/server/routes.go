@@ -23,6 +23,7 @@ import (
 	"github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
+	cairnmcp "github.com/avifenesh/cairn/internal/mcp"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
@@ -93,6 +94,14 @@ func (s *Server) registerRoutes() {
 	// Skill suggestions.
 	s.mux.HandleFunc("GET /v1/skills/suggestions", s.handleSkillSuggestions)
 	s.mux.HandleFunc("POST /v1/skills/suggestions/dismiss", s.handleDismissSkillSuggestion)
+
+	// MCP client connections.
+	s.mux.HandleFunc("GET /v1/mcp/connections", s.handleListMCPConnections)
+	if s.mcpClients != nil {
+		s.mux.HandleFunc("POST /v1/mcp/connections", s.handleAddMCPConnection)
+		s.mux.HandleFunc("DELETE /v1/mcp/connections/{name}", s.handleRemoveMCPConnection)
+		s.mux.HandleFunc("POST /v1/mcp/connections/{name}/reconnect", s.handleReconnectMCPConnection)
+	}
 
 	// Soul.
 	s.mux.HandleFunc("GET /v1/soul", s.handleGetSoul)
@@ -1273,6 +1282,51 @@ func (s *Server) handleDismissSkillSuggestion(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// --- MCP Connections ---
+
+func (s *Server) handleListMCPConnections(w http.ResponseWriter, r *http.Request) {
+	if s.mcpClients == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"connections": []any{}})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"connections": s.mcpClients.Status()})
+}
+
+func (s *Server) handleAddMCPConnection(w http.ResponseWriter, r *http.Request) {
+	var cfg cairnmcp.MCPServerConfig
+	if err := readJSON(r, &cfg); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if cfg.Name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	if err := s.mcpClients.Connect(r.Context(), cfg); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "name": cfg.Name})
+}
+
+func (s *Server) handleRemoveMCPConnection(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if err := s.mcpClients.Disconnect(name); err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleReconnectMCPConnection(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if err := s.mcpClients.Reconnect(name); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 // --- Soul ---
 
 func (s *Server) handleGetSoul(w http.ResponseWriter, r *http.Request) {
@@ -1414,6 +1468,9 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 			"enabled":   s.config.MCPServerEnabled,
 			"port":      s.config.MCPPort,
 			"transport": s.config.MCPTransport,
+		}
+		if s.mcpClients != nil {
+			status["mcpConnections"] = s.mcpClients.Status()
 		}
 		channels := make([]map[string]any, 0)
 		if s.config.TelegramBotToken != "" {

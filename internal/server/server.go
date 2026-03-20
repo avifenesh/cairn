@@ -17,6 +17,7 @@ import (
 	"github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
+	cairnmcp "github.com/avifenesh/cairn/internal/mcp"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/skill"
@@ -74,6 +75,9 @@ type Server struct {
 	// Skill suggestor (optional: auto-discovery).
 	skillSuggestor *agent.SkillSuggestor
 
+	// MCP client manager (optional: external MCP server connections).
+	mcpClients *cairnmcp.ClientManager
+
 	// Approval store (optional).
 	approvals *task.ApprovalStore
 
@@ -130,6 +134,9 @@ type ServerConfig struct {
 	// Skill suggestor (optional: auto-discovery).
 	SkillSuggestor *agent.SkillSuggestor
 
+	// MCP client manager (optional: external MCP server connections).
+	MCPClients *cairnmcp.ClientManager
+
 	// Approval store (optional: human-in-the-loop gates).
 	Approvals *task.ApprovalStore
 
@@ -178,6 +185,7 @@ func New(cfg ServerConfig) *Server {
 		activityStore:  cfg.ActivityStore,
 		marketplace:    cfg.Marketplace,
 		skillSuggestor: cfg.SkillSuggestor,
+		mcpClients:     cfg.MCPClients,
 		approvals:      cfg.Approvals,
 		authStore:      cfg.AuthStore,
 		webauthn:       cfg.WebAuthn,

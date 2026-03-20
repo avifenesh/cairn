@@ -117,6 +117,9 @@ type Config struct {
 	MCPTransport      string // MCP_TRANSPORT ("stdio"/"http"/"both", default "http")
 	MCPWriteRateLimit int    // MCP_WRITE_RATE_LIMIT (default 100 per minute)
 
+	// MCP client connections
+	MCPClientServers json.RawMessage // MCP_SERVERS JSON array of server configs
+
 	// Z.ai MCP tools (default for GLM provider)
 	ZaiWebEnabled    bool   // ZAI_WEB_ENABLED (default true when LLM_PROVIDER=glm)
 	ZaiBaseURL       string // ZAI_BASE_URL (default https://api.z.ai/api/mcp)
@@ -273,6 +276,7 @@ func Load() (*Config, error) {
 		MCPPort:                 envInt("MCP_PORT", 3001),
 		MCPTransport:            envStr("MCP_TRANSPORT", "http"),
 		MCPWriteRateLimit:       envInt("MCP_WRITE_RATE_LIMIT", 100),
+		MCPClientServers:        envJSON("MCP_SERVERS"),
 		ZaiWebEnabled:           envBool("ZAI_WEB_ENABLED", provider == "glm"),
 		ZaiBaseURL:              envStr("ZAI_BASE_URL", "https://api.z.ai/api/mcp"),
 		ZaiAPIKey:               envStr("ZAI_API_KEY", ""),
@@ -325,6 +329,7 @@ func LoadOptional() *Config {
 			MCPPort:           envInt("MCP_PORT", 3001),
 			MCPTransport:      envStr("MCP_TRANSPORT", "http"),
 			MCPWriteRateLimit: envInt("MCP_WRITE_RATE_LIMIT", 100),
+			MCPClientServers:  envJSON("MCP_SERVERS"),
 			SoulPath:          envStr("SOUL_PATH", "./SOUL.md"),
 			SkillDirs:         skillDirs(),
 			DataDir:           envStr("DATA_DIR", "./data"),
@@ -474,6 +479,18 @@ func envMap(key string) map[string]string {
 		return nil
 	}
 	return m
+}
+
+func envJSON(key string) json.RawMessage {
+	v := os.Getenv(key)
+	if v == "" {
+		return nil
+	}
+	if !json.Valid([]byte(v)) {
+		fmt.Fprintf(os.Stderr, "warning: %s contains invalid JSON, ignoring\n", key)
+		return nil
+	}
+	return json.RawMessage(v)
 }
 
 // --- Runtime-editable config ---

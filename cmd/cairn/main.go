@@ -540,6 +540,9 @@ func runServe(logger *slog.Logger) {
 		}
 	}
 
+	// Initialize MCP client manager for external server connections.
+	mcpClientMgr := cairnmcp.NewClientManager(toolRegistry, bus, logger)
+
 	// Create and start the server.
 	srv := server.New(server.ServerConfig{
 		Agent:          reactAgent,
@@ -575,8 +578,9 @@ func runServe(logger *slog.Logger) {
 			}
 			return nil
 		}(),
-		AuthStore: authStore,
-		WebAuthn:  webauthnHandler,
+		MCPClients: mcpClientMgr,
+		AuthStore:  authStore,
+		WebAuthn:   webauthnHandler,
 	})
 
 	// Graceful shutdown context — all subsystems observe this.
@@ -905,6 +909,18 @@ func runServe(logger *slog.Logger) {
 		}
 		logger.Info("mcp server started", "transport", transport, "port", cfg.MCPPort)
 	}
+
+	// Connect to configured external MCP servers.
+	if len(cfg.MCPClientServers) > 0 {
+		serverConfigs, err := cairnmcp.ParseServerConfigs(cfg.MCPClientServers)
+		if err != nil {
+			logger.Warn("invalid MCP_SERVERS config", "error", err)
+		} else if len(serverConfigs) > 0 {
+			mcpClientMgr.ConnectAll(ctx, serverConfigs)
+			logger.Info("mcp client connections initiated", "servers", len(serverConfigs))
+		}
+	}
+	defer mcpClientMgr.Close()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)

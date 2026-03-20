@@ -147,6 +147,14 @@ func (b *SSEBroadcaster) Start() {
 				"entry": e.Entry,
 			})
 		}),
+		eventbus.Subscribe(b.bus, func(e eventbus.MCPConnectionChanged) {
+			b.broadcast("mcp_connection", e.ID, map[string]any{
+				"serverName": e.ServerName,
+				"status":     e.Status,
+				"toolCount":  e.ToolCount,
+				"error":      e.Error,
+			})
+		}),
 	)
 
 	b.logger.Info("sse broadcaster started")

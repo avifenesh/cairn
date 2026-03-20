@@ -138,6 +138,17 @@ type MemoryRejected struct {
 	MemoryID string `json:"memoryId"`
 }
 
+// --- MCP events ---
+
+// MCPConnectionChanged is emitted when an MCP client connection status changes.
+type MCPConnectionChanged struct {
+	EventMeta
+	ServerName string `json:"serverName"`
+	Status     string `json:"status"` // "connected", "disconnected", "error"
+	ToolCount  int    `json:"toolCount"`
+	Error      string `json:"error,omitempty"`
+}
+
 // --- System events ---
 
 // ShutdownInitiated is emitted when the system begins shutting down.

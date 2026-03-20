@@ -348,6 +348,9 @@ func (l *Loop) executeIdleDecision(ctx context.Context, d *IdleDecision) {
 	case "wait":
 		// Nothing to do — valid choice.
 	}
+
+	// Record decision for activity feed (after execution so it reflects what actually happened).
+	l.lastIdleDecision = d
 }
 
 // buildBriefingPrompt creates a prompt for the cheap model to summarize raw context.

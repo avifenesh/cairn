@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -210,4 +211,98 @@ func (s *Service) hasChanges() bool {
 	}
 
 	return false
+}
+
+// Create writes a new SKILL.md to the first writable skill directory and re-discovers.
+func (s *Service) Create(name, description, content, inclusion string, allowedTools []string) error {
+	if err := ValidateName(name); err != nil {
+		return err
+	}
+	if s.Get(name) != nil {
+		return fmt.Errorf("skill %q already exists", name)
+	}
+	if len(s.dirs) == 0 {
+		return fmt.Errorf("no skill directories configured")
+	}
+
+	dir := filepath.Join(s.dirs[0], name)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create skill dir: %w", err)
+	}
+
+	md := buildSkillMD(name, description, content, inclusion, allowedTools)
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(md), 0644); err != nil {
+		os.RemoveAll(dir)
+		return fmt.Errorf("write SKILL.md: %w", err)
+	}
+
+	return s.Discover()
+}
+
+// Update modifies an existing skill's SKILL.md and re-discovers.
+func (s *Service) Update(name, description, content, inclusion string, allowedTools []string) error {
+	sk := s.Get(name)
+	if sk == nil {
+		return fmt.Errorf("skill %q not found", name)
+	}
+
+	if description == "" {
+		description = sk.Description
+	}
+	if content == "" {
+		content = sk.Content
+	}
+	if inclusion == "" {
+		inclusion = string(sk.Inclusion)
+	}
+	if len(allowedTools) == 0 {
+		allowedTools = sk.AllowedTools
+	}
+
+	md := buildSkillMD(name, description, content, inclusion, allowedTools)
+	loc := sk.Location
+	if filepath.Base(loc) == "SKILL.md" {
+		loc = filepath.Dir(loc)
+	}
+	if err := os.WriteFile(filepath.Join(loc, "SKILL.md"), []byte(md), 0644); err != nil {
+		return fmt.Errorf("write SKILL.md: %w", err)
+	}
+
+	return s.Discover()
+}
+
+// Delete removes a skill directory and re-discovers.
+func (s *Service) Delete(name string) error {
+	sk := s.Get(name)
+	if sk == nil {
+		return fmt.Errorf("skill %q not found", name)
+	}
+
+	loc := sk.Location
+	if filepath.Base(loc) == "SKILL.md" {
+		loc = filepath.Dir(loc)
+	}
+	if err := os.RemoveAll(loc); err != nil {
+		return fmt.Errorf("remove skill dir: %w", err)
+	}
+
+	return s.Discover()
+}
+
+func buildSkillMD(name, description, content, inclusion string, allowedTools []string) string {
+	if inclusion == "" {
+		inclusion = "on-demand"
+	}
+	var b strings.Builder
+	b.WriteString("---\n")
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %q\n", description)
+	fmt.Fprintf(&b, "inclusion: %s\n", inclusion)
+	if len(allowedTools) > 0 {
+		fmt.Fprintf(&b, "allowed-tools: %q\n", strings.Join(allowedTools, ","))
+	}
+	b.WriteString("---\n\n")
+	b.WriteString(content)
+	b.WriteString("\n")
+	return b.String()
 }

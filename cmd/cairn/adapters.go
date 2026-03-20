@@ -387,6 +387,18 @@ func skillToItem(sk *skill.Skill) *tool.SkillItem {
 	}
 }
 
+func (a *skillAdapter) Create(name, description, content, inclusion string, allowedTools []string) error {
+	return a.svc.Create(name, description, content, inclusion, allowedTools)
+}
+
+func (a *skillAdapter) Update(name, description, content, inclusion string, allowedTools []string) error {
+	return a.svc.Update(name, description, content, inclusion, allowedTools)
+}
+
+func (a *skillAdapter) Delete(name string) error {
+	return a.svc.Delete(name)
+}
+
 // notifierAdapter bridges channel.Router to tool.NotifyService.
 type notifierAdapter struct {
 	router *cairnchannel.Router

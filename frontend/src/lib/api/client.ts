@@ -455,6 +455,13 @@ export const updateCron = (id: string, body: {
 }) => patch<{ ok: boolean; job: CronJob }>(`/v1/crons/${id}`, body);
 export const deleteCron = (id: string) => del<{ ok: boolean }>(`/v1/crons/${id}`);
 
+// Skills CRUD
+export const createSkillApi = (body: { name: string; description: string; content: string; inclusion?: string; allowedTools?: string[] }) =>
+	post<{ ok: boolean; name: string }>('/v1/skills', body);
+export const updateSkillApi = (name: string, body: { description?: string; content?: string; inclusion?: string; allowedTools?: string[] }) =>
+	put<{ ok: boolean; name: string }>(`/v1/skills/${name}`, body);
+export const deleteSkillApi = (name: string) => del<{ ok: boolean }>(`/v1/skills/${name}`);
+
 // Agent Activity
 export const getAgentActivity = (params?: { limit?: number; type?: string }) => {
 	const q = new URLSearchParams();

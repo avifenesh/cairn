@@ -194,12 +194,33 @@
 		mpDebounceTimer = setTimeout(() => mpSearch(query), 300);
 	}
 
+	const FEATURED_QUERIES = ['git', 'docker', 'python', 'react', 'typescript', 'rust', 'go', 'svelte'];
+
 	async function mpBrowseLoad() {
 		mpLoading = true;
 		try {
 			const res = await browseMarketplace(mpSort, 30);
-			mpBrowse = res.skills ?? [];
+			const items = res.skills ?? [];
 			mpInstalled = res.installed ?? {};
+			if (items.length > 0) {
+				mpBrowse = items;
+				return;
+			}
+			// Browse returned empty — seed with featured search results instead.
+			const picks = FEATURED_QUERIES.sort(() => Math.random() - 0.5).slice(0, 4);
+			const batched = await Promise.allSettled(picks.map(q => searchMarketplace(q, 5)));
+			const seeded: MarketplaceSkill[] = [];
+			const seen = new Set<string>();
+			for (const r of batched) {
+				if (r.status !== 'fulfilled') continue;
+				for (const sr of r.value.results ?? []) {
+					if (seen.has(sr.slug)) continue;
+					seen.add(sr.slug);
+					seeded.push({ slug: sr.slug, displayName: sr.displayName, summary: sr.summary, stats: { downloads: 0, stars: 0, versions: 0, installsAllTime: 0 }, owner: { handle: '', displayName: '', image: '' }, latestVersion: { version: sr.version, changelog: '' } });
+					mpInstalled = { ...mpInstalled, ...(r.value.installed ?? {}) };
+				}
+			}
+			mpBrowse = seeded;
 		} catch (e) { console.error('Marketplace browse failed:', e); mpBrowse = []; }
 		finally { mpLoading = false; }
 	}

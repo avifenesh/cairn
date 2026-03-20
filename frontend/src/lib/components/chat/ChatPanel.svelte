@@ -233,7 +233,7 @@
 					<div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--accent-dim)]">
 						<Bot class="h-3.5 w-3.5 text-[var(--cairn-accent)]" />
 					</div>
-					<div class="max-w-[90%] sm:max-w-[80%] rounded-lg bg-[var(--bg-1)] border border-border-subtle px-4 py-3">
+					<div class="min-w-0 max-w-[85%] sm:max-w-[80%] rounded-lg bg-[var(--bg-1)] border border-border-subtle px-4 py-3">
 						{#if sm.toolCalls.length > 0}
 							<div class="mb-2 flex flex-wrap gap-1">
 								{#each sm.toolCalls as tc}

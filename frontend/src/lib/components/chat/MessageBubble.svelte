@@ -46,7 +46,7 @@
 			<Bot class="h-3.5 w-3.5 text-[var(--cairn-accent)]" />
 		{/if}
 	</div>
-	<div class="relative max-w-[90%] sm:max-w-[80%] rounded-lg px-4 py-3 {message.role === 'user' ? 'bg-[var(--bg-2)]' : 'bg-[var(--bg-1)] border border-border-subtle'}">
+	<div class="relative min-w-0 max-w-[85%] sm:max-w-[80%] rounded-lg px-4 py-3 {message.role === 'user' ? 'bg-[var(--bg-2)]' : 'bg-[var(--bg-1)] border border-border-subtle'}">
 		{#if message.toolCalls && message.toolCalls.length > 0}
 			<div class="mb-2 flex flex-wrap gap-1">
 				{#each message.toolCalls as tc}

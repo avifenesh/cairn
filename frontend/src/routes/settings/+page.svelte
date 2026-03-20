@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { appStore, type Theme, type Density, type Mood } from '$lib/stores/app.svelte';
-	import { getCosts, getStatusDetails, getEditableConfig, patchConfig, type EditableConfig } from '$lib/api/client';
+	import { getCosts, getStatusDetails, getEditableConfig, patchConfig, type EditableConfig, authRegisterStart, authRegisterComplete, listAuthCredentials, deleteAuthCredential, authLogout, type AuthCredential } from '$lib/api/client';
 	import type { McpStatus, ChannelStatus } from '$lib/types';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar, Rss, Code, BookOpen, Package, Bell, BellOff, Clock, Route } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar, Rss, Code, BookOpen, Package, Bell, BellOff, Clock, Route, Fingerprint, Shield, Trash2 } from '@lucide/svelte';
 	import CronManager from '$lib/components/cron/CronManager.svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
@@ -105,6 +105,11 @@
 		} catch {
 			// handled
 		}
+		// Load WebAuthn credentials.
+		try {
+			const res = await listAuthCredentials();
+			credentials = res.credentials ?? [];
+		} catch {}
 	});
 
 	async function saveConfig(section: string, patch: Partial<EditableConfig>) {
@@ -150,8 +155,88 @@
 
 	let toastDuration = $state((() => { try { return Number(localStorage.getItem('cairn_toast_duration')) || 5; } catch { return 5; } })());
 
+	// WebAuthn credentials
+	let credentials = $state<AuthCredential[]>([]);
+	let credName = $state('');
+	let registering = $state(false);
+	let credError = $state('');
+
 	function toggleAutoMood() {
 		appStore.setAutoMood(!appStore.autoMoodEnabled);
+	}
+
+	function base64urlToBuffer(b64: string): ArrayBuffer {
+		const base64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+		const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+		const binary = atob(base64 + padding);
+		const bytes = new Uint8Array(binary.length);
+		for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+		return bytes.buffer;
+	}
+
+	function bufferToBase64url(buffer: ArrayBuffer): string {
+		const bytes = new Uint8Array(buffer);
+		let binary = '';
+		for (const b of bytes) binary += String.fromCharCode(b);
+		return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	}
+
+	async function registerCredential() {
+		registering = true;
+		credError = '';
+		try {
+			const options = await authRegisterStart();
+			const pk = options.publicKey;
+			const credential = await navigator.credentials.create({
+				publicKey: {
+					...pk,
+					challenge: base64urlToBuffer(pk.challenge),
+					user: { ...pk.user, id: base64urlToBuffer(pk.user.id) },
+					excludeCredentials: pk.excludeCredentials?.map((c: { id: string; type: string }) => ({
+						...c, id: base64urlToBuffer(c.id),
+					})),
+				},
+			});
+			if (!credential) { credError = 'Registration cancelled'; return; }
+			const attestation = credential as PublicKeyCredential;
+			const response = attestation.response as AuthenticatorAttestationResponse;
+			await authRegisterComplete({
+				name: credName || 'Credential',
+				credential: {
+					id: attestation.id,
+					rawId: bufferToBase64url(attestation.rawId),
+					type: attestation.type,
+					response: {
+						attestationObject: bufferToBase64url(response.attestationObject),
+						clientDataJSON: bufferToBase64url(response.clientDataJSON),
+					},
+				},
+			});
+			appStore.addNotification('Biometric credential registered', 'success');
+			credName = '';
+			const res = await listAuthCredentials();
+			credentials = res.credentials ?? [];
+		} catch (e: unknown) {
+			credError = e instanceof Error ? e.message : 'Registration failed';
+		} finally {
+			registering = false;
+		}
+	}
+
+	async function removeCred(id: string) {
+		try {
+			await deleteAuthCredential(id);
+			credentials = credentials.filter(c => c.id !== id);
+			appStore.addNotification('Credential removed', 'success');
+		} catch {
+			appStore.addNotification('Failed to remove credential', 'error');
+		}
+	}
+
+	async function handleLogout() {
+		try { await authLogout(); } catch {}
+		localStorage.removeItem('cairn_api_token');
+		window.location.reload();
 	}
 
 	function setToastDuration(seconds: number) {
@@ -976,6 +1061,87 @@
 					{#if saving === 'content-sources'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
 					Save
 				</Button>
+			</div>
+		</div>
+	</section>
+
+	<!-- Security / Auth -->
+	<section class="mb-8">
+		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">Security</h2>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">Biometric login and session management</p>
+
+		<div class="space-y-4">
+			<!-- Register credential -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center gap-2 mb-3">
+					<Fingerprint class="h-4 w-4 text-[var(--cairn-accent)]" />
+					<span class="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Register biometric</span>
+				</div>
+				<p class="text-[10px] text-[var(--text-tertiary)] mb-3">Add a fingerprint, face, or security key for passwordless login</p>
+				<div class="flex gap-2">
+					<Input
+						type="text"
+						placeholder="Credential name (e.g. MacBook fingerprint)"
+						bind:value={credName}
+						class="h-8 text-xs flex-1"
+					/>
+					<Button
+						size="sm" class="h-8 text-xs gap-1 px-3"
+						onclick={registerCredential}
+						disabled={registering}
+					>
+						{#if registering}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Fingerprint class="h-3 w-3" />{/if}
+						Register
+					</Button>
+				</div>
+				{#if credError}
+					<p class="mt-2 text-xs text-[var(--color-error)]">{credError}</p>
+				{/if}
+			</div>
+
+			<!-- Existing credentials -->
+			{#if credentials.length > 0}
+				<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+					<div class="flex items-center gap-2 mb-3">
+						<Shield class="h-4 w-4 text-[var(--cairn-accent)]" />
+						<span class="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Registered credentials</span>
+						<span class="text-[10px] text-[var(--text-tertiary)] ml-auto">{credentials.length}</span>
+					</div>
+					<div class="space-y-2">
+						{#each credentials as cred (cred.id)}
+							<div class="flex items-center gap-3 rounded-md bg-[var(--bg-0)] px-3 py-2">
+								<Fingerprint class="h-3.5 w-3.5 text-[var(--text-tertiary)] flex-shrink-0" />
+								<div class="flex-1 min-w-0">
+									<p class="text-xs text-[var(--text-primary)] truncate">{cred.name || 'Unnamed'}</p>
+									<p class="text-[10px] text-[var(--text-tertiary)]">
+										Added {new Date(cred.createdAt).toLocaleDateString()}
+										{#if cred.lastUsedAt} · Last used {new Date(cred.lastUsedAt).toLocaleDateString()}{/if}
+									</p>
+								</div>
+								<button
+									class="p-1 rounded hover:bg-[var(--bg-2)] text-[var(--text-tertiary)] hover:text-[var(--color-error)] transition-colors"
+									onclick={() => removeCred(cred.id)}
+									title="Remove credential"
+								>
+									<Trash2 class="h-3.5 w-3.5" />
+								</button>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Logout -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center justify-between">
+					<div>
+						<p class="text-xs font-medium text-[var(--text-secondary)]">Session</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Clear API token and session cookie</p>
+					</div>
+					<Button variant="outline" size="sm" class="h-7 text-xs" onclick={handleLogout}>
+						Logout
+					</Button>
+				</div>
 			</div>
 		</div>
 	</section>

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
+	"github.com/avifenesh/cairn/internal/auth"
 	cairnchannel "github.com/avifenesh/cairn/internal/channel"
 	"github.com/avifenesh/cairn/internal/config"
 	cairncron "github.com/avifenesh/cairn/internal/cron"
@@ -498,6 +499,26 @@ func runServe(logger *slog.Logger) {
 		logger.Info("voice enabled", "whisper", cfg.WhisperURL, "ttsVoice", cfg.TTSVoice)
 	}
 
+	// WebAuthn auth (biometric login).
+	authStore := auth.NewStore(database.DB)
+	var webauthnHandler *auth.WebAuthn
+	if cfg.FrontendOrigin != "" {
+		// Derive RPID from origin: "https://agntic.garden" -> "agntic.garden"
+		rpID := cfg.FrontendOrigin
+		rpID = strings.TrimPrefix(rpID, "https://")
+		rpID = strings.TrimPrefix(rpID, "http://")
+		if idx := strings.IndexByte(rpID, ':'); idx > 0 {
+			rpID = rpID[:idx]
+		}
+		var err error
+		webauthnHandler, err = auth.NewWebAuthn("Cairn", rpID, cfg.FrontendOrigin, authStore)
+		if err != nil {
+			logger.Error("webauthn init failed", "error", err)
+		} else {
+			logger.Info("webauthn enabled", "rpID", rpID, "origin", cfg.FrontendOrigin)
+		}
+	}
+
 	// Create cron and config adapters (needed by both server and agent contexts).
 	cronAdapt := &cronAdapter{store: cronStore}
 	cfgAdapt := &configAdapter{cfg: cfg}
@@ -530,6 +551,8 @@ func runServe(logger *slog.Logger) {
 		Voice:          voiceSvc,
 		CronStore:      cronStore,
 		ActivityStore:  agent.NewActivityStore(database.DB),
+		AuthStore:      authStore,
+		WebAuthn:       webauthnHandler,
 	})
 
 	// Graceful shutdown context — all subsystems observe this.

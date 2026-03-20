@@ -473,10 +473,16 @@ export const getAgentActivity = (params?: { limit?: number; type?: string; offse
 };
 
 // Auth (WebAuthn)
-export const authLoginStart = () => post<{ challenge: string }>('/v1/auth/login/start');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const authLoginStart = () => post<any>('/v1/auth/login/start');
 export const authLoginComplete = (credential: unknown) =>
 	post<{ ok: boolean }>('/v1/auth/login/complete', credential);
-export const authRegisterStart = () => post<{ challenge: string }>('/v1/auth/register/start');
-export const authRegisterComplete = (credential: unknown) =>
-	post<{ ok: boolean }>('/v1/auth/register/complete', credential);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const authRegisterStart = () => post<any>('/v1/auth/register/start');
+export const authRegisterComplete = (body: { name: string; credential: unknown }) =>
+	post<{ ok: boolean }>('/v1/auth/register/complete', body);
 export const authLogout = () => post<{ ok: boolean }>('/v1/auth/logout');
+export const authSession = () => get<{ authenticated: boolean; method: string; expiresAt?: string }>('/v1/auth/session');
+export interface AuthCredential { id: string; name: string; createdAt: string; lastUsedAt?: string }
+export const listAuthCredentials = () => get<{ credentials: AuthCredential[] }>('/v1/auth/credentials');
+export const deleteAuthCredential = (id: string) => del<{ ok: boolean }>(`/v1/auth/credentials/${encodeURIComponent(id)}`);

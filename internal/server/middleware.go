@@ -12,7 +12,8 @@ import (
 // --- Auth Middleware ---
 
 // extractToken reads the API token from the request, checking sources in
-// precedence order: X-Api-Token header > Authorization: Bearer > ?token= > pub_session cookie.
+// precedence order: X-Api-Token header > Authorization: Bearer > ?token= query param.
+// Note: cairn_session cookie is checked separately via authStore session lookup.
 func extractToken(r *http.Request) string {
 	// 1. X-Api-Token header.
 	if tok := r.Header.Get("X-Api-Token"); tok != "" {
@@ -26,21 +27,24 @@ func extractToken(r *http.Request) string {
 	if tok := r.URL.Query().Get("token"); tok != "" {
 		return tok
 	}
-	// 4. pub_session cookie (WebAuthn sessions).
-	if c, err := r.Cookie("pub_session"); err == nil && c.Value != "" {
-		return c.Value
-	}
 	return ""
 }
 
 // authMiddleware enforces read/write token checks based on HTTP method and path.
-// Health/ready endpoints are always open.
+// Health/ready endpoints are always open. Auth login/start endpoints are open too
+// (they're how users authenticate). Valid cairn_session cookies grant full access.
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
 		// Health and ready are always open.
 		if path == "/health" || path == "/ready" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Auth login endpoints are open (they're how users authenticate).
+		if strings.HasPrefix(path, "/v1/auth/login/") || path == "/v1/auth/session" {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -52,6 +56,17 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		}
 
 		token := extractToken(r)
+
+		// Check if authenticated via cairn_session cookie (WebAuthn).
+		// A valid session grants full (write-level) access — biometric = identity proven.
+		if s.authStore != nil {
+			if c, err := r.Cookie("cairn_session"); err == nil && c.Value != "" {
+				if _, err := s.authStore.ValidateSession(c.Value); err == nil {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+		}
 
 		// Write endpoints: POST, PUT, DELETE under /v1/*
 		if isWriteRequest(r) {

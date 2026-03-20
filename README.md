@@ -20,7 +20,7 @@ export LLM_API_KEY=your-key   # or GLM_API_KEY / OPENAI_API_KEY
 # With frontend (build frontend first, then embed)
 cd frontend && pnpm install && pnpm build && cd ..
 make build-prod
-./cairn serve   # serves embedded frontend on :8787
+./cairn serve   # serves embedded frontend on :8788
 ```
 
 ## What It Does

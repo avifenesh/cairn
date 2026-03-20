@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -54,15 +55,21 @@ var shell = tool.Define("cairn.shell",
 		workDir := ctx.WorkDir
 		if p.WorkDir != "" {
 			if filepath.IsAbs(p.WorkDir) {
-				workDir = p.WorkDir
+				workDir = filepath.Clean(p.WorkDir)
 			} else if workDir != "" {
-				workDir = filepath.Join(workDir, p.WorkDir)
+				workDir = filepath.Clean(filepath.Join(workDir, p.WorkDir))
 			} else {
-				workDir = p.WorkDir
+				workDir = filepath.Clean(p.WorkDir)
 			}
 		}
-		if workDir == "" {
-			workDir = "."
+		// Fall back to $HOME so the agent can work across repos,
+		// then to "." if HOME is unavailable.
+		if workDir == "" || workDir == "." {
+			if home, err := os.UserHomeDir(); err == nil && home != "" {
+				workDir = home
+			} else {
+				workDir = "."
+			}
 		}
 
 		// Detect shell and build command.
@@ -165,12 +172,19 @@ var shell = tool.Define("cairn.shell",
 				result.Error = errMsg
 			}
 			if result.Error != "" {
-				// Log only the first token to avoid leaking secrets in arguments.
+				// Log the executable name only — strip inline env assignments
+				// (KEY=value) and arguments to avoid leaking secrets.
 				cmdLog := p.Command
 				if fields := strings.Fields(cmdLog); len(fields) > 0 {
-					cmdLog = fields[0]
-					if len(fields) > 1 {
-						cmdLog += " ..."
+					// Skip leading KEY=value assignments.
+					idx := 0
+					for idx < len(fields) && strings.Contains(fields[idx], "=") {
+						idx++
+					}
+					if idx < len(fields) {
+						cmdLog = fields[idx]
+					} else {
+						cmdLog = "(env-only command)"
 					}
 				}
 				slog.Warn("shell command failed", "exit", exitCode, "cmd", cmdLog, "workDir", workDir)

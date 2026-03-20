@@ -66,9 +66,9 @@ var envPrefixAllowlist = []string{
 	"PNPM_",
 }
 
-// ghEnvAllowlist allows specific GH_/GITHUB_ vars that are NOT secrets.
-// GH_TOKEN is passed explicitly so `gh` CLI works, but it's not in the
-// prefix allowlist to avoid exposing other GITHUB_* secrets.
+// ghEnvAllowlist allows specific GH_/GITHUB_ vars needed by tools.
+// GH_TOKEN is a credential — intentionally passed so `gh` CLI works.
+// Only vars listed here pass through; broad GITHUB_* prefix is NOT allowed.
 var ghEnvAllowlist = map[string]bool{
 	"GH_TOKEN":       true, // gh CLI authentication
 	"GH_ORGS":        true, // org filter (non-secret)

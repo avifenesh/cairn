@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 
@@ -474,10 +473,8 @@ func workDir(ctx *InvocationContext) string {
 			return wd
 		}
 	}
-	// Default to $HOME so the agent can work across repos and tools.
-	if home := os.Getenv("HOME"); home != "" {
-		return home
-	}
+	// Default to current directory (process cwd, typically the repo root).
+	// Shell tool handles its own $HOME fallback for cross-repo access.
 	return "."
 }
 

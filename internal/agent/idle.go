@@ -61,7 +61,8 @@ type Observations struct {
 func (o *Observations) isEmpty() bool {
 	return o.UnreadFeedCount == 0 && o.PendingTasks == 0 &&
 		len(o.RecentErrors) == 0 && o.DigestQueueLen == 0 &&
-		len(o.RecentSessions) == 0
+		len(o.RecentSessions) == 0 && len(o.RelevantMemories) == 0 &&
+		len(o.UpcomingCrons) == 0
 }
 
 // IdleDecision represents what the agent decided to do during an idle tick.
@@ -90,6 +91,9 @@ func (l *Loop) idleTick(ctx context.Context) {
 		return
 	}
 
+	// Add memories only when we have something to reason about (avoids wasted RAG search).
+	l.gatherMemories(ctx, obs)
+
 	// Phase 1: Rebuild briefing if stale (cheap model).
 	if l.idleBriefing == "" || time.Since(l.briefingBuiltAt) > briefingMaxAge {
 		l.rebuildBriefing(ctx, obs)
@@ -103,11 +107,15 @@ func (l *Loop) idleTick(ctx context.Context) {
 	l.executeIdleDecision(ctx, decision)
 }
 
-// gatherObservations collects rich signals from feed, journal, memories, crons.
+const memorySearchQuery = "user preferences goals active projects current work"
+
+// gatherObservations collects rich signals from feed, journal, and crons.
+// Memories are gathered separately in gatherMemories (only when observations are non-empty).
 func (l *Loop) gatherObservations(ctx context.Context) *Observations {
+	now := time.Now()
 	obs := &Observations{
 		TicksSinceStart: l.tickCount.Load(),
-		CurrentTime:     time.Now().Format("2006-01-02 15:04 MST"),
+		CurrentTime:     now.Format("2006-01-02 15:04 MST"),
 	}
 
 	// Feed: unread items with titles (not just counts).
@@ -123,11 +131,7 @@ func (l *Loop) gatherObservations(ctx context.Context) *Observations {
 			for _, e := range events {
 				obs.UnreadBySource[e.Source]++
 			}
-			// Top 10 unread items with actual content.
-			limit := 10
-			if len(events) < limit {
-				limit = len(events)
-			}
+			limit := min(10, len(events))
 			for _, e := range events[:limit] {
 				obs.TopUnread = append(obs.TopUnread, FeedItem{
 					Source: e.Source,
@@ -162,31 +166,35 @@ func (l *Loop) gatherObservations(ctx context.Context) *Observations {
 		}
 	}
 
-	// Memories: user preferences and active context.
-	if l.memories != nil {
-		results, err := l.memories.Search(ctx, "user preferences goals active projects", 5)
-		if err == nil {
-			for _, r := range results {
-				obs.RelevantMemories = append(obs.RelevantMemories, r.Memory.Content)
-			}
-		}
-	}
-
-	// Crons: upcoming jobs within 2 hours.
+	// Crons: upcoming jobs within 2 hours (exclude already-past next_run).
 	if l.cronStore != nil {
 		jobs, err := l.cronStore.List(ctx)
 		if err == nil {
-			now := time.Now()
+			horizon := now.Add(2 * time.Hour)
 			for _, j := range jobs {
-				if j.Enabled && j.NextRunAt != nil && j.NextRunAt.Before(now.Add(2*time.Hour)) {
+				if j.Enabled && j.NextRunAt != nil && j.NextRunAt.After(now) && j.NextRunAt.Before(horizon) {
 					obs.UpcomingCrons = append(obs.UpcomingCrons,
-						fmt.Sprintf("%s (%s) at %s", j.Name, j.Schedule, j.NextRunAt.Format("15:04")))
+						fmt.Sprintf("%s (%s) at %s UTC", j.Name, j.Schedule, j.NextRunAt.Format("15:04")))
 				}
 			}
 		}
 	}
 
 	return obs
+}
+
+// gatherMemories adds user preference memories to observations.
+// Called only when observations are non-empty (avoids wasted RAG searches).
+func (l *Loop) gatherMemories(ctx context.Context, obs *Observations) {
+	if l.memories == nil {
+		return
+	}
+	results, err := l.memories.Search(ctx, memorySearchQuery, 5)
+	if err == nil {
+		for _, r := range results {
+			obs.RelevantMemories = append(obs.RelevantMemories, r.Memory.Content)
+		}
+	}
 }
 
 // rebuildBriefing calls a cheap model to compress raw observations into

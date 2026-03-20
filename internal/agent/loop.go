@@ -53,12 +53,12 @@ type Loop struct {
 	contextBuilder *memory.ContextBuilder // token-budgeted context (nil = fallback)
 	plugins        *plugin.Manager        // lifecycle hooks (nil = no plugins)
 
-	cronStore       *cairncron.Store      // nil = cron disabled
-	activityStore   *ActivityStore        // nil = activity tracking disabled
-	db              *sql.DB               // for state checkpoint
-	worktreeManager *task.WorktreeManager // nil = no worktree isolation
-	notifier        tool.NotifyService    // nil = notifications disabled
-	skillSuggestor  *SkillSuggestor       // nil = skill suggestions disabled
+	cronStore       *cairncron.Store         // nil = cron disabled
+	activityStore   *ActivityStore           // nil = activity tracking disabled
+	db              *sql.DB                  // for state checkpoint
+	worktreeManager *task.WorktreeManager    // nil = no worktree isolation
+	notifier        tool.NotifyService       // nil = notifications disabled
+	skillSuggestor  *SkillSuggestor          // nil = skill suggestions disabled
 	marketplace     *skill.MarketplaceClient // nil = marketplace disabled
 
 	cancel  context.CancelFunc
@@ -192,12 +192,12 @@ type LoopDeps struct {
 	ContextBuilder *memory.ContextBuilder // optional: token-budgeted context
 	Plugins        *plugin.Manager        // optional: lifecycle hooks
 
-	CronStore       *cairncron.Store      // optional: enables cron job checking in tick
-	ActivityStore   *ActivityStore        // optional: enables activity recording
-	DB              *sql.DB               // optional: enables state checkpoint
-	WorktreeManager *task.WorktreeManager      // optional: worktree isolation for coding tasks
-	Notifier        tool.NotifyService         // optional: routes notifications to channels
-	Marketplace     *skill.MarketplaceClient   // optional: ClawHub marketplace for suggestions
+	CronStore       *cairncron.Store         // optional: enables cron job checking in tick
+	ActivityStore   *ActivityStore           // optional: enables activity recording
+	DB              *sql.DB                  // optional: enables state checkpoint
+	WorktreeManager *task.WorktreeManager    // optional: worktree isolation for coding tasks
+	Notifier        tool.NotifyService       // optional: routes notifications to channels
+	Marketplace     *skill.MarketplaceClient // optional: ClawHub marketplace for suggestions
 }
 
 // Start begins the agent loop in a background goroutine. Safe to call only once.

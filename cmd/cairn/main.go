@@ -564,9 +564,14 @@ func runServe(logger *slog.Logger) {
 		CronStore:      cronStore,
 		ActivityStore:  agent.NewActivityStore(database.DB),
 		Marketplace:    marketplace,
-		SkillSuggestor: func() *agent.SkillSuggestor { if agentLoop != nil { return agentLoop.SkillSuggestor() }; return nil }(),
-		AuthStore:      authStore,
-		WebAuthn:       webauthnHandler,
+		SkillSuggestor: func() *agent.SkillSuggestor {
+			if agentLoop != nil {
+				return agentLoop.SkillSuggestor()
+			}
+			return nil
+		}(),
+		AuthStore: authStore,
+		WebAuthn:  webauthnHandler,
 	})
 
 	// Graceful shutdown context — all subsystems observe this.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -275,9 +276,11 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 
 	// Create isolated worktree for coding tasks.
 	if mode == tool.ModeCoding && l.worktreeManager != nil {
-		wtPath, _, wtErr := l.worktreeManager.Create(t.ID, "main")
+		wtPath, _, wtErr := l.worktreeManager.Create(t.ID, "HEAD")
 		if wtErr != nil {
-			l.logger.Warn("agent loop: worktree creation failed, using cwd", "task", t.ID, "error", wtErr)
+			l.logger.Error("agent loop: worktree creation failed, failing task", "task", t.ID, "error", wtErr)
+			l.tasks.Fail(ctx, t.ID, fmt.Errorf("worktree creation failed: %w", wtErr))
+			return true
 		} else {
 			session.State["workDir"] = wtPath
 			defer func() {

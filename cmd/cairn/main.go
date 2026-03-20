@@ -235,10 +235,14 @@ func runServe(logger *slog.Logger) {
 	// Initialize worktree manager for coding task isolation.
 	var worktreeMgr *task.WorktreeManager
 	if cfg.CodingEnabled {
-		repoDir, _ := os.Getwd()
-		worktreeDir := filepath.Join(os.TempDir(), "cairn-worktrees")
-		worktreeMgr = task.NewWorktreeManager(repoDir, worktreeDir)
-		logger.Info("worktree manager initialized", "repoDir", repoDir, "worktreeDir", worktreeDir)
+		repoDir, err := os.Getwd()
+		if err != nil {
+			logger.Error("worktree manager: failed to get working directory", "error", err)
+		} else {
+			worktreeDir := filepath.Join(os.TempDir(), "cairn-worktrees")
+			worktreeMgr = task.NewWorktreeManager(repoDir, worktreeDir)
+			logger.Info("worktree manager initialized", "repoDir", repoDir, "worktreeDir", worktreeDir)
+		}
 	}
 
 	// Create the ReAct agent.

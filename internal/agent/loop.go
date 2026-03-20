@@ -83,9 +83,9 @@ type LoopConfig struct {
 	ReflectionInterval time.Duration // Default: 30min
 	Model              string
 	IdleEnabled        bool
-	TalkMaxRounds      int      // Default: 10
-	WorkMaxRounds      int      // Default: 20
-	CodingMaxRounds    int      // Default: 100
+	TalkMaxRounds      int      // Default: 20
+	WorkMaxRounds      int      // Default: 40
+	CodingMaxRounds    int      // Default: 200
 	CodingEnabled      bool     // Whether coding tasks can be submitted from idle loop
 	CodingAllowedRepos []string // Repo paths where coding is allowed (empty = cwd only)
 	BriefingModel      string   // Cheap model for context summarization (default: fallback model)
@@ -97,19 +97,19 @@ func (c LoopConfig) maxRoundsForMode(mode tool.Mode) int {
 		if c.TalkMaxRounds > 0 {
 			return c.TalkMaxRounds
 		}
-		return 10
+		return 20
 	case tool.ModeWork:
 		if c.WorkMaxRounds > 0 {
 			return c.WorkMaxRounds
 		}
-		return 20
+		return 40
 	case tool.ModeCoding:
 		if c.CodingMaxRounds > 0 {
 			return c.CodingMaxRounds
 		}
-		return 100
+		return 200
 	default:
-		return 10
+		return 20
 	}
 }
 

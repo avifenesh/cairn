@@ -93,9 +93,9 @@ type Config struct {
 	ReflectionInterval int // Seconds (default: 1800)
 
 	// Tool round limits per mode
-	TalkMaxRounds   int // TALK_MAX_ROUNDS (default: 10)
-	WorkMaxRounds   int // WORK_MAX_ROUNDS (default: 20)
-	CodingMaxRounds int // CODING_MAX_ROUNDS (default: 100)
+	TalkMaxRounds   int // TALK_MAX_ROUNDS (default: 20)
+	WorkMaxRounds   int // WORK_MAX_ROUNDS (default: 40)
+	CodingMaxRounds int // CODING_MAX_ROUNDS (default: 200)
 
 	// Coding allowed repos — CSV of absolute repo paths where agent can create worktrees.
 	// Empty = only the default repo (cwd), no restriction. When set, the default repo
@@ -264,9 +264,9 @@ func Load() (*Config, error) {
 		BudgetWeeklyCap:         envFloat("BUDGET_WEEKLY_CAP", envFloat("BEDROCK_WEEKLY_BUDGET_USD", 0)),
 		AgentTickInterval:       envInt("AGENT_TICK_INTERVAL", 60),
 		ReflectionInterval:      envInt("REFLECTION_INTERVAL", 1800),
-		TalkMaxRounds:           envInt("TALK_MAX_ROUNDS", 10),
-		WorkMaxRounds:           envInt("WORK_MAX_ROUNDS", 20),
-		CodingMaxRounds:         envInt("CODING_MAX_ROUNDS", 100),
+		TalkMaxRounds:           envInt("TALK_MAX_ROUNDS", 20),
+		WorkMaxRounds:           envInt("WORK_MAX_ROUNDS", 40),
+		CodingMaxRounds:         envInt("CODING_MAX_ROUNDS", 200),
 		CodingAllowedRepos:      envCSV("CODING_ALLOWED_REPOS"),
 		MemoryAutoExtract:       envBool("MEMORY_AUTO_EXTRACT", true),
 		CompactionTriggerTokens: envInt("COMPACTION_TRIGGER_TOKENS", 150000),

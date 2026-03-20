@@ -467,13 +467,14 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 
 // workDir returns the working directory for tool execution.
 func workDir(ctx *InvocationContext) string {
-	// Check session state for worktree path.
+	// Check session state for worktree path (set by coding tasks).
 	if ctx.Session != nil && ctx.Session.State != nil {
 		if wd, ok := ctx.Session.State["workDir"].(string); ok && wd != "" {
 			return wd
 		}
 	}
-	// Default to current directory.
+	// Default to current directory (process cwd, typically the repo root).
+	// Shell tool handles its own $HOME fallback for cross-repo access.
 	return "."
 }
 

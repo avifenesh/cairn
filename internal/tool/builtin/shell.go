@@ -6,7 +6,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -46,16 +50,26 @@ var shell = tool.Define("cairn.shell",
 		}
 
 		// Determine working directory.
-		if ctx.WorkDir == "" {
-			return &tool.ToolResult{Error: "work directory not set - cannot execute shell commands without a working directory"}, nil
-		}
+		// Shell commands can cd anywhere, so workDir is just the initial cwd.
+		// File tools (read/write/edit) use safePath for path containment.
 		workDir := ctx.WorkDir
 		if p.WorkDir != "" {
-			resolved, err := safePath(ctx.WorkDir, p.WorkDir)
-			if err != nil {
-				return nil, err
+			if filepath.IsAbs(p.WorkDir) {
+				workDir = filepath.Clean(p.WorkDir)
+			} else if workDir != "" {
+				workDir = filepath.Clean(filepath.Join(workDir, p.WorkDir))
+			} else {
+				workDir = filepath.Clean(p.WorkDir)
 			}
-			workDir = resolved
+		}
+		// Fall back to $HOME when no workDir is set at all, so the agent
+		// can work across repos. "." (process cwd) is kept as-is.
+		if workDir == "" {
+			if home, err := os.UserHomeDir(); err == nil && home != "" {
+				workDir = home
+			} else {
+				workDir = "."
+			}
 		}
 
 		// Detect shell and build command.
@@ -137,10 +151,43 @@ var shell = tool.Define("cairn.shell",
 		}
 
 		if err != nil {
-			if execCtx.Err() == context.DeadlineExceeded {
+			// SIGPIPE (exit 141) is normal for pipe patterns like `cmd | head`.
+			// Only treat as success when the command contains a pipe operator.
+			if exitCode == 141 && stdout.Len() > 0 && detectPipeOrRedirect(p.Command) == "|" {
+				meta["sigpipe"] = true
+			} else if execCtx.Err() == context.DeadlineExceeded {
 				result.Error = fmt.Sprintf("command timed out after %ds", timeout)
 			} else {
-				result.Error = fmt.Sprintf("command failed (exit %d): %v", exitCode, err)
+				// Include stderr (or err.Error() for exec failures) so the agent can diagnose.
+				errMsg := fmt.Sprintf("exit %d", exitCode)
+				if se := strings.TrimSpace(stderr.String()); se != "" {
+					if len(se) > 500 {
+						se = se[:500] + "..."
+					}
+					errMsg += ": " + se
+				} else if exitCode < 0 {
+					// Process didn't start — include the Go error for context.
+					errMsg += ": " + err.Error()
+				}
+				result.Error = errMsg
+			}
+			if result.Error != "" {
+				// Log the executable name only — strip inline env assignments
+				// (KEY=value) and arguments to avoid leaking secrets.
+				cmdLog := p.Command
+				if fields := strings.Fields(cmdLog); len(fields) > 0 {
+					// Skip leading KEY=value assignments.
+					idx := 0
+					for idx < len(fields) && strings.Contains(fields[idx], "=") {
+						idx++
+					}
+					if idx < len(fields) {
+						cmdLog = fields[idx]
+					} else {
+						cmdLog = "(env-only command)"
+					}
+				}
+				slog.Warn("shell command failed", "exit", exitCode, "cmd", cmdLog, "workDir", workDir)
 			}
 		}
 

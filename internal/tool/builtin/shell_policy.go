@@ -63,10 +63,20 @@ var envPrefixAllowlist = []string{
 	"CAIRN_",
 	"CARGO_",
 	"RUSTUP_",
+	"PNPM_",
+}
+
+// ghEnvAllowlist allows specific GH_/GITHUB_ vars needed by tools.
+// GH_TOKEN is a credential — intentionally passed so `gh` CLI works.
+// Only vars listed here pass through; broad GITHUB_* prefix is NOT allowed.
+var ghEnvAllowlist = map[string]bool{
+	"GH_TOKEN":       true, // gh CLI authentication
+	"GH_ORGS":        true, // org filter (non-secret)
+	"GITHUB_ACTIONS": true, // CI detection flag
 }
 
 // filteredEnv returns os.Environ() filtered to safe variables only.
-// API keys, tokens, and secrets are excluded.
+// Secrets are excluded except specific tokens needed by tools (e.g. GH_TOKEN for gh CLI).
 func filteredEnv() []string {
 	var result []string
 	for _, kv := range os.Environ() {
@@ -74,7 +84,7 @@ func filteredEnv() []string {
 		if !ok {
 			continue
 		}
-		if envAllowlist[key] {
+		if envAllowlist[key] || ghEnvAllowlist[key] {
 			result = append(result, kv)
 			continue
 		}

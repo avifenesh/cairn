@@ -247,7 +247,9 @@ func (l *Loop) reasonAboutAction(ctx context.Context, obs *Observations) *IdleDe
 	var recentActions []ActivityEntry
 	if l.activityStore != nil {
 		actions, err := l.activityStore.RecentIdleActions(ctx, 5, 2*time.Hour)
-		if err == nil {
+		if err != nil {
+			l.logger.Warn("idle: failed to fetch recent actions", "error", err)
+		} else {
 			recentActions = actions
 		}
 	}
@@ -322,15 +324,21 @@ func parseIdleDecision(raw string) *IdleDecision {
 func (l *Loop) executeIdleDecision(ctx context.Context, d *IdleDecision) {
 	switch d.Action {
 	case "notify":
-		if d.Message != "" && l.bus != nil {
-			// Publish notification event — channel handler or SSE will pick it up.
-			eventbus.Publish(l.bus, AgentNotification{
-				EventMeta: eventbus.NewMeta("agent"),
-				Message:   d.Message,
-				Priority:  d.Priority,
-				Reason:    d.Reason,
-			})
-			l.logger.Info("idle: notification sent", "message", d.Message[:min(len(d.Message), 80)])
+		if d.Message != "" {
+			if l.notifier != nil {
+				// Route through NotifyService — dispatches to Telegram/Discord/Slack/digest.
+				l.notifier.Notify(ctx, d.Message, d.Priority)
+				l.logger.Info("idle: notification dispatched", "priority", d.Priority, "message", d.Message[:min(len(d.Message), 80)])
+			} else {
+				// Fallback: publish to event bus (SSE only).
+				eventbus.Publish(l.bus, AgentNotification{
+					EventMeta: eventbus.NewMeta("agent"),
+					Message:   d.Message,
+					Priority:  d.Priority,
+					Reason:    d.Reason,
+				})
+				l.logger.Info("idle: notification published to bus (no channel notifier)", "message", d.Message[:min(len(d.Message), 80)])
+			}
 		}
 
 	case "task":

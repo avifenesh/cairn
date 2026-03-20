@@ -132,6 +132,9 @@ func (s *ActivityStore) RecentIdleActions(ctx context.Context, n int, since time
 			return nil, err
 		}
 		json.Unmarshal([]byte(errStr), &e.Errors)
+		if e.Errors == nil {
+			e.Errors = []string{}
+		}
 		entries = append(entries, e)
 	}
 	return entries, rows.Err()

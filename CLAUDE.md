@@ -124,7 +124,7 @@ Cloudflare (DNS + proxy) → Caddy (:443, TLS) → Cairn (:8788)
 
 **Build & deploy:**
 ```bash
-./scripts/cairn-server.sh build     # Compiles frontend + Go binary
+./scripts/cairn-server.sh build     # Compiles frontend + Go binary (ONLY from main branch)
 sudo systemctl restart cairn        # Deploy (picks up new binary)
 ```
 
@@ -135,6 +135,24 @@ The `cairn-server.sh` script's start/stop/restart delegate to systemd.
 
 **Auth:** WebAuthn biometric (fingerprint/face) + WRITE_API_TOKEN fallback.
 Registration at Settings > Security. Sessions via `cairn_session` HttpOnly cookie.
+
+### Build Safety Rules (CRITICAL — read before building)
+
+Multiple agents work on this repo via git worktrees. The production binary is shared.
+Unsafe builds caused data loss (split databases, lost settings, broken auth).
+
+1. **`cairn-server.sh build` ONLY from main branch.** The script enforces this — it refuses
+   to build from feature branches. This prevents incomplete feature code from overwriting prod.
+2. **Frontend-only agents use `cairn-server.sh build-fe`** — builds SvelteKit only, never
+   touches the Go binary. Safe from any branch.
+3. **Never start cairn outside systemd.** No `nohup`, no `&`, no manual `./cairn-prod serve`.
+   The script enforces this — start/stop/restart all delegate to `sudo systemctl`.
+4. **All paths are absolute** in `.env.cairn`. Never use relative paths — different worktrees
+   resolve `./data` to different directories, causing split databases.
+5. **One database**: `/home/ubuntu/cairn-frontend/cairn-data/cairn.db` — all worktrees,
+   all agents, all processes must use this same file. Config overrides saved to
+   `/home/ubuntu/cairn-frontend/cairn-data/config.json`.
+6. **Build lock**: `/tmp/cairn-build.lock` prevents concurrent builds.
 
 ## Commands
 

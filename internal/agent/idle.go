@@ -311,6 +311,9 @@ func parseIdleDecision(raw string) *IdleDecision {
 
 // executeIdleDecision acts on the agent's idle decision.
 func (l *Loop) executeIdleDecision(ctx context.Context, d *IdleDecision) {
+	// Store for activity recording (tick() picks this up).
+	l.lastIdleDecision = d
+
 	switch d.Action {
 	case "notify":
 		if d.Message != "" && l.bus != nil {

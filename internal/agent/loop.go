@@ -61,6 +61,9 @@ type Loop struct {
 	// Cached idle briefing — rebuilt by cheap model periodically.
 	idleBriefing    string
 	briefingBuiltAt time.Time
+
+	// Last idle decision — recorded in activity store for UI visibility.
+	lastIdleDecision *IdleDecision
 }
 
 // LoopConfig configures the always-on agent loop.
@@ -261,16 +264,28 @@ func (l *Loop) tick(ctx context.Context) {
 	if l.activityStore != nil {
 		actType := "idle"
 		summary := "Idle tick — no pending work"
+		details := ""
 		if executed {
 			actType = "task"
 			summary = "Executed pending task"
 		} else if cronSubmitted {
 			actType = "cron"
 			summary = "Submitted cron job(s)"
+		} else if l.lastIdleDecision != nil {
+			d := l.lastIdleDecision
+			actType = "idle:" + d.Action
+			summary = d.Reason
+			if d.Action == "notify" && d.Message != "" {
+				details = "Notification: " + d.Message
+			} else if d.Action == "task" {
+				details = "Submitted idle task: " + d.Reason
+			}
+			l.lastIdleDecision = nil // consumed
 		}
 		entry := ActivityEntry{
 			Type:       actType,
 			Summary:    summary,
+			Details:    details,
 			DurationMs: dur,
 		}
 		if err := l.activityStore.Record(ctx, entry); err != nil {

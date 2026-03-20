@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -167,10 +168,9 @@ func (w *WebAuthn) FinishLogin(body []byte) ([]byte, error) {
 		return nil, fmt.Errorf("validate login: %w", err)
 	}
 
-	// Update sign count.
+	// Update sign count — non-fatal, but log for debugging.
 	if err := w.store.UpdateSignCount(cred.ID, cred.Authenticator.SignCount); err != nil {
-		// Non-fatal — log but don't fail the login.
-		_ = err
+		slog.Warn("failed to update sign count", "error", err)
 	}
 
 	return cred.ID, nil

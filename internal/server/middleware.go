@@ -43,8 +43,9 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Auth login endpoints are open (they're how users authenticate).
-		if strings.HasPrefix(path, "/v1/auth/login/") || path == "/v1/auth/session" {
+		// Auth login/session/logout endpoints are open (login is how users authenticate,
+		// logout must work even with expired cookies and no token).
+		if strings.HasPrefix(path, "/v1/auth/login/") || path == "/v1/auth/session" || path == "/v1/auth/logout" {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -108,10 +109,19 @@ func isWriteRequest(r *http.Request) bool {
 	return false
 }
 
-// requireWrite is a per-handler wrapper that enforces write token. Used when a
-// handler registered on a method-specific pattern still needs an explicit check.
+// requireWrite is a per-handler wrapper that enforces write-level auth.
+// Accepts either the WRITE_API_TOKEN or a valid cairn_session cookie.
 func (s *Server) requireWrite(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Valid session cookie = full access (biometric proved identity).
+		if s.authStore != nil {
+			if c, err := r.Cookie("cairn_session"); err == nil && c.Value != "" {
+				if _, err := s.authStore.ValidateSession(c.Value); err == nil {
+					next(w, r)
+					return
+				}
+			}
+		}
 		if s.config.WriteAPIToken == "" {
 			writeError(w, http.StatusServiceUnavailable, "write token not configured")
 			return

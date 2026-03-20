@@ -4,9 +4,11 @@ package auth
 import (
 	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
@@ -24,6 +26,20 @@ type Store struct {
 // NewStore creates a new auth Store backed by the given database.
 func NewStore(db *sql.DB) *Store {
 	return &Store{db: db}
+}
+
+// credIDToString encodes a raw WebAuthn credential ID as base64url for safe TEXT storage.
+func credIDToString(id []byte) string {
+	return base64.RawURLEncoding.EncodeToString(id)
+}
+
+// credIDFromString decodes a base64url-encoded credential ID back to raw bytes.
+func credIDFromString(s string) []byte {
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return []byte(s) // fallback for pre-encoded IDs
+	}
+	return b
 }
 
 // Credential is a stored WebAuthn credential row.
@@ -44,7 +60,7 @@ type Credential struct {
 // ToWebAuthn converts a stored credential to go-webauthn's Credential type.
 func (c *Credential) ToWebAuthn() webauthn.Credential {
 	cred := webauthn.Credential{
-		ID:        []byte(c.ID),
+		ID:        credIDFromString(c.ID),
 		PublicKey: c.PublicKey,
 		Flags:     webauthn.NewCredentialFlags(protocol.AuthenticatorFlags(c.Flags)),
 		Authenticator: webauthn.Authenticator{
@@ -62,17 +78,20 @@ func (c *Credential) ToWebAuthn() webauthn.Credential {
 
 // SaveCredential inserts a new credential from a WebAuthn registration result.
 func (s *Store) SaveCredential(cred *webauthn.Credential, name string) error {
-	transports, _ := json.Marshal(cred.Transport)
-	_, err := s.db.Exec(`
+	transportsJSON, err := json.Marshal(cred.Transport)
+	if err != nil {
+		return fmt.Errorf("marshal transports: %w", err)
+	}
+	_, err = s.db.Exec(`
 		INSERT INTO webauthn_credentials (id, public_key, aaguid, sign_count, name, flags, transports, attestation_object, attestation_client_data)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		string(cred.ID),
+		credIDToString(cred.ID),
 		cred.PublicKey,
 		"",
 		cred.Authenticator.SignCount,
 		name,
 		cred.Flags.ProtocolValue(),
-		string(transports),
+		string(transportsJSON),
 		cred.Attestation.Object,
 		cred.Attestation.ClientDataJSON,
 	)
@@ -97,13 +116,18 @@ func (s *Store) ListCredentials() ([]Credential, error) {
 		if err := rows.Scan(&c.ID, &c.PublicKey, &c.AAGUID, &c.SignCount, &c.Name, &c.Flags, &transportsJSON, &attObj, &attClient, &createdStr, &lastUsedStr); err != nil {
 			return nil, err
 		}
-		_ = json.Unmarshal([]byte(transportsJSON), &c.Transports)
+		if err := json.Unmarshal([]byte(transportsJSON), &c.Transports); err != nil {
+			slog.Warn("failed to parse credential transports", "id", c.ID, "error", err)
+		}
 		c.AttObject = attObj
 		c.AttClient = attClient
-		c.CreatedAt, _ = time.Parse(time.DateTime, createdStr)
+		if t, err := time.Parse(time.DateTime, createdStr); err == nil {
+			c.CreatedAt = t
+		}
 		if lastUsedStr.Valid {
-			t, _ := time.Parse(time.DateTime, lastUsedStr.String)
-			c.LastUsedAt = &t
+			if t, err := time.Parse(time.DateTime, lastUsedStr.String); err == nil {
+				c.LastUsedAt = &t
+			}
 		}
 		creds = append(creds, c)
 	}
@@ -126,7 +150,7 @@ func (s *Store) GetWebAuthnCredentials() ([]webauthn.Credential, error) {
 // UpdateSignCount updates the sign count after a successful login.
 func (s *Store) UpdateSignCount(credID []byte, newCount uint32) error {
 	_, err := s.db.Exec(`UPDATE webauthn_credentials SET sign_count = ?, last_used_at = datetime('now') WHERE id = ?`,
-		newCount, string(credID))
+		newCount, credIDToString(credID))
 	return err
 }
 
@@ -188,11 +212,14 @@ func (s *Store) ValidateSession(token string) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	sess.CreatedAt, _ = time.Parse(time.DateTime, createdStr)
-	sess.ExpiresAt, _ = time.Parse(time.DateTime, expiresStr)
+	if t, err := time.Parse(time.DateTime, createdStr); err == nil {
+		sess.CreatedAt = t
+	}
+	if t, err := time.Parse(time.DateTime, expiresStr); err == nil {
+		sess.ExpiresAt = t
+	}
 
 	if time.Now().After(sess.ExpiresAt) {
-		// Expired — clean it up.
 		s.db.Exec(`DELETE FROM webauthn_sessions WHERE id = ?`, token)
 		return nil, sql.ErrNoRows
 	}

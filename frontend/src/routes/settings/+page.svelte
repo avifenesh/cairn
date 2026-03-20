@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { appStore, type Theme, type Density, type Mood } from '$lib/stores/app.svelte';
 	import { getCosts, getStatusDetails, getEditableConfig, patchConfig, type EditableConfig, authRegisterStart, authRegisterComplete, listAuthCredentials, deleteAuthCredential, authLogout, type AuthCredential } from '$lib/api/client';
+	import { base64urlToBuffer, bufferToBase64url } from '$lib/utils/webauthn';
 	import type { McpStatus, ChannelStatus } from '$lib/types';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -163,22 +164,6 @@
 
 	function toggleAutoMood() {
 		appStore.setAutoMood(!appStore.autoMoodEnabled);
-	}
-
-	function base64urlToBuffer(b64: string): ArrayBuffer {
-		const base64 = b64.replace(/-/g, '+').replace(/_/g, '/');
-		const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-		const binary = atob(base64 + padding);
-		const bytes = new Uint8Array(binary.length);
-		for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-		return bytes.buffer;
-	}
-
-	function bufferToBase64url(buffer: ArrayBuffer): string {
-		const bytes = new Uint8Array(buffer);
-		let binary = '';
-		for (const b of bytes) binary += String.fromCharCode(b);
-		return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 	}
 
 	async function registerCredential() {

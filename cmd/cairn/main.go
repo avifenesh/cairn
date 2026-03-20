@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -503,12 +504,12 @@ func runServe(logger *slog.Logger) {
 	authStore := auth.NewStore(database.DB)
 	var webauthnHandler *auth.WebAuthn
 	if cfg.FrontendOrigin != "" {
-		// Derive RPID from origin: "https://agntic.garden" -> "agntic.garden"
-		rpID := cfg.FrontendOrigin
-		rpID = strings.TrimPrefix(rpID, "https://")
-		rpID = strings.TrimPrefix(rpID, "http://")
-		if idx := strings.IndexByte(rpID, ':'); idx > 0 {
-			rpID = rpID[:idx]
+		// Derive RPID (hostname) from FRONTEND_ORIGIN URL.
+		var rpID string
+		if u, err := url.Parse(cfg.FrontendOrigin); err == nil && u.Hostname() != "" {
+			rpID = u.Hostname()
+		} else {
+			rpID = cfg.FrontendOrigin
 		}
 		var err error
 		webauthnHandler, err = auth.NewWebAuthn("Cairn", rpID, cfg.FrontendOrigin, authStore)

@@ -386,8 +386,9 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			}
 
 			// Record tool call stats for the activity dashboard.
+			// Use background context so stats are recorded even if the agent context was canceled.
 			if invCtx.ActivityStore != nil {
-				if recordErr := invCtx.ActivityStore.RecordToolCall(invCtx.Context, tc.Name, duration.Milliseconds(), errStr); recordErr != nil {
+				if recordErr := invCtx.ActivityStore.RecordToolCall(context.Background(), tc.Name, duration.Milliseconds(), errStr); recordErr != nil {
 					a.logger.Warn("failed to record tool call", "tool", tc.Name, "error", recordErr)
 				}
 			}

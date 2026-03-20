@@ -273,12 +273,14 @@ func (l *Loop) tick(ctx context.Context) {
 			summary = "Submitted cron job(s)"
 		} else if l.lastIdleDecision != nil {
 			d := l.lastIdleDecision
-			actType = "idle:" + d.Action
+			actType = "idle"
 			summary = d.Reason
+			if summary == "" {
+				summary = "Idle tick — " + d.Action
+			}
+			details = "Action: " + d.Action
 			if d.Action == "notify" && d.Message != "" {
-				details = "Notification: " + d.Message
-			} else if d.Action == "task" {
-				details = "Submitted idle task: " + d.Reason
+				details += "\nMessage: " + d.Message
 			}
 			l.lastIdleDecision = nil // consumed
 		}

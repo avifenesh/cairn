@@ -1,0 +1,85 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Only one deploy at a time.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: self-hosted
+    timeout-minutes: 10
+    env:
+      PROD_BIN: /home/ubuntu/cairn-frontend/cairn-prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          pnpm install --frozen-lockfile || pnpm install
+          pnpm build
+          cd ..
+
+      - name: Build binary with embedded frontend
+        run: |
+          go build -tags embed_frontend -o "${PROD_BIN}.new" ./cmd/cairn
+          echo "Binary built successfully"
+
+      - name: Backup and deploy
+        run: |
+          exec 9>/tmp/cairn-build.lock
+          flock -w 30 9 || { echo "Build lock held by another process"; exit 1; }
+          if [ -f "$PROD_BIN" ]; then
+            cp "$PROD_BIN" "${PROD_BIN}.rollback"
+          fi
+          mv "${PROD_BIN}.new" "$PROD_BIN"
+          chmod +x "$PROD_BIN"
+          exec 9>&-
+
+      - name: Restart service
+        run: |
+          sudo systemctl restart cairn
+          sleep 3
+
+      - name: Health check
+        run: |
+          for i in 1 2 3 4 5; do
+            if curl -sf http://localhost:8788/health > /dev/null 2>&1; then
+              echo "Health check passed on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed, waiting..."
+            sleep 2
+          done
+          echo "Health check failed after 5 attempts"
+          exit 1
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          if [ -f "${PROD_BIN}.rollback" ]; then
+            echo "Rolling back to previous binary..."
+            mv "${PROD_BIN}.rollback" "$PROD_BIN"
+            sudo systemctl restart cairn
+            sleep 3
+            if curl -sf http://localhost:8788/health > /dev/null 2>&1; then
+              echo "Rollback successful"
+            else
+              echo "WARNING: Rollback binary also unhealthy"
+            fi
+          else
+            echo "No rollback binary available"
+          fi
+
+      - name: Clean up
+        if: success()
+        run: rm -f "${PROD_BIN}.rollback"

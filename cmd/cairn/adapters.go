@@ -541,3 +541,274 @@ func (a *configAdapter) GetConfig(_ context.Context) (map[string]any, error) {
 	}
 	return result, nil
 }
+
+// --- Channel auth ---
+
+// isOwnerMessage checks if a channel message comes from the configured owner.
+func isOwnerMessage(msg *cairnchannel.IncomingMessage, cfg *config.Config) bool {
+	switch msg.ChannelID {
+	case "telegram":
+		return msg.ChatID == fmt.Sprintf("%d", cfg.TelegramChatID)
+	case "discord":
+		return msg.ChatID == cfg.DiscordChannelID
+	case "slack":
+		return msg.ChatID == cfg.SlackChannelID
+	}
+	return false
+}
+
+// --- Channel command handlers ---
+
+// handleMemoriesCommand handles /memories subcommands from channels.
+//
+//	/memories              — list accepted memories (last 20)
+//	/memories proposed     — list proposed memories
+//	/memories search <q>   — search memories
+//	/memories accept <id>  — accept a proposed memory
+//	/memories reject <id>  — reject a proposed memory
+//	/memories delete <id>  — delete a memory
+//	/memories compact      — run compaction (decay old, reject stale)
+//	/memories dedup        — find and remove duplicate memories
+func handleMemoriesCommand(ctx context.Context, args string, svc *memory.Service) (*cairnchannel.OutgoingMessage, error) {
+	parts := strings.Fields(args)
+	sub := ""
+	if len(parts) > 0 {
+		sub = strings.ToLower(parts[0])
+	}
+
+	switch sub {
+	case "", "list":
+		status := memory.StatusAccepted
+		if len(parts) > 1 && strings.ToLower(parts[1]) == "proposed" {
+			status = memory.StatusProposed
+		}
+		mems, err := svc.List(ctx, memory.ListOpts{Status: status, Limit: 20})
+		if err != nil {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error: %s", err)}, nil
+		}
+		if len(mems) == 0 {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("No %s memories.", status)}, nil
+		}
+		var b strings.Builder
+		fmt.Fprintf(&b, "**%s memories** (%d):\n\n", status, len(mems))
+		for _, m := range mems {
+			snippet := m.Content
+			if len(snippet) > 80 {
+				snippet = snippet[:77] + "..."
+			}
+			fmt.Fprintf(&b, "`%s` [%s] %s\n", m.ID[:8], m.Category, snippet)
+		}
+		return &cairnchannel.OutgoingMessage{Text: b.String()}, nil
+
+	case "proposed":
+		mems, err := svc.List(ctx, memory.ListOpts{Status: memory.StatusProposed, Limit: 20})
+		if err != nil {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error: %s", err)}, nil
+		}
+		if len(mems) == 0 {
+			return &cairnchannel.OutgoingMessage{Text: "No proposed memories."}, nil
+		}
+		var b strings.Builder
+		fmt.Fprintf(&b, "**Proposed memories** (%d):\n\n", len(mems))
+		for _, m := range mems {
+			snippet := m.Content
+			if len(snippet) > 80 {
+				snippet = snippet[:77] + "..."
+			}
+			fmt.Fprintf(&b, "`%s` [%s] %.0f%% — %s\n", m.ID[:8], m.Category, m.Confidence*100, snippet)
+		}
+		b.WriteString("\nUse `/memories accept <id>` or `/memories reject <id>`")
+		return &cairnchannel.OutgoingMessage{Text: b.String()}, nil
+
+	case "search":
+		if len(parts) < 2 {
+			return &cairnchannel.OutgoingMessage{Text: "Usage: `/memories search <query>`"}, nil
+		}
+		query := strings.Join(parts[1:], " ")
+		results, err := svc.Search(ctx, query, 10)
+		if err != nil {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error: %s", err)}, nil
+		}
+		if len(results) == 0 {
+			return &cairnchannel.OutgoingMessage{Text: "No matching memories."}, nil
+		}
+		var b strings.Builder
+		fmt.Fprintf(&b, "**Search: %s** (%d results):\n\n", query, len(results))
+		for _, r := range results {
+			snippet := r.Memory.Content
+			if len(snippet) > 80 {
+				snippet = snippet[:77] + "..."
+			}
+			fmt.Fprintf(&b, "`%s` [%.0f%%] %s\n", r.Memory.ID[:8], r.Score*100, snippet)
+		}
+		return &cairnchannel.OutgoingMessage{Text: b.String()}, nil
+
+	case "accept":
+		if len(parts) < 2 {
+			return &cairnchannel.OutgoingMessage{Text: "Usage: `/memories accept <id>`"}, nil
+		}
+		id, err := resolveMemoryID(ctx, svc, parts[1])
+		if err != nil {
+			return &cairnchannel.OutgoingMessage{Text: err.Error()}, nil
+		}
+		if err := svc.Accept(ctx, id); err != nil {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error: %s", err)}, nil
+		}
+		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Memory `%s` accepted.", parts[1])}, nil
+
+	case "reject":
+		if len(parts) < 2 {
+			return &cairnchannel.OutgoingMessage{Text: "Usage: `/memories reject <id>`"}, nil
+		}
+		id, err := resolveMemoryID(ctx, svc, parts[1])
+		if err != nil {
+			return &cairnchannel.OutgoingMessage{Text: err.Error()}, nil
+		}
+		if err := svc.Reject(ctx, id); err != nil {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error: %s", err)}, nil
+		}
+		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Memory `%s` rejected.", parts[1])}, nil
+
+	case "delete":
+		if len(parts) < 2 {
+			return &cairnchannel.OutgoingMessage{Text: "Usage: `/memories delete <id>`"}, nil
+		}
+		id, err := resolveMemoryID(ctx, svc, parts[1])
+		if err != nil {
+			return &cairnchannel.OutgoingMessage{Text: err.Error()}, nil
+		}
+		if err := svc.Delete(ctx, id); err != nil {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error: %s", err)}, nil
+		}
+		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Memory `%s` deleted.", parts[1])}, nil
+
+	case "compact":
+		if err := svc.Compact(ctx); err != nil {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Compaction error: %s", err)}, nil
+		}
+		return &cairnchannel.OutgoingMessage{Text: "Memory compaction complete."}, nil
+
+	case "dedup":
+		count, err := deduplicateMemories(ctx, svc)
+		if err != nil {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Dedup error: %s", err)}, nil
+		}
+		if count == 0 {
+			return &cairnchannel.OutgoingMessage{Text: "No duplicates found."}, nil
+		}
+		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Removed %d duplicate memories.", count)}, nil
+
+	default:
+		return &cairnchannel.OutgoingMessage{Text: "Usage:\n`/memories` — list accepted\n`/memories proposed` — list proposed\n`/memories search <query>`\n`/memories accept <id>`\n`/memories reject <id>`\n`/memories delete <id>`\n`/memories compact`\n`/memories dedup`"}, nil
+	}
+}
+
+// resolveMemoryID resolves a short prefix to a full memory ID.
+func resolveMemoryID(ctx context.Context, svc *memory.Service, prefix string) (string, error) {
+	// Try exact match first.
+	if m, err := svc.Get(ctx, prefix); err == nil && m != nil {
+		return m.ID, nil
+	}
+	// Search by prefix across all statuses (scan up to 500 per status).
+	var allMatches []string
+	for _, status := range []memory.Status{memory.StatusAccepted, memory.StatusProposed, memory.StatusRejected} {
+		mems, err := svc.List(ctx, memory.ListOpts{Status: status, Limit: 500})
+		if err != nil {
+			continue
+		}
+		for _, m := range mems {
+			if strings.HasPrefix(m.ID, prefix) {
+				allMatches = append(allMatches, m.ID)
+			}
+		}
+	}
+	switch len(allMatches) {
+	case 0:
+		return "", fmt.Errorf("no memory found with ID or prefix `%s`", prefix)
+	case 1:
+		return allMatches[0], nil
+	default:
+		return "", fmt.Errorf("ambiguous prefix `%s` — matches %d memories", prefix, len(allMatches))
+	}
+}
+
+// deduplicateMemories finds accepted memories with identical content and removes duplicates,
+// keeping the older one (by CreatedAt).
+func deduplicateMemories(ctx context.Context, svc *memory.Service) (int, error) {
+	mems, err := svc.List(ctx, memory.ListOpts{Status: memory.StatusAccepted, Limit: 500})
+	if err != nil {
+		return 0, err
+	}
+
+	seen := make(map[string]*memory.Memory) // content+category+scope → kept memory
+	removed := 0
+	for _, m := range mems {
+		key := fmt.Sprintf("%s:%s:%s", m.Category, m.Scope, strings.TrimSpace(strings.ToLower(m.Content)))
+		if kept, exists := seen[key]; exists {
+			// Duplicate found — delete the newer one, keep the older.
+			if m.CreatedAt.Before(kept.CreatedAt) {
+				// Current is older: delete the previously kept (newer) one.
+				if err := svc.Delete(ctx, kept.ID); err == nil {
+					removed++
+					seen[key] = m
+				}
+			} else {
+				// Current is newer: delete it.
+				if err := svc.Delete(ctx, m.ID); err == nil {
+					removed++
+				}
+			}
+		} else {
+			seen[key] = m
+		}
+	}
+	return removed, nil
+}
+
+// handlePatchCommand handles /patch subcommands for SOUL.md patches.
+//
+//	/patch           — show pending patch
+//	/patch approve   — approve pending patch
+//	/patch deny      — deny pending patch
+func handlePatchCommand(_ context.Context, args string, soul *memory.Soul) (*cairnchannel.OutgoingMessage, error) {
+	sub := strings.TrimSpace(strings.ToLower(args))
+
+	switch sub {
+	case "", "show":
+		p := soul.PendingPatch()
+		if p == nil {
+			return &cairnchannel.OutgoingMessage{Text: "No pending SOUL patch."}, nil
+		}
+		// Show the patch content (what will be added).
+		patch := p.Content
+		if len(patch) > 400 {
+			patch = patch[:397] + "..."
+		}
+		text := fmt.Sprintf("**Pending SOUL patch** (`%s`)\nSource: %s\nCreated: %s\n\n**Patch:**\n```\n%s\n```\n\nUse `/patch approve` or `/patch deny`",
+			p.ID[:8], p.Source, p.CreatedAt.Format("2006-01-02 15:04"), patch)
+		return &cairnchannel.OutgoingMessage{Text: text}, nil
+
+	case "approve":
+		p := soul.PendingPatch()
+		if p == nil {
+			return &cairnchannel.OutgoingMessage{Text: "No pending SOUL patch to approve."}, nil
+		}
+		if err := soul.ApprovePatch(p.ID); err != nil {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error: %s", err)}, nil
+		}
+		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("SOUL patch `%s` approved and applied.", p.ID[:8])}, nil
+
+	case "deny", "reject":
+		p := soul.PendingPatch()
+		if p == nil {
+			return &cairnchannel.OutgoingMessage{Text: "No pending SOUL patch to deny."}, nil
+		}
+		if err := soul.DenyPatch(p.ID); err != nil {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error: %s", err)}, nil
+		}
+		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("SOUL patch `%s` denied.", p.ID[:8])}, nil
+
+	default:
+		return &cairnchannel.OutgoingMessage{Text: "Usage:\n`/patch` — show pending\n`/patch approve` — approve\n`/patch deny` — deny"}, nil
+	}
+}

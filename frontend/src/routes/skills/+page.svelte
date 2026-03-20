@@ -7,7 +7,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Separator } from '$lib/components/ui/separator';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Sparkles, Search, X, ChevronDown, ChevronUp, FileText, Loader2, Plus, Pencil, Trash2, Save } from '@lucide/svelte';
 
@@ -112,13 +111,19 @@
 		}
 	}
 
-	function startEdit(skill: Skill) {
+	async function startEdit(skill: Skill) {
 		editingSkill = skill.name;
 		editDesc = skill.description;
-		editContent = detailContent ?? '';
 		editInclusion = skill.inclusion;
 		editAllowedTools = skill.allowedTools?.join(', ') ?? '';
 		editError = '';
+		// Fetch fresh content for this specific skill.
+		try {
+			const detail = await getSkillDetail(skill.name);
+			editContent = detail.content ?? '';
+		} catch {
+			editContent = '';
+		}
 	}
 
 	async function saveEdit(name: string) {

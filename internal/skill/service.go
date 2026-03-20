@@ -276,7 +276,8 @@ func (s *Service) Update(name, description, content, inclusion string, allowedTo
 	if inclusion == "" {
 		inclusion = string(sk.Inclusion)
 	}
-	if len(allowedTools) == 0 {
+	// nil = keep existing, non-nil (even empty) = set explicitly.
+	if allowedTools == nil {
 		allowedTools = sk.AllowedTools
 	}
 

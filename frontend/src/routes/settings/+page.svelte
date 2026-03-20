@@ -230,7 +230,7 @@
 	}
 </script>
 
-<div class="mx-auto max-w-2xl p-6">
+<div class="mx-auto max-w-2xl px-4 py-4 sm:p-6">
 	<h1 class="mb-8 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Settings</h1>
 
 	<!-- Appearance -->
@@ -399,7 +399,7 @@
 						<p class="text-[10px] text-[var(--text-tertiary)]">Suppress notifications during these hours (-1 = disabled)</p>
 					</div>
 				</div>
-				<div class="grid grid-cols-3 gap-3">
+				<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
 					<div>
 						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Start (hour)</p>
 						<Input type="number" bind:value={editQuietStart} min={-1} max={23} class="h-7 text-xs font-mono" />
@@ -536,7 +536,7 @@
 
 			<div class="border-t border-border-subtle pt-3 mt-1">
 				<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-2">Budget Caps (USD, 0 = unlimited)</p>
-				<div class="grid grid-cols-2 gap-3">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					<div>
 						<p class="text-[10px] text-[var(--text-tertiary)] mb-1">Daily</p>
 						<Input type="number" bind:value={editBudgetDaily} min={0} step={0.5} class="h-7 text-xs font-mono" />
@@ -613,7 +613,7 @@
 				<span class="ml-auto h-2 w-2 rounded-full {mcpStatus?.enabled ? 'bg-[var(--color-success)]' : 'bg-[var(--text-tertiary)]'}"></span>
 			</div>
 			{#if mcpStatus?.enabled}
-				<div class="grid grid-cols-2 gap-3 pt-3 mt-3 border-t border-border-subtle">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 mt-3 border-t border-border-subtle">
 					<div>
 						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Port</p>
 						<p class="text-xs text-[var(--text-primary)] font-mono">{mcpStatus.port}</p>
@@ -736,7 +736,7 @@
 						<p class="text-[10px] text-[var(--text-tertiary)]">Controls when long conversations are summarized</p>
 					</div>
 				</div>
-				<div class="grid grid-cols-3 gap-3">
+				<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
 					<div>
 						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Trigger (tokens)</p>
 						<Input type="number" bind:value={editTriggerTokens} min={10000} max={200000} step={10000} class="h-7 text-xs font-mono" />
@@ -978,7 +978,7 @@
 					</label>
 				</div>
 				{#if editDevtoEnabled}
-					<div class="grid grid-cols-2 gap-3">
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						<div>
 							<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Tags</p>
 							<Input type="text" bind:value={editDevtoTags} placeholder="go, webdev" class="h-7 text-xs font-mono" />

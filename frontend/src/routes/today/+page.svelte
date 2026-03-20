@@ -228,7 +228,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="mx-auto max-w-5xl p-6 overflow-y-auto h-full"
+	class="mx-auto max-w-5xl px-4 py-4 sm:p-6 overflow-y-auto h-full"
 	ontouchstart={ptr.handleTouchStart}
 	ontouchmove={ptr.handleTouchMove}
 	ontouchend={ptr.handleTouchEnd}

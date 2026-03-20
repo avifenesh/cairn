@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
+	"github.com/avifenesh/cairn/internal/auth"
 	"github.com/avifenesh/cairn/internal/config"
 	"github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/eventbus"
@@ -66,6 +67,10 @@ type Server struct {
 	// Activity store (optional).
 	activityStore *agent.ActivityStore
 
+	// WebAuthn auth (optional).
+	authStore *auth.Store
+	webauthn  *auth.WebAuthn
+
 	// OnConfigPatch is called after PATCH /v1/config is applied.
 	// Allows external subsystems to react to config changes.
 	OnConfigPatch func()
@@ -108,6 +113,10 @@ type ServerConfig struct {
 
 	// Activity store (optional: agent observability).
 	ActivityStore *agent.ActivityStore
+
+	// WebAuthn auth (optional: biometric login).
+	AuthStore *auth.Store
+	WebAuthn  *auth.WebAuthn
 }
 
 // New creates a fully wired Server with all routes and middleware registered.
@@ -148,6 +157,8 @@ func New(cfg ServerConfig) *Server {
 		voice:          cfg.Voice,
 		cronStore:      cfg.CronStore,
 		activityStore:  cfg.ActivityStore,
+		authStore:      cfg.AuthStore,
+		webauthn:       cfg.WebAuthn,
 	}
 
 	// Create SSE broadcaster.

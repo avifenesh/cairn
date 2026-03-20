@@ -264,7 +264,7 @@ func main() {
     agentLoop.Start() // background goroutine: tick → decide → act → learn
 
     // Start server
-    server.Start(":8787")
+    server.Start(":8788")
 }
 ```
 

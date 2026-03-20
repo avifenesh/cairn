@@ -101,6 +101,41 @@ frontend/                     SvelteKit 5 app + embed.FS package for production 
 docs/design/                  Architecture specs (VISION, PHASES, pieces/01-11)
 ```
 
+## Deployment (Production - agntic.garden)
+
+Cairn serves agntic.garden via systemd + Caddy reverse proxy.
+
+```
+Cloudflare (DNS + proxy) → Caddy (:443, TLS) → Cairn (:8788)
+```
+
+**Services:**
+- `cairn.service` — systemd unit, port 8788, env from `/home/ubuntu/cairn-backend/.env.cairn`
+- `caddy.service` — TLS reverse proxy, config at `/etc/caddy/Caddyfile`
+- `pub-backend.service` — DISABLED (replaced by Cairn)
+
+**Key paths:**
+- Binary: `/home/ubuntu/cairn-frontend/cairn-prod`
+- Env: `/home/ubuntu/cairn-backend/.env.cairn`
+- DB: `/home/ubuntu/cairn-frontend/cairn-data/cairn.db`
+- SOUL: `/home/ubuntu/cairn-backend/SOUL.md`
+- Caddyfile: `/etc/caddy/Caddyfile` (proxies all to 8788, CouchDB on /obsidian-vault)
+- Certs: `/etc/caddy/certs/origin-cert.pem` + `origin-key.pem` (Cloudflare Origin CA)
+
+**Build & deploy:**
+```bash
+./scripts/cairn-server.sh build     # Compiles frontend + Go binary
+sudo systemctl restart cairn        # Deploy (picks up new binary)
+```
+
+**DO NOT** start cairn via `nohup` or manual process — always use systemd.
+The `cairn-server.sh` script's start/stop/restart delegate to systemd.
+
+**Logs:** `journalctl -u cairn -f`
+
+**Auth:** WebAuthn biometric (fingerprint/face) + WRITE_API_TOKEN fallback.
+Registration at Settings > Security. Sessions via `cairn_session` HttpOnly cookie.
+
 ## Commands
 
 ```bash
@@ -110,7 +145,7 @@ go test -race ./...             # Tests with race detector
 go build -o cairn ./cmd/cairn                    # Build binary (dev, filesystem frontend)
 go build -tags embed_frontend -o cairn ./cmd/cairn  # Build with embedded frontend (production)
 ./cairn chat "hello"            # CLI chat (ReAct agent)
-./cairn serve                   # HTTP server on :8787
+./cairn serve                   # HTTP server on :8788
 
 # Frontend (from frontend/)
 pnpm dev                        # Dev server
@@ -124,6 +159,10 @@ make lint                       # Formatting + vet
 make build                      # Dev binary
 make build-prod                 # Production binary with embedded frontend
 make dev                        # Run dev server
+
+# Production deploy
+./scripts/cairn-server.sh build     # Build binary
+sudo systemctl restart cairn        # Restart service
 
 # Full validation
 go vet ./... && go test -race ./... && cd frontend && pnpm check && pnpm test
@@ -143,7 +182,7 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 - `LLM_FALLBACK_MODEL` - fallback on persistent failure
 
 **Server:**
-- `PORT` (8787), `HOST` (0.0.0.0)
+- `PORT` (8788), `HOST` (0.0.0.0)
 - `DATABASE_PATH` (./data/cairn.db)
 - `WRITE_API_TOKEN`, `READ_API_TOKEN` - API auth tokens
 - `FRONTEND_ORIGIN` - CORS origin

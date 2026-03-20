@@ -109,6 +109,18 @@ func (s *Server) registerRoutes() {
 		s.mux.HandleFunc("POST /v1/assistant/voice/tts", s.handleVoiceTTS)
 	}
 
+	// Auth (WebAuthn — optional, requires authStore + webauthn).
+	if s.webauthn != nil {
+		s.mux.HandleFunc("POST /v1/auth/register/start", s.requireWrite(s.handleAuthRegisterStart))
+		s.mux.HandleFunc("POST /v1/auth/register/complete", s.requireWrite(s.handleAuthRegisterComplete))
+		s.mux.HandleFunc("POST /v1/auth/login/start", s.handleAuthLoginStart)
+		s.mux.HandleFunc("POST /v1/auth/login/complete", s.handleAuthLoginComplete)
+		s.mux.HandleFunc("POST /v1/auth/logout", s.handleAuthLogout)
+		s.mux.HandleFunc("GET /v1/auth/session", s.handleAuthSession)
+		s.mux.HandleFunc("GET /v1/auth/credentials", s.requireWrite(s.handleListAuthCredentials))
+		s.mux.HandleFunc("DELETE /v1/auth/credentials/{id}", s.requireWrite(s.handleDeleteAuthCredential))
+	}
+
 	// System.
 	s.mux.HandleFunc("GET /v1/status", s.handleStatus)
 	s.mux.HandleFunc("GET /v1/costs", s.handleCosts)

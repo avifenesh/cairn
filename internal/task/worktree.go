@@ -36,6 +36,11 @@ func NewWorktreeManager(repoDir, worktreeDir string) *WorktreeManager {
 	}
 }
 
+// RepoDir returns the repository directory this manager operates on.
+func (m *WorktreeManager) RepoDir() string {
+	return m.repoDir
+}
+
 // Create adds a git worktree for the given task, branching from baseBranch.
 // Returns the worktree path and branch name.
 func (m *WorktreeManager) Create(taskID, baseBranch string) (worktreePath, branchName string, err error) {

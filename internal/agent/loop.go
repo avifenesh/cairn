@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -64,9 +65,10 @@ type LoopConfig struct {
 	ReflectionInterval time.Duration // Default: 30min
 	Model              string
 	IdleEnabled        bool
-	TalkMaxRounds      int // Default: 10
-	WorkMaxRounds      int // Default: 20
-	CodingMaxRounds    int // Default: 100
+	TalkMaxRounds      int      // Default: 10
+	WorkMaxRounds      int      // Default: 20
+	CodingMaxRounds    int      // Default: 100
+	CodingAllowedRepos []string // Repo paths where coding is allowed (empty = cwd only)
 }
 
 func (c LoopConfig) maxRoundsForMode(mode tool.Mode) int {
@@ -306,6 +308,20 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 
 	// Create isolated worktree for coding tasks.
 	if mode == tool.ModeCoding && l.worktreeManager != nil {
+		// If allowlist is configured, verify the repo is permitted.
+		if len(l.config.CodingAllowedRepos) > 0 {
+			targetRepo := l.worktreeManager.RepoDir()
+			if inputRepo := extractRepoFromInput(t.Input); inputRepo != "" {
+				targetRepo = inputRepo
+			}
+			if !l.isRepoAllowed(targetRepo) {
+				l.logger.Error("agent loop: repo not in allowed list, failing task",
+					"repo", targetRepo, "allowed", l.config.CodingAllowedRepos)
+				l.tasks.Fail(ctx, t.ID, fmt.Errorf("repo %q not in CODING_ALLOWED_REPOS", targetRepo))
+				return true
+			}
+		}
+
 		wtPath, _, wtErr := l.worktreeManager.Create(t.ID, "HEAD")
 		if wtErr != nil {
 			l.logger.Error("agent loop: worktree creation failed, failing task", "task", t.ID, "error", wtErr)
@@ -417,6 +433,38 @@ func (l *Loop) runReflection(ctx context.Context) {
 	if err := l.reflector.Apply(ctx, result); err != nil {
 		l.logger.Warn("agent loop: reflection apply failed", "error", err)
 	}
+}
+
+// isRepoAllowed checks if a repo path is in the allowed coding repos list.
+// Returns false if the allowlist is empty (caller should skip the check).
+// Normalizes the input path before comparison to prevent bypasses.
+func (l *Loop) isRepoAllowed(repoPath string) bool {
+	if len(l.config.CodingAllowedRepos) == 0 {
+		return false
+	}
+	// Normalize input path to match config (which was normalized on load).
+	normalized := repoPath
+	if abs, err := filepath.Abs(repoPath); err == nil {
+		normalized = filepath.Clean(abs)
+	}
+	for _, allowed := range l.config.CodingAllowedRepos {
+		if normalized == allowed {
+			return true
+		}
+	}
+	return false
+}
+
+// extractRepoFromInput parses task input JSON for a "repo" field.
+func extractRepoFromInput(input json.RawMessage) string {
+	if len(input) == 0 {
+		return ""
+	}
+	var data map[string]string
+	if err := json.Unmarshal(input, &data); err != nil {
+		return ""
+	}
+	return data["repo"]
 }
 
 // checkDueCrons finds cron jobs that are due and submits them as tasks.

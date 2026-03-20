@@ -97,6 +97,12 @@ type Config struct {
 	WorkMaxRounds   int // WORK_MAX_ROUNDS (default: 20)
 	CodingMaxRounds int // CODING_MAX_ROUNDS (default: 100)
 
+	// Coding allowed repos — CSV of absolute repo paths where agent can create worktrees.
+	// Empty = only the default repo (cwd), no restriction. When set, the default repo
+	// must be included explicitly if coding should be allowed there.
+	// Paths are normalized to absolute+clean on load.
+	CodingAllowedRepos []string // CODING_ALLOWED_REPOS (comma-separated)
+
 	// Memory auto-extraction
 	MemoryAutoExtract bool // MEMORY_AUTO_EXTRACT (default: true)
 
@@ -258,6 +264,7 @@ func Load() (*Config, error) {
 		TalkMaxRounds:           envInt("TALK_MAX_ROUNDS", 10),
 		WorkMaxRounds:           envInt("WORK_MAX_ROUNDS", 20),
 		CodingMaxRounds:         envInt("CODING_MAX_ROUNDS", 100),
+		CodingAllowedRepos:      envCSV("CODING_ALLOWED_REPOS"),
 		MemoryAutoExtract:       envBool("MEMORY_AUTO_EXTRACT", true),
 		CompactionTriggerTokens: envInt("COMPACTION_TRIGGER_TOKENS", 80000),
 		CompactionKeepRecent:    envInt("COMPACTION_KEEP_RECENT", 10),
@@ -366,6 +373,27 @@ func envInt64(key string, fallback int64) int64 {
 		}
 	}
 	return fallback
+}
+
+func envCSV(key string) []string {
+	v := os.Getenv(key)
+	if v == "" {
+		return nil
+	}
+	parts := strings.Split(v, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		// Normalize to absolute canonical path for security.
+		if abs, err := filepath.Abs(p); err == nil {
+			p = filepath.Clean(abs)
+		}
+		result = append(result, p)
+	}
+	return result
 }
 
 func envFloat(key string, fallback float64) float64 {

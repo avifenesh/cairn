@@ -32,6 +32,16 @@ func (t *mcpClientTool) Schema() json.RawMessage { return t.schema }
 func (t *mcpClientTool) Modes() []tool.Mode      { return t.modes }
 
 func (t *mcpClientTool) Execute(ctx *tool.ToolContext, args json.RawMessage) (*tool.ToolResult, error) {
+	// Permission gate: external MCP tools are evaluated through the same
+	// permission engine as built-in tools. The tool name (mcp.<server>.<tool>)
+	// can be matched by wildcard permission rules (e.g., deny "mcp.untrusted.*").
+	if ctx.Permissions != nil {
+		action := ctx.Permissions.Evaluate(t.name, "")
+		if action == tool.Deny {
+			return &tool.ToolResult{Error: fmt.Sprintf("permission denied for external tool %s", t.name)}, nil
+		}
+	}
+
 	var arguments map[string]any
 	if len(args) > 0 {
 		if err := json.Unmarshal(args, &arguments); err != nil {

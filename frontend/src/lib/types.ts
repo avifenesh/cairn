@@ -218,7 +218,7 @@ export interface MCPServerConfig {
 	env?: string[];
 	url?: string;
 	headers?: Record<string, string>;
-	enabled?: boolean;
+	disabled?: boolean;
 }
 
 export interface ChannelInfo {

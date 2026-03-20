@@ -690,7 +690,6 @@
 							const cfg: MCPServerConfig = {
 								name: newConnName.trim(),
 								transport: newConnTransport,
-								enabled: true,
 							};
 							if (newConnTransport === 'stdio') {
 								cfg.command = newConnCommand.trim();

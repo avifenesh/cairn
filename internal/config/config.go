@@ -526,8 +526,9 @@ type PatchableConfig struct {
 	DevToEnabled            *bool    `json:"devtoEnabled,omitempty"`
 	DevToTags               *string  `json:"devtoTags,omitempty"` // comma-sep
 	DevToUsername           *string  `json:"devtoUsername,omitempty"`
-	NPMPackages             *string  `json:"npmPackages,omitempty"`    // comma-sep
-	CratesPackages          *string  `json:"cratesPackages,omitempty"` // comma-sep
+	NPMPackages             *string  `json:"npmPackages,omitempty"`      // comma-sep
+	CratesPackages          *string  `json:"cratesPackages,omitempty"`   // comma-sep
+	MCPClientServers        *string  `json:"mcpClientServers,omitempty"` // JSON array of server configs
 }
 
 var configMu sync.RWMutex
@@ -661,6 +662,13 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 			c.CratesPackages = splitTrimmed(*p.CratesPackages)
 		}
 	}
+	if p.MCPClientServers != nil {
+		if *p.MCPClientServers == "" || *p.MCPClientServers == "[]" {
+			c.MCPClientServers = nil
+		} else {
+			c.MCPClientServers = json.RawMessage(*p.MCPClientServers)
+		}
+	}
 }
 
 // GetPatchable returns the current runtime-editable config values.
@@ -698,6 +706,13 @@ func (c *Config) GetPatchable() PatchableConfig {
 		DevToUsername:           &c.DevToUsername,
 		NPMPackages:             strPtr(strings.Join(c.NPMPackages, ", ")),
 		CratesPackages:          strPtr(strings.Join(c.CratesPackages, ", ")),
+		MCPClientServers: func() *string {
+			if len(c.MCPClientServers) == 0 {
+				return strPtr("[]")
+			}
+			s := string(c.MCPClientServers)
+			return &s
+		}(),
 	}
 }
 

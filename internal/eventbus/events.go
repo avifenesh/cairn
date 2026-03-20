@@ -144,7 +144,7 @@ type MemoryRejected struct {
 type MCPConnectionChanged struct {
 	EventMeta
 	ServerName string `json:"serverName"`
-	Status     string `json:"status"` // "connected", "disconnected", "error"
+	Status     string `json:"status"` // "connected", "connecting", "disconnected", "error"
 	ToolCount  int    `json:"toolCount"`
 	Error      string `json:"error,omitempty"`
 }

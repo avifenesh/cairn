@@ -3,8 +3,10 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"sync"
 	"time"
 
@@ -15,7 +17,17 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
+// Sentinel errors for typed error handling in HTTP routes.
+var (
+	ErrInvalidTransport = errors.New("transport must be 'stdio' or 'http'")
+	ErrMissingCommand   = errors.New("command is required for stdio transport")
+	ErrMissingURL       = errors.New("url is required for http transport")
+	ErrDuplicateName    = errors.New("server name already connected")
+	ErrNotFound         = errors.New("server not found")
+)
+
 // MCPServerConfig describes one external MCP server to connect to.
+// Servers connect by default; set Disabled=true to skip.
 type MCPServerConfig struct {
 	Name      string            `json:"name"`
 	Transport string            `json:"transport"` // "stdio" or "http"
@@ -24,7 +36,7 @@ type MCPServerConfig struct {
 	Env       []string          `json:"env"`       // stdio only
 	URL       string            `json:"url"`       // http only
 	Headers   map[string]string `json:"headers"`   // http only
-	Enabled   bool              `json:"enabled"`
+	Disabled  bool              `json:"disabled"`  // skip this server (default: false = connect)
 }
 
 // ConnectionStatus describes the current state of one MCP connection.
@@ -45,6 +57,7 @@ type connection struct {
 	status      string
 	err         error
 	connectedAt time.Time
+	cancel      context.CancelFunc // cancels in-flight connect
 	mu          sync.Mutex
 }
 
@@ -76,24 +89,26 @@ func (m *ClientManager) Connect(ctx context.Context, cfg MCPServerConfig) error 
 		return fmt.Errorf("mcp client: server name is required")
 	}
 	if cfg.Transport != "stdio" && cfg.Transport != "http" {
-		return fmt.Errorf("mcp client: transport must be 'stdio' or 'http', got %q", cfg.Transport)
+		return fmt.Errorf("mcp client: %w: got %q", ErrInvalidTransport, cfg.Transport)
 	}
 
 	m.mu.Lock()
 	if _, exists := m.connections[cfg.Name]; exists {
 		m.mu.Unlock()
-		return fmt.Errorf("mcp client: server %q already connected", cfg.Name)
+		return fmt.Errorf("mcp client: %w: %q", ErrDuplicateName, cfg.Name)
 	}
+	connCtx, connCancel := context.WithCancel(ctx)
 	conn := &connection{
 		config: cfg,
 		status: "connecting",
+		cancel: connCancel,
 	}
 	m.connections[cfg.Name] = conn
 	m.mu.Unlock()
 
 	m.publishStatus(cfg.Name, "connecting", 0, "")
 
-	if err := m.connectOne(ctx, conn); err != nil {
+	if err := m.connectOne(connCtx, conn); err != nil {
 		conn.mu.Lock()
 		conn.status = "error"
 		conn.err = err
@@ -114,7 +129,7 @@ func (m *ClientManager) connectOne(ctx context.Context, conn *connection) error 
 	switch cfg.Transport {
 	case "stdio":
 		if cfg.Command == "" {
-			return fmt.Errorf("command is required for stdio transport")
+			return ErrMissingCommand
 		}
 		c, err = client.NewStdioMCPClient(cfg.Command, cfg.Env, cfg.Args...)
 		if err != nil {
@@ -122,7 +137,7 @@ func (m *ClientManager) connectOne(ctx context.Context, conn *connection) error 
 		}
 	case "http":
 		if cfg.URL == "" {
-			return fmt.Errorf("url is required for http transport")
+			return ErrMissingURL
 		}
 		var opts []transport.StreamableHTTPCOption
 		if len(cfg.Headers) > 0 {
@@ -168,6 +183,12 @@ func (m *ClientManager) connectOne(ctx context.Context, conn *connection) error 
 	for i, t := range wrappedTools {
 		toolNames[i] = t.Name()
 	}
+	// Check the connection wasn't cancelled during connect (race with Disconnect/Close).
+	if ctx.Err() != nil {
+		c.Close()
+		return ctx.Err()
+	}
+
 	m.registry.Register(wrappedTools...)
 
 	conn.mu.Lock()
@@ -194,11 +215,15 @@ func (m *ClientManager) Disconnect(name string) error {
 	conn, ok := m.connections[name]
 	if !ok {
 		m.mu.Unlock()
-		return fmt.Errorf("mcp client: server %q not found", name)
+		return fmt.Errorf("mcp client: %w: %q", ErrNotFound, name)
 	}
 	delete(m.connections, name)
 	m.mu.Unlock()
 
+	// Cancel any in-flight connect before cleanup.
+	if conn.cancel != nil {
+		conn.cancel()
+	}
 	m.cleanupConnection(conn)
 	m.publishStatus(name, "disconnected", 0, "")
 	m.logger.Info("mcp client disconnected", "server", name)
@@ -211,14 +236,20 @@ func (m *ClientManager) Reconnect(name string) error {
 	conn, ok := m.connections[name]
 	if !ok {
 		m.mu.RUnlock()
-		return fmt.Errorf("mcp client: server %q not found", name)
+		return fmt.Errorf("mcp client: %w: %q", ErrNotFound, name)
 	}
 	cfg := conn.config
 	m.mu.RUnlock()
 
-	// Clean up old connection.
+	// Cancel old connection context and clean up.
+	if conn.cancel != nil {
+		conn.cancel()
+	}
 	m.cleanupConnection(conn)
 	m.publishStatus(name, "connecting", 0, "")
+
+	// Create fresh context for the new connection.
+	connCtx, connCancel := context.WithCancel(context.Background())
 
 	// Reset the connection for reconnect.
 	conn.mu.Lock()
@@ -226,9 +257,10 @@ func (m *ClientManager) Reconnect(name string) error {
 	conn.tools = nil
 	conn.status = "connecting"
 	conn.err = nil
+	conn.cancel = connCancel
 	conn.mu.Unlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(connCtx, 30*time.Second)
 	defer cancel()
 
 	if err := m.connectOne(ctx, conn); err != nil {
@@ -243,9 +275,10 @@ func (m *ClientManager) Reconnect(name string) error {
 }
 
 // ConnectAll connects to all configured servers. Errors are logged, not returned.
+// Servers with Enabled explicitly set to false are skipped; omitted defaults to true.
 func (m *ClientManager) ConnectAll(ctx context.Context, configs []MCPServerConfig) {
 	for _, cfg := range configs {
-		if !cfg.Enabled {
+		if cfg.Disabled {
 			m.logger.Debug("mcp client: skipping disabled server", "name", cfg.Name)
 			continue
 		}
@@ -258,7 +291,7 @@ func (m *ClientManager) ConnectAll(ctx context.Context, configs []MCPServerConfi
 	}
 }
 
-// Status returns the current status of all connections.
+// Status returns the current status of all connections, sorted by name.
 func (m *ClientManager) Status() []ConnectionStatus {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -267,6 +300,9 @@ func (m *ClientManager) Status() []ConnectionStatus {
 	for _, conn := range m.connections {
 		statuses = append(statuses, m.connStatus(conn))
 	}
+	sort.Slice(statuses, func(i, j int) bool {
+		return statuses[i].Name < statuses[j].Name
+	})
 	return statuses
 }
 
@@ -306,6 +342,9 @@ func (m *ClientManager) Close() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for name, conn := range m.connections {
+		if conn.cancel != nil {
+			conn.cancel()
+		}
 		m.cleanupConnection(conn)
 		m.logger.Debug("mcp client closed", "server", name)
 	}
@@ -340,6 +379,17 @@ func (m *ClientManager) publishStatus(name, status string, toolCount int, errMsg
 		ToolCount:  toolCount,
 		Error:      errMsg,
 	})
+}
+
+// Configs returns the config of all currently tracked connections.
+func (m *ClientManager) Configs() []MCPServerConfig {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	configs := make([]MCPServerConfig, 0, len(m.connections))
+	for _, conn := range m.connections {
+		configs = append(configs, conn.config)
+	}
+	return configs
 }
 
 // ParseServerConfigs parses a JSON array of MCP server configs.

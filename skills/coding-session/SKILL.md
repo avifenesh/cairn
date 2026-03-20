@@ -73,17 +73,17 @@ After creating the draft PR, set up a cron job to automatically address review c
 ```
 cairn.createCron(
   name: "pr-watch-<PR_NUMBER>",
-  schedule: "*/10 * * * *",
+  schedule: "0 * * * *",
   instruction: "PR #<PR_NUMBER> review monitor:
   1. Check if PR is still open: `gh pr view <PR_NUMBER> --json state --jq '.state'`
-  2. If merged or closed → delete this cron job: `cairn.deleteCron(name='pr-watch-<PR_NUMBER>')` and stop.
+  2. If merged or closed → delete this cron job: `cairn.deleteCron: name=\"pr-watch-<PR_NUMBER>\"` and stop.
   3. If open, check for unresolved review comments: `gh api repos/{owner}/{repo}/pulls/<PR_NUMBER>/comments` — filter for comments where the bot hasn't replied.
-  4. If unresolved review comments found → spawn a coding session to address them. Fix the issues, push, iterate until resolved.
+  4. If unresolved review comments found → address them in coding mode. Fix the issues, push, iterate until resolved.
   5. If no comments → do nothing."
 )
 ```
 
-This runs every 10 minutes, self-terminates when the PR closes, and auto-fixes review comments.
+This runs hourly (matches the 1h cooldown in `createCron`), self-terminates when the PR closes, and auto-fixes review comments.
 
 ### 10. Running out of rounds?
 If you're approaching the round limit and work isn't done:

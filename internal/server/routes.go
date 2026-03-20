@@ -80,6 +80,15 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /v1/skills/{name}", s.handleUpdateSkill)
 	s.mux.HandleFunc("DELETE /v1/skills/{name}", s.handleDeleteSkill)
 
+	// Marketplace (ClawHub).
+	if s.marketplace != nil {
+		s.mux.HandleFunc("GET /v1/marketplace/search", s.handleMarketplaceSearch)
+		s.mux.HandleFunc("GET /v1/marketplace/browse", s.handleMarketplaceBrowse)
+		s.mux.HandleFunc("GET /v1/marketplace/skills/{slug}", s.handleMarketplaceDetail)
+		s.mux.HandleFunc("GET /v1/marketplace/skills/{slug}/preview", s.handleMarketplacePreview)
+		s.mux.HandleFunc("POST /v1/marketplace/skills/{slug}/install", s.handleMarketplaceInstall)
+	}
+
 	// Soul.
 	s.mux.HandleFunc("GET /v1/soul", s.handleGetSoul)
 	s.mux.HandleFunc("PUT /v1/soul", s.handlePutSoul)

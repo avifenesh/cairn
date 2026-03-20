@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getSkills, getSkillDetail, createSkillApi, updateSkillApi, deleteSkillApi } from '$lib/api/client';
+	import { getSkills, getSkillDetail, createSkillApi, updateSkillApi, deleteSkillApi, searchMarketplace, browseMarketplace, getMarketplacePreview, installMarketplaceSkill } from '$lib/api/client';
 	import { renderMarkdown } from '$lib/utils/markdown';
-	import type { Skill } from '$lib/types';
+	import type { Skill, MarketplaceSearchResult, MarketplaceSkill } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { Sparkles, Search, X, ChevronDown, ChevronUp, FileText, Loader2, Plus, Pencil, Trash2, Save } from '@lucide/svelte';
+	import { Sparkles, Search, X, ChevronDown, ChevronUp, FileText, Loader2, Plus, Pencil, Trash2, Save, Download, Star, Store, Check } from '@lucide/svelte';
 
 	let skills = $state<Skill[]>([]);
 	let activeSkills = $state<string[]>([]);
@@ -38,6 +38,22 @@
 	let editAllowedTools = $state('');
 	let savingEdit = $state(false);
 	let editError = $state('');
+
+	// Tab state
+	let activeTab = $state<'installed' | 'marketplace'>('installed');
+
+	// Marketplace state
+	let mpQuery = $state('');
+	let mpResults = $state<MarketplaceSearchResult[]>([]);
+	let mpBrowse = $state<MarketplaceSkill[]>([]);
+	let mpLoading = $state(false);
+	let mpSort = $state<'trending' | 'downloads' | 'stars' | 'updated'>('trending');
+	let mpInstalled = $state<Record<string, boolean>>({});
+	let installing = $state<string | null>(null);
+	let mpPreviewSlug = $state<string | null>(null);
+	let mpPreviewContent = $state<string | null>(null);
+	let mpPreviewLoading = $state(false);
+	let mpDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 	onMount(async () => {
 		try {
@@ -162,6 +178,95 @@
 		}
 	}
 
+	async function mpSearch(query: string) {
+		if (!query.trim()) { mpResults = []; return; }
+		mpLoading = true;
+		try {
+			const res = await searchMarketplace(query, 15);
+			mpResults = res.results ?? [];
+			mpInstalled = res.installed ?? {};
+		} catch (e) { console.error('Marketplace search failed:', e); mpResults = []; }
+		finally { mpLoading = false; }
+	}
+
+	function mpSearchDebounced(query: string) {
+		if (mpDebounceTimer) clearTimeout(mpDebounceTimer);
+		mpDebounceTimer = setTimeout(() => mpSearch(query), 300);
+	}
+
+	async function mpBrowseLoad() {
+		mpLoading = true;
+		try {
+			const res = await browseMarketplace(mpSort, 30);
+			mpBrowse = res.skills ?? [];
+			mpInstalled = res.installed ?? {};
+		} catch (e) { console.error('Marketplace browse failed:', e); mpBrowse = []; }
+		finally { mpLoading = false; }
+	}
+
+	async function handleInstall(slug: string) {
+		installing = slug;
+		try {
+			await installMarketplaceSkill(slug);
+			mpInstalled = { ...mpInstalled, [slug]: true };
+			const res = await getSkills();
+			skills = res.items;
+		} catch (e) {
+			console.error('Failed to install skill:', e);
+		} finally {
+			installing = null;
+		}
+	}
+
+	async function showMpPreview(slug: string) {
+		mpPreviewSlug = slug;
+		mpPreviewContent = null;
+		mpPreviewLoading = true;
+		try {
+			const res = await getMarketplacePreview(slug);
+			mpPreviewContent = res.content ?? null;
+		} catch (e) { console.error('Marketplace preview failed:', e); mpPreviewContent = null; }
+		finally { mpPreviewLoading = false; }
+	}
+
+	$effect(() => {
+		if (activeTab === 'marketplace' && mpBrowse.length === 0 && !mpQuery.trim()) {
+			mpBrowseLoad();
+		}
+	});
+
+	$effect(() => {
+		if (activeTab === 'marketplace' && mpQuery) mpSearchDebounced(mpQuery);
+		// Clean up debounce timer when leaving marketplace tab.
+		if (activeTab !== 'marketplace' && mpDebounceTimer) {
+			clearTimeout(mpDebounceTimer);
+			mpDebounceTimer = null;
+		}
+	});
+
+	interface MpDisplayItem {
+		slug: string;
+		name: string;
+		summary: string;
+		version: string;
+		downloads: number;
+		stars: number;
+		installed: boolean;
+	}
+
+	function normalizeSearchResult(r: MarketplaceSearchResult): MpDisplayItem {
+		return { slug: r.slug, name: r.displayName || r.slug, summary: r.summary, version: r.version || '', downloads: 0, stars: 0, installed: mpInstalled[r.slug] ?? false };
+	}
+
+	function normalizeBrowseItem(s: MarketplaceSkill): MpDisplayItem {
+		return { slug: s.slug, name: s.displayName || s.slug, summary: s.summary, version: s.latestVersion?.version || '', downloads: s.stats?.downloads || 0, stars: s.stats?.stars || 0, installed: mpInstalled[s.slug] ?? false };
+	}
+
+	const mpDisplayItems = $derived(() => {
+		if (mpQuery.trim()) return mpResults.map(normalizeSearchResult);
+		return mpBrowse.map(normalizeBrowseItem);
+	});
+
 	const inclusionColors: Record<string, string> = {
 		always: 'text-[var(--color-success)]',
 		auto: 'text-[var(--cairn-accent)]',
@@ -170,20 +275,39 @@
 </script>
 
 <div class="mx-auto max-w-5xl p-6">
-	<div class="mb-6 flex items-center justify-between">
+	<div class="mb-4 flex items-center justify-between">
 		<h1 class="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Skills</h1>
 		<div class="flex items-center gap-3">
-			{#if skills.length > 0}
+			{#if skills.length > 0 && activeTab === 'installed'}
 				<span class="text-[11px] text-[var(--text-tertiary)] font-mono tabular-nums">
 					{activeSkills.length} active / {skills.length} loaded
 				</span>
 			{/if}
-			<Button size="sm" class="h-7 text-xs gap-1" onclick={() => showCreate = !showCreate}>
-				<Plus class="h-3 w-3" /> New Skill
-			</Button>
+			{#if activeTab === 'installed'}
+				<Button size="sm" class="h-7 text-xs gap-1" onclick={() => showCreate = !showCreate}>
+					<Plus class="h-3 w-3" /> New Skill
+				</Button>
+			{/if}
 		</div>
 	</div>
 
+	<!-- Tabs -->
+	<div class="mb-4 flex gap-1 rounded-lg bg-[var(--bg-1)] p-0.5 border border-border-subtle w-fit">
+		<button
+			class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors {activeTab === 'installed' ? 'bg-[var(--bg-0)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
+			onclick={() => activeTab = 'installed'}
+		>
+			Installed ({skills.length})
+		</button>
+		<button
+			class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 {activeTab === 'marketplace' ? 'bg-[var(--bg-0)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
+			onclick={() => activeTab = 'marketplace'}
+		>
+			<Store class="h-3 w-3" /> Marketplace
+		</button>
+	</div>
+
+	{#if activeTab === 'installed'}
 	<!-- Create form -->
 	{#if showCreate}
 		<div class="mb-6 rounded-lg border border-[var(--cairn-accent)]/30 bg-[var(--bg-1)] p-4 space-y-3">
@@ -410,7 +534,144 @@
 			{/each}
 		</div>
 	{/if}
+
+	{:else}
+	<!-- Marketplace tab -->
+	<div class="mb-4 relative">
+		<Search class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+		<input
+			type="text"
+			bind:value={mpQuery}
+			placeholder="Search ClawHub marketplace..."
+			aria-label="Search marketplace"
+			class="w-full rounded-lg border border-border-subtle bg-[var(--bg-1)] pl-9 pr-8 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--cairn-accent)]/30"
+		/>
+		{#if mpQuery}
+			<button
+				class="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+				onclick={() => { mpQuery = ''; mpResults = []; }}
+				type="button"
+				aria-label="Clear search"
+			>
+				<X class="h-3.5 w-3.5" />
+			</button>
+		{/if}
+	</div>
+
+	<!-- Sort bar (only when not searching) -->
+	{#if !mpQuery.trim()}
+		<div class="mb-4 flex items-center gap-2">
+			<span class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Sort:</span>
+			{#each ['trending', 'downloads', 'stars', 'updated'] as sortOpt}
+				<button
+					class="px-2 py-0.5 text-[10px] rounded-full border transition-colors {mpSort === sortOpt ? 'bg-[var(--cairn-accent)]/10 text-[var(--cairn-accent)] border-[var(--cairn-accent)]/30' : 'text-[var(--text-tertiary)] border-border-subtle hover:text-[var(--text-secondary)]'}"
+					onclick={() => { mpSort = sortOpt as typeof mpSort; mpBrowseLoad(); }}
+				>
+					{sortOpt}
+				</button>
+			{/each}
+		</div>
+	{/if}
+
+	{#if mpLoading}
+		<div class="flex flex-col gap-2">
+			{#each Array(6) as _, i}
+				<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-3 animate-in" style="animation-delay: {i * 40}ms">
+					<Skeleton class="h-4 w-40 mb-1" />
+					<Skeleton class="h-3 w-64" />
+				</div>
+			{/each}
+		</div>
+	{:else}
+		{#if mpDisplayItems().length === 0}
+			<div class="flex flex-col items-center justify-center py-20 text-[var(--text-tertiary)]">
+				<Store class="mb-3 h-10 w-10 opacity-30" />
+				<p class="text-sm">{mpQuery.trim() ? `No skills match "${mpQuery}"` : 'Browse ClawHub skills'}</p>
+				<p class="mt-1 text-xs opacity-60">Search by keyword or browse by category</p>
+			</div>
+		{:else}
+			<div class="flex flex-col gap-2">
+				{#each mpDisplayItems() as item, i (item.slug)}
+					<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-3 card-hover animate-in" style="animation-delay: {i * 25}ms">
+						<div class="flex items-start gap-3">
+							<div class="min-w-0 flex-1">
+								<div class="flex items-center gap-2 mb-1">
+									<p class="text-sm font-medium text-[var(--text-primary)]">{item.name}</p>
+									<span class="text-[10px] text-[var(--text-tertiary)] font-mono">{item.slug}</span>
+									{#if item.version}
+										<Badge variant="outline" class="h-4 px-1 text-[10px]">v{item.version}</Badge>
+									{/if}
+									{#if item.installed}
+										<Badge variant="outline" class="h-4 px-1 text-[10px] text-[var(--color-success)]">
+											<Check class="h-2.5 w-2.5 mr-0.5" /> installed
+										</Badge>
+									{/if}
+								</div>
+								<p class="text-xs text-[var(--text-secondary)] line-clamp-2">{item.summary}</p>
+								<div class="flex items-center gap-3 mt-1.5">
+									{#if item.downloads}
+										<span class="flex items-center gap-1 text-[10px] text-[var(--text-tertiary)]">
+											<Download class="h-3 w-3" /> {item.downloads.toLocaleString()}
+										</span>
+									{/if}
+									{#if item.stars}
+										<span class="flex items-center gap-1 text-[10px] text-[var(--text-tertiary)]">
+											<Star class="h-3 w-3" /> {item.stars}
+										</span>
+									{/if}
+								</div>
+							</div>
+							<div class="flex gap-1.5 flex-shrink-0">
+								<Button variant="outline" size="sm" class="h-6 text-[10px] px-2" onclick={() => showMpPreview(item.slug)}>
+									<FileText class="h-3 w-3" />
+								</Button>
+								{#if item.installed}
+									<Button variant="outline" size="sm" class="h-6 text-[10px] px-2" disabled>
+										<Check class="h-3 w-3" />
+									</Button>
+								{:else}
+									<Button size="sm" class="h-6 text-[10px] px-2 gap-1" onclick={() => handleInstall(item.slug)} disabled={installing === item.slug}>
+										{#if installing === item.slug}
+											<Loader2 class="h-3 w-3 animate-spin" />
+										{:else}
+											<Download class="h-3 w-3" />
+										{/if}
+										Install
+									</Button>
+								{/if}
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	{/if}
+
+	{/if}
 </div>
+
+<!-- Marketplace preview dialog -->
+{#if mpPreviewSlug}
+	<Dialog.Root open={!!mpPreviewSlug} onOpenChange={(open) => { if (!open) mpPreviewSlug = null; }}>
+		<Dialog.Content class="sm:max-w-2xl max-h-[80vh] overflow-y-auto bg-[var(--bg-0)] border-border-subtle">
+			<Dialog.Header>
+				<Dialog.Title class="text-[var(--text-primary)]">{mpPreviewSlug}</Dialog.Title>
+				<Dialog.Description class="text-[var(--text-tertiary)] text-xs">SKILL.md from ClawHub</Dialog.Description>
+			</Dialog.Header>
+			{#if mpPreviewLoading}
+				<div class="flex items-center gap-2 text-xs text-[var(--text-tertiary)] py-8 justify-center">
+					<Loader2 class="h-4 w-4 animate-spin" /> Loading preview...
+				</div>
+			{:else if mpPreviewContent}
+				<div class="cairn-prose text-sm text-[var(--text-primary)] leading-relaxed">
+					{@html renderMarkdown(mpPreviewContent)}
+				</div>
+			{:else}
+				<p class="text-xs text-[var(--text-tertiary)] py-4">No preview available.</p>
+			{/if}
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}
 
 <!-- Skill detail dialog -->
 <Dialog.Root bind:open={dialogOpen}>

@@ -430,6 +430,9 @@ func skillDirs() []string {
 
 	dirs = append(dirs, ".cairn/skills")
 
+	// agentskills.io cross-client compatibility path.
+	dirs = append(dirs, ".agents/skills")
+
 	// Append any extra directories from SKILL_DIRS env var, filtering empty entries.
 	if extra := envSlice("SKILL_DIRS", nil); len(extra) > 0 {
 		for _, d := range extra {

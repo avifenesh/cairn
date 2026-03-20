@@ -19,6 +19,7 @@ import (
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/plugin"
+	"github.com/avifenesh/cairn/internal/skill"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 	"github.com/avifenesh/cairn/internal/voice"
@@ -67,6 +68,9 @@ type Server struct {
 	// Activity store (optional).
 	activityStore *agent.ActivityStore
 
+	// Marketplace client (optional: ClawHub integration).
+	marketplace *skill.MarketplaceClient
+
 	// WebAuthn auth (optional).
 	authStore *auth.Store
 	webauthn  *auth.WebAuthn
@@ -114,6 +118,9 @@ type ServerConfig struct {
 	// Activity store (optional: agent observability).
 	ActivityStore *agent.ActivityStore
 
+	// Marketplace client (optional: ClawHub integration).
+	Marketplace *skill.MarketplaceClient
+
 	// WebAuthn auth (optional: biometric login).
 	AuthStore *auth.Store
 	WebAuthn  *auth.WebAuthn
@@ -157,6 +164,7 @@ func New(cfg ServerConfig) *Server {
 		voice:          cfg.Voice,
 		cronStore:      cfg.CronStore,
 		activityStore:  cfg.ActivityStore,
+		marketplace:    cfg.Marketplace,
 		authStore:      cfg.AuthStore,
 		webauthn:       cfg.WebAuthn,
 	}

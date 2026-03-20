@@ -70,8 +70,8 @@ var envPrefixAllowlist = []string{
 // GH_TOKEN is passed explicitly so `gh` CLI works, but it's not in the
 // prefix allowlist to avoid exposing other GITHUB_* secrets.
 var ghEnvAllowlist = map[string]bool{
-	"GH_TOKEN":      true, // gh CLI authentication
-	"GH_ORGS":       true, // org filter (non-secret)
+	"GH_TOKEN":       true, // gh CLI authentication
+	"GH_ORGS":        true, // org filter (non-secret)
 	"GITHUB_ACTIONS": true, // CI detection flag
 }
 

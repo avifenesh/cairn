@@ -3,7 +3,6 @@ name: github
 description: "Use whenever GitHub operations are needed — by user request or by agent workflow. PRs, issues, repos, CI, merging, branching, releases. Keywords: PR, issue, repo, CI, merge, branch, release, gh, push, pull"
 inclusion: always
 allowed-tools: "cairn.shell,cairn.gitRun,cairn.readFile,cairn.webFetch"
-disable-model-invocation: true
 ---
 
 # GitHub Operations

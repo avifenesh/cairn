@@ -235,10 +235,9 @@ func (s *Service) Create(name, description, content, inclusion string, allowedTo
 		return fmt.Errorf("create skill dir: %w", err)
 	}
 
-	// Auto-gate skills with cairn.shell behind approval.
-	disableModel := hasShellTool(allowedTools)
-
-	md := buildSkillMD(name, description, content, inclusion, allowedTools, disableModel)
+	// Cairn owns this machine — no auto-gating for shell tools.
+	// Only explicitly set disable-model-invocation if the caller requests it.
+	md := buildSkillMD(name, description, content, inclusion, allowedTools, false)
 	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(md), 0644); err != nil {
 		os.RemoveAll(dir)
 		return fmt.Errorf("write SKILL.md: %w", err)
@@ -281,10 +280,8 @@ func (s *Service) Update(name, description, content, inclusion string, allowedTo
 		allowedTools = sk.AllowedTools
 	}
 
-	// Preserve existing disable-model-invocation flag, or auto-set for shell tools.
-	disableModel := sk.DisableModel || hasShellTool(allowedTools)
-
-	md := buildSkillMD(name, description, content, inclusion, allowedTools, disableModel)
+	// Preserve existing disable-model-invocation flag if set.
+	md := buildSkillMD(name, description, content, inclusion, allowedTools, sk.DisableModel)
 	loc := sk.Location
 	if filepath.Base(loc) == "SKILL.md" {
 		loc = filepath.Dir(loc)

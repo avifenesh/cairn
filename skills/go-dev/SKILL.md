@@ -3,7 +3,6 @@ name: go-dev
 description: "Use for Go development tasks: testing, building, formatting, vetting, managing dependencies. Keywords: go test, go build, go vet, gofmt, go mod, golang"
 inclusion: on-demand
 allowed-tools: "cairn.shell,cairn.readFile,cairn.editFile,cairn.searchFiles,cairn.gitRun"
-disable-model-invocation: true
 ---
 
 # Go Development

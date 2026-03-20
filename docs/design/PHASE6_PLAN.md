@@ -331,6 +331,11 @@ UX + Agent Config:
   PR #91 (UX polish + agent config)    ─── merged #91 (cron edit, new chat, stop button, bulk actions, patchConfig/getConfig tools)
   PR #95 (Activity observability)      ─── merged #95 (live stream, tool stats, error tracking, SSE broadcast)
 
+Bug fixes (post-merge):
+  Chat task race condition              ─── fixed (MarkRunning before goroutine, prevents loop from claiming chat tasks)
+  Config tools not wired in server      ─── fixed (ToolConfig/ToolCrons/ToolNotifier added to server InvocationContext)
+  CronJob JSON tags missing             ─── fixed (PascalCase → camelCase for frontend)
+
 Google Workspace:
   GWS tools                          ─── merged (cairn.gwsQuery + cairn.gwsExecute, 17 services)
 ```

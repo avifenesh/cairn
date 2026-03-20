@@ -29,7 +29,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 13 | Intelligence - embeddings, session compaction | Done | `internal/memory/`, `internal/agent/compaction.go` |
 | 14 | Voice - Whisper STT + edge-tts TTS | Done | `internal/voice/` |
 
-Frontend feature-complete. 242 tests, 39 tools, 11 pollers. 38 PRs merged. Chat: text, voice, file upload, vision, stop button, new chat. Feed: API wired, archive/delete, source filters, GitHub signal, Gmail/Calendar (auto-archive GH emails), RSS/SO/DevTo. Settings: 11 sections, all editable. Cron manager with edit. Notification prefs (priority, quiet hours, muted sources, channel routing). Agent config tools (patchConfig/getConfig). Activity observability tab (live stream, tool stats, error tracking). npm/crates download metrics.
+Frontend feature-complete. 242 tests, 39 tools, 11 pollers. 38+ PRs merged. Chat: text, voice, file upload, vision, stop button, new chat. Feed: API wired, archive/delete, source filters, bulk archive/delete, GitHub signal, Gmail/Calendar (auto-archive GH emails), RSS/SO/DevTo. Settings: 11 sections, all editable via UI and agent tools. Cron manager with inline edit. Notification prefs (priority, quiet hours, muted sources, channel routing). Agent config tools (patchConfig/getConfig — agent can modify settings via chat). Activity observability tab (live stream, tool stats, error tracking). npm/crates download metrics. Chat tasks marked running immediately to prevent agent loop race condition.
 
 ## Phases
 

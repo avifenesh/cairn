@@ -483,6 +483,10 @@ export const installMarketplaceSkill = (slug: string) =>
 	post<{ ok: boolean; name: string; version: string }>(
 		`/v1/marketplace/skills/${encodeURIComponent(slug)}/install`
 	);
+export const reviewMarketplaceSkill = (slug: string) =>
+	post<{ safe: boolean; risk: string; issues: string[]; summary: string; slug: string }>(
+		`/v1/marketplace/skills/${encodeURIComponent(slug)}/review`
+	);
 
 // Agent Activity
 export const getAgentActivity = (params?: { limit?: number; type?: string; offset?: number }) => {

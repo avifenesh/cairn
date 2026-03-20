@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getSkills, getSkillDetail, createSkillApi, updateSkillApi, deleteSkillApi, searchMarketplace, browseMarketplace, getMarketplacePreview, installMarketplaceSkill } from '$lib/api/client';
+	import { getSkills, getSkillDetail, createSkillApi, updateSkillApi, deleteSkillApi, searchMarketplace, browseMarketplace, getMarketplaceDetail, getMarketplacePreview, installMarketplaceSkill, reviewMarketplaceSkill } from '$lib/api/client';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import type { Skill, MarketplaceSearchResult, MarketplaceSkill } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
@@ -8,7 +8,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { Sparkles, Search, X, ChevronDown, ChevronUp, FileText, Loader2, Plus, Pencil, Trash2, Save, Download, Star, Store, Check } from '@lucide/svelte';
+	import { Sparkles, Search, X, ChevronDown, ChevronUp, FileText, Loader2, Plus, Pencil, Trash2, Save, Download, Star, Store, Check, ShieldAlert, ShieldCheck } from '@lucide/svelte';
 
 	let skills = $state<Skill[]>([]);
 	let activeSkills = $state<string[]>([]);
@@ -54,6 +54,15 @@
 	let mpPreviewContent = $state<string | null>(null);
 	let mpPreviewLoading = $state(false);
 	let mpDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	// Stats enrichment: slug -> {downloads, stars}
+	let mpStats = $state<Record<string, { downloads: number; stars: number }>>({});
+	let mpStatsFetching = $state<Set<string>>(new Set());
+
+	// Security review state
+	let reviewSlug = $state<string | null>(null);
+	let reviewLoading = $state(false);
+	let reviewResult = $state<{ safe: boolean; risk: string; issues: string[]; summary: string } | null>(null);
 
 	onMount(async () => {
 		try {
@@ -225,7 +234,52 @@
 		finally { mpLoading = false; }
 	}
 
-	async function handleInstall(slug: string) {
+	async function enrichStats(slugs: string[]) {
+		const toFetch = slugs.filter(s => !mpStats[s] && !mpStatsFetching.has(s));
+		if (toFetch.length === 0) return;
+		toFetch.forEach(s => mpStatsFetching.add(s));
+		mpStatsFetching = new Set(mpStatsFetching);
+		const results = await Promise.allSettled(toFetch.map(s => getMarketplaceDetail(s)));
+		const newStats = { ...mpStats };
+		results.forEach((r, i) => {
+			if (r.status === 'fulfilled' && r.value.skill?.stats) {
+				newStats[toFetch[i]] = { downloads: r.value.skill.stats.downloads ?? 0, stars: r.value.skill.stats.stars ?? 0 };
+			}
+		});
+		mpStats = newStats;
+		toFetch.forEach(s => mpStatsFetching.delete(s));
+		mpStatsFetching = new Set(mpStatsFetching);
+	}
+
+	// Trigger stats enrichment when display items change
+	$effect(() => {
+		const items = mpDisplayItems();
+		if (items.length > 0 && activeTab === 'marketplace') {
+			const slugs = items.slice(0, 10).map(i => i.slug).filter(s => !mpStats[s]);
+			if (slugs.length > 0) enrichStats(slugs);
+		}
+	});
+
+	async function handleInstallClick(slug: string) {
+		// Step 1: Security review
+		reviewSlug = slug;
+		reviewLoading = true;
+		reviewResult = null;
+		try {
+			const res = await reviewMarketplaceSkill(slug);
+			reviewResult = res;
+			reviewLoading = false;
+			// If safe, don't auto-install - let user confirm
+		} catch (e) {
+			console.error('Security review failed:', e);
+			reviewResult = { safe: false, risk: 'unknown', issues: ['Review request failed'], summary: 'Could not complete security review' };
+			reviewLoading = false;
+		}
+	}
+
+	async function confirmInstall(slug: string) {
+		reviewSlug = null;
+		reviewResult = null;
 		installing = slug;
 		try {
 			await installMarketplaceSkill(slug);
@@ -276,7 +330,8 @@
 	}
 
 	function normalizeSearchResult(r: MarketplaceSearchResult): MpDisplayItem {
-		return { slug: r.slug, name: r.displayName || r.slug, summary: r.summary, version: r.version || '', downloads: 0, stars: 0, installed: mpInstalled[r.slug] ?? false };
+		const stats = mpStats[r.slug];
+		return { slug: r.slug, name: r.displayName || r.slug, summary: r.summary, version: r.version || '', downloads: stats?.downloads ?? 0, stars: stats?.stars ?? 0, installed: mpInstalled[r.slug] ?? false };
 	}
 
 	function normalizeBrowseItem(s: MarketplaceSkill): MpDisplayItem {
@@ -651,7 +706,7 @@
 										<Check class="h-3 w-3" />
 									</Button>
 								{:else}
-									<Button size="sm" class="h-6 text-[10px] px-2 gap-1" onclick={() => handleInstall(item.slug)} disabled={installing === item.slug}>
+									<Button size="sm" class="h-6 text-[10px] px-2 gap-1" onclick={() => handleInstallClick(item.slug)} disabled={installing === item.slug || reviewSlug === item.slug}>
 										{#if installing === item.slug}
 											<Loader2 class="h-3 w-3 animate-spin" />
 										{:else}
@@ -689,6 +744,81 @@
 				</div>
 			{:else}
 				<p class="text-xs text-[var(--text-tertiary)] py-4">No preview available.</p>
+			{/if}
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}
+
+<!-- Security review dialog -->
+{#if reviewSlug}
+	<Dialog.Root open={!!reviewSlug} onOpenChange={(open) => { if (!open) { reviewSlug = null; reviewResult = null; } }}>
+		<Dialog.Content class="sm:max-w-lg bg-[var(--bg-0)] border-border-subtle">
+			<Dialog.Header>
+				<Dialog.Title class="text-[var(--text-primary)] flex items-center gap-2">
+					<ShieldAlert class="h-5 w-5 text-[var(--color-warning)]" /> Security Review
+				</Dialog.Title>
+				<Dialog.Description class="text-[var(--text-tertiary)] text-xs">Reviewing {reviewSlug} before install</Dialog.Description>
+			</Dialog.Header>
+			{#if reviewLoading}
+				<div class="flex items-center gap-3 py-8 justify-center">
+					<Loader2 class="h-5 w-5 animate-spin text-[var(--cairn-accent)]" />
+					<span class="text-sm text-[var(--text-secondary)]">Analyzing skill for security risks...</span>
+				</div>
+			{:else if reviewResult}
+				<div class="space-y-4 py-2">
+					<!-- Verdict -->
+					<div class="flex items-center gap-3 p-3 rounded-lg {reviewResult.safe ? 'bg-[var(--color-success)]/10 border border-[var(--color-success)]/20' : 'bg-[var(--color-error)]/10 border border-[var(--color-error)]/20'}">
+						{#if reviewResult.safe}
+							<ShieldCheck class="h-6 w-6 text-[var(--color-success)]" />
+							<div>
+								<p class="text-sm font-medium text-[var(--color-success)]">Safe to install</p>
+								<p class="text-xs text-[var(--text-secondary)]">{reviewResult.summary}</p>
+							</div>
+						{:else}
+							<ShieldAlert class="h-6 w-6 text-[var(--color-error)]" />
+							<div>
+								<p class="text-sm font-medium text-[var(--color-error)]">Security concerns found</p>
+								<p class="text-xs text-[var(--text-secondary)]">{reviewResult.summary}</p>
+							</div>
+						{/if}
+					</div>
+
+					<!-- Risk level -->
+					<div class="flex items-center gap-2">
+						<span class="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Risk:</span>
+						<Badge variant="outline" class="text-[10px] {
+							reviewResult.risk === 'none' || reviewResult.risk === 'low' ? 'text-[var(--color-success)]' :
+							reviewResult.risk === 'medium' ? 'text-[var(--color-warning)]' :
+							'text-[var(--color-error)]'
+						}">{reviewResult.risk}</Badge>
+					</div>
+
+					<!-- Issues -->
+					{#if reviewResult.issues && reviewResult.issues.length > 0}
+						<div>
+							<p class="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-1">Issues</p>
+							<ul class="space-y-1">
+								{#each reviewResult.issues as issue}
+									<li class="text-xs text-[var(--text-secondary)] flex items-start gap-1.5">
+										<span class="text-[var(--color-warning)] mt-0.5">-</span>
+										{issue}
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+
+					<!-- Actions -->
+					<div class="flex justify-end gap-2 pt-2">
+						<Button variant="outline" size="sm" class="text-xs" onclick={() => { reviewSlug = null; reviewResult = null; }}>
+							Cancel
+						</Button>
+						<Button size="sm" class="text-xs gap-1 {reviewResult.safe ? '' : 'bg-[var(--color-error)] hover:bg-[var(--color-error)]/90'}" onclick={() => confirmInstall(reviewSlug!)}>
+							<Download class="h-3 w-3" />
+							{reviewResult.safe ? 'Install' : 'Install anyway'}
+						</Button>
+					</div>
+				</div>
 			{/if}
 		</Dialog.Content>
 	</Dialog.Root>

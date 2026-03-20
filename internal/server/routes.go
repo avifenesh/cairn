@@ -87,6 +87,7 @@ func (s *Server) registerRoutes() {
 		s.mux.HandleFunc("GET /v1/marketplace/skills/{slug}", s.handleMarketplaceDetail)
 		s.mux.HandleFunc("GET /v1/marketplace/skills/{slug}/preview", s.handleMarketplacePreview)
 		s.mux.HandleFunc("POST /v1/marketplace/skills/{slug}/install", s.handleMarketplaceInstall)
+		s.mux.HandleFunc("POST /v1/marketplace/skills/{slug}/review", s.handleMarketplaceReview)
 	}
 
 	// Soul.

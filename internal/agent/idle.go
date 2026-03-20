@@ -67,7 +67,7 @@ func (o *Observations) isEmpty() bool {
 
 // IdleDecision represents what the agent decided to do during an idle tick.
 type IdleDecision struct {
-	Action   string `json:"action"`   // "notify", "task", "learn", "wait"
+	Action   string `json:"action"`   // "notify", "task", "code", "learn", "wait"
 	Reason   string `json:"reason"`   // Why this action was chosen
 	Message  string `json:"message"`  // For notify: notification text
 	Priority int    `json:"priority"` // For notify: 0=low, 1=medium, 2=high, 3=critical
@@ -310,7 +310,7 @@ func parseIdleDecision(raw string) *IdleDecision {
 
 	// Validate action.
 	switch d.Action {
-	case "notify", "task", "learn", "wait":
+	case "notify", "task", "code", "learn", "wait":
 		// valid
 	default:
 		original := d.Action
@@ -354,6 +354,25 @@ func (l *Loop) executeIdleDecision(ctx context.Context, d *IdleDecision) {
 			if err != nil {
 				l.logger.Warn("idle: task submission failed", "error", err)
 			}
+		}
+
+	case "code":
+		if l.tasks != nil && l.config.CodingEnabled {
+			input, _ := json.Marshal(map[string]string{"instruction": d.Reason})
+			t, err := l.tasks.Submit(ctx, &task.SubmitRequest{
+				Type:        task.TypeCoding,
+				Priority:    task.PriorityNormal,
+				Description: d.Reason,
+				Input:       input,
+				MaxRetries:  0, // no auto-retry for coding tasks (state too complex)
+			})
+			if err != nil {
+				l.logger.Warn("idle: coding task submission failed", "error", err)
+			} else {
+				l.logger.Info("idle: coding task submitted", "task", t.ID, "instruction", d.Reason[:min(len(d.Reason), 100)])
+			}
+		} else if !l.config.CodingEnabled {
+			l.logger.Warn("idle: code action requested but CODING_ENABLED=false")
 		}
 
 	case "learn":
@@ -492,23 +511,32 @@ func buildDecisionPrompt(soulContent, briefing string, obs *Observations, recent
 	b.WriteString("**notify** — Send a message to Avi via his channels (Telegram/Discord/Slack).\n")
 	b.WriteString("  Use for: critical alerts, time-sensitive items, things that need his decision.\n")
 	b.WriteString("  NEVER repeat a notification you already sent. If nothing changed, don't notify.\n\n")
-	b.WriteString("**task** — Submit a task for yourself to execute on the next tick.\n")
-	b.WriteString("  Use for: proactive work you can do autonomously without Avi's input.\n")
-	b.WriteString("  Examples: review a PR and draft feedback, check CI status, clean stale branches,\n")
-	b.WriteString("  check disk space, consolidate proposed memories, fix a failing test,\n")
+	b.WriteString("**task** — Submit a lightweight task for yourself to execute on the next tick (10 rounds).\n")
+	b.WriteString("  Use for: quick proactive work — check status, read something, query data.\n")
+	b.WriteString("  Examples: check CI status on a PR, clean stale branches,\n")
+	b.WriteString("  check disk space, consolidate proposed memories,\n")
 	b.WriteString("  update stale docs, run system health checks, draft a digest.\n")
 	b.WriteString("  The \"reason\" field becomes the task instruction — be specific and actionable.\n\n")
+	b.WriteString("**code** — Start an autonomous coding session in an isolated worktree (100 rounds).\n")
+	b.WriteString("  Use for: fix CI failures, address PR review comments, write tests, fix bugs,\n")
+	b.WriteString("  update docs, refactor code — anything needing file edits + git commits.\n")
+	b.WriteString("  Gets its own branch, creates DRAFT PR with [cairn] prefix, monitors CI.\n")
+	b.WriteString("  The \"reason\" field becomes the coding instruction — be VERY specific:\n")
+	b.WriteString("  what to change, which files, expected outcome.\n")
+	b.WriteString("  Examples: \"Fix CI on PR #105: test_xxx failing due to missing mock\",\n")
+	b.WriteString("  \"Address review comments on PR #108: rename foo to bar in 3 files\"\n\n")
 	b.WriteString("**learn** — Trigger a reflection cycle to find patterns in recent sessions.\n")
 	b.WriteString("  Use for: after several conversations, when you suspect new user patterns.\n\n")
 	b.WriteString("**wait** — Do nothing. Valid and often correct.\n")
 	b.WriteString("  Use when: nothing needs attention, already handled, or Avi is busy.\n\n")
 	b.WriteString("## Rules\n")
-	b.WriteString("- Prefer \"task\" over \"notify\" when you can act on something yourself.\n")
-	b.WriteString("- \"task\" is free — you execute it, no interruption to Avi.\n")
+	b.WriteString("- Prefer \"code\" over \"task\" when file changes are needed.\n")
+	b.WriteString("- Prefer \"task\" over \"notify\" when you can investigate something yourself.\n")
+	b.WriteString("- \"code\" and \"task\" are free — you execute them, no interruption to Avi.\n")
 	b.WriteString("- \"notify\" interrupts Avi — only for things HE needs to decide or know.\n")
 	b.WriteString("- After 3+ consecutive waits, consider if there's proactive maintenance to do.\n\n")
 	b.WriteString("JSON only:\n")
-	b.WriteString(`{"action": "wait|notify|task|learn", "reason": "specific actionable instruction for task, or explanation for others", "message": "notification text (only for notify)", "priority": 0}`)
+	b.WriteString(`{"action": "wait|notify|task|code|learn", "reason": "specific actionable instruction", "message": "notification text (only for notify)", "priority": 0}`)
 
 	return b.String()
 }

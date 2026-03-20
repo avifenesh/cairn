@@ -30,6 +30,7 @@ var denyPatterns = []denyPattern{
 	{regexp.MustCompile(`\bchmod\s+777\s+/`), "chmod 777 on system paths is forbidden"},
 	{regexp.MustCompile(`\bchown\s+root\b`), "chown root is forbidden"},
 	{regexp.MustCompile(`:\(\)\s*\{\s*:\|:&\s*\}\s*;`), "fork bomb detected"},
+	{regexp.MustCompile(`\bgh\s+pr\s+merge\b`), "PR merge requires human approval"},
 }
 
 // checkDenyPatterns returns a non-empty reason if the command matches a deny pattern.

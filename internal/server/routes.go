@@ -93,6 +93,9 @@ func (s *Server) registerRoutes() {
 	// Soul.
 	s.mux.HandleFunc("GET /v1/soul", s.handleGetSoul)
 	s.mux.HandleFunc("PUT /v1/soul", s.handlePutSoul)
+	s.mux.HandleFunc("GET /v1/soul/patch", s.handleGetSoulPatch)
+	s.mux.HandleFunc("POST /v1/soul/patch/approve", s.handleApproveSoulPatch)
+	s.mux.HandleFunc("POST /v1/soul/patch/deny", s.handleDenySoulPatch)
 
 	// Cron jobs (optional).
 	if s.cronStore != nil {
@@ -1239,6 +1242,92 @@ func (s *Server) handlePutSoul(w http.ResponseWriter, r *http.Request) {
 	// Reload in memory.
 	if err := s.soul.Load(); err != nil {
 		s.logger.Warn("failed to reload soul after write", "error", err)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleGetSoulPatch(w http.ResponseWriter, r *http.Request) {
+	if s.soul == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"patch": nil})
+		return
+	}
+	patch := s.soul.PendingPatch()
+	if patch == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"patch": nil})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"patch": patch})
+}
+
+func (s *Server) handleApproveSoulPatch(w http.ResponseWriter, r *http.Request) {
+	if s.soul == nil {
+		writeError(w, http.StatusServiceUnavailable, "soul not configured")
+		return
+	}
+
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := s.soul.ApprovePatch(req.ID); err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	// Reload soul in memory.
+	if err := s.soul.Load(); err != nil {
+		s.logger.Warn("failed to reload soul after patch approval", "error", err)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleDenySoulPatch(w http.ResponseWriter, r *http.Request) {
+	if s.soul == nil {
+		writeError(w, http.StatusServiceUnavailable, "soul not configured")
+		return
+	}
+
+	var req struct {
+		ID     string `json:"id"`
+		Reason string `json:"reason"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Get the patch content before denying so we can save it to memory.
+	patch := s.soul.PendingPatch()
+	if patch == nil {
+		writeError(w, http.StatusNotFound, "no pending patch")
+		return
+	}
+	patchContent := patch.Content
+
+	if err := s.soul.DenyPatch(req.ID); err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	// Save denial reason + patch to memory.
+	if s.memories != nil && req.Reason != "" {
+		m := &memory.Memory{
+			Content:    fmt.Sprintf("Soul patch denied. Reason: %s\nProposed patch:\n%s", req.Reason, patchContent),
+			Category:   memory.CatDecision,
+			Scope:      memory.ScopeGlobal,
+			Status:     memory.StatusAccepted,
+			Confidence: 1.0,
+			Source:     "soul-review",
+		}
+		if err := s.memories.Create(r.Context(), m); err != nil {
+			s.logger.Warn("failed to save soul denial to memory", "error", err)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})

@@ -170,6 +170,14 @@ export interface SoulHistoryEntry {
 	date: string;
 }
 
+export interface SoulPatch {
+	id: string;
+	content: string;
+	source: string;
+	createdAt: string;
+	preview: string;
+}
+
 export interface CostData {
 	todayUsd: number;
 	weekUsd: number;

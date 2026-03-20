@@ -694,47 +694,57 @@ func resolveMemoryID(ctx context.Context, svc *memory.Service, prefix string) (s
 	if m, err := svc.Get(ctx, prefix); err == nil && m != nil {
 		return m.ID, nil
 	}
-	// Search by prefix across all statuses.
+	// Search by prefix across all statuses (scan up to 500 per status).
+	var allMatches []string
 	for _, status := range []memory.Status{memory.StatusAccepted, memory.StatusProposed, memory.StatusRejected} {
-		mems, err := svc.List(ctx, memory.ListOpts{Status: status, Limit: 100})
+		mems, err := svc.List(ctx, memory.ListOpts{Status: status, Limit: 500})
 		if err != nil {
 			continue
 		}
-		var matches []string
 		for _, m := range mems {
 			if strings.HasPrefix(m.ID, prefix) {
-				matches = append(matches, m.ID)
+				allMatches = append(allMatches, m.ID)
 			}
 		}
-		if len(matches) == 1 {
-			return matches[0], nil
-		}
-		if len(matches) > 1 {
-			return "", fmt.Errorf("ambiguous prefix `%s` — matches %d memories", prefix, len(matches))
-		}
 	}
-	return "", fmt.Errorf("no memory found with ID or prefix `%s`", prefix)
+	switch len(allMatches) {
+	case 0:
+		return "", fmt.Errorf("no memory found with ID or prefix `%s`", prefix)
+	case 1:
+		return allMatches[0], nil
+	default:
+		return "", fmt.Errorf("ambiguous prefix `%s` — matches %d memories", prefix, len(allMatches))
+	}
 }
 
-// deduplicateMemories finds accepted memories with identical content and removes duplicates.
+// deduplicateMemories finds accepted memories with identical content and removes duplicates,
+// keeping the older one (by CreatedAt).
 func deduplicateMemories(ctx context.Context, svc *memory.Service) (int, error) {
 	mems, err := svc.List(ctx, memory.ListOpts{Status: memory.StatusAccepted, Limit: 500})
 	if err != nil {
 		return 0, err
 	}
 
-	seen := make(map[string]string) // content hash → first ID
+	seen := make(map[string]*memory.Memory) // normalized content → kept memory
 	removed := 0
 	for _, m := range mems {
 		key := strings.TrimSpace(strings.ToLower(m.Content))
-		if firstID, exists := seen[key]; exists {
-			// Duplicate — delete the newer one, keep the older.
-			_ = firstID
-			if err := svc.Delete(ctx, m.ID); err == nil {
-				removed++
+		if kept, exists := seen[key]; exists {
+			// Duplicate found — delete the newer one, keep the older.
+			if m.CreatedAt.Before(kept.CreatedAt) {
+				// Current is older: delete the previously kept (newer) one.
+				if err := svc.Delete(ctx, kept.ID); err == nil {
+					removed++
+					seen[key] = m
+				}
+			} else {
+				// Current is newer: delete it.
+				if err := svc.Delete(ctx, m.ID); err == nil {
+					removed++
+				}
 			}
 		} else {
-			seen[key] = m.ID
+			seen[key] = m
 		}
 	}
 	return removed, nil
@@ -754,12 +764,13 @@ func handlePatchCommand(_ context.Context, args string, soul *memory.Soul) (*cai
 		if p == nil {
 			return &cairnchannel.OutgoingMessage{Text: "No pending SOUL patch."}, nil
 		}
-		preview := p.Content
-		if len(preview) > 500 {
-			preview = preview[:497] + "..."
+		// Show the patch content (what will be added).
+		patch := p.Content
+		if len(patch) > 400 {
+			patch = patch[:397] + "..."
 		}
-		text := fmt.Sprintf("**Pending SOUL patch** (`%s`)\nSource: %s\nCreated: %s\n\n```\n%s\n```\n\nUse `/patch approve` or `/patch deny`",
-			p.ID[:8], p.Source, p.CreatedAt.Format("2006-01-02 15:04"), preview)
+		text := fmt.Sprintf("**Pending SOUL patch** (`%s`)\nSource: %s\nCreated: %s\n\n**Patch:**\n```\n%s\n```\n\nUse `/patch approve` or `/patch deny`",
+			p.ID[:8], p.Source, p.CreatedAt.Format("2006-01-02 15:04"), patch)
 		return &cairnchannel.OutgoingMessage{Text: text}, nil
 
 	case "approve":

@@ -53,6 +53,9 @@ type Server struct {
 	toolTasks    tool.TaskService
 	toolStatus   tool.StatusService
 	toolSkills   tool.SkillService
+	toolNotifier tool.NotifyService
+	toolCrons    tool.CronService
+	toolConfig   tool.ConfigService
 
 	// Voice service (optional).
 	voice *voice.Service
@@ -93,6 +96,9 @@ type ServerConfig struct {
 	ToolTasks    tool.TaskService
 	ToolStatus   tool.StatusService
 	ToolSkills   tool.SkillService
+	ToolNotifier tool.NotifyService
+	ToolCrons    tool.CronService
+	ToolConfig   tool.ConfigService
 
 	// Voice service (optional: STT/TTS).
 	Voice *voice.Service
@@ -136,6 +142,9 @@ func New(cfg ServerConfig) *Server {
 		toolTasks:      cfg.ToolTasks,
 		toolStatus:     cfg.ToolStatus,
 		toolSkills:     cfg.ToolSkills,
+		toolNotifier:   cfg.ToolNotifier,
+		toolCrons:      cfg.ToolCrons,
+		toolConfig:     cfg.ToolConfig,
 		voice:          cfg.Voice,
 		cronStore:      cfg.CronStore,
 		activityStore:  cfg.ActivityStore,

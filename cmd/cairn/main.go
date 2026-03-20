@@ -497,6 +497,10 @@ func runServe(logger *slog.Logger) {
 		logger.Info("voice enabled", "whisper", cfg.WhisperURL, "ttsVoice", cfg.TTSVoice)
 	}
 
+	// Create cron and config adapters (needed by both server and agent contexts).
+	cronAdapt := &cronAdapter{store: cronStore}
+	cfgAdapt := &configAdapter{cfg: cfg}
+
 	// Create and start the server.
 	srv := server.New(server.ServerConfig{
 		Agent:          reactAgent,
@@ -520,6 +524,8 @@ func runServe(logger *slog.Logger) {
 		ToolTasks:      taskAdapt,
 		ToolStatus:     statusAdapt,
 		ToolSkills:     skillAdapt,
+		ToolCrons:      cronAdapt,
+		ToolConfig:     cfgAdapt,
 		Voice:          voiceSvc,
 		CronStore:      cronStore,
 		ActivityStore:  agent.NewActivityStore(database.DB),
@@ -531,9 +537,6 @@ func runServe(logger *slog.Logger) {
 
 	// Notify adapter — set when channels are configured, nil otherwise.
 	var notifyAdapt tool.NotifyService
-
-	// Cron adapter for tools.
-	cronAdapt := &cronAdapter{store: cronStore}
 
 	// Start channel router if any channels are configured.
 	if cfg.TelegramBotToken != "" || cfg.DiscordBotToken != "" || cfg.SlackBotToken != "" {
@@ -620,7 +623,7 @@ func runServe(logger *slog.Logger) {
 				ToolSkills:     skillAdapt,
 				ToolNotifier:   notifyAdapt,
 				ToolCrons:      cronAdapt,
-				ToolConfig:     &configAdapter{cfg: cfg},
+				ToolConfig:     cfgAdapt,
 				Config:         &agent.AgentConfig{Model: cfg.LLMModel, MaxRounds: cfg.MaxRoundsForMode("talk")},
 				CompactionConfig: agent.CompactionConfig{
 					TriggerTokens:   cfg.CompactionTriggerTokens,
@@ -773,7 +776,7 @@ func runServe(logger *slog.Logger) {
 			Skills:   skillAdapt,
 			Notifier: notifyAdapt,
 			Crons:    cronAdapt,
-			Config:   &configAdapter{cfg: cfg},
+			Config:   cfgAdapt,
 		}
 		mcpSrv := cairnmcp.New(cairnmcp.Config{
 			Port:           cfg.MCPPort,

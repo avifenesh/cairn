@@ -152,6 +152,16 @@
 		}
 	}
 
+	async function toggleInclusion(skill: Skill) {
+		const newInc = skill.inclusion === 'always' ? 'on-demand' : 'always';
+		try {
+			await updateSkillApi(skill.name, { inclusion: newInc });
+			skills = skills.map((s) => s.name === skill.name ? { ...s, inclusion: newInc } : s);
+		} catch (e) {
+			console.error('Failed to toggle inclusion:', e);
+		}
+	}
+
 	const inclusionColors: Record<string, string> = {
 		always: 'text-[var(--color-success)]',
 		auto: 'text-[var(--cairn-accent)]',
@@ -268,10 +278,13 @@
 			{#each filtered() as skill, i (skill.name)}
 				{@const isActive = activeSkills.includes(skill.name)}
 				<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] card-hover animate-in" style="animation-delay: {i * 25}ms">
-					<button
-						class="flex w-full items-center gap-3 p-3 text-left"
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div
+						class="flex w-full items-center gap-3 p-3 text-left cursor-pointer"
 						onclick={() => toggleExpanded(skill.name)}
-						type="button"
+						role="button"
+						tabindex="0"
+						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleExpanded(skill.name); }}
 						aria-expanded={expandedSkill === skill.name}
 					>
 						{#if isActive}
@@ -285,9 +298,16 @@
 								{#if skill.userInvocable}
 									<Badge variant="outline" class="h-4 px-1 text-[10px]">invocable</Badge>
 								{/if}
-								<Badge variant="outline" class="h-4 px-1 text-[10px] {inclusionColors[skill.inclusion] ?? 'text-[var(--text-tertiary)]'}">
+								<button
+									class="h-4 px-1.5 text-[10px] font-medium rounded-full border transition-colors
+										{skill.inclusion === 'always'
+										? 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/30 hover:bg-[var(--color-success)]/20'
+										: 'bg-[var(--bg-2)] text-[var(--text-tertiary)] border-border-subtle hover:bg-[var(--bg-3)]'}"
+									title="Click to toggle: {skill.inclusion === 'always' ? 'switch to on-demand' : 'switch to always'}"
+									onclick={(e) => { e.stopPropagation(); toggleInclusion(skill); }}
+								>
 									{skill.inclusion}
-								</Badge>
+								</button>
 							</div>
 							<p class="truncate text-xs text-[var(--text-secondary)]">{expandedSkill !== skill.name ? skill.description : ''}</p>
 						</div>
@@ -299,7 +319,7 @@
 						{:else}
 							<ChevronDown class="h-4 w-4 flex-shrink-0 text-[var(--text-tertiary)]" />
 						{/if}
-					</button>
+					</div>
 
 					{#if expandedSkill === skill.name}
 						<div class="border-t border-border-subtle px-4 py-3">

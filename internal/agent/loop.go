@@ -282,7 +282,7 @@ func (l *Loop) tick(ctx context.Context) {
 			if d.Action == "notify" && d.Message != "" {
 				// First line of notification message as summary hint.
 				firstLine := d.Message
-				if idx := strings.IndexByte(firstLine, '\n'); idx > 0 {
+				if idx := strings.IndexByte(firstLine, '\n'); idx >= 0 {
 					firstLine = firstLine[:idx]
 				}
 				if len(firstLine) > 80 {

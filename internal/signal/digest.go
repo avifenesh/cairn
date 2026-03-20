@@ -164,7 +164,7 @@ func (d *DigestRunner) callLLM(ctx context.Context, prompt string) (string, erro
 		Messages: []llm.Message{
 			{Role: llm.RoleUser, Content: []llm.ContentBlock{llm.TextBlock{Text: prompt}}},
 		},
-		MaxTokens: 1024,
+		MaxTokens: 4096,
 	}
 
 	ch, err := d.provider.Stream(ctx, req)

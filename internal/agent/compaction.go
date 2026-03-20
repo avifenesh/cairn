@@ -87,7 +87,7 @@ func CompactMessages(ctx context.Context, messages []llm.Message, provider llm.P
 			},
 		},
 		System:    compactionPrompt,
-		MaxTokens: 2000,
+		MaxTokens: 8192,
 	}
 
 	var summary strings.Builder

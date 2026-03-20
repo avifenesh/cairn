@@ -74,6 +74,9 @@ type Server struct {
 	// Skill suggestor (optional: auto-discovery).
 	skillSuggestor *agent.SkillSuggestor
 
+	// Approval store (optional).
+	approvals *task.ApprovalStore
+
 	// WebAuthn auth (optional).
 	authStore *auth.Store
 	webauthn  *auth.WebAuthn
@@ -127,6 +130,9 @@ type ServerConfig struct {
 	// Skill suggestor (optional: auto-discovery).
 	SkillSuggestor *agent.SkillSuggestor
 
+	// Approval store (optional: human-in-the-loop gates).
+	Approvals *task.ApprovalStore
+
 	// WebAuthn auth (optional: biometric login).
 	AuthStore *auth.Store
 	WebAuthn  *auth.WebAuthn
@@ -172,6 +178,7 @@ func New(cfg ServerConfig) *Server {
 		activityStore:  cfg.ActivityStore,
 		marketplace:    cfg.Marketplace,
 		skillSuggestor: cfg.SkillSuggestor,
+		approvals:      cfg.Approvals,
 		authStore:      cfg.AuthStore,
 		webauthn:       cfg.WebAuthn,
 	}

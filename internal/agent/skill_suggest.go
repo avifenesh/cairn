@@ -52,11 +52,23 @@ func NewSkillSuggestor(logger *slog.Logger) *SkillSuggestor {
 	}
 }
 
-// Suggestions returns the current list of suggestions.
+// Suggestions returns a copy of the current suggestion list.
 func (s *SkillSuggestor) Suggestions() ([]SkillSuggestion, time.Time) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.suggestions, s.updatedAt
+	out := make([]SkillSuggestion, len(s.suggestions))
+	copy(out, s.suggestions)
+	return out, s.updatedAt
+}
+
+// ClearStale clears suggestions when no gaps are detected.
+func (s *SkillSuggestor) ClearStale() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.suggestions) > 0 {
+		s.suggestions = nil
+		s.updatedAt = time.Now()
+	}
 }
 
 // Dismiss marks a slug as dismissed (won't be suggested again until cleared).
@@ -65,13 +77,14 @@ func (s *SkillSuggestor) Dismiss(slug string) {
 	defer s.mu.Unlock()
 	s.dismissed[slug] = true
 	// Remove from current suggestions.
-	filtered := s.suggestions[:0]
+	filtered := make([]SkillSuggestion, 0, len(s.suggestions))
 	for _, sg := range s.suggestions {
 		if sg.Slug != slug {
 			filtered = append(filtered, sg)
 		}
 	}
 	s.suggestions = filtered
+	s.updatedAt = time.Now()
 }
 
 // CollectSignals analyzes recent agent activity to detect skill gaps.

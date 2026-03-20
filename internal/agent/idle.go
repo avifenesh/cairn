@@ -100,8 +100,16 @@ func (l *Loop) idleTick(ctx context.Context) {
 
 		// Phase 1b: Refresh skill suggestions alongside briefing (same cadence).
 		if l.skillSuggestor != nil && l.marketplace != nil {
-			signals := CollectSignals(ctx, l.journaler.store, l.activityStore, l.toolSkills)
-			l.skillSuggestor.GenerateSuggestions(ctx, signals, l.marketplace, l.toolSkills)
+			var journalStore *JournalStore
+			if l.journaler != nil {
+				journalStore = l.journaler.store
+			}
+			signals := CollectSignals(ctx, journalStore, l.activityStore, l.toolSkills)
+			if len(signals) > 0 {
+				l.skillSuggestor.GenerateSuggestions(ctx, signals, l.marketplace, l.toolSkills)
+			} else {
+				l.skillSuggestor.ClearStale()
+			}
 		}
 	}
 

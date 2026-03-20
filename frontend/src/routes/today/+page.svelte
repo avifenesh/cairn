@@ -1,21 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { getDashboard, getFeed, getApprovals, getAgentActivity, getCrons, getCosts, triggerPoll, markAllRead, markRead, deleteFeedItem, archiveFeedItem, approve, deny } from '$lib/api/client';
+	import { getDashboard, getFeed, getTasks, getApprovals, getAgentActivity, getCrons, getCosts, triggerPoll, markAllRead, deleteFeedItem, archiveFeedItem, approve, deny, sendMessage } from '$lib/api/client';
 	import { feedStore } from '$lib/stores/feed.svelte';
 	import { taskStore } from '$lib/stores/tasks.svelte';
 	import { activityStore } from '$lib/stores/activity.svelte';
 	import { appStore } from '$lib/stores/app.svelte';
 	import { relativeTime } from '$lib/utils/time';
-	import { renderMarkdown } from '$lib/utils/markdown';
 	import { createPullToRefresh } from '$lib/utils/touch.svelte';
 	import FeedItemComponent from '$lib/components/feed/FeedItem.svelte';
 	import ApprovalCard from '$lib/components/tasks/ApprovalCard.svelte';
-	import type { DashboardResponse, CronJob, CostData, ActivityEntry } from '$lib/types';
+	import type { DashboardResponse, CronJob, CostData } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Activity, Eye, Search, Loader2, Filter, Archive, Trash2, RefreshCw, CheckCheck, ChevronDown, ChevronUp, Brain, Zap, Clock, DollarSign, Radio, Sparkles, ArrowRight, MessageSquare, ShieldCheck } from '@lucide/svelte';
+	import { Eye, Loader2, Archive, Trash2, RefreshCw, CheckCheck, ChevronDown, ChevronUp, Brain, Clock, DollarSign, Radio, Sparkles, ArrowRight, MessageSquare, ShieldCheck } from '@lucide/svelte';
 
 	// --- State ---
 	let dashboard = $state<DashboardResponse | null>(null);
@@ -35,10 +34,12 @@
 			getAgentActivity({ limit: 10 }),
 			getCrons(),
 			getCosts(),
+			getTasks({ status: 'running' }),
 		]);
 
 		if (results[0].status === 'fulfilled') {
 			dashboard = results[0].value;
+			error = null;
 			if (dashboard) feedStore.setItems(dashboard.feed, dashboard.feed.length >= 20);
 		} else {
 			error = 'Failed to load dashboard';
@@ -60,6 +61,10 @@
 
 		if (results[4].status === 'fulfilled') {
 			costs = results[4].value;
+		}
+
+		if (results[5].status === 'fulfilled') {
+			taskStore.setTasks(results[5].value.items);
 		}
 	}
 
@@ -99,10 +104,18 @@
 			.sort((a, b) => (a.nextRunAt ?? '').localeCompare(b.nextRunAt ?? ''))[0] ?? null;
 	});
 
+	// Heartbeat age ticks with a timer so it doesn't freeze
+	let now = $state(Date.now());
+	let heartbeatInterval: ReturnType<typeof setInterval> | undefined;
+	$effect(() => {
+		heartbeatInterval = setInterval(() => { now = Date.now(); }, 10_000);
+		return () => { if (heartbeatInterval) clearInterval(heartbeatInterval); };
+	});
+
 	const heartbeatAgo = $derived(() => {
 		const hb = appStore.lastHeartbeat;
 		if (!hb) return null;
-		const secs = Math.floor((Date.now() - hb.at) / 1000);
+		const secs = Math.floor((now - hb.at) / 1000);
 		if (secs < 60) return `${secs}s ago`;
 		return `${Math.floor(secs / 60)}m ago`;
 	});
@@ -118,8 +131,8 @@
 	const TYPE_COLORS: Record<string, string> = {
 		task: 'var(--cairn-accent)',
 		idle: 'var(--text-tertiary)',
-		reflection: '#818CF8',
-		cron: '#F59E0B',
+		reflection: 'var(--cairn-accent-secondary, #818CF8)',
+		cron: 'var(--color-warning, #F59E0B)',
 		error: 'var(--color-error)',
 	};
 
@@ -132,12 +145,23 @@
 
 	async function handleApprove(id: string) {
 		taskStore.resolveApproval(id, 'approved');
-		await approve(id).catch(e => console.error('Approve failed:', e));
+		try {
+			await approve(id);
+		} catch (e) {
+			console.error('Approve failed:', e);
+			// Re-fetch approvals on failure to restore state
+			getApprovals({ status: 'pending' }).then(res => taskStore.setApprovals(res.items)).catch(() => {});
+		}
 	}
 
 	async function handleDeny(id: string) {
 		taskStore.resolveApproval(id, 'denied');
-		await deny(id).catch(e => console.error('Deny failed:', e));
+		try {
+			await deny(id);
+		} catch (e) {
+			console.error('Deny failed:', e);
+			getApprovals({ status: 'pending' }).then(res => taskStore.setApprovals(res.items)).catch(() => {});
+		}
 	}
 
 	async function handleSync() {
@@ -152,7 +176,11 @@
 
 	async function handleDelete(id: string) {
 		feedStore.removeItem(id);
-		await deleteFeedItem(id).catch(() => {});
+		try {
+			await deleteFeedItem(id);
+		} catch (e) {
+			console.error('Delete feed item failed:', e);
+		}
 	}
 
 	async function handleArchiveAll() {
@@ -176,16 +204,21 @@
 	}
 
 	const MAX_FEED_ITEMS = 200;
+	let loadMoreError = $state<string | null>(null);
 	async function loadMore() {
 		if (loadingMore || !feedStore.hasMore || feedStore.items.length >= MAX_FEED_ITEMS) return;
-		const lastItem = feedStore.items.at(-1);
+		// Use last item from filtered list when source filter is active
+		const items = activeSource ? filteredItems : feedStore.items;
+		const lastItem = items.at(-1);
 		if (!lastItem) return;
 		loadingMore = true;
+		loadMoreError = null;
 		try {
 			const remaining = MAX_FEED_ITEMS - feedStore.items.length;
 			const res = await getFeed({ limit: Math.min(20, remaining), before: lastItem.id, source: activeSource ?? undefined });
 			feedStore.appendItems(res.items, res.hasMore);
 		} catch (e) {
+			loadMoreError = e instanceof Error ? e.message : 'Failed to load more';
 			console.error('Failed to load more:', e);
 		} finally {
 			loadingMore = false;
@@ -229,9 +262,9 @@
 			<!-- Count badges -->
 			<div class="flex items-center gap-2">
 				{#if feedStore.unreadCount > 0}
-					<a href="/today" class="flex items-center gap-1 rounded-full bg-[var(--cairn-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--cairn-accent)]" onclick={(e) => { e.preventDefault(); showFullFeed = true; }}>
+					<button class="flex items-center gap-1 rounded-full bg-[var(--cairn-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--cairn-accent)]" onclick={() => showFullFeed = true} type="button">
 						<Eye class="h-3 w-3" /> {feedStore.unreadCount}
-					</a>
+					</button>
 				{/if}
 				{#if pendingApprovals.length > 0}
 					<span class="flex items-center gap-1 rounded-full bg-[var(--color-warning)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-warning)]">
@@ -461,6 +494,9 @@
 						{/each}
 					</div>
 
+					{#if loadMoreError}
+						<p class="mt-2 text-center text-xs text-[var(--color-error)]">{loadMoreError}</p>
+					{/if}
 					{#if feedStore.hasMore && feedStore.items.length < MAX_FEED_ITEMS}
 						<div class="mt-4 flex justify-center">
 							<Button variant="outline" size="sm" class="text-xs" onclick={loadMore} disabled={loadingMore}>

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -49,10 +50,16 @@ var shell = tool.Define("cairn.shell",
 
 		// Determine working directory.
 		// Shell commands can cd anywhere, so workDir is just the initial cwd.
-		// File tools (read/write/edit) use safePath for containment; shell does not.
+		// File tools (read/write/edit) use safePath for path containment.
 		workDir := ctx.WorkDir
 		if p.WorkDir != "" {
-			workDir = p.WorkDir
+			if filepath.IsAbs(p.WorkDir) {
+				workDir = p.WorkDir
+			} else if workDir != "" {
+				workDir = filepath.Join(workDir, p.WorkDir)
+			} else {
+				workDir = p.WorkDir
+			}
 		}
 		if workDir == "" {
 			workDir = "."
@@ -144,20 +151,27 @@ var shell = tool.Define("cairn.shell",
 			} else if execCtx.Err() == context.DeadlineExceeded {
 				result.Error = fmt.Sprintf("command timed out after %ds", timeout)
 			} else {
-				// Include stderr in error so the agent can diagnose failures.
+				// Include stderr (or err.Error() for exec failures) so the agent can diagnose.
 				errMsg := fmt.Sprintf("exit %d", exitCode)
 				if se := strings.TrimSpace(stderr.String()); se != "" {
 					if len(se) > 500 {
 						se = se[:500] + "..."
 					}
 					errMsg += ": " + se
+				} else if exitCode < 0 {
+					// Process didn't start — include the Go error for context.
+					errMsg += ": " + err.Error()
 				}
 				result.Error = errMsg
 			}
 			if result.Error != "" {
+				// Log only the first token to avoid leaking secrets in arguments.
 				cmdLog := p.Command
-				if len(cmdLog) > 200 {
-					cmdLog = cmdLog[:200] + "..."
+				if fields := strings.Fields(cmdLog); len(fields) > 0 {
+					cmdLog = fields[0]
+					if len(fields) > 1 {
+						cmdLog += " ..."
+					}
 				}
 				slog.Warn("shell command failed", "exit", exitCode, "cmd", cmdLog, "workDir", workDir)
 			}

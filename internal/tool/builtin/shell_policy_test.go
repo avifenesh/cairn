@@ -62,7 +62,9 @@ func TestFilteredEnv(t *testing.T) {
 	t.Setenv("npm_config_registry", "https://registry.npmjs.org")
 	t.Setenv("CAIRN_DATA_DIR", "/data")
 	t.Setenv("GH_TOKEN", "gho_test123")
+	t.Setenv("GH_ORGS", "my-org")
 	t.Setenv("GITHUB_ACTIONS", "true")
+	t.Setenv("GITHUB_TOKEN", "ghp_secret456")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "supersecret")
 	t.Setenv("DATABASE_PASSWORD", "dbpass")
 
@@ -74,14 +76,14 @@ func TestFilteredEnv(t *testing.T) {
 	}
 
 	// Should be present.
-	for _, key := range []string{"PATH", "HOME", "GIT_AUTHOR_NAME", "npm_config_registry", "CAIRN_DATA_DIR", "GH_TOKEN", "GITHUB_ACTIONS"} {
+	for _, key := range []string{"PATH", "HOME", "GIT_AUTHOR_NAME", "npm_config_registry", "CAIRN_DATA_DIR", "GH_TOKEN", "GH_ORGS", "GITHUB_ACTIONS"} {
 		if _, ok := envMap[key]; !ok {
 			t.Errorf("expected %s to be in filtered env", key)
 		}
 	}
 
 	// Should be absent (secrets).
-	for _, key := range []string{"GLM_API_KEY", "OPENAI_API_KEY", "AWS_SECRET_ACCESS_KEY", "DATABASE_PASSWORD"} {
+	for _, key := range []string{"GLM_API_KEY", "OPENAI_API_KEY", "AWS_SECRET_ACCESS_KEY", "DATABASE_PASSWORD", "GITHUB_TOKEN"} {
 		if _, ok := envMap[key]; ok {
 			t.Errorf("expected %s to be filtered out", key)
 		}

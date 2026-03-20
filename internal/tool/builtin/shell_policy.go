@@ -58,8 +58,6 @@ var envAllowlist = map[string]bool{
 // envPrefixAllowlist allows any variable starting with these prefixes.
 var envPrefixAllowlist = []string{
 	"GIT_",
-	"GH_",
-	"GITHUB_",
 	"npm_",
 	"NODE_",
 	"CAIRN_",
@@ -68,8 +66,17 @@ var envPrefixAllowlist = []string{
 	"PNPM_",
 }
 
+// ghEnvAllowlist allows specific GH_/GITHUB_ vars that are NOT secrets.
+// GH_TOKEN is passed explicitly so `gh` CLI works, but it's not in the
+// prefix allowlist to avoid exposing other GITHUB_* secrets.
+var ghEnvAllowlist = map[string]bool{
+	"GH_TOKEN":      true, // gh CLI authentication
+	"GH_ORGS":       true, // org filter (non-secret)
+	"GITHUB_ACTIONS": true, // CI detection flag
+}
+
 // filteredEnv returns os.Environ() filtered to safe variables only.
-// API keys, tokens, and secrets are excluded.
+// Secrets are excluded except specific tokens needed by tools (e.g. GH_TOKEN for gh CLI).
 func filteredEnv() []string {
 	var result []string
 	for _, kv := range os.Environ() {
@@ -77,7 +84,7 @@ func filteredEnv() []string {
 		if !ok {
 			continue
 		}
-		if envAllowlist[key] {
+		if envAllowlist[key] || ghEnvAllowlist[key] {
 			result = append(result, kv)
 			continue
 		}

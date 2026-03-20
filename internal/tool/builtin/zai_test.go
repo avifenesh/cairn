@@ -132,3 +132,25 @@ func TestExtractMCPText(t *testing.T) {
 		t.Fatalf("expected raw fallback, got %q", got2)
 	}
 }
+
+func TestIsZaiEmptySearch(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"", true},
+		{"  ", true},
+		{"[]", true},
+		{`"[]"`, true},
+		{` "[]" `, true},
+		{"some results here", false},
+		{`[{"title":"test"}]`, false},
+		{`"results"`, false},
+	}
+	for _, tt := range tests {
+		got := isZaiEmptySearch(tt.input)
+		if got != tt.want {
+			t.Errorf("isZaiEmptySearch(%q) = %v, want %v", tt.input, got, tt.want)
+		}
+	}
+}

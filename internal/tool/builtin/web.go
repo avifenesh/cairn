@@ -106,6 +106,10 @@ func doSearXNGSearch(ctx context.Context, query string, limit int) ([]searchResu
 	q.Set("q", query)
 	q.Set("format", "json")
 	q.Set("pageno", "1")
+	// Use IT category for better relevance on technical queries (filters out gaming, shopping, etc.).
+	q.Set("categories", "it")
+	// Prefer English results.
+	q.Set("language", "en")
 	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)

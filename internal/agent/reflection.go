@@ -211,7 +211,8 @@ func (r *ReflectionEngine) callLLM(ctx context.Context, prompt string) (string, 
 		Messages: []llm.Message{
 			{Role: llm.RoleUser, Content: []llm.ContentBlock{llm.TextBlock{Text: prompt}}},
 		},
-		MaxTokens: 1024,
+		MaxTokens:       1024,
+		DisableThinking: true, // JSON output — thinking wastes tokens and can produce empty text
 	}
 
 	ch, err := r.provider.Stream(ctx, req)
@@ -221,9 +222,16 @@ func (r *ReflectionEngine) callLLM(ctx context.Context, prompt string) (string, 
 
 	var result strings.Builder
 	for ev := range ch {
-		if td, ok := ev.(llm.TextDelta); ok {
-			result.WriteString(td.Text)
+		switch e := ev.(type) {
+		case llm.TextDelta:
+			result.WriteString(e.Text)
+		case llm.StreamError:
+			return "", fmt.Errorf("stream error: %w", e.Err)
 		}
+	}
+
+	if result.Len() == 0 {
+		return "", fmt.Errorf("empty LLM response")
 	}
 	return result.String(), nil
 }

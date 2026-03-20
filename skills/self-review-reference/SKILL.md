@@ -1,9 +1,10 @@
 ---
 name: self-review-reference
 description: "Use when user asks about self-review, output quality gates, response validation, auto-review of assistant responses, LLM output checking, or quality assurance for AI responses. Reference material on auto-reviewing LLM output before or after delivery to the user. Keywords: self-review, quality gate, output validation, response quality, auto-review, pre-delivery check, post-delivery audit"
-allowed-tools: "Read"
 inclusion: on-demand
+allowed-tools: "Read"
 ---
+
 
 # Self-Review Quality Gate -- Reference
 
@@ -159,3 +160,4 @@ For detailed implementation blueprints and integration points, see `reference.md
 - OpenClaw `self-review` pattern (conceptual basis)
 - Cairn's dual-LLM email triage (existing two-pass architecture in `email-triage-runner.ts`)
 - Cairn's chain-of-density approach (quality via prompt engineering in `digest-runner.ts`)
+

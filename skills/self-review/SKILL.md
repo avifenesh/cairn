@@ -1,9 +1,10 @@
 ---
 name: self-review
 description: "Use when agent should review its own output before responding, or when asked to double-check work. Keywords: self-review, double-check, verify, validate, review output"
-inclusion: on-demand
+inclusion: always
 allowed-tools: "cairn.journalSearch,cairn.searchMemory"
 ---
+
 
 # Self-Review
 
@@ -23,3 +24,4 @@ Review your own output before presenting it to the user:
 - When synthesizing information from multiple sources
 - When the response involves technical details that could be wrong
 - After completing multi-step tasks
+

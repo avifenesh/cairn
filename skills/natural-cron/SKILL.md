@@ -1,10 +1,10 @@
 ---
 name: natural-cron
 description: "Use when user asks to create a schedule, cron expression, recurring task, automation rule, run daily/weekly/monthly, set a timer, or mentions cron/cronjob/crontab. Converts natural language like 'every weekday at 9am' to valid cron expressions and optionally creates automation rules."
-allowed-tools: "cairn.shell"
-argument-hint: "<natural language schedule description>"
 inclusion: on-demand
+allowed-tools: "cairn.shell"
 ---
+
 
 # Natural Language to Cron Expression
 
@@ -166,3 +166,4 @@ When a cron-triggered automation rule fires, the resulting task should execute i
 - **Budget**: Default $1.00 per 24-hour window. Adjust `budgetCapUsd` and `budgetWindowMs` for expensive task types.
 - **Safety**: Rules are always created with `enabled: false`. The user must explicitly enable them after verifying the schedule.
 - **Legacy values**: The API also accepts `"daily"`, `"weekly_monday"`, `"monthly_first"` as `cronLike` for backward compatibility, but prefer explicit cron expressions.
+

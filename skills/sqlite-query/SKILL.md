@@ -1,11 +1,10 @@
 ---
 name: sqlite-query
 description: "Use when user asks to query the database, check stats, count events, analytics questions, SQL queries. Keywords: query, stats, count, how many, top, database, sql, events this week, source volume, acceptance rate"
-argument-hint: "[question or SQL query]"
-allowed-tools: "cairn.shell"
 inclusion: on-demand
-# disable-model-invocation intentionally omitted: read-only skill, no side effects
+allowed-tools: "cairn.shell"
 ---
+
 
 # SQLite Query — Read-Only Database Analytics
 
@@ -348,3 +347,4 @@ FROM agents ORDER BY last_heartbeat_at DESC;
 - After showing raw data, summarize results in natural language
 - For large result sets, highlight key insights rather than dumping all rows
 - When comparing time periods, show both absolute numbers and percentage change
+

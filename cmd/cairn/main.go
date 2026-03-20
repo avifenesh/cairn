@@ -438,6 +438,7 @@ func runServe(logger *slog.Logger) {
 	}
 
 	// Start always-on agent loop (if idle mode enabled and agent available).
+	var agentLoop *agent.Loop
 	if cfg.IdleModeEnabled && reactAgent != nil && provider != nil {
 		journaler := agent.NewJournaler(journalStore, provider, cfg.LLMModel)
 
@@ -448,7 +449,7 @@ func runServe(logger *slog.Logger) {
 		// Recover agent state from previous run.
 		loopState := agent.RecoverOnStartup(context.Background(), database.DB, logger)
 
-		agentLoop := agent.NewLoop(agent.LoopConfig{
+		agentLoop = agent.NewLoop(agent.LoopConfig{
 			TickInterval:       time.Duration(cfg.AgentTickInterval) * time.Second,
 			ReflectionInterval: time.Duration(cfg.ReflectionInterval) * time.Second,
 			Model:              cfg.LLMModel,
@@ -777,8 +778,11 @@ func runServe(logger *slog.Logger) {
 			}
 		}
 
-		// Wire notifier adapter for tools.
+		// Wire notifier adapter for tools + idle loop.
 		notifyAdapt = &notifierAdapter{router: channelRouter}
+		if agentLoop != nil {
+			agentLoop.SetNotifier(notifyAdapt)
+		}
 
 		// Start router in background — stopped by ctx cancel on shutdown.
 		go func() {

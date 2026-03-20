@@ -111,6 +111,35 @@ func (s *ActivityStore) List(ctx context.Context, limit, offset int, activityTyp
 	return entries, rows.Err()
 }
 
+// RecentIdleActions returns the last N idle activity entries from the past duration.
+// Used to prevent the idle loop from repeating the same decisions.
+func (s *ActivityStore) RecentIdleActions(ctx context.Context, n int, since time.Duration) ([]ActivityEntry, error) {
+	cutoff := time.Now().UTC().Add(-since).Format(activityTimeFormat)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, type, summary, details, errors, tool_count, duration_ms, created_at
+		FROM agent_activity WHERE type = 'idle' AND created_at > ?
+		ORDER BY created_at DESC LIMIT ?`, cutoff, n)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []ActivityEntry
+	for rows.Next() {
+		var e ActivityEntry
+		var errStr string
+		if err := rows.Scan(&e.ID, &e.Type, &e.Summary, &e.Details, &errStr, &e.ToolCount, &e.DurationMs, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		json.Unmarshal([]byte(errStr), &e.Errors)
+		if e.Errors == nil {
+			e.Errors = []string{}
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
 // RecordToolCall upserts tool execution stats.
 func (s *ActivityStore) RecordToolCall(ctx context.Context, toolName string, durationMs int64, errMsg string) error {
 	now := time.Now().UTC().Format(activityTimeFormat)

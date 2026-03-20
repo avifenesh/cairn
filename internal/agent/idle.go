@@ -243,7 +243,18 @@ func (l *Loop) reasonAboutAction(ctx context.Context, obs *Observations) *IdleDe
 		soulContent = l.soul.Content()
 	}
 
-	prompt := buildDecisionPrompt(soulContent, l.idleBriefing, obs)
+	// Fetch recent idle actions so the LLM knows what it already did (prevents loops).
+	var recentActions []ActivityEntry
+	if l.activityStore != nil {
+		actions, err := l.activityStore.RecentIdleActions(ctx, 5, 2*time.Hour)
+		if err != nil {
+			l.logger.Warn("idle: failed to fetch recent actions", "error", err)
+		} else {
+			recentActions = actions
+		}
+	}
+
+	prompt := buildDecisionPrompt(soulContent, l.idleBriefing, obs, recentActions)
 
 	req := &llm.Request{
 		Model: l.config.Model,
@@ -313,15 +324,21 @@ func parseIdleDecision(raw string) *IdleDecision {
 func (l *Loop) executeIdleDecision(ctx context.Context, d *IdleDecision) {
 	switch d.Action {
 	case "notify":
-		if d.Message != "" && l.bus != nil {
-			// Publish notification event — channel handler or SSE will pick it up.
-			eventbus.Publish(l.bus, AgentNotification{
-				EventMeta: eventbus.NewMeta("agent"),
-				Message:   d.Message,
-				Priority:  d.Priority,
-				Reason:    d.Reason,
-			})
-			l.logger.Info("idle: notification sent", "message", d.Message[:min(len(d.Message), 80)])
+		if d.Message != "" {
+			if l.notifier != nil {
+				// Route through NotifyService — dispatches to Telegram/Discord/Slack/digest.
+				l.notifier.Notify(ctx, d.Message, d.Priority)
+				l.logger.Info("idle: notification dispatched", "priority", d.Priority, "message", d.Message[:min(len(d.Message), 80)])
+			} else {
+				// Fallback: publish to event bus (SSE only).
+				eventbus.Publish(l.bus, AgentNotification{
+					EventMeta: eventbus.NewMeta("agent"),
+					Message:   d.Message,
+					Priority:  d.Priority,
+					Reason:    d.Reason,
+				})
+				l.logger.Info("idle: notification published to bus (no channel notifier)", "message", d.Message[:min(len(d.Message), 80)])
+			}
 		}
 
 	case "task":
@@ -417,8 +434,8 @@ func buildBriefingPrompt(obs *Observations) string {
 }
 
 // buildDecisionPrompt creates a compact prompt for the decision model.
-// It uses SOUL + the pre-built briefing + live signal counts.
-func buildDecisionPrompt(soulContent, briefing string, obs *Observations) string {
+// It uses SOUL + the pre-built briefing + live signal counts + recent actions (to avoid repeats).
+func buildDecisionPrompt(soulContent, briefing string, obs *Observations, recentActions []ActivityEntry) string {
 	var b strings.Builder
 
 	if soulContent != "" {
@@ -451,10 +468,31 @@ func buildDecisionPrompt(soulContent, briefing string, obs *Observations) string
 		fmt.Fprintf(&b, "- Errors (last 6h): %d\n", len(obs.RecentErrors))
 	}
 
-	b.WriteString("\n---\n\n")
+	// Inject recent idle actions so the LLM knows what it already did (prevents repetition).
+	if len(recentActions) > 0 {
+		b.WriteString("\n## Recent Actions (what you already did — DO NOT repeat)\n")
+		for _, a := range recentActions {
+			fmt.Fprintf(&b, "- [%s] %s\n", a.CreatedAt, a.Summary)
+			if a.Details != "" {
+				// Indent details under the action.
+				for _, line := range strings.SplitN(a.Details, "\n", 4) {
+					if line != "" {
+						fmt.Fprintf(&b, "  %s\n", line)
+					}
+				}
+			}
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("---\n\n")
 	b.WriteString("Based on your personality (SOUL) and the briefing, what should you do?\n\n")
 	b.WriteString("Actions: notify | task | learn | wait\n")
-	b.WriteString("Rules: \"wait\" is valid and often correct. Only notify for genuine value. Be specific.\n\n")
+	b.WriteString("Rules:\n")
+	b.WriteString("- \"wait\" is valid and often the best choice.\n")
+	b.WriteString("- NEVER repeat a notification you already sent (check Recent Actions above).\n")
+	b.WriteString("- If you already notified about something and nothing changed, choose \"wait\".\n")
+	b.WriteString("- Only notify for NEW information or genuinely time-sensitive items.\n\n")
 	b.WriteString("JSON only:\n")
 	b.WriteString(`{"action": "wait|notify|task|learn", "reason": "specific explanation", "message": "if notify", "priority": 0}`)
 

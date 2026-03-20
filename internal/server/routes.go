@@ -874,6 +874,10 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 		s.sessions.AppendEvent(ctx, session.ID, userEvent)
 	}
 
+	// Mark running immediately so the agent loop doesn't claim it.
+	// Chat tasks are handled by the HTTP handler goroutine, not the loop.
+	s.tasks.MarkRunning(ctx, t.ID)
+
 	// Run the agent asynchronously.
 	go s.runAgent(session, t, req.Message, mode)
 

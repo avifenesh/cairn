@@ -171,6 +171,22 @@ func (e *Engine) Claim(ctx context.Context, taskType TaskType) (*Task, error) {
 	return t, nil
 }
 
+// MarkRunning sets a task to running status so the agent loop won't claim it.
+// Used by the HTTP handler for chat tasks that are handled inline.
+func (e *Engine) MarkRunning(ctx context.Context, taskID string) {
+	t, err := e.store.Get(ctx, taskID)
+	if err != nil || t == nil {
+		return
+	}
+	t.Status = StatusRunning
+	t.LeaseOwner = "http"
+	t.LeaseExpiry = time.Now().Add(defaultLeaseDuration)
+	t.UpdatedAt = time.Now()
+	e.store.Update(ctx, t)
+	// Remove from queue so the loop doesn't see it.
+	e.queue.Remove(taskID)
+}
+
 // Complete marks a task as completed with the given output.
 func (e *Engine) Complete(ctx context.Context, taskID string, output json.RawMessage) error {
 	t, err := e.store.Get(ctx, taskID)

@@ -2,6 +2,8 @@
 name: find-work
 description: "Find what to work on next — scan issues, TODO.md, technical debt, and the codebase for improvements. Keywords: what should I work on, next task, find work, what needs attention, improve, tech debt, backlog, issues, priorities, what can be better"
 argument-hint: "[focus area]"
+inclusion: "on-demand"
+allowed-tools: "cairn.shell,cairn.searchFiles,cairn.readFile,cairn.gitRun,cairn.listTasks,cairn.searchMemories"
 ---
 
 # Find Work

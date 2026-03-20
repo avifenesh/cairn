@@ -1,7 +1,7 @@
 ---
 name: self-improving-agent
 description: "Formalized learning loop that captures learnings, errors, and corrections to Cairn's memory system for continuous improvement. Use when: self-review, self-improve, learning loop, what did I learn, improve myself, reflect, what went wrong, error patterns, metacognition, weekly review, log this learning, should I log this. Keywords: self-review, self-improve, reflect, learn, errors, corrections, patterns, metacognition, soul, review, learning"
-allowed-tools: "cairn.shell,cairn.searchMemories,cairn.listMemories,cairn.createMemory,cairn.createArtifact,cairn.getStatus,cairn.journalSearch,cairn.getStatus"
+allowed-tools: "cairn.shell,cairn.searchMemories,cairn.listMemories,cairn.createMemory,cairn.createArtifact,cairn.getStatus,cairn.journalSearch"
 disable-model-invocation: false
 inclusion: always
 context: "chat,tick"

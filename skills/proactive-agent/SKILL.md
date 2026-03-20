@@ -1,7 +1,7 @@
 ---
 name: proactive-agent
 description: "Anticipation patterns and self-scheduling for proactive behavior. Use when deciding what to do next, before meetings, after deploys, during quiet periods, or when the agent loop needs a playbook. Keywords: anticipate, proactive, prep, before meeting, after deploy, self-schedule, surface context, what should I do, idle, quiet time, check ahead"
-allowed-tools: "cairn.shell,cairn.searchFeed,cairn.searchMemories,cairn.createMemory,cairn.listTasks,cairn.createArtifact,cairn.shell,cairn.shell,cairn.getStatus"
+allowed-tools: "cairn.shell,cairn.searchFeed,cairn.searchMemories,cairn.createMemory,cairn.listTasks,cairn.createArtifact,cairn.getStatus"
 inclusion: always
 context: "tick"
 ---

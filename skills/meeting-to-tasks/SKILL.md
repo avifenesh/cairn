@@ -2,7 +2,7 @@
 name: meeting-to-tasks
 description: "Convert meeting notes to action items. Use when asked to extract tasks, action items, follow-ups, or decisions from meeting notes, transcripts, or calendar events. Keywords: meeting, action items, tasks, follow-up, decisions, minutes, transcript, notes, extract tasks, meeting notes"
 argument-hint: "<paste meeting notes, provide file path, or specify calendar event>"
-allowed-tools: "cairn.shell,cairn.shell,cairn.shell"
+allowed-tools: "cairn.shell"
 inclusion: on-demand
 ---
 

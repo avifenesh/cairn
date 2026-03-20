@@ -1,6 +1,8 @@
 ---
 name: morning-brief
 description: "Start-of-day briefing combining calendar, email, GitHub, and feed into one quick scan. Keywords: morning, brief, start of day, daily, today, good morning, what's on today, schedule, agenda"
+inclusion: "on-demand"
+allowed-tools: "cairn.shell,cairn.searchFeed,cairn.getStatus"
 ---
 
 # Morning Brief

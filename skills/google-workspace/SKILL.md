@@ -3,6 +3,7 @@ name: google-workspace
 description: "Query and manage Google Workspace. Use when asked about emails, calendar, documents, spreadsheets, presentations, contacts, or tasks. Keywords: gmail, inbox, email, calendar, events, drive, files, sheets, spreadsheet, docs, document, slides, presentation, tasks, todo, contacts, people"
 inclusion: always
 context: "chat"
+allowed-tools: "cairn.shell"
 ---
 
 # Google Workspace via gws CLI

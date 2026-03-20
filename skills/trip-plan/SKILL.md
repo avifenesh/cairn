@@ -2,6 +2,8 @@
 name: trip-plan
 description: "Plan a trip with day-by-day itinerary, activities, restaurants, and practical tips. Keywords: trip, travel, vacation, itinerary, plan trip, weekend in, visit, holiday, getaway, destination"
 argument-hint: "[destination and dates]"
+inclusion: "on-demand"
+allowed-tools: "cairn.shell,cairn.webSearch,cairn.webFetch"
 ---
 
 # Trip Planner

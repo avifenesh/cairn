@@ -2,7 +2,7 @@
 name: system-health
 description: "Use when asked about system health, server resources, infrastructure status, or 'how is the server doing'. Comprehensive host-level health report: CPU, memory, disk, database, Node.js process, TLS cert, SSE clients, poller health. For provider-specific checks use /provider-status instead. Keywords: system health, server, cpu, memory, disk, database, db size, wal, node heap, process, sse clients, poller, infrastructure, resources, uptime"
 argument-hint: "[--verbose]"
-allowed-tools: "cairn.shell,cairn.getStatus,cairn.getStatus"
+allowed-tools: "cairn.shell,cairn.getStatus"
 inclusion: always
 context: "tick"
 ---

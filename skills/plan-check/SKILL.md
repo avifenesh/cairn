@@ -1,6 +1,8 @@
 ---
 name: plan-check
 description: "Compare roadmap and plans against actual code state — find drift between what's documented and what's built. Keywords: plan check, drift, roadmap, reality check, what's done, progress, status, compare plan, alignment, gaps"
+inclusion: "on-demand"
+allowed-tools: "cairn.shell,cairn.readFile,cairn.searchFiles,cairn.gitRun"
 ---
 
 # Plan Check

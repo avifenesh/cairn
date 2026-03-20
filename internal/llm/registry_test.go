@@ -174,6 +174,72 @@ func TestRegistry_ListProviders(t *testing.T) {
 	}
 }
 
+func TestRegistry_FallbackChain(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	r := NewRegistry(logger)
+	r.Register(NewGLMProvider("key", "http://localhost", "glm-5-turbo"))
+
+	// Set up a 3-level chain: glm-5-turbo -> glm-5 -> glm-4.7
+	r.SetFallback("glm-5-turbo", "glm-5")
+	r.SetFallback("glm-5", "glm-4.7")
+
+	provider, model, err := r.WithRetryAndFallback("glm-5-turbo", DefaultRetryConfig())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if model != "glm-5-turbo" {
+		t.Errorf("expected 'glm-5-turbo', got %q", model)
+	}
+
+	// The wrapped provider should be a retryProvider chain.
+	rp, ok := provider.(*retryProvider)
+	if !ok {
+		t.Fatalf("expected *retryProvider, got %T", provider)
+	}
+	// Primary should be glm (for glm-5-turbo).
+	if rp.primary.ID() != "glm" {
+		t.Errorf("primary provider = %q, want glm", rp.primary.ID())
+	}
+	// Fallback should itself be a retryProvider (for glm-5 -> glm-4.7).
+	fbRp, ok := rp.fallback.(*retryProvider)
+	if !ok {
+		t.Fatalf("expected fallback to be *retryProvider, got %T", rp.fallback)
+	}
+	if fbRp.primary.ID() != "glm" {
+		t.Errorf("fallback primary = %q, want glm", fbRp.primary.ID())
+	}
+	// Second-level fallback should be a retryProvider wrapping glm-4.7 with no further fallback.
+	fb2Rp, ok := fbRp.fallback.(*retryProvider)
+	if !ok {
+		t.Fatalf("expected second-level fallback to be *retryProvider, got %T", fbRp.fallback)
+	}
+	if fb2Rp.fallback != nil {
+		t.Error("expected glm-4.7 (tail) to have no further fallback")
+	}
+}
+
+func TestRegistry_FallbackChain_CyclePrevention(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	r := NewRegistry(logger)
+	r.Register(NewOpenAIProvider("key", "http://localhost", "model-a"))
+
+	// Create a cycle: model-a -> model-a
+	r.SetFallback("model-a", "model-a")
+
+	provider, _, err := r.WithRetryAndFallback("model-a", DefaultRetryConfig())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should not infinite loop - the chain should have exactly 1 level (no fallback).
+	rp, ok := provider.(*retryProvider)
+	if !ok {
+		t.Fatalf("expected *retryProvider, got %T", provider)
+	}
+	if rp.fallback != nil {
+		t.Error("expected cycle to be broken - no fallback should be set")
+	}
+}
+
 func TestRegistry_WithRetryAndFallback(t *testing.T) {
 	// Set up a mock server that always succeeds.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

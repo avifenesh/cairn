@@ -132,6 +132,10 @@ func runServe(logger *slog.Logger) {
 
 		if cfg.LLMFallbackModel != "" {
 			registry.SetFallback(cfg.LLMModel, cfg.LLMFallbackModel)
+		} else if cfg.LLMProvider == "glm" {
+			// Default GLM fallback chain: glm-5-turbo -> glm-5 -> glm-4.7
+			registry.SetFallback("glm-5-turbo", "glm-5")
+			registry.SetFallback("glm-5", "glm-4.7")
 		}
 
 		var resolveErr error
@@ -977,6 +981,9 @@ func runChat(logger *slog.Logger) {
 	// Configure fallback if set.
 	if cfg.LLMFallbackModel != "" {
 		registry.SetFallback(cfg.LLMModel, cfg.LLMFallbackModel)
+	} else if cfg.LLMProvider == "glm" {
+		registry.SetFallback("glm-5-turbo", "glm-5")
+		registry.SetFallback("glm-5", "glm-4.7")
 	}
 
 	// Resolve provider with retry + fallback.

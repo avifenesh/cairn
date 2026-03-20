@@ -125,24 +125,56 @@ func (r *Registry) FallbackFor(modelID string) (Provider, string, bool) {
 }
 
 // WithRetryAndFallback wraps the resolved provider for a model with retry logic
-// and automatic fallback if configured.
+// and automatic fallback if configured. Supports fallback chains: if model A
+// falls back to B, and B falls back to C, each level gets its own retry wrapper.
 func (r *Registry) WithRetryAndFallback(modelID string, config RetryConfig) (Provider, string, error) {
 	primary, resolved, err := r.Resolve(modelID)
 	if err != nil {
 		return nil, "", err
 	}
 
-	opts := []RetryOption{WithLogger(r.logger)}
-
-	if fallback, _, ok := r.FallbackFor(resolved); ok {
-		opts = append(opts, WithFallback(fallback))
-		r.logger.Info("llm: fallback configured",
-			"primary", resolved,
-			"fallback", r.fallbacks[resolved],
-		)
+	// Build the fallback chain from the bottom up. Walk the chain first to
+	// collect all levels, then wrap from the tail so each fallback is itself
+	// a retry+fallback provider.
+	type level struct {
+		provider Provider
+		modelID  string
 	}
 
-	wrapped := WithRetry(primary, config, opts...)
+	chain := []level{{primary, resolved}}
+	seen := map[string]bool{resolved: true}
+	cur := resolved
+	for {
+		fb, fbModel, ok := r.FallbackFor(cur)
+		if !ok {
+			break
+		}
+		if seen[fbModel] {
+			break // prevent cycles
+		}
+		seen[fbModel] = true
+		chain = append(chain, level{fb, fbModel})
+		cur = fbModel
+	}
+
+	// Wrap from tail to head. The last level has no fallback.
+	var wrapped Provider
+	for i := len(chain) - 1; i >= 0; i-- {
+		opts := []RetryOption{WithLogger(r.logger)}
+		if wrapped != nil {
+			opts = append(opts, WithFallback(wrapped))
+		}
+		wrapped = WithRetry(chain[i].provider, config, opts...)
+	}
+
+	if len(chain) > 1 {
+		names := make([]string, len(chain))
+		for i, l := range chain {
+			names[i] = l.modelID
+		}
+		r.logger.Info("llm: fallback chain configured", "chain", names)
+	}
+
 	return wrapped, resolved, nil
 }
 

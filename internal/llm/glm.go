@@ -65,6 +65,13 @@ func (p *GLMProvider) Models() []ModelInfo {
 			CostPer1MOutput: 0.0,
 		},
 		{
+			ID:              "glm-5",
+			DisplayName:     "GLM-5",
+			MaxTokens:       200000,
+			CostPer1MInput:  0.0,
+			CostPer1MOutput: 0.0,
+		},
+		{
 			ID:              "glm-4.7",
 			DisplayName:     "GLM-4.7",
 			MaxTokens:       200000,

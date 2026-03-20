@@ -2,12 +2,27 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/avifenesh/cairn/internal/skill"
 )
 
 // --- Marketplace (ClawHub) handlers ---
+
+// writeMarketplaceError checks for RateLimitError and returns 429, otherwise 502.
+func writeMarketplaceError(w http.ResponseWriter, msg string, err error) {
+	var rlErr *skill.RateLimitError
+	if errors.As(err, &rlErr) {
+		w.Header().Set("Retry-After", fmt.Sprintf("%d", int(rlErr.RetryAfter.Seconds())))
+		writeError(w, http.StatusTooManyRequests, "ClawHub rate limited, retry after "+rlErr.RetryAfter.String())
+		return
+	}
+	writeError(w, http.StatusBadGateway, msg+": "+err.Error())
+}
 
 func (s *Server) handleMarketplaceSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
@@ -24,7 +39,7 @@ func (s *Server) handleMarketplaceSearch(w http.ResponseWriter, r *http.Request)
 
 	results, err := s.marketplace.Search(r.Context(), query, limit)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "marketplace search failed: "+err.Error())
+		writeMarketplaceError(w, "marketplace search failed", err)
 		return
 	}
 
@@ -58,7 +73,7 @@ func (s *Server) handleMarketplaceBrowse(w http.ResponseWriter, r *http.Request)
 
 	skills, err := s.marketplace.Browse(r.Context(), sort, limit)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "marketplace browse failed: "+err.Error())
+		writeMarketplaceError(w, "marketplace browse failed", err)
 		return
 	}
 
@@ -86,7 +101,7 @@ func (s *Server) handleMarketplaceDetail(w http.ResponseWriter, r *http.Request)
 
 	detail, err := s.marketplace.Detail(r.Context(), slug)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "marketplace detail failed: "+err.Error())
+		writeMarketplaceError(w, "marketplace detail failed", err)
 		return
 	}
 
@@ -112,7 +127,7 @@ func (s *Server) handleMarketplacePreview(w http.ResponseWriter, r *http.Request
 
 	content, err := s.marketplace.Preview(r.Context(), slug)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "marketplace preview failed: "+err.Error())
+		writeMarketplaceError(w, "marketplace preview failed", err)
 		return
 	}
 
@@ -153,20 +168,23 @@ func (s *Server) handleMarketplaceInstall(w http.ResponseWriter, r *http.Request
 
 	prov, err := s.marketplace.Install(r.Context(), slug, targetDir)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "install failed: "+err.Error())
+		writeMarketplaceError(w, "install failed", err)
 		return
 	}
 
-	// Re-discover skills.
+	// Re-discover skills so the installed skill appears immediately.
+	refreshFailed := false
 	if refreshErr := s.toolSkills.Refresh(); refreshErr != nil {
 		s.logger.Warn("skill re-discovery failed after marketplace install", "error", refreshErr)
+		refreshFailed = true
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]any{
-		"ok":      true,
-		"name":    slug,
-		"version": prov.Version,
+		"ok":            true,
+		"name":          slug,
+		"version":       prov.Version,
+		"refreshFailed": refreshFailed,
 	})
 }

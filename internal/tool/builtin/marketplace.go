@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -12,20 +13,20 @@ import (
 
 var (
 	mpClient *skill.MarketplaceClient
-	mpOnce   sync.Once
+	mpMu     sync.Mutex
 )
 
 // SetMarketplaceConfig initializes the marketplace client for agent tools.
 func SetMarketplaceConfig(baseURL string, logger *slog.Logger) {
-	mpOnce = sync.Once{} // allow re-init for tests
-	mpOnce.Do(func() {
-		mpClient = skill.NewMarketplaceClient(baseURL, logger)
-	})
+	mpMu.Lock()
+	defer mpMu.Unlock()
+	mpClient = skill.NewMarketplaceClient(baseURL, logger)
 }
 
 func getMarketplaceClient() *skill.MarketplaceClient {
+	mpMu.Lock()
+	defer mpMu.Unlock()
 	if mpClient == nil {
-		// Lazy init with defaults if not explicitly configured.
 		mpClient = skill.NewMarketplaceClient("", slog.Default())
 	}
 	return mpClient
@@ -35,7 +36,7 @@ func getMarketplaceClient() *skill.MarketplaceClient {
 
 type searchSkillsParams struct {
 	Query string `json:"query" desc:"Search query for ClawHub skill marketplace"`
-	Limit int    `json:"limit" desc:"Max results (default 10, max 20)"`
+	Limit *int   `json:"limit,omitempty" desc:"Max results (default 10, max 20)"`
 }
 
 var searchSkillsMarketplace = tool.Define("cairn.searchSkills",
@@ -45,12 +46,13 @@ var searchSkillsMarketplace = tool.Define("cairn.searchSkills",
 		if p.Query == "" {
 			return &tool.ToolResult{Error: "query is required"}, nil
 		}
-		if p.Limit <= 0 {
-			p.Limit = 10
+		limit := 10
+		if p.Limit != nil && *p.Limit > 0 {
+			limit = *p.Limit
 		}
 
 		mc := getMarketplaceClient()
-		results, err := mc.Search(ctx.Cancel, p.Query, p.Limit)
+		results, err := mc.Search(ctx.Cancel, p.Query, limit)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("search failed: %v", err)}, nil
 		}
@@ -156,6 +158,12 @@ var installSkillMarketplace = tool.Define("cairn.installSkill",
 		if p.Slug == "" {
 			return &tool.ToolResult{Error: "slug is required"}, nil
 		}
+
+		// Validate slug against path traversal.
+		if err := skill.ValidateSlug(p.Slug); err != nil {
+			return &tool.ToolResult{Error: fmt.Sprintf("invalid slug: %v", err)}, nil
+		}
+
 		if ctx.Skills == nil {
 			return &tool.ToolResult{Error: "skill service not available"}, nil
 		}
@@ -175,6 +183,10 @@ var installSkillMarketplace = tool.Define("cairn.installSkill",
 		mc := getMarketplaceClient()
 		prov, err := mc.Install(ctx.Cancel, p.Slug, targetDir)
 		if err != nil {
+			var rlErr *skill.RateLimitError
+			if errors.As(err, &rlErr) {
+				return &tool.ToolResult{Error: fmt.Sprintf("ClawHub rate limited. Retry after %s.", rlErr.RetryAfter)}, nil
+			}
 			return &tool.ToolResult{Error: fmt.Sprintf("install failed: %v", err)}, nil
 		}
 

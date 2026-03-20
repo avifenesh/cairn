@@ -145,14 +145,18 @@ func (c *MarketplaceClient) Browse(ctx context.Context, sort string, limit int) 
 		return nil, fmt.Errorf("clawhub: browse: %w", err)
 	}
 
-	// The ClawHub browse endpoint wraps results differently than search.
+	// ClawHub browse response may use "skills" or "items" key.
 	var resp struct {
 		Skills []MarketplaceSkillDetail `json:"skills"`
+		Items  []MarketplaceSkillDetail `json:"items"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, fmt.Errorf("clawhub: browse: parse response: %w", err)
 	}
-	return resp.Skills, nil
+	if len(resp.Skills) > 0 {
+		return resp.Skills, nil
+	}
+	return resp.Items, nil
 }
 
 // Detail fetches full metadata for a single skill.
@@ -165,21 +169,30 @@ func (c *MarketplaceClient) Detail(ctx context.Context, slug string) (*Marketpla
 	}
 
 	// The detail endpoint nests the skill data under a "skill" key.
+	// latestVersion may be an object or a string depending on the response.
 	var resp struct {
 		Skill         MarketplaceSkillDetail `json:"skill"`
-		LatestVersion MarketplaceVersion     `json:"latestVersion"`
+		LatestVersion json.RawMessage        `json:"latestVersion"`
 		Owner         MarketplaceOwner       `json:"owner"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, fmt.Errorf("clawhub: detail %q: parse response: %w", slug, err)
 	}
-	// Merge top-level owner and version into the skill object.
 	detail := resp.Skill
 	if detail.Owner.Handle == "" {
 		detail.Owner = resp.Owner
 	}
-	if detail.LatestVersion.Version == "" {
-		detail.LatestVersion = resp.LatestVersion
+	// Parse latestVersion which may be an object or a plain string.
+	if len(resp.LatestVersion) > 0 {
+		var ver MarketplaceVersion
+		if json.Unmarshal(resp.LatestVersion, &ver) == nil && ver.Version != "" {
+			detail.LatestVersion = ver
+		} else {
+			var verStr string
+			if json.Unmarshal(resp.LatestVersion, &verStr) == nil && verStr != "" {
+				detail.LatestVersion = MarketplaceVersion{Version: verStr}
+			}
+		}
 	}
 	return &detail, nil
 }
@@ -195,11 +208,36 @@ func (c *MarketplaceClient) Preview(ctx context.Context, slug string) (string, e
 	return string(body), nil
 }
 
+// ValidateSlug checks that a slug is safe for filesystem use.
+func ValidateSlug(slug string) error {
+	if slug == "" {
+		return fmt.Errorf("slug is required")
+	}
+	if strings.ContainsAny(slug, "/\\") || strings.Contains(slug, "..") || slug == "." {
+		return fmt.Errorf("slug %q contains unsafe characters", slug)
+	}
+	return nil
+}
+
 // Install downloads a skill zip from ClawHub and extracts it to targetDir/<slug>/.
 // Returns provenance information on success.
 func (c *MarketplaceClient) Install(ctx context.Context, slug, targetDir string) (*Provenance, error) {
-	// Download the zip.
+	if err := ValidateSlug(slug); err != nil {
+		return nil, fmt.Errorf("clawhub: install: %w", err)
+	}
+
+	// Fetch version info first so we can pin the download.
+	version := ""
+	detail, detailErr := c.Detail(ctx, slug)
+	if detailErr == nil && detail != nil {
+		version = detail.LatestVersion.Version
+	}
+
+	// Download the zip (pin to version if known).
 	u := fmt.Sprintf("%s/api/v1/download?slug=%s", c.baseURL, url.QueryEscape(slug))
+	if version != "" {
+		u += "&version=" + url.QueryEscape(version)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
@@ -235,19 +273,27 @@ func (c *MarketplaceClient) Install(ctx context.Context, slug, targetDir string)
 		return nil, fmt.Errorf("clawhub: install %q: extract: %w", slug, err)
 	}
 
-	// Verify SKILL.md exists in extracted content.
+	// Verify SKILL.md exists (accept both uppercase and lowercase).
 	skillMDPath := filepath.Join(destDir, "SKILL.md")
 	if _, err := os.Stat(skillMDPath); err != nil {
-		// Clean up failed install.
-		os.RemoveAll(destDir)
-		return nil, fmt.Errorf("clawhub: install %q: no SKILL.md found in package", slug)
+		// Try lowercase.
+		skillMDLower := filepath.Join(destDir, "skill.md")
+		if _, err2 := os.Stat(skillMDLower); err2 != nil {
+			os.RemoveAll(destDir)
+			return nil, fmt.Errorf("clawhub: install %q: no SKILL.md found in package", slug)
+		}
+		skillMDPath = skillMDLower
 	}
 
-	// Fetch version info for provenance.
-	version := ""
-	detail, detailErr := c.Detail(ctx, slug)
-	if detailErr == nil && detail != nil {
-		version = detail.LatestVersion.Version
+	// Validate the SKILL.md content.
+	sk, parseErr := Parse(skillMDPath)
+	if parseErr != nil {
+		os.RemoveAll(destDir)
+		return nil, fmt.Errorf("clawhub: install %q: invalid SKILL.md: %w", slug, parseErr)
+	}
+	if err := ValidateName(sk.Name); err != nil {
+		os.RemoveAll(destDir)
+		return nil, fmt.Errorf("clawhub: install %q: invalid skill name: %w", slug, err)
 	}
 
 	// Write provenance.
@@ -297,9 +343,14 @@ func (c *MarketplaceClient) doGet(ctx context.Context, rawURL string) ([]byte, e
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(errBody))
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxJSONSize))
+	// Read with +1 to detect truncation.
+	limit := int64(maxJSONSize) + 1
+	body, err := io.ReadAll(io.LimitReader(resp.Body, limit))
 	if err != nil {
 		return nil, fmt.Errorf("read body: %w", err)
+	}
+	if int64(len(body)) > int64(maxJSONSize) {
+		return nil, fmt.Errorf("response body exceeds maximum size of %d bytes", maxJSONSize)
 	}
 	return body, nil
 }
@@ -319,7 +370,8 @@ func (c *MarketplaceClient) checkRateLimit(resp *http.Response) error {
 	return &RateLimitError{RetryAfter: retryAfter}
 }
 
-// extractZip extracts a zip archive into destDir with zip-slip protection.
+// extractZip extracts a zip archive into destDir with zip-slip protection
+// and a total extraction size budget.
 func extractZip(data []byte, destDir string) error {
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
@@ -335,17 +387,20 @@ func extractZip(data []byte, destDir string) error {
 		return fmt.Errorf("create dest dir: %w", err)
 	}
 
-	var totalSize int64
+	var totalWritten int64
 
 	for _, file := range reader.File {
-		// Zip-slip protection: resolve the path and verify it's within destDir.
 		cleanName := filepath.Clean(file.Name)
-		if strings.Contains(cleanName, "..") {
-			return fmt.Errorf("zip contains unsafe path: %q", file.Name)
+
+		// Reject absolute paths.
+		if filepath.IsAbs(cleanName) {
+			return fmt.Errorf("zip entry has absolute path: %q", file.Name)
 		}
 
+		// Zip-slip protection: verify resolved path stays within destDir.
 		target := filepath.Join(absDestDir, cleanName)
-		if !strings.HasPrefix(target, absDestDir+string(os.PathSeparator)) && target != absDestDir {
+		rel, relErr := filepath.Rel(absDestDir, target)
+		if relErr != nil || strings.HasPrefix(rel, "..") {
 			return fmt.Errorf("zip entry escapes target dir: %q", file.Name)
 		}
 
@@ -354,12 +409,6 @@ func extractZip(data []byte, destDir string) error {
 				return fmt.Errorf("create dir %q: %w", cleanName, err)
 			}
 			continue
-		}
-
-		// Size check.
-		totalSize += int64(file.UncompressedSize64)
-		if totalSize > maxZipSize {
-			return fmt.Errorf("extracted content exceeds %d MB limit", maxZipSize/(1024*1024))
 		}
 
 		// Ensure parent directory exists.
@@ -378,11 +427,22 @@ func extractZip(data []byte, destDir string) error {
 			return fmt.Errorf("create file %q: %w", cleanName, err)
 		}
 
-		_, copyErr := io.Copy(out, io.LimitReader(rc, maxZipSize))
+		// Track actual bytes written against total budget.
+		remaining := maxZipSize - totalWritten
+		if remaining <= 0 {
+			rc.Close()
+			out.Close()
+			return fmt.Errorf("extracted content exceeds %d MB limit", maxZipSize/(1024*1024))
+		}
+		written, copyErr := io.Copy(out, io.LimitReader(rc, remaining+1))
 		rc.Close()
 		out.Close()
 		if copyErr != nil {
 			return fmt.Errorf("write file %q: %w", cleanName, copyErr)
+		}
+		totalWritten += written
+		if totalWritten > maxZipSize {
+			return fmt.Errorf("extracted content exceeds %d MB limit", maxZipSize/(1024*1024))
 		}
 	}
 

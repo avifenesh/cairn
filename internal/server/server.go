@@ -68,6 +68,9 @@ type Server struct {
 	// Activity store (optional).
 	activityStore *agent.ActivityStore
 
+	// Approval store (optional).
+	approvals *task.ApprovalStore
+
 	// Marketplace client (optional: ClawHub integration).
 	marketplace *skill.MarketplaceClient
 
@@ -118,6 +121,9 @@ type ServerConfig struct {
 	// Activity store (optional: agent observability).
 	ActivityStore *agent.ActivityStore
 
+	// Approval store (optional: human-in-the-loop gates).
+	Approvals *task.ApprovalStore
+
 	// Marketplace client (optional: ClawHub integration).
 	Marketplace *skill.MarketplaceClient
 
@@ -164,6 +170,7 @@ func New(cfg ServerConfig) *Server {
 		voice:          cfg.Voice,
 		cronStore:      cfg.CronStore,
 		activityStore:  cfg.ActivityStore,
+		approvals:      cfg.Approvals,
 		marketplace:    cfg.Marketplace,
 		authStore:      cfg.AuthStore,
 		webauthn:       cfg.WebAuthn,

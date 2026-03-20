@@ -560,6 +560,7 @@ func runServe(logger *slog.Logger) {
 		Voice:          voiceSvc,
 		CronStore:      cronStore,
 		ActivityStore:  agent.NewActivityStore(database.DB),
+		Approvals:      task.NewApprovalStore(database.DB),
 		Marketplace:    marketplace,
 		AuthStore:      authStore,
 		WebAuthn:       webauthnHandler,
@@ -578,6 +579,9 @@ func runServe(logger *slog.Logger) {
 		sessionTimeout := time.Duration(cfg.ChannelSessionTimeout) * time.Minute
 
 		// Channel message handler: look up/create session, run agent.
+		// Approval store for channel approve/deny.
+		approvalStore := task.NewApprovalStore(database.DB)
+
 		channelHandler := func(ctx context.Context, msg *cairnchannel.IncomingMessage) (*cairnchannel.OutgoingMessage, error) {
 			// Handle /new command — reset session.
 			if msg.IsCommand && msg.Command == "new" {
@@ -585,6 +589,64 @@ func runServe(logger *slog.Logger) {
 					return nil, fmt.Errorf("channel session reset: %w", err)
 				}
 				return &cairnchannel.OutgoingMessage{Text: "New session started."}, nil
+			}
+
+			// Handle /approve <id> command.
+			if msg.IsCommand && msg.Command == "approve" {
+				id := strings.TrimSpace(msg.Args)
+				if id == "" {
+					// List pending approvals.
+					pending, err := approvalStore.ListPending(ctx)
+					if err != nil {
+						return &cairnchannel.OutgoingMessage{Text: "Failed to list approvals."}, nil
+					}
+					if len(pending) == 0 {
+						return &cairnchannel.OutgoingMessage{Text: "No pending approvals."}, nil
+					}
+					var b strings.Builder
+					b.WriteString(fmt.Sprintf("**%d pending approval(s):**\n\n", len(pending)))
+					for _, a := range pending {
+						b.WriteString(fmt.Sprintf("- `%s` [%s] %s\n", a.ID, a.Type, a.Description))
+					}
+					b.WriteString("\nApprove: `/approve <id>`\nDeny: `/deny <id>`")
+					return &cairnchannel.OutgoingMessage{Text: b.String()}, nil
+				}
+				if err := approvalStore.Approve(ctx, id, msg.ChannelID); err != nil {
+					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Failed to approve `%s`: not found or already decided.", id)}, nil
+				}
+				return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Approved: `%s`", id)}, nil
+			}
+
+			// Handle /deny <id> command.
+			if msg.IsCommand && msg.Command == "deny" {
+				id := strings.TrimSpace(msg.Args)
+				if id == "" {
+					return &cairnchannel.OutgoingMessage{Text: "Usage: `/deny <approval-id>`"}, nil
+				}
+				if err := approvalStore.Deny(ctx, id, msg.ChannelID); err != nil {
+					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Failed to deny `%s`: not found or already decided.", id)}, nil
+				}
+				return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Denied: `%s`", id)}, nil
+			}
+
+			// Handle button callbacks (approve:id / deny:id).
+			if msg.IsCommand && msg.Command == "callback" {
+				data := strings.TrimSpace(msg.Args)
+				if strings.HasPrefix(data, "approve:") {
+					id := strings.TrimPrefix(data, "approve:")
+					if err := approvalStore.Approve(ctx, id, msg.ChannelID); err != nil {
+						return &cairnchannel.OutgoingMessage{Text: "Already decided or not found."}, nil
+					}
+					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Approved: `%s`", id)}, nil
+				}
+				if strings.HasPrefix(data, "deny:") {
+					id := strings.TrimPrefix(data, "deny:")
+					if err := approvalStore.Deny(ctx, id, msg.ChannelID); err != nil {
+						return &cairnchannel.OutgoingMessage{Text: "Already decided or not found."}, nil
+					}
+					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Denied: `%s`", id)}, nil
+				}
+				// Unknown callback — pass to agent as regular message.
 			}
 
 			// Look up or create session.

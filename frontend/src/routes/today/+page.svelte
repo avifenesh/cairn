@@ -398,9 +398,11 @@
 					</div>
 				{/if}
 				{#if costs}
+					{@const costObj = costs as unknown as Record<string, number>}
+					{@const todayCost = costObj.today ?? costObj.todayUsd ?? 0}
 					<div class="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)]">
 						<DollarSign class="h-3 w-3" />
-						<span>${costs.todayUsd.toFixed(2)} today</span>
+						<span>${todayCost.toFixed(2)} today</span>
 					</div>
 				{/if}
 				{#if nextCron()}

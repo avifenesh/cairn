@@ -339,8 +339,16 @@
 	}
 
 	const mpDisplayItems = $derived(() => {
-		if (mpQuery.trim()) return mpResults.map(normalizeSearchResult);
-		return mpBrowse.map(normalizeBrowseItem);
+		// Read mpStats here so Svelte tracks it as a reactive dependency
+		const stats = mpStats;
+		if (mpQuery.trim()) return mpResults.map(r => {
+			const s = stats[r.slug];
+			return { slug: r.slug, name: r.displayName || r.slug, summary: r.summary, version: r.version || '', downloads: s?.downloads ?? 0, stars: s?.stars ?? 0, installed: mpInstalled[r.slug] ?? false };
+		});
+		return mpBrowse.map(s => {
+			const enriched = stats[s.slug];
+			return { slug: s.slug, name: s.displayName || s.slug, summary: s.summary, version: s.latestVersion?.version || '', downloads: enriched?.downloads ?? s.stats?.downloads ?? 0, stars: enriched?.stars ?? s.stats?.stars ?? 0, installed: mpInstalled[s.slug] ?? false };
+		});
 	});
 
 	const inclusionColors: Record<string, string> = {

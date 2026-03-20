@@ -419,6 +419,13 @@ func (a *notifierAdapter) Notify(ctx context.Context, text string, priority int)
 	})
 }
 
+func (a *notifierAdapter) SendToChannel(ctx context.Context, channelName, text string, priority int) {
+	a.router.SendTo(ctx, channelName, &cairnchannel.OutgoingMessage{
+		Text:     text,
+		Priority: cairnchannel.Priority(priority),
+	})
+}
+
 // NotifyApproval sends an approval request to channels with approve/deny buttons.
 func (a *notifierAdapter) NotifyApproval(ctx context.Context, approvalID, approvalType, description string) {
 	text := fmt.Sprintf("**Approval required** [%s]\n\n%s\n\nID: `%s`", approvalType, description, approvalID)

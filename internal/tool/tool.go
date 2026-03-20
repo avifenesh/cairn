@@ -166,6 +166,7 @@ type PollerInfo struct {
 // NotifyService sends priority-routed notifications to channels.
 type NotifyService interface {
 	Notify(ctx context.Context, text string, priority int)
+	SendToChannel(ctx context.Context, channelName string, text string, priority int)
 	FlushDigest(ctx context.Context) int
 	DigestLen() int
 }

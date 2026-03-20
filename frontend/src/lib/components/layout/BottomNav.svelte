@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { taskStore } from '$lib/stores/tasks.svelte';
-	import { Brain, Bot, Sparkles, Heart, Settings, LayoutDashboard, Inbox, MessageSquare, MoreHorizontal } from '@lucide/svelte';
+	import { Brain, Bot, Sparkles, Heart, Settings, LayoutDashboard, Inbox, MessageSquare, MoreHorizontal, Eye } from '@lucide/svelte';
 
 	let moreOpen = $state(false);
 
@@ -9,6 +9,7 @@
 		{ href: '/today', label: 'Today', icon: LayoutDashboard },
 		{ href: '/ops', label: 'Ops', icon: Inbox },
 		{ href: '/chat', label: 'Chat', icon: MessageSquare },
+		{ href: '/activity', label: 'Activity', icon: Eye },
 	];
 
 	const moreItems = [

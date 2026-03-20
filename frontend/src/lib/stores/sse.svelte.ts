@@ -8,6 +8,7 @@ import { appStore } from './app.svelte';
 import { skillStore } from './skills.svelte';
 import { statusStore } from './status.svelte';
 import { offlineQueue } from './offline-queue.svelte';
+import { activityStore } from './activity.svelte';
 
 let eventSource: EventSource | null = $state(null);
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -183,6 +184,8 @@ export const sseStore = {
 
 		// Agent
 		handle('agent_progress', source, (d) => appStore.setAgentProgress(d.agentId, d.message));
+		handle('agent_activity', source, (d) => activityStore.addEntry(d.entry ?? d));
+		handle('agent_heartbeat', source, () => {}); // heartbeat received, no action needed yet
 
 		// Skills
 		handle('skill_activated', source, (d) => {

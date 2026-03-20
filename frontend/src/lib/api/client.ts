@@ -16,6 +16,8 @@ import type {
 	Agent,
 	CronJob,
 	CronExecution,
+	ActivityEntry,
+	ToolStatsOverview,
 } from '$lib/types';
 
 import {
@@ -452,6 +454,15 @@ export const updateCron = (id: string, body: {
 	priority?: number;
 }) => patch<{ ok: boolean; job: CronJob }>(`/v1/crons/${id}`, body);
 export const deleteCron = (id: string) => del<{ ok: boolean }>(`/v1/crons/${id}`);
+
+// Agent Activity
+export const getAgentActivity = (params?: { limit?: number; type?: string }) => {
+	const q = new URLSearchParams();
+	if (params?.limit) q.set('limit', String(params.limit));
+	if (params?.type) q.set('type', params.type);
+	const qs = q.toString();
+	return get<{ items: ActivityEntry[]; stats: ToolStatsOverview }>(`/v1/agent/activity${qs ? '?' + qs : ''}`);
+};
 
 // Auth (WebAuthn)
 export const authLoginStart = () => post<{ challenge: string }>('/v1/auth/login/start');

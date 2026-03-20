@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/avifenesh/cairn/internal/agent"
 	"github.com/avifenesh/cairn/internal/eventbus"
 )
 
@@ -132,6 +133,18 @@ func (b *SSEBroadcaster) Start() {
 			b.broadcast("memory_proposed", e.ID, map[string]any{
 				"memoryId": e.MemoryID,
 				"content":  e.Content,
+			})
+		}),
+		eventbus.Subscribe(b.bus, func(e agent.AgentHeartbeat) {
+			b.broadcast("agent_heartbeat", e.ID, map[string]any{
+				"tickNumber": e.TickNumber,
+				"taskRun":    e.TaskRun,
+				"durationMs": e.DurationMs,
+			})
+		}),
+		eventbus.Subscribe(b.bus, func(e agent.AgentActivityEvent) {
+			b.broadcast("agent_activity", e.ID, map[string]any{
+				"entry": e.Entry,
 			})
 		}),
 	)

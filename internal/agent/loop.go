@@ -386,3 +386,9 @@ type AgentHeartbeat struct {
 	TaskRun    bool  `json:"taskRun"`
 	DurationMs int64 `json:"durationMs"`
 }
+
+// AgentActivityEvent is emitted when agent activity is recorded (for SSE broadcast).
+type AgentActivityEvent struct {
+	eventbus.EventMeta
+	Entry ActivityEntry `json:"entry"`
+}

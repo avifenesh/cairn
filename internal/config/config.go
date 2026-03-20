@@ -97,6 +97,10 @@ type Config struct {
 	WorkMaxRounds   int // WORK_MAX_ROUNDS (default: 20)
 	CodingMaxRounds int // CODING_MAX_ROUNDS (default: 100)
 
+	// Coding allowed repos — CSV of repo paths where agent can create worktrees and code.
+	// Empty = only the main repo (cwd). Paths are resolved to absolute.
+	CodingAllowedRepos []string // CODING_ALLOWED_REPOS (comma-separated)
+
 	// Memory auto-extraction
 	MemoryAutoExtract bool // MEMORY_AUTO_EXTRACT (default: true)
 
@@ -258,6 +262,7 @@ func Load() (*Config, error) {
 		TalkMaxRounds:           envInt("TALK_MAX_ROUNDS", 10),
 		WorkMaxRounds:           envInt("WORK_MAX_ROUNDS", 20),
 		CodingMaxRounds:         envInt("CODING_MAX_ROUNDS", 100),
+		CodingAllowedRepos:      envCSV("CODING_ALLOWED_REPOS"),
 		MemoryAutoExtract:       envBool("MEMORY_AUTO_EXTRACT", true),
 		CompactionTriggerTokens: envInt("COMPACTION_TRIGGER_TOKENS", 80000),
 		CompactionKeepRecent:    envInt("COMPACTION_KEEP_RECENT", 10),
@@ -366,6 +371,22 @@ func envInt64(key string, fallback int64) int64 {
 		}
 	}
 	return fallback
+}
+
+func envCSV(key string) []string {
+	v := os.Getenv(key)
+	if v == "" {
+		return nil
+	}
+	parts := strings.Split(v, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
 }
 
 func envFloat(key string, fallback float64) float64 {

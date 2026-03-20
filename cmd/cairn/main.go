@@ -241,7 +241,12 @@ func runServe(logger *slog.Logger) {
 		} else {
 			worktreeDir := filepath.Join(os.TempDir(), "cairn-worktrees")
 			worktreeMgr = task.NewWorktreeManager(repoDir, worktreeDir)
-			logger.Info("worktree manager initialized", "repoDir", repoDir, "worktreeDir", worktreeDir)
+			if len(cfg.CodingAllowedRepos) > 0 {
+				logger.Info("worktree manager initialized", "repoDir", repoDir, "worktreeDir", worktreeDir,
+					"allowedRepos", cfg.CodingAllowedRepos)
+			} else {
+				logger.Info("worktree manager initialized", "repoDir", repoDir, "worktreeDir", worktreeDir)
+			}
 		}
 	}
 
@@ -450,6 +455,7 @@ func runServe(logger *slog.Logger) {
 			TalkMaxRounds:      cfg.TalkMaxRounds,
 			WorkMaxRounds:      cfg.WorkMaxRounds,
 			CodingMaxRounds:    cfg.CodingMaxRounds,
+			CodingAllowedRepos: cfg.CodingAllowedRepos,
 		}, agent.LoopDeps{
 			Agent:           reactAgent,
 			Tasks:           taskEngine,

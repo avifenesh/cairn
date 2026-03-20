@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"path/filepath"
 	"strings"
 	"time"
@@ -420,13 +419,11 @@ func (a *notifierAdapter) Notify(ctx context.Context, text string, priority int)
 	})
 }
 
-func (a *notifierAdapter) SendToChannel(ctx context.Context, channelName, text string, priority int) {
-	if err := a.router.SendTo(ctx, channelName, &cairnchannel.OutgoingMessage{
+func (a *notifierAdapter) SendToChannel(ctx context.Context, channelName, text string, priority int) error {
+	return a.router.SendTo(ctx, channelName, &cairnchannel.OutgoingMessage{
 		Text:     text,
 		Priority: cairnchannel.Priority(priority),
-	}); err != nil {
-		slog.Warn("sendToChannel failed", "channel", channelName, "error", err)
-	}
+	})
 }
 
 // NotifyApproval sends an approval request to channels with approve/deny buttons.

@@ -62,11 +62,13 @@ var notify = tool.Define("cairn.notify",
 			ch := strings.ToLower(*p.Channel)
 			switch ch {
 			case "telegram", "discord", "slack":
-				// Valid single-channel target.
-				ctx.Notifier.SendToChannel(ctx.Cancel, ch, p.Message, priority)
+				// Valid single-channel target (bypasses quiet-hours/digest routing).
+				if err := ctx.Notifier.SendToChannel(ctx.Cancel, ch, p.Message, priority); err != nil {
+					return &tool.ToolResult{Error: fmt.Sprintf("failed to send to %s: %s", ch, err)}, nil
+				}
 				labels := []string{"low", "medium", "high", "critical"}
 				return &tool.ToolResult{
-					Output: fmt.Sprintf("Notification sent directly to %s (priority: %s, bypasses quiet-hours): %s", ch, labels[priority], truncateStr(p.Message, 100)),
+					Output: fmt.Sprintf("Notification sent to %s (priority: %s, bypasses quiet-hours): %s", ch, labels[priority], truncateStr(p.Message, 100)),
 					Metadata: map[string]any{
 						"priority": labels[priority],
 						"channel":  ch,

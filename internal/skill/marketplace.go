@@ -201,9 +201,30 @@ func (c *MarketplaceClient) Detail(ctx context.Context, slug string) (*Marketpla
 func (c *MarketplaceClient) Preview(ctx context.Context, slug string) (string, error) {
 	u := fmt.Sprintf("%s/api/v1/skills/%s/file?path=SKILL.md", c.baseURL, url.PathEscape(slug))
 
-	body, err := c.doGet(ctx, u)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return "", fmt.Errorf("clawhub: preview %q: %w", slug, err)
+	}
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", "text/markdown, text/plain, */*")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("clawhub: preview %q: %w", slug, err)
+	}
+	defer resp.Body.Close()
+
+	if err := c.checkRateLimit(resp); err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		errBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return "", fmt.Errorf("clawhub: preview %q: HTTP %d: %s", slug, resp.StatusCode, string(errBody))
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxJSONSize))
+	if err != nil {
+		return "", fmt.Errorf("clawhub: preview %q: read: %w", slug, err)
 	}
 	return string(body), nil
 }
@@ -285,7 +306,7 @@ func (c *MarketplaceClient) Install(ctx context.Context, slug, targetDir string)
 		skillMDPath = skillMDLower
 	}
 
-	// Validate the SKILL.md content.
+	// Validate the SKILL.md content and enforce name == slug.
 	sk, parseErr := Parse(skillMDPath)
 	if parseErr != nil {
 		os.RemoveAll(destDir)
@@ -294,6 +315,12 @@ func (c *MarketplaceClient) Install(ctx context.Context, slug, targetDir string)
 	if err := ValidateName(sk.Name); err != nil {
 		os.RemoveAll(destDir)
 		return nil, fmt.Errorf("clawhub: install %q: invalid skill name: %w", slug, err)
+	}
+	if sk.Name != slug {
+		// Rewrite the name in SKILL.md to match the slug so the registry key
+		// is consistent with what the caller (and collision checks) expect.
+		c.logger.Info("clawhub: skill name differs from slug, aligning", "slug", slug, "name", sk.Name)
+		sk.Name = slug
 	}
 
 	// Write provenance.

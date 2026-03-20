@@ -236,7 +236,12 @@
 	});
 
 	$effect(() => {
-		if (mpQuery) mpSearchDebounced(mpQuery);
+		if (activeTab === 'marketplace' && mpQuery) mpSearchDebounced(mpQuery);
+		// Clean up debounce timer when leaving marketplace tab.
+		if (activeTab !== 'marketplace' && mpDebounceTimer) {
+			clearTimeout(mpDebounceTimer);
+			mpDebounceTimer = null;
+		}
 	});
 
 	interface MpDisplayItem {

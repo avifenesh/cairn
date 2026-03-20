@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // --- Marketplace (ClawHub) handlers ---
@@ -27,11 +28,13 @@ func (s *Server) handleMarketplaceSearch(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Check which slugs are already installed.
+	// Check which result slugs are already installed locally.
 	installed := make(map[string]bool)
 	if s.toolSkills != nil {
-		for _, sk := range s.toolSkills.List() {
-			installed[sk.Name] = true
+		for _, r := range results {
+			if s.toolSkills.Get(r.Slug) != nil {
+				installed[r.Slug] = true
+			}
 		}
 	}
 
@@ -61,8 +64,10 @@ func (s *Server) handleMarketplaceBrowse(w http.ResponseWriter, r *http.Request)
 
 	installed := make(map[string]bool)
 	if s.toolSkills != nil {
-		for _, sk := range s.toolSkills.List() {
-			installed[sk.Name] = true
+		for _, sk := range skills {
+			if s.toolSkills.Get(sk.Slug) != nil {
+				installed[sk.Slug] = true
+			}
 		}
 	}
 
@@ -120,6 +125,12 @@ func (s *Server) handleMarketplaceInstall(w http.ResponseWriter, r *http.Request
 	slug := r.PathValue("slug")
 	if slug == "" {
 		writeError(w, http.StatusBadRequest, "missing slug")
+		return
+	}
+
+	// Sanitize slug against path traversal.
+	if strings.Contains(slug, "/") || strings.Contains(slug, "\\") || strings.Contains(slug, "..") || slug == "." {
+		writeError(w, http.StatusBadRequest, "invalid slug")
 		return
 	}
 

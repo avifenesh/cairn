@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -51,7 +50,7 @@ var searchSkillsMarketplace = tool.Define("cairn.searchSkills",
 		}
 
 		mc := getMarketplaceClient()
-		results, err := mc.Search(context.Background(), p.Query, p.Limit)
+		results, err := mc.Search(ctx.Cancel, p.Query, p.Limit)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("search failed: %v", err)}, nil
 		}
@@ -95,7 +94,7 @@ var skillInfoMarketplace = tool.Define("cairn.skillInfo",
 
 		mc := getMarketplaceClient()
 
-		detail, err := mc.Detail(context.Background(), p.Slug)
+		detail, err := mc.Detail(ctx.Cancel, p.Slug)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("detail failed: %v", err)}, nil
 		}
@@ -111,7 +110,7 @@ var skillInfoMarketplace = tool.Define("cairn.skillInfo",
 		}
 
 		// Try to fetch SKILL.md preview.
-		preview, previewErr := mc.Preview(context.Background(), p.Slug)
+		preview, previewErr := mc.Preview(ctx.Cancel, p.Slug)
 		if previewErr == nil && preview != "" {
 			sb.WriteString("\n## SKILL.md Preview\n\n")
 			if len(preview) > 2000 {
@@ -174,7 +173,7 @@ var installSkillMarketplace = tool.Define("cairn.installSkill",
 		}
 
 		mc := getMarketplaceClient()
-		prov, err := mc.Install(context.Background(), p.Slug, targetDir)
+		prov, err := mc.Install(ctx.Cancel, p.Slug, targetDir)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("install failed: %v", err)}, nil
 		}

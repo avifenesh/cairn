@@ -185,7 +185,7 @@
 			const res = await searchMarketplace(query, 15);
 			mpResults = res.results ?? [];
 			mpInstalled = res.installed ?? {};
-		} catch { mpResults = []; }
+		} catch (e) { console.error('Marketplace search failed:', e); mpResults = []; }
 		finally { mpLoading = false; }
 	}
 
@@ -200,7 +200,7 @@
 			const res = await browseMarketplace(mpSort, 30);
 			mpBrowse = res.skills ?? [];
 			mpInstalled = res.installed ?? {};
-		} catch { mpBrowse = []; }
+		} catch (e) { console.error('Marketplace browse failed:', e); mpBrowse = []; }
 		finally { mpLoading = false; }
 	}
 
@@ -225,7 +225,7 @@
 		try {
 			const res = await getMarketplacePreview(slug);
 			mpPreviewContent = res.content ?? null;
-		} catch { mpPreviewContent = null; }
+		} catch (e) { console.error('Marketplace preview failed:', e); mpPreviewContent = null; }
 		finally { mpPreviewLoading = false; }
 	}
 
@@ -237,6 +237,29 @@
 
 	$effect(() => {
 		if (mpQuery) mpSearchDebounced(mpQuery);
+	});
+
+	interface MpDisplayItem {
+		slug: string;
+		name: string;
+		summary: string;
+		version: string;
+		downloads: number;
+		stars: number;
+		installed: boolean;
+	}
+
+	function normalizeSearchResult(r: MarketplaceSearchResult): MpDisplayItem {
+		return { slug: r.slug, name: r.displayName || r.slug, summary: r.summary, version: r.version || '', downloads: 0, stars: 0, installed: mpInstalled[r.slug] ?? false };
+	}
+
+	function normalizeBrowseItem(s: MarketplaceSkill): MpDisplayItem {
+		return { slug: s.slug, name: s.displayName || s.slug, summary: s.summary, version: s.latestVersion?.version || '', downloads: s.stats?.downloads || 0, stars: s.stats?.stars || 0, installed: mpInstalled[s.slug] ?? false };
+	}
+
+	const mpDisplayItems = $derived(() => {
+		if (mpQuery.trim()) return mpResults.map(normalizeSearchResult);
+		return mpBrowse.map(normalizeBrowseItem);
 	});
 
 	const inclusionColors: Record<string, string> = {
@@ -555,8 +578,7 @@
 			{/each}
 		</div>
 	{:else}
-		{@const displayItems = mpQuery.trim() ? mpResults : mpBrowse}
-		{#if displayItems.length === 0}
+		{#if mpDisplayItems().length === 0}
 			<div class="flex flex-col items-center justify-center py-20 text-[var(--text-tertiary)]">
 				<Store class="mb-3 h-10 w-10 opacity-30" />
 				<p class="text-sm">{mpQuery.trim() ? `No skills match "${mpQuery}"` : 'Browse ClawHub skills'}</p>
@@ -564,54 +586,47 @@
 			</div>
 		{:else}
 			<div class="flex flex-col gap-2">
-				{#each displayItems as item, i}
-					{@const slug = 'slug' in item ? item.slug : ''}
-					{@const name = 'displayName' in item ? item.displayName : slug}
-					{@const summary = 'summary' in item ? item.summary : ''}
-					{@const version = 'version' in item ? item.version : ('latestVersion' in item ? (item as MarketplaceSkill).latestVersion?.version : '')}
-					{@const downloads = 'stats' in item ? (item as MarketplaceSkill).stats?.downloads : 0}
-					{@const stars = 'stats' in item ? (item as MarketplaceSkill).stats?.stars : 0}
-					{@const isInstalled = mpInstalled[slug] ?? false}
+				{#each mpDisplayItems() as item, i (item.slug)}
 					<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-3 card-hover animate-in" style="animation-delay: {i * 25}ms">
 						<div class="flex items-start gap-3">
 							<div class="min-w-0 flex-1">
 								<div class="flex items-center gap-2 mb-1">
-									<p class="text-sm font-medium text-[var(--text-primary)]">{name}</p>
-									<span class="text-[10px] text-[var(--text-tertiary)] font-mono">{slug}</span>
-									{#if version}
-										<Badge variant="outline" class="h-4 px-1 text-[10px]">v{version}</Badge>
+									<p class="text-sm font-medium text-[var(--text-primary)]">{item.name}</p>
+									<span class="text-[10px] text-[var(--text-tertiary)] font-mono">{item.slug}</span>
+									{#if item.version}
+										<Badge variant="outline" class="h-4 px-1 text-[10px]">v{item.version}</Badge>
 									{/if}
-									{#if isInstalled}
+									{#if item.installed}
 										<Badge variant="outline" class="h-4 px-1 text-[10px] text-[var(--color-success)]">
 											<Check class="h-2.5 w-2.5 mr-0.5" /> installed
 										</Badge>
 									{/if}
 								</div>
-								<p class="text-xs text-[var(--text-secondary)] line-clamp-2">{summary}</p>
+								<p class="text-xs text-[var(--text-secondary)] line-clamp-2">{item.summary}</p>
 								<div class="flex items-center gap-3 mt-1.5">
-									{#if downloads}
+									{#if item.downloads}
 										<span class="flex items-center gap-1 text-[10px] text-[var(--text-tertiary)]">
-											<Download class="h-3 w-3" /> {downloads.toLocaleString()}
+											<Download class="h-3 w-3" /> {item.downloads.toLocaleString()}
 										</span>
 									{/if}
-									{#if stars}
+									{#if item.stars}
 										<span class="flex items-center gap-1 text-[10px] text-[var(--text-tertiary)]">
-											<Star class="h-3 w-3" /> {stars}
+											<Star class="h-3 w-3" /> {item.stars}
 										</span>
 									{/if}
 								</div>
 							</div>
 							<div class="flex gap-1.5 flex-shrink-0">
-								<Button variant="outline" size="sm" class="h-6 text-[10px] px-2" onclick={() => showMpPreview(slug)}>
+								<Button variant="outline" size="sm" class="h-6 text-[10px] px-2" onclick={() => showMpPreview(item.slug)}>
 									<FileText class="h-3 w-3" />
 								</Button>
-								{#if isInstalled}
+								{#if item.installed}
 									<Button variant="outline" size="sm" class="h-6 text-[10px] px-2" disabled>
 										<Check class="h-3 w-3" />
 									</Button>
 								{:else}
-									<Button size="sm" class="h-6 text-[10px] px-2 gap-1" onclick={() => handleInstall(slug)} disabled={installing === slug}>
-										{#if installing === slug}
+									<Button size="sm" class="h-6 text-[10px] px-2 gap-1" onclick={() => handleInstall(item.slug)} disabled={installing === item.slug}>
+										{#if installing === item.slug}
 											<Loader2 class="h-3 w-3 animate-spin" />
 										{:else}
 											<Download class="h-3 w-3" />

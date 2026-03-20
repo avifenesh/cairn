@@ -375,18 +375,6 @@ func (a *skillAdapter) List() []*tool.SkillItem {
 	return out
 }
 
-func skillToItem(sk *skill.Skill) *tool.SkillItem {
-	return &tool.SkillItem{
-		Name:         sk.Name,
-		Description:  sk.Description,
-		Inclusion:    string(sk.Inclusion),
-		Content:      sk.Content,
-		AllowedTools: sk.AllowedTools,
-		Location:     filepath.Dir(sk.Location),
-		DisableModel: sk.DisableModel,
-	}
-}
-
 func (a *skillAdapter) Create(name, description, content, inclusion string, allowedTools []string) error {
 	return a.svc.Create(name, description, content, inclusion, allowedTools)
 }
@@ -397,6 +385,18 @@ func (a *skillAdapter) Update(name, description, content, inclusion string, allo
 
 func (a *skillAdapter) Delete(name string) error {
 	return a.svc.Delete(name)
+}
+
+func skillToItem(sk *skill.Skill) *tool.SkillItem {
+	return &tool.SkillItem{
+		Name:         sk.Name,
+		Description:  sk.Description,
+		Inclusion:    string(sk.Inclusion),
+		Content:      sk.Content,
+		AllowedTools: sk.AllowedTools,
+		Location:     filepath.Dir(sk.Location),
+		DisableModel: sk.DisableModel,
+	}
 }
 
 // notifierAdapter bridges channel.Router to tool.NotifyService.

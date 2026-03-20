@@ -50,7 +50,7 @@ func (m *mockSkillService) Create(name, description, content, inclusion string, 
 
 func (m *mockSkillService) Update(name, description, content, inclusion string, allowedTools []string) error {
 	if _, ok := m.skills[name]; !ok {
-		return fmt.Errorf("skill %q not found", name)
+		return fmt.Errorf("not found")
 	}
 	m.skills[name] = &tool.SkillItem{Name: name, Description: description, Content: content, Inclusion: inclusion, AllowedTools: allowedTools}
 	return nil
@@ -58,7 +58,7 @@ func (m *mockSkillService) Update(name, description, content, inclusion string, 
 
 func (m *mockSkillService) Delete(name string) error {
 	if _, ok := m.skills[name]; !ok {
-		return fmt.Errorf("skill %q not found", name)
+		return fmt.Errorf("not found")
 	}
 	delete(m.skills, name)
 	return nil

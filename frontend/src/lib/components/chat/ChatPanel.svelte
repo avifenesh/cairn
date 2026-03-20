@@ -279,6 +279,7 @@
 					class="h-7 text-xs gap-1 px-2"
 					onclick={startNewChat}
 					title="New chat"
+					aria-label="New chat"
 				>
 					<Plus class="h-3 w-3" /> <span class="hidden sm:inline">New</span>
 				</Button>

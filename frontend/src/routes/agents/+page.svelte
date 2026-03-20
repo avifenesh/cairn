@@ -34,7 +34,7 @@
 	};
 </script>
 
-<div class="mx-auto max-w-5xl p-6">
+<div class="mx-auto max-w-5xl px-4 py-4 sm:p-6">
 	<h1 class="mb-6 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Agents</h1>
 
 	{#if loading}

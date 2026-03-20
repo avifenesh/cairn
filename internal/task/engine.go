@@ -54,17 +54,18 @@ func (e *Engine) Submit(ctx context.Context, req *SubmitRequest) (*Task, error) 
 	}
 
 	t := &Task{
-		ID:         newID(),
-		ParentID:   req.ParentID,
-		SessionID:  req.SessionID,
-		Type:       req.Type,
-		Status:     StatusQueued,
-		Priority:   req.Priority,
-		Mode:       req.Mode,
-		Input:      req.Input,
-		MaxRetries: maxRetries,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:          newID(),
+		ParentID:    req.ParentID,
+		SessionID:   req.SessionID,
+		Type:        req.Type,
+		Status:      StatusQueued,
+		Priority:    req.Priority,
+		Mode:        req.Mode,
+		Input:       req.Input,
+		Description: req.Description,
+		MaxRetries:  maxRetries,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if err := e.store.Create(ctx, t); err != nil {

@@ -15,7 +15,7 @@ type notifyParams struct {
 }
 
 var notify = tool.Define("cairn.notify",
-	"Send a notification to configured channels. Routes based on priority and quiet hours. Use action='flush' to deliver queued digest. Use channel param to target a specific channel (telegram, discord, slack) or broadcast to all.",
+	"Send a notification to configured channels. When no channel is provided, notifications are routed based on priority and quiet hours. Use action='flush' to deliver queued digest. When a channel is provided, the notification is sent immediately to that channel (telegram, discord, slack) or broadcast to all, bypassing quiet-hours/digest routing.",
 	[]tool.Mode{tool.ModeTalk, tool.ModeWork, tool.ModeCoding},
 	func(ctx *tool.ToolContext, p notifyParams) (*tool.ToolResult, error) {
 		if ctx.Notifier == nil {
@@ -66,7 +66,7 @@ var notify = tool.Define("cairn.notify",
 				ctx.Notifier.SendToChannel(ctx.Cancel, ch, p.Message, priority)
 				labels := []string{"low", "medium", "high", "critical"}
 				return &tool.ToolResult{
-					Output: fmt.Sprintf("Notification sent to %s (priority: %s): %s", ch, labels[priority], truncateStr(p.Message, 100)),
+					Output: fmt.Sprintf("Notification sent directly to %s (priority: %s, bypasses quiet-hours): %s", ch, labels[priority], truncateStr(p.Message, 100)),
 					Metadata: map[string]any{
 						"priority": labels[priority],
 						"channel":  ch,

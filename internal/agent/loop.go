@@ -83,6 +83,7 @@ type LoopConfig struct {
 	TalkMaxRounds      int      // Default: 10
 	WorkMaxRounds      int      // Default: 20
 	CodingMaxRounds    int      // Default: 100
+	CodingEnabled      bool     // Whether coding tasks can be submitted from idle loop
 	CodingAllowedRepos []string // Repo paths where coding is allowed (empty = cwd only)
 	BriefingModel      string   // Cheap model for context summarization (default: fallback model)
 }
@@ -452,11 +453,24 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 
 	// Use description as user message; fall back to instruction from Input JSON.
 	userMessage := t.Description
+	var inputData map[string]string
+	json.Unmarshal(t.Input, &inputData)
 	if userMessage == "" {
-		var inputData map[string]string
-		if json.Unmarshal(t.Input, &inputData) == nil {
-			if inst := inputData["instruction"]; inst != "" {
-				userMessage = inst
+		if inst := inputData["instruction"]; inst != "" {
+			userMessage = inst
+		}
+	}
+
+	// Continuation: if this task references a previous session, prepend its journal summary.
+	if cont := inputData["continuation"]; cont != "" && l.journaler != nil && l.journaler.store != nil {
+		entries, err := l.journaler.store.Recent(ctx, 24*time.Hour)
+		if err == nil {
+			for _, e := range entries {
+				if strings.Contains(e.SessionID, cont) && e.Summary != "" {
+					userMessage = "## Previous Session\n" + e.Summary + "\n\n## Continue\n" + userMessage
+					l.logger.Info("agent loop: loaded continuation context", "from", cont, "summaryLen", len(e.Summary))
+					break
+				}
 			}
 		}
 	}

@@ -461,6 +461,7 @@ func runServe(logger *slog.Logger) {
 			TalkMaxRounds:      cfg.TalkMaxRounds,
 			WorkMaxRounds:      cfg.WorkMaxRounds,
 			CodingMaxRounds:    cfg.CodingMaxRounds,
+			CodingEnabled:      cfg.CodingEnabled,
 			CodingAllowedRepos: cfg.CodingAllowedRepos,
 			BriefingModel:      cfg.LLMFallbackModel,
 		}, agent.LoopDeps{

@@ -37,6 +37,7 @@ let agentProgresses = $state<Record<string, string>>({});
 let sidebarCollapsed = $state(false);
 let budgetTodayUsd = $state<number | null>(null);
 let budgetDailyLimitUsd = $state<number | null>(null);
+let lastHeartbeat = $state<{ tick: number; at: number } | null>(null);
 
 export const appStore = {
 	get sseConnected() { return sseConnected; },
@@ -54,6 +55,7 @@ export const appStore = {
 	get contextPanelOpen() { return contextPanelOpen; },
 	get budgetTodayUsd() { return budgetTodayUsd; },
 	get budgetDailyLimitUsd() { return budgetDailyLimitUsd; },
+	get lastHeartbeat() { return lastHeartbeat; },
 
 	setSSEConnected(v: boolean) { sseConnected = v; },
 	setClientId(id: string) { clientId = id; },
@@ -121,6 +123,19 @@ export const appStore = {
 
 	setAgentProgress(agentId: string, message: string) {
 		agentProgresses = { ...agentProgresses, [agentId]: message };
+	},
+
+	clearAgentProgress(agentId: string) {
+		const { [agentId]: _, ...rest } = agentProgresses;
+		agentProgresses = rest;
+	},
+
+	clearAllAgentProgresses() {
+		agentProgresses = {};
+	},
+
+	setLastHeartbeat(tick: number) {
+		lastHeartbeat = { tick, at: Date.now() };
 	},
 
 	initTheme() {

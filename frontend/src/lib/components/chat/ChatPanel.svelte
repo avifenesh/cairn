@@ -34,6 +34,15 @@
 		} catch {
 			// ignore
 		}
+
+		// Consume pending message from home page quick-chat input
+		if (typeof chatStore.consumePendingMessage === 'function') {
+			const pending = chatStore.consumePendingMessage();
+			if (pending) {
+				inputText = pending;
+				requestAnimationFrame(() => textareaEl?.focus());
+			}
+		}
 	});
 
 	function stopStreaming() {

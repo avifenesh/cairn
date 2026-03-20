@@ -118,7 +118,13 @@ export const sseStore = {
 		handle('poll_completed', source, (d) => appStore.setPollStatus(d.source, d.newCount));
 
 		// Tasks & Approvals
-		handle('task_update', source, (d) => taskStore.upsertTask(d.task ?? d));
+		handle('task_update', source, (d) => {
+			const task = d.task ?? d;
+			taskStore.upsertTask(task);
+			if (task.status === 'completed' || task.status === 'failed') {
+				appStore.clearAllAgentProgresses();
+			}
+		});
 		handle('approval_required', source, (d) => taskStore.addApproval(d.approval ?? d));
 
 		// Chat streaming — batch deltas with requestAnimationFrame for performance
@@ -195,7 +201,7 @@ export const sseStore = {
 		// Agent
 		handle('agent_progress', source, (d) => appStore.setAgentProgress(d.agentId, d.message));
 		handle('agent_activity', source, (d) => activityStore.addEntry(d.entry ?? d));
-		handle('agent_heartbeat', source, () => {}); // heartbeat received, no action needed yet
+		handle('agent_heartbeat', source, (d) => appStore.setLastHeartbeat(d.tickNumber ?? 0));
 
 		// Skills
 		handle('skill_activated', source, (d) => {

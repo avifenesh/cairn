@@ -253,6 +253,7 @@ func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessag
 		Bus:            l.bus,
 		ContextBuilder: l.contextBuilder,
 		Plugins:        l.plugins,
+		ActivityStore:  l.activityStore,
 		ToolMemories:   l.toolMemories,
 		ToolEvents:     l.toolEvents,
 		ToolDigest:     l.toolDigest,

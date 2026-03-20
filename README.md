@@ -2,7 +2,7 @@
 
 Self-hosted, always-on personal agent OS. Single Go binary.
 
-Cairn watches your world (GitHub, HN, Reddit, npm, crates.io, webhooks), acts on your behalf through an LLM-powered agent with tools, learns over time through episodic memory and reflection, and stays on 24/7.
+Cairn watches your world (GitHub, Gmail, Calendar, HN, Reddit, npm, crates.io, RSS, Stack Overflow, Dev.to, webhooks), acts on your behalf through an LLM-powered agent with 49 tools, learns over time through episodic memory and reflection, and stays on 24/7.
 
 ## Quick Start
 
@@ -14,57 +14,100 @@ make build
 export LLM_API_KEY=your-key   # or GLM_API_KEY / OPENAI_API_KEY
 ./cairn chat "what's in package.json?"
 
-# Serve (HTTP API + SSE)
-./cairn serve
-
-# With frontend (build frontend first, then embed)
+# Serve (HTTP API + SSE + embedded frontend)
 cd frontend && pnpm install && pnpm build && cd ..
 make build-prod
-./cairn serve   # serves embedded frontend on :8788
+./cairn serve   # serves on :8788
+
+# Install a skill
+./cairn install skill https://github.com/user/my-skill.git
 ```
 
 ## What It Does
 
-**Signal Plane** - Polls 5+ sources every 5 minutes. Deduplicates into SQLite. Serves via feed API + SSE streaming.
+**Signal Plane** - Polls 11 sources. Deduplicates into SQLite. Serves via feed API + SSE streaming.
 
-- GitHub notifications + org events (PRs, issues, releases, pushes, stars)
-- Hacker News (keyword + score filtering, concurrent fetches)
+- GitHub notifications + org events (PRs, issues, releases, stars)
+- GitHub signal intelligence (engagement metrics, stargazers, followers)
+- Gmail + Google Calendar (auto-archive GitHub emails)
+- Hacker News (keyword + score filtering)
 - Reddit (subreddit monitoring)
-- npm + crates.io (package version tracking)
+- npm + crates.io (package version tracking, download metrics)
+- RSS feeds, Stack Overflow, Dev.to
 - Webhooks (HMAC-SHA256 signature verification)
-- Digest generation (LLM-powered event summarization)
+- LLM-powered digest generation
 
-**Agent** - ReAct loop with tool execution, three modes (talk/work/coding), session persistence.
+**Agent** - ReAct loop with 49 tools, three modes (talk/work/coding), session persistence.
 
-- 8 built-in tools: readFile, writeFile, editFile, deleteFile, listFiles, searchFiles, shell, gitRun
-- Permission engine with wildcard rules per mode
-- Session journaling (episodic memory via LLM summarization)
-- Reflection engine (pattern detection across sessions, proposes memories + SOUL patches)
-- Always-on tick loop with task execution
+- File tools: read, write, edit, delete, list, search (path traversal protection)
+- Shell: policy engine, env filtering, shell detection
+- Git, web search, web fetch, memory CRUD, feed, tasks, cron, notifications
+- Z.ai integration: vision analysis, repo structure, search docs (GLM provider)
+- Google Workspace tools (query + execute)
+- Skill management: CRUD, install from git, ClawHub marketplace search
+- Config tools: patchConfig, getConfig (live settings changes)
+- Permission engine with wildcard rules per agent mode
+- Session journaling + reflection engine
+- Always-on idle loop with proactive behavior
 
-**Memory** - Three-tier system: semantic (facts via RAG), episodic (session journal), procedural (SOUL.md + skills).
+**Memory** - Three-tier system: semantic, episodic, procedural.
 
-- Keyword + vector search with MMR re-ranking
-- Hot-reloadable SOUL.md for behavioral rules
-- SKILL.md parser with discovery and prompt injection
-- Memory compaction and confidence decay
+- Keyword + vector search with MMR re-ranking (Ollama nomic-embed-text)
+- Auto-extraction of memories from conversations (contradiction detection)
+- Session compaction (SummaryBuffer at 80K tokens)
+- Hot-reloadable SOUL.md for behavioral identity
+- 41 bundled skills (SKILL.md format, ClawHub-compatible)
+- Confidence decay over time
 
-**Server** - 25+ REST routes, SSE broadcaster, WebAuthn-ready auth, static file serving.
+**Channels** - Multi-channel I/O with session continuity.
 
-- Rate limiting (sliding window per IP)
-- CORS with credentials support
-- Webhook endpoint with signature verification
-- Static files from embedded FS (production) or filesystem (dev)
+- Telegram (commands, inline keyboards, voice messages)
+- Discord (slash commands, button interactions)
+- Slack (slash commands, block kit)
+- Notification routing (priority-based, quiet hours, muted sources)
+
+**Voice** - Speech-to-text and text-to-speech.
+
+- Whisper STT (local whisper.cpp)
+- edge-tts TTS playback
+
+**Server** - REST API, SSE, WebAuthn, MCP server.
+
+- 50+ REST routes with rate limiting
+- SSE broadcaster with reconnection replay
+- WebAuthn biometric authentication (passkeys)
+- MCP server exposing all tools to Claude Code, Cursor, etc. (stdio + HTTP)
+- CORS, static file serving (embedded or filesystem)
+
+**Frontend** - Svelte 5 dashboard (242 tests).
+
+- Today: command center with agent status, approvals, activity stream, quick chat
+- Chat: text, voice, file upload, vision, streaming markdown, tool chips, mode selector
+- Feed: source filters, archive/delete, bulk actions
+- Skills: CRUD, ClawHub marketplace (search, browse, install with security review)
+- Memory: search, edit, delete, batch accept/reject
+- Settings: 11 sections, all editable (cron manager, notification prefs, agent config)
+- Activity: observability tab with live stream, tool stats, error tracking
+- Soul: SOUL.md editor with patch review flow
+- Command palette (Cmd+K), keyboard navigation, dark/light themes, mood packs
+
+**Cron** - Scheduled tasks with SQLite persistence.
+
+- Create, list, toggle, delete cron jobs
+- Agent-managed via tools (natural language scheduling)
+- Frontend cron manager with inline editing
 
 ## Architecture
 
 ```
 Signal Plane --> Event Bus <-- Agent Core --> Tool System
      |               |             |              |
-  Pollers         SQLite       LLM Client    Permissions
-  Webhooks        Store        Sessions      Mode filtering
-  Digest          Memory       ReAct loop    Built-in tools
-                  Journal      Reflection
+  11 Pollers      SQLite       LLM Client    49 Tools
+  Webhooks        Store        Sessions      Permissions
+  Digest          Memory       ReAct loop    Mode filtering
+                  Journal      Reflection    MCP adapter
+                  Crons        Idle loop
+                               Compaction
 ```
 
 Single binary. No Node, no Python, no Docker. Pure Go + SQLite.
@@ -72,21 +115,11 @@ Single binary. No Node, no Python, no Docker. Pure Go + SQLite.
 ## Build
 
 ```bash
-# Development (reads frontend/dist/ from filesystem)
-make build
-
-# Production (embeds frontend into binary)
-make build-prod
-
-# Run tests
-make test
-
-# Lint (formatting + vet)
-make lint
-
-# Release (via goreleaser, triggered by git tag)
-git tag v0.1.0
-git push --tags
+make build          # Dev binary (filesystem frontend)
+make build-prod     # Production binary (embedded frontend)
+make test           # Tests with race detector
+make lint           # Formatting + vet
+make dev            # Run dev server
 ```
 
 ## Configuration
@@ -96,45 +129,62 @@ Set via environment variables. Only `LLM_API_KEY` is required.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `LLM_API_KEY` | - | LLM provider API key (or `GLM_API_KEY` / `OPENAI_API_KEY`) |
-| `LLM_PROVIDER` | glm | `glm` or `openai` (defaults to `glm` unless `OPENAI_API_KEY` is set) |
+| `LLM_PROVIDER` | auto | `glm` or `openai` (auto-detected from key var name) |
 | `LLM_MODEL` | provider default | Model ID |
-| `PORT` | 8787 | HTTP server port |
+| `PORT` | 8788 | HTTP server port |
 | `DATABASE_PATH` | ./data/cairn.db | SQLite database path |
-| `SOUL_PATH` | ./SOUL.md | Path to SOUL.md behavioral rules |
+| `SOUL_PATH` | ./SOUL.md | Path to SOUL.md behavioral identity |
 | `GH_TOKEN` | - | GitHub token for polling |
 | `GH_ORGS` | - | Comma-separated GitHub orgs to track |
 | `HN_KEYWORDS` | - | Comma-separated HN keyword filter |
-| `HN_MIN_SCORE` | 0 | Minimum HN story score |
 | `REDDIT_SUBS` | - | Comma-separated subreddits |
-| `NPM_PACKAGES` | - | Comma-separated npm packages to track |
-| `CRATES_PACKAGES` | - | Comma-separated crates to track |
-| `WEBHOOK_SECRETS` | - | JSON map of webhook name to HMAC secret |
+| `NPM_PACKAGES` | - | npm packages to track |
+| `CRATES_PACKAGES` | - | Crates to track |
 | `POLL_INTERVAL` | 300 | Source poll interval in seconds |
+| `TELEGRAM_BOT_TOKEN` | - | Telegram bot token |
+| `DISCORD_BOT_TOKEN` | - | Discord bot token |
+| `SLACK_BOT_TOKEN` | - | Slack bot token |
+| `IDLE_MODE_ENABLED` | false | Enable always-on proactive agent loop |
+| `CODING_ENABLED` | false | Enable coding mode (worktree isolation) |
+| `MCP_SERVER_ENABLED` | false | Enable MCP server |
+| `BUDGET_DAILY_CAP` | 0 | Daily LLM spend cap USD (0 = unlimited) |
+
+See `CLAUDE.md` for full env var reference.
 
 ## Stack
 
 - **Go 1.25** - single binary, no CGO
 - **SQLite** via [modernc.org/sqlite](https://pkg.go.dev/modernc.org/sqlite) - pure Go, WAL mode
-- **SvelteKit 2 + Svelte 5** frontend - Svelte 5 runes, Tailwind v4, embedded via `embed.FS`
+- **SvelteKit 5** frontend - Svelte 5 runes, Tailwind v4, shadcn-svelte, embedded via `embed.FS`
 - **LLM providers** - GLM (Z.ai) and OpenAI-compatible APIs
+- **MCP** via [mcp-go](https://github.com/mark3labs/mcp-go) - tool exposure to external agents
+- **Telegram** via [telego](https://github.com/mymmrac/telego)
 
 ## Project Structure
 
 ```
-cmd/cairn/          CLI entry point (chat, serve, version)
+cmd/cairn/          CLI entry point (chat, serve, install skill, version)
 internal/
-  agent/            ReAct loop, sessions, journaler, reflection, always-on loop
-  config/           Env-based configuration
-  db/               SQLite + migrations
+  agent/            ReAct loop, sessions, journaler, reflection, idle loop, compaction
+  auth/             WebAuthn biometric authentication
+  channel/          Telegram, Discord, Slack adapters, notification routing
+  config/           Env-based configuration with live patching
+  cron/             Cron scheduler + SQLite store
+  db/               SQLite + embedded migrations
   eventbus/         Typed pub/sub (Go generics)
   llm/              Provider interface, GLM + OpenAI, SSE parser, retry, budget
-  memory/           Semantic store, RAG search, Soul loader, compaction
+  mcp/              MCP server (stdio + HTTP transport)
+  memory/           Semantic store, RAG search, Soul, embeddings, compaction, extraction
+  plugin/           Lifecycle hooks, logging, budget plugins
   server/           HTTP routes, SSE, auth, rate limiting, static files
-  signal/           Event store, scheduler, pollers, webhooks, digest
-  skill/            SKILL.md parser, discovery, hot-reload
-  task/             Priority queue, worktree isolation, lease engine
-  tool/             Tool interface, registry, permissions, built-in tools
-frontend/           SvelteKit 5 app + embed.FS package
+  signal/           Event store, scheduler, 11 pollers, webhooks, digest
+  skill/            SKILL.md parser, discovery, hot-reload, ClawHub marketplace
+  task/             Priority queue, worktree isolation, lease engine, approvals
+  tool/             Tool interface, registry, permissions, 49 built-in tools
+  voice/            Whisper STT + edge-tts TTS
+frontend/           SvelteKit 5 app + embed.FS package (242 tests)
+skills/             41 bundled SKILL.md files
+docs/design/        Architecture specs and phase plans
 ```
 
 ## License

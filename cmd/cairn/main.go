@@ -494,6 +494,7 @@ func runServe(logger *slog.Logger) {
 			ActivityStore:   activityStore,
 			DB:              database.DB,
 			WorktreeManager: worktreeMgr,
+			Marketplace:     marketplace,
 		})
 		agentLoop.SetInitialState(loopState)
 		agentLoop.Start()
@@ -564,9 +565,14 @@ func runServe(logger *slog.Logger) {
 		CronStore:      cronStore,
 		ActivityStore:  activityStore,
 		Marketplace:    marketplace,
-		Approvals:      task.NewApprovalStore(database.DB),
-		AuthStore:      authStore,
-		WebAuthn:       webauthnHandler,
+		SkillSuggestor: func() *agent.SkillSuggestor {
+			if agentLoop != nil {
+				return agentLoop.SkillSuggestor()
+			}
+			return nil
+		}(),
+		AuthStore: authStore,
+		WebAuthn:  webauthnHandler,
 	})
 
 	// Graceful shutdown context — all subsystems observe this.
@@ -583,9 +589,6 @@ func runServe(logger *slog.Logger) {
 	if cfg.TelegramBotToken != "" || cfg.DiscordBotToken != "" || cfg.SlackBotToken != "" {
 		channelSessionStore := cairnchannel.NewSessionStore(database.DB)
 		sessionTimeout := time.Duration(cfg.ChannelSessionTimeout) * time.Minute
-
-		// Approval store for channel approve/deny.
-		approvalStore := task.NewApprovalStore(database.DB)
 
 		// Channel message handler: look up/create session, run agent.
 		channelHandler := func(ctx context.Context, msg *cairnchannel.IncomingMessage) (*cairnchannel.OutgoingMessage, error) {
@@ -623,62 +626,6 @@ func runServe(logger *slog.Logger) {
 					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Current mode: **%s**\nSwitch with: `/mode talk`, `/mode work`, `/mode coding`", current)}, nil
 				default:
 					return &cairnchannel.OutgoingMessage{Text: "Unknown mode. Use: `/mode talk`, `/mode work`, `/mode coding`"}, nil
-				}
-			}
-
-			// Handle /approve <id> — list or approve an approval.
-			if msg.IsCommand && msg.Command == "approve" {
-				id := strings.TrimSpace(msg.Args)
-				if id == "" {
-					pending, err := approvalStore.ListPending(ctx)
-					if err != nil {
-						return &cairnchannel.OutgoingMessage{Text: "Failed to list approvals."}, nil
-					}
-					if len(pending) == 0 {
-						return &cairnchannel.OutgoingMessage{Text: "No pending approvals."}, nil
-					}
-					var b strings.Builder
-					b.WriteString(fmt.Sprintf("**%d pending:**\n", len(pending)))
-					for _, a := range pending {
-						b.WriteString(fmt.Sprintf("- `%s` [%s] %s\n", a.ID, a.Type, a.Description))
-					}
-					b.WriteString("\n`/approve <id>` or `/deny <id>`")
-					return &cairnchannel.OutgoingMessage{Text: b.String()}, nil
-				}
-				if err := approvalStore.Approve(ctx, id, msg.ChannelID); err != nil {
-					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Failed: `%s` not found or already decided.", id)}, nil
-				}
-				return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Approved `%s`", id)}, nil
-			}
-
-			// Handle /deny <id>.
-			if msg.IsCommand && msg.Command == "deny" {
-				id := strings.TrimSpace(msg.Args)
-				if id == "" {
-					return &cairnchannel.OutgoingMessage{Text: "Usage: `/deny <id>`"}, nil
-				}
-				if err := approvalStore.Deny(ctx, id, msg.ChannelID); err != nil {
-					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Failed: `%s` not found or already decided.", id)}, nil
-				}
-				return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Denied `%s`", id)}, nil
-			}
-
-			// Handle button callbacks (approve:<id> / deny:<id>).
-			if msg.IsCommand && msg.Command == "callback" {
-				data := strings.TrimSpace(msg.Args)
-				if strings.HasPrefix(data, "approve:") {
-					id := strings.TrimPrefix(data, "approve:")
-					if err := approvalStore.Approve(ctx, id, msg.ChannelID); err != nil {
-						return &cairnchannel.OutgoingMessage{Text: "Already decided or not found."}, nil
-					}
-					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Approved `%s`", id)}, nil
-				}
-				if strings.HasPrefix(data, "deny:") {
-					id := strings.TrimPrefix(data, "deny:")
-					if err := approvalStore.Deny(ctx, id, msg.ChannelID); err != nil {
-						return &cairnchannel.OutgoingMessage{Text: "Already decided or not found."}, nil
-					}
-					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Denied `%s`", id)}, nil
 				}
 			}
 
@@ -741,22 +688,6 @@ func runServe(logger *slog.Logger) {
 				}
 			}
 
-			// Load recent journal entries (shared context: chat ↔ idle ↔ coding).
-			var journalEntries []memory.JournalDigestEntry
-			if journalStore != nil {
-				if entries, err := journalStore.Recent(ctx, 48*time.Hour); err == nil {
-					for _, e := range entries {
-						journalEntries = append(journalEntries, memory.JournalDigestEntry{
-							Summary:   e.Summary,
-							Mode:      e.Mode,
-							CreatedAt: e.CreatedAt,
-							Learnings: e.Learnings,
-							Errors:    e.Errors,
-						})
-					}
-				}
-			}
-
 			// Build invocation context.
 			invCtx := &agent.InvocationContext{
 				Context:        ctx,
@@ -770,7 +701,6 @@ func runServe(logger *slog.Logger) {
 				Soul:           soul,
 				Bus:            bus,
 				ContextBuilder: ctxBuilder,
-				JournalEntries: journalEntries,
 				Plugins:        pluginMgr,
 				ActivityStore:  activityStore,
 				ToolMemories:   memAdapter,

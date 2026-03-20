@@ -443,7 +443,6 @@ func (a *notifierAdapter) NotifyApproval(ctx context.Context, approvalID, approv
 		},
 	})
 }
-
 func (a *notifierAdapter) FlushDigest(ctx context.Context) int {
 	return a.router.FlushDigest(ctx)
 }

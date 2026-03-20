@@ -18,6 +18,7 @@ import (
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/signal"
+	"github.com/avifenesh/cairn/internal/skill"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 )
@@ -52,11 +53,13 @@ type Loop struct {
 	contextBuilder *memory.ContextBuilder // token-budgeted context (nil = fallback)
 	plugins        *plugin.Manager        // lifecycle hooks (nil = no plugins)
 
-	cronStore       *cairncron.Store      // nil = cron disabled
-	activityStore   *ActivityStore        // nil = activity tracking disabled
-	db              *sql.DB               // for state checkpoint
-	worktreeManager *task.WorktreeManager // nil = no worktree isolation
-	notifier        tool.NotifyService    // nil = notifications disabled
+	cronStore       *cairncron.Store         // nil = cron disabled
+	activityStore   *ActivityStore           // nil = activity tracking disabled
+	db              *sql.DB                  // for state checkpoint
+	worktreeManager *task.WorktreeManager    // nil = no worktree isolation
+	notifier        tool.NotifyService       // nil = notifications disabled
+	skillSuggestor  *SkillSuggestor          // nil = skill suggestions disabled
+	marketplace     *skill.MarketplaceClient // nil = marketplace disabled
 
 	cancel  context.CancelFunc
 	stopped atomic.Bool
@@ -154,6 +157,8 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		db:              deps.DB,
 		worktreeManager: deps.WorktreeManager,
 		notifier:        deps.Notifier,
+		marketplace:     deps.Marketplace,
+		skillSuggestor:  NewSkillSuggestor(logger),
 	}
 }
 
@@ -187,11 +192,12 @@ type LoopDeps struct {
 	ContextBuilder *memory.ContextBuilder // optional: token-budgeted context
 	Plugins        *plugin.Manager        // optional: lifecycle hooks
 
-	CronStore       *cairncron.Store      // optional: enables cron job checking in tick
-	ActivityStore   *ActivityStore        // optional: enables activity recording
-	DB              *sql.DB               // optional: enables state checkpoint
-	WorktreeManager *task.WorktreeManager // optional: worktree isolation for coding tasks
-	Notifier        tool.NotifyService    // optional: routes notifications to channels
+	CronStore       *cairncron.Store         // optional: enables cron job checking in tick
+	ActivityStore   *ActivityStore           // optional: enables activity recording
+	DB              *sql.DB                  // optional: enables state checkpoint
+	WorktreeManager *task.WorktreeManager    // optional: worktree isolation for coding tasks
+	Notifier        tool.NotifyService       // optional: routes notifications to channels
+	Marketplace     *skill.MarketplaceClient // optional: ClawHub marketplace for suggestions
 }
 
 // Start begins the agent loop in a background goroutine. Safe to call only once.
@@ -222,6 +228,9 @@ func (l *Loop) TickCount() int64 {
 	return l.tickCount.Load()
 }
 
+// SkillSuggestor returns the skill suggestion engine (for server API access).
+func (l *Loop) SkillSuggestor() *SkillSuggestor { return l.skillSuggestor }
+
 // SetNotifier sets the notification service (called after channels are configured).
 func (l *Loop) SetNotifier(n tool.NotifyService) {
 	l.notifier = n
@@ -230,26 +239,7 @@ func (l *Loop) SetNotifier(n tool.NotifyService) {
 
 // buildInvocationContext creates a complete InvocationContext with all available
 // deps. Single source of truth — prevents field divergence across code paths.
-// Loads recent journal entries so the agent knows what happened across all sessions
-// (chat, idle, coding — shared context for one persona).
 func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessage string, mode tool.Mode, session *Session) *InvocationContext {
-	// Load recent journal entries (shared context: chat ↔ idle ↔ coding).
-	var journalEntries []memory.JournalDigestEntry
-	if l.journaler != nil && l.journaler.store != nil {
-		entries, err := l.journaler.store.Recent(ctx, 48*time.Hour)
-		if err == nil {
-			for _, e := range entries {
-				journalEntries = append(journalEntries, memory.JournalDigestEntry{
-					Summary:   e.Summary,
-					Mode:      e.Mode,
-					CreatedAt: e.CreatedAt,
-					Learnings: e.Learnings,
-					Errors:    e.Errors,
-				})
-			}
-		}
-	}
-
 	return &InvocationContext{
 		Context:        ctx,
 		SessionID:      sessionID,
@@ -262,7 +252,6 @@ func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessag
 		Soul:           l.soul,
 		Bus:            l.bus,
 		ContextBuilder: l.contextBuilder,
-		JournalEntries: journalEntries,
 		Plugins:        l.plugins,
 		ActivityStore:  l.activityStore,
 		ToolMemories:   l.toolMemories,

@@ -61,6 +61,8 @@ func TestFilteredEnv(t *testing.T) {
 	t.Setenv("GIT_AUTHOR_NAME", "Test User")
 	t.Setenv("npm_config_registry", "https://registry.npmjs.org")
 	t.Setenv("CAIRN_DATA_DIR", "/data")
+	t.Setenv("GH_TOKEN", "gho_test123")
+	t.Setenv("GITHUB_ACTIONS", "true")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "supersecret")
 	t.Setenv("DATABASE_PASSWORD", "dbpass")
 
@@ -72,7 +74,7 @@ func TestFilteredEnv(t *testing.T) {
 	}
 
 	// Should be present.
-	for _, key := range []string{"PATH", "HOME", "GIT_AUTHOR_NAME", "npm_config_registry", "CAIRN_DATA_DIR"} {
+	for _, key := range []string{"PATH", "HOME", "GIT_AUTHOR_NAME", "npm_config_registry", "CAIRN_DATA_DIR", "GH_TOKEN", "GITHUB_ACTIONS"} {
 		if _, ok := envMap[key]; !ok {
 			t.Errorf("expected %s to be in filtered env", key)
 		}

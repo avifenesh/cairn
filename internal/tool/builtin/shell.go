@@ -6,7 +6,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"os/exec"
+	"strings"
 	"syscall"
 	"time"
 
@@ -46,16 +48,14 @@ var shell = tool.Define("cairn.shell",
 		}
 
 		// Determine working directory.
-		if ctx.WorkDir == "" {
-			return &tool.ToolResult{Error: "work directory not set - cannot execute shell commands without a working directory"}, nil
-		}
+		// Shell commands can cd anywhere, so workDir is just the initial cwd.
+		// File tools (read/write/edit) use safePath for containment; shell does not.
 		workDir := ctx.WorkDir
 		if p.WorkDir != "" {
-			resolved, err := safePath(ctx.WorkDir, p.WorkDir)
-			if err != nil {
-				return nil, err
-			}
-			workDir = resolved
+			workDir = p.WorkDir
+		}
+		if workDir == "" {
+			workDir = "."
 		}
 
 		// Detect shell and build command.
@@ -137,10 +137,29 @@ var shell = tool.Define("cairn.shell",
 		}
 
 		if err != nil {
-			if execCtx.Err() == context.DeadlineExceeded {
+			// SIGPIPE (exit 141) is normal for pipe patterns like `cmd | head`.
+			// Treat as success if we got stdout output.
+			if exitCode == 141 && stdout.Len() > 0 {
+				meta["sigpipe"] = true
+			} else if execCtx.Err() == context.DeadlineExceeded {
 				result.Error = fmt.Sprintf("command timed out after %ds", timeout)
 			} else {
-				result.Error = fmt.Sprintf("command failed (exit %d): %v", exitCode, err)
+				// Include stderr in error so the agent can diagnose failures.
+				errMsg := fmt.Sprintf("exit %d", exitCode)
+				if se := strings.TrimSpace(stderr.String()); se != "" {
+					if len(se) > 500 {
+						se = se[:500] + "..."
+					}
+					errMsg += ": " + se
+				}
+				result.Error = errMsg
+			}
+			if result.Error != "" {
+				cmdLog := p.Command
+				if len(cmdLog) > 200 {
+					cmdLog = cmdLog[:200] + "..."
+				}
+				slog.Warn("shell command failed", "exit", exitCode, "cmd", cmdLog, "workDir", workDir)
 			}
 		}
 

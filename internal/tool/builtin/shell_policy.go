@@ -58,11 +58,14 @@ var envAllowlist = map[string]bool{
 // envPrefixAllowlist allows any variable starting with these prefixes.
 var envPrefixAllowlist = []string{
 	"GIT_",
+	"GH_",
+	"GITHUB_",
 	"npm_",
 	"NODE_",
 	"CAIRN_",
 	"CARGO_",
 	"RUSTUP_",
+	"PNPM_",
 }
 
 // filteredEnv returns os.Environ() filtered to safe variables only.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -467,13 +468,16 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 
 // workDir returns the working directory for tool execution.
 func workDir(ctx *InvocationContext) string {
-	// Check session state for worktree path.
+	// Check session state for worktree path (set by coding tasks).
 	if ctx.Session != nil && ctx.Session.State != nil {
 		if wd, ok := ctx.Session.State["workDir"].(string); ok && wd != "" {
 			return wd
 		}
 	}
-	// Default to current directory.
+	// Default to $HOME so the agent can work across repos and tools.
+	if home := os.Getenv("HOME"); home != "" {
+		return home
+	}
 	return "."
 }
 

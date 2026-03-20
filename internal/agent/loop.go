@@ -18,6 +18,7 @@ import (
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/signal"
+	"github.com/avifenesh/cairn/internal/skill"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 )
@@ -57,6 +58,8 @@ type Loop struct {
 	db              *sql.DB               // for state checkpoint
 	worktreeManager *task.WorktreeManager // nil = no worktree isolation
 	notifier        tool.NotifyService    // nil = notifications disabled
+	skillSuggestor  *SkillSuggestor       // nil = skill suggestions disabled
+	marketplace     *skill.MarketplaceClient // nil = marketplace disabled
 
 	cancel  context.CancelFunc
 	stopped atomic.Bool
@@ -154,6 +157,8 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		db:              deps.DB,
 		worktreeManager: deps.WorktreeManager,
 		notifier:        deps.Notifier,
+		marketplace:     deps.Marketplace,
+		skillSuggestor:  NewSkillSuggestor(logger),
 	}
 }
 
@@ -190,8 +195,9 @@ type LoopDeps struct {
 	CronStore       *cairncron.Store      // optional: enables cron job checking in tick
 	ActivityStore   *ActivityStore        // optional: enables activity recording
 	DB              *sql.DB               // optional: enables state checkpoint
-	WorktreeManager *task.WorktreeManager // optional: worktree isolation for coding tasks
-	Notifier        tool.NotifyService    // optional: routes notifications to channels
+	WorktreeManager *task.WorktreeManager      // optional: worktree isolation for coding tasks
+	Notifier        tool.NotifyService         // optional: routes notifications to channels
+	Marketplace     *skill.MarketplaceClient   // optional: ClawHub marketplace for suggestions
 }
 
 // Start begins the agent loop in a background goroutine. Safe to call only once.
@@ -223,6 +229,9 @@ func (l *Loop) TickCount() int64 {
 }
 
 // SetNotifier sets the notification service (called after channels are configured).
+// SkillSuggestor returns the skill suggestion engine (for server API access).
+func (l *Loop) SkillSuggestor() *SkillSuggestor { return l.skillSuggestor }
+
 func (l *Loop) SetNotifier(n tool.NotifyService) {
 	l.notifier = n
 	l.toolNotifier = n // also wire to tool context
@@ -230,26 +239,7 @@ func (l *Loop) SetNotifier(n tool.NotifyService) {
 
 // buildInvocationContext creates a complete InvocationContext with all available
 // deps. Single source of truth — prevents field divergence across code paths.
-// Loads recent journal entries so the agent knows what happened across all sessions
-// (chat, idle, coding — shared context for one persona).
 func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessage string, mode tool.Mode, session *Session) *InvocationContext {
-	// Load recent journal entries (shared context: chat ↔ idle ↔ coding).
-	var journalEntries []memory.JournalDigestEntry
-	if l.journaler != nil && l.journaler.store != nil {
-		entries, err := l.journaler.store.Recent(ctx, 48*time.Hour)
-		if err == nil {
-			for _, e := range entries {
-				journalEntries = append(journalEntries, memory.JournalDigestEntry{
-					Summary:   e.Summary,
-					Mode:      e.Mode,
-					CreatedAt: e.CreatedAt,
-					Learnings: e.Learnings,
-					Errors:    e.Errors,
-				})
-			}
-		}
-	}
-
 	return &InvocationContext{
 		Context:        ctx,
 		SessionID:      sessionID,
@@ -262,7 +252,6 @@ func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessag
 		Soul:           l.soul,
 		Bus:            l.bus,
 		ContextBuilder: l.contextBuilder,
-		JournalEntries: journalEntries,
 		Plugins:        l.plugins,
 		ToolMemories:   l.toolMemories,
 		ToolEvents:     l.toolEvents,

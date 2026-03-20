@@ -465,6 +465,12 @@ export const updateSkillApi = (name: string, body: { description?: string; conte
 	put<{ ok: boolean; name: string }>(`/v1/skills/${name}`, body);
 export const deleteSkillApi = (name: string) => del<{ ok: boolean }>(`/v1/skills/${name}`);
 
+// Skill Suggestions
+export const getSkillSuggestions = () =>
+	get<{ suggestions: import('$lib/types').SkillSuggestion[]; updatedAt: string | null }>('/v1/skills/suggestions');
+export const dismissSkillSuggestion = (slug: string) =>
+	post<{ ok: boolean }>('/v1/skills/suggestions/dismiss', { slug });
+
 // Marketplace (ClawHub)
 export const searchMarketplace = (query: string, limit = 10) =>
 	get<{ results: import('$lib/types').MarketplaceSearchResult[]; installed: Record<string, boolean> }>(

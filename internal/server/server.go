@@ -71,8 +71,8 @@ type Server struct {
 	// Marketplace client (optional: ClawHub integration).
 	marketplace *skill.MarketplaceClient
 
-	// Approval store (optional).
-	approvals *task.ApprovalStore
+	// Skill suggestor (optional: auto-discovery).
+	skillSuggestor *agent.SkillSuggestor
 
 	// WebAuthn auth (optional).
 	authStore *auth.Store
@@ -124,8 +124,8 @@ type ServerConfig struct {
 	// Marketplace client (optional: ClawHub integration).
 	Marketplace *skill.MarketplaceClient
 
-	// Approval store (optional: human-in-the-loop gates).
-	Approvals *task.ApprovalStore
+	// Skill suggestor (optional: auto-discovery).
+	SkillSuggestor *agent.SkillSuggestor
 
 	// WebAuthn auth (optional: biometric login).
 	AuthStore *auth.Store
@@ -171,7 +171,7 @@ func New(cfg ServerConfig) *Server {
 		cronStore:      cfg.CronStore,
 		activityStore:  cfg.ActivityStore,
 		marketplace:    cfg.Marketplace,
-		approvals:      cfg.Approvals,
+		skillSuggestor: cfg.SkillSuggestor,
 		authStore:      cfg.AuthStore,
 		webauthn:       cfg.WebAuthn,
 	}

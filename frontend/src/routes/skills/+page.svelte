@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getSkills, getSkillDetail, createSkillApi, updateSkillApi, deleteSkillApi, searchMarketplace, browseMarketplace, getMarketplaceDetail, getMarketplacePreview, installMarketplaceSkill, reviewMarketplaceSkill } from '$lib/api/client';
+	import { getSkills, getSkillDetail, createSkillApi, updateSkillApi, deleteSkillApi, searchMarketplace, browseMarketplace, getMarketplaceDetail, getMarketplacePreview, installMarketplaceSkill, reviewMarketplaceSkill, getSkillSuggestions, dismissSkillSuggestion } from '$lib/api/client';
 	import { renderMarkdown } from '$lib/utils/markdown';
-	import type { Skill, MarketplaceSearchResult, MarketplaceSkill } from '$lib/types';
+	import type { Skill, MarketplaceSearchResult, MarketplaceSkill, SkillSuggestion } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -64,11 +64,18 @@
 	let reviewLoading = $state(false);
 	let reviewResult = $state<{ safe: boolean; risk: string; issues: string[]; summary: string } | null>(null);
 
+	// Auto-discovery suggestions
+	let suggestions = $state<SkillSuggestion[]>([]);
+
 	onMount(async () => {
 		try {
-			const res = await getSkills();
-			skills = res.items;
-			activeSkills = res.currentlyActive ?? [];
+			const [skillsRes, suggestRes] = await Promise.all([
+				getSkills(),
+				getSkillSuggestions().catch(() => ({ suggestions: [], updatedAt: null })),
+			]);
+			skills = skillsRes.items;
+			activeSkills = skillsRes.currentlyActive ?? [];
+			suggestions = suggestRes.suggestions ?? [];
 		} catch {
 			// handled
 		} finally {
@@ -260,6 +267,11 @@
 		}
 	});
 
+	async function handleDismissSuggestion(slug: string) {
+		suggestions = suggestions.filter(s => s.slug !== slug);
+		await dismissSkillSuggestion(slug).catch(e => console.error('Dismiss failed:', e));
+	}
+
 	async function handleInstallClick(slug: string) {
 		// Step 1: Security review
 		reviewSlug = slug;
@@ -383,6 +395,41 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Suggested for you -->
+	{#if suggestions.length > 0}
+		<div class="mb-4">
+			<p class="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2 flex items-center gap-1.5">
+				<Sparkles class="h-3 w-3 text-[var(--cairn-accent)]" /> Suggested for you
+			</p>
+			<div class="space-y-2">
+				{#each suggestions as s (s.slug)}
+					<div class="rounded-lg border border-[var(--cairn-accent)]/20 bg-[var(--cairn-accent)]/5 p-3 animate-in">
+						<div class="flex items-start gap-3">
+							<div class="min-w-0 flex-1">
+								<div class="flex items-center gap-2 mb-0.5">
+									<p class="text-sm font-medium text-[var(--text-primary)]">{s.displayName}</p>
+									<span class="text-[10px] text-[var(--text-tertiary)] font-mono">{s.slug}</span>
+								</div>
+								<p class="text-xs text-[var(--text-secondary)] line-clamp-2">{s.summary}</p>
+								<p class="text-[10px] text-[var(--cairn-accent)] mt-1 flex items-center gap-1">
+									<Sparkles class="h-2.5 w-2.5" /> {s.reason}
+								</p>
+							</div>
+							<div class="flex gap-1.5 flex-shrink-0">
+								<Button size="sm" class="h-6 text-[10px] px-2 gap-1" onclick={() => handleInstallClick(s.slug)}>
+									<Download class="h-3 w-3" /> Install
+								</Button>
+								<button class="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1" onclick={() => handleDismissSuggestion(s.slug)} title="Dismiss suggestion" type="button">
+									<X class="h-3 w-3" />
+								</button>
+							</div>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
 
 	<!-- Tabs -->
 	<div class="mb-4 flex gap-1 rounded-lg bg-[var(--bg-1)] p-0.5 border border-border-subtle w-fit">
@@ -745,7 +792,7 @@
 
 <!-- Marketplace preview dialog -->
 {#if mpPreviewSlug}
-	<Dialog.Root open={!!mpPreviewSlug} onOpenChange={(open: boolean) => { if (!open) mpPreviewSlug = null; }}>
+	<Dialog.Root open={!!mpPreviewSlug} onOpenChange={(open) => { if (!open) mpPreviewSlug = null; }}>
 		<Dialog.Content class="sm:max-w-2xl max-h-[80vh] overflow-y-auto bg-[var(--bg-0)] border-border-subtle">
 			<Dialog.Header>
 				<Dialog.Title class="text-[var(--text-primary)]">{mpPreviewSlug}</Dialog.Title>
@@ -768,7 +815,7 @@
 
 <!-- Security review dialog -->
 {#if reviewSlug}
-	<Dialog.Root open={!!reviewSlug} onOpenChange={(open: boolean) => { if (!open) { reviewSlug = null; reviewResult = null; } }}>
+	<Dialog.Root open={!!reviewSlug} onOpenChange={(open) => { if (!open) { reviewSlug = null; reviewResult = null; } }}>
 		<Dialog.Content class="sm:max-w-lg bg-[var(--bg-0)] border-border-subtle">
 			<Dialog.Header>
 				<Dialog.Title class="text-[var(--text-primary)] flex items-center gap-2">

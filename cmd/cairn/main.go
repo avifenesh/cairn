@@ -392,6 +392,9 @@ func runServe(logger *slog.Logger) {
 	}
 	skillAdapt := &skillAdapter{svc: skillSvc}
 
+	// Initialize marketplace client (ClawHub).
+	marketplace := skill.NewMarketplaceClient("", logger)
+
 	taskAdapt := &taskAdapter{engine: taskEngine}
 	// Collect active poller names for status display.
 	var pollerNames []string
@@ -530,6 +533,7 @@ func runServe(logger *slog.Logger) {
 		Voice:          voiceSvc,
 		CronStore:      cronStore,
 		ActivityStore:  agent.NewActivityStore(database.DB),
+		Marketplace:    marketplace,
 	})
 
 	// Graceful shutdown context — all subsystems observe this.

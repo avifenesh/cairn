@@ -64,6 +64,9 @@ func (m *mockSkillService) Delete(name string) error {
 	return nil
 }
 
+func (m *mockSkillService) InstallDir() string { return "/tmp/test-skills" }
+func (m *mockSkillService) Refresh() error     { return nil }
+
 func toolCtxWithSkills(svc tool.SkillService) *tool.ToolContext {
 	return &tool.ToolContext{
 		SessionID: "test",

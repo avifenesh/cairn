@@ -205,6 +205,8 @@ type SkillService interface {
 	Create(name, description, content, inclusion string, allowedTools []string) error
 	Update(name, description, content, inclusion string, allowedTools []string) error
 	Delete(name string) error
+	InstallDir() string // Returns the user-override directory for marketplace installs.
+	Refresh() error     // Re-discovers skills after install or external change.
 }
 
 // SkillItem is a tool-level representation of a skill.

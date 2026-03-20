@@ -462,6 +462,28 @@ export const updateSkillApi = (name: string, body: { description?: string; conte
 	put<{ ok: boolean; name: string }>(`/v1/skills/${name}`, body);
 export const deleteSkillApi = (name: string) => del<{ ok: boolean }>(`/v1/skills/${name}`);
 
+// Marketplace (ClawHub)
+export const searchMarketplace = (query: string, limit = 10) =>
+	get<{ results: import('$lib/types').MarketplaceSearchResult[]; installed: Record<string, boolean> }>(
+		`/v1/marketplace/search?q=${encodeURIComponent(query)}&limit=${limit}`
+	);
+export const browseMarketplace = (sort = 'trending', limit = 20) =>
+	get<{ skills: import('$lib/types').MarketplaceSkill[]; installed: Record<string, boolean> }>(
+		`/v1/marketplace/browse?sort=${sort}&limit=${limit}`
+	);
+export const getMarketplaceDetail = (slug: string) =>
+	get<{ skill: import('$lib/types').MarketplaceSkill; installed: boolean }>(
+		`/v1/marketplace/skills/${encodeURIComponent(slug)}`
+	);
+export const getMarketplacePreview = (slug: string) =>
+	get<{ content: string }>(
+		`/v1/marketplace/skills/${encodeURIComponent(slug)}/preview`
+	);
+export const installMarketplaceSkill = (slug: string) =>
+	post<{ ok: boolean; name: string; version: string }>(
+		`/v1/marketplace/skills/${encodeURIComponent(slug)}/install`
+	);
+
 // Agent Activity
 export const getAgentActivity = (params?: { limit?: number; type?: string; offset?: number }) => {
 	const q = new URLSearchParams();
@@ -473,10 +495,16 @@ export const getAgentActivity = (params?: { limit?: number; type?: string; offse
 };
 
 // Auth (WebAuthn)
-export const authLoginStart = () => post<{ challenge: string }>('/v1/auth/login/start');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const authLoginStart = () => post<any>('/v1/auth/login/start');
 export const authLoginComplete = (credential: unknown) =>
 	post<{ ok: boolean }>('/v1/auth/login/complete', credential);
-export const authRegisterStart = () => post<{ challenge: string }>('/v1/auth/register/start');
-export const authRegisterComplete = (credential: unknown) =>
-	post<{ ok: boolean }>('/v1/auth/register/complete', credential);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const authRegisterStart = () => post<any>('/v1/auth/register/start');
+export const authRegisterComplete = (body: { name: string; credential: unknown }) =>
+	post<{ ok: boolean }>('/v1/auth/register/complete', body);
 export const authLogout = () => post<{ ok: boolean }>('/v1/auth/logout');
+export const authSession = () => get<{ authenticated: boolean; method: string; expiresAt?: string }>('/v1/auth/session');
+export interface AuthCredential { id: string; name: string; createdAt: string; lastUsedAt?: string }
+export const listAuthCredentials = () => get<{ credentials: AuthCredential[] }>('/v1/auth/credentials');
+export const deleteAuthCredential = (id: string) => del<{ ok: boolean }>(`/v1/auth/credentials/${encodeURIComponent(id)}`);

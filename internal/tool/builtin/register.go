@@ -55,6 +55,10 @@ func All() []tool.Tool {
 		// Config tools (agent can modify settings behind approval gate).
 		patchConfig,
 		getConfig,
+		// Marketplace tools (ClawHub).
+		searchSkillsMarketplace,
+		skillInfoMarketplace,
+		installSkillMarketplace,
 	}
 
 	// Web tools: Z.ai (GLM) or SearXNG/direct.

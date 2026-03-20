@@ -387,6 +387,14 @@ func (a *skillAdapter) Delete(name string) error {
 	return a.svc.Delete(name)
 }
 
+func (a *skillAdapter) InstallDir() string {
+	return a.svc.InstallDir()
+}
+
+func (a *skillAdapter) Refresh() error {
+	return a.svc.Discover()
+}
+
 func skillToItem(sk *skill.Skill) *tool.SkillItem {
 	return &tool.SkillItem{
 		Name:         sk.Name,

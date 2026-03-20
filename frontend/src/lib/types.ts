@@ -139,6 +139,26 @@ export interface Skill {
 	allowedTools?: string[];
 }
 
+export interface MarketplaceSearchResult {
+	score: number;
+	slug: string;
+	displayName: string;
+	summary: string;
+	version: string;
+	updatedAt: number;
+}
+
+export interface MarketplaceSkill {
+	slug: string;
+	displayName: string;
+	summary: string;
+	stats: { downloads: number; stars: number; versions: number; installsAllTime: number };
+	owner: { handle: string; displayName: string; image: string };
+	latestVersion: { version: string; changelog: string };
+	tags?: Record<string, string>;
+	metadata?: Record<string, unknown>;
+}
+
 export interface SoulContent {
 	content: string;
 	sha?: string;

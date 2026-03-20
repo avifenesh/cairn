@@ -167,6 +167,15 @@ func (s *Service) checkReload() {
 	}
 }
 
+// InstallDir returns the last configured skill directory (user override),
+// which is used as the target for marketplace installs and CRUD creates.
+func (s *Service) InstallDir() string {
+	if len(s.dirs) == 0 {
+		return ""
+	}
+	return s.dirs[len(s.dirs)-1]
+}
+
 // hasChanges checks whether any SKILL.md files were added, removed, or modified.
 func (s *Service) hasChanges() bool {
 	s.mu.RLock()

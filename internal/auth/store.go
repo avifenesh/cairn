@@ -28,16 +28,16 @@ func NewStore(db *sql.DB) *Store {
 
 // Credential is a stored WebAuthn credential row.
 type Credential struct {
-	ID         string    `json:"id"`
-	PublicKey  []byte    `json:"-"`
-	AAGUID     string    `json:"aaguid"`
-	SignCount  uint32    `json:"signCount"`
-	Name       string    `json:"name"`
-	Flags      uint8     `json:"flags"`
-	Transports []string  `json:"transports"`
-	AttObject  []byte    `json:"-"`
-	AttClient  []byte    `json:"-"`
-	CreatedAt  time.Time `json:"createdAt"`
+	ID         string     `json:"id"`
+	PublicKey  []byte     `json:"-"`
+	AAGUID     string     `json:"aaguid"`
+	SignCount  uint32     `json:"signCount"`
+	Name       string     `json:"name"`
+	Flags      uint8      `json:"flags"`
+	Transports []string   `json:"transports"`
+	AttObject  []byte     `json:"-"`
+	AttClient  []byte     `json:"-"`
+	CreatedAt  time.Time  `json:"createdAt"`
 	LastUsedAt *time.Time `json:"lastUsedAt,omitempty"`
 }
 

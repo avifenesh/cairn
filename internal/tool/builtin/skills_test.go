@@ -3,6 +3,7 @@ package builtin
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -40,6 +41,27 @@ func (m *mockSkillService) List() []*tool.SkillItem {
 		out = append(out, sk)
 	}
 	return out
+}
+
+func (m *mockSkillService) Create(name, description, content, inclusion string, allowedTools []string) error {
+	m.skills[name] = &tool.SkillItem{Name: name, Description: description, Content: content, Inclusion: inclusion, AllowedTools: allowedTools}
+	return nil
+}
+
+func (m *mockSkillService) Update(name, description, content, inclusion string, allowedTools []string) error {
+	if _, ok := m.skills[name]; !ok {
+		return fmt.Errorf("not found")
+	}
+	m.skills[name] = &tool.SkillItem{Name: name, Description: description, Content: content, Inclusion: inclusion, AllowedTools: allowedTools}
+	return nil
+}
+
+func (m *mockSkillService) Delete(name string) error {
+	if _, ok := m.skills[name]; !ok {
+		return fmt.Errorf("not found")
+	}
+	delete(m.skills, name)
+	return nil
 }
 
 func toolCtxWithSkills(svc tool.SkillService) *tool.ToolContext {

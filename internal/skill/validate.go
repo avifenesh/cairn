@@ -29,6 +29,20 @@ const minDescriptionLength = 10
 // safeNameRe matches valid skill names: lowercase alphanumeric with hyphens, max 64 chars.
 var safeNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$|^[a-z0-9]$`)
 
+// ValidateName checks if a skill name is safe for filesystem use.
+func ValidateName(name string) error {
+	if name == "" {
+		return fmt.Errorf("skill name is required")
+	}
+	if name == "." || name == ".." || strings.ContainsAny(name, "/\\") {
+		return fmt.Errorf("skill name %q is not safe", name)
+	}
+	if !safeNameRe.MatchString(name) {
+		return fmt.Errorf("skill name %q must be lowercase alphanumeric with hyphens, 1-64 chars", name)
+	}
+	return nil
+}
+
 // Validate checks a parsed skill for common issues and returns any problems found.
 // knownTools is the list of registered tool names used to verify allowed-tools references.
 func Validate(sk *Skill, knownTools []string) []ValidationIssue {

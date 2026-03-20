@@ -375,6 +375,18 @@ func (a *skillAdapter) List() []*tool.SkillItem {
 	return out
 }
 
+func (a *skillAdapter) Create(name, description, content, inclusion string, allowedTools []string) error {
+	return a.svc.Create(name, description, content, inclusion, allowedTools)
+}
+
+func (a *skillAdapter) Update(name, description, content, inclusion string, allowedTools []string) error {
+	return a.svc.Update(name, description, content, inclusion, allowedTools)
+}
+
+func (a *skillAdapter) Delete(name string) error {
+	return a.svc.Delete(name)
+}
+
 func skillToItem(sk *skill.Skill) *tool.SkillItem {
 	return &tool.SkillItem{
 		Name:         sk.Name,

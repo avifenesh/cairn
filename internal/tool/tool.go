@@ -202,6 +202,9 @@ type ConfigService interface {
 type SkillService interface {
 	Get(name string) *SkillItem
 	List() []*SkillItem
+	Create(name, description, content, inclusion string, allowedTools []string) error
+	Update(name, description, content, inclusion string, allowedTools []string) error
+	Delete(name string) error
 }
 
 // SkillItem is a tool-level representation of a skill.

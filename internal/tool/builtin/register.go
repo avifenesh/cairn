@@ -43,6 +43,9 @@ func All() []tool.Tool {
 		// Skill tools.
 		loadSkill,
 		listSkills,
+		createSkill,
+		editSkill,
+		deleteSkill,
 		// Notification tool.
 		notify,
 		// Cron tools.

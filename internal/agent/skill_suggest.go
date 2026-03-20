@@ -97,7 +97,9 @@ func CollectSignals(ctx context.Context, journal *JournalStore, activity *Activi
 	// 2. Check recent activity for topic patterns.
 	if activity != nil {
 		entries, err := activity.List(ctx, 20, 0, "")
-		_ = err
+		if err != nil {
+			slog.Debug("skill suggest: failed to list activity", "error", err)
+		}
 		topicSignals := extractTopicSignals(entries)
 		signals = append(signals, topicSignals...)
 	}

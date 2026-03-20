@@ -228,10 +228,10 @@ func (l *Loop) TickCount() int64 {
 	return l.tickCount.Load()
 }
 
-// SetNotifier sets the notification service (called after channels are configured).
 // SkillSuggestor returns the skill suggestion engine (for server API access).
 func (l *Loop) SkillSuggestor() *SkillSuggestor { return l.skillSuggestor }
 
+// SetNotifier sets the notification service (called after channels are configured).
 func (l *Loop) SetNotifier(n tool.NotifyService) {
 	l.notifier = n
 	l.toolNotifier = n // also wire to tool context

@@ -438,9 +438,10 @@ func runServe(logger *slog.Logger) {
 		logger.Info("memory auto-extraction enabled")
 	}
 
-	// Create cron and config adapters (needed by both server and agent loop).
+	// Create cron, config, and activity adapters (needed by both server and agent loop).
 	cronAdapt := &cronAdapter{store: cronStore}
 	cfgAdapt := &configAdapter{cfg: cfg}
+	activityStore := agent.NewActivityStore(database.DB)
 
 	// Start always-on agent loop (if idle mode enabled and agent available).
 	var agentLoop *agent.Loop
@@ -490,7 +491,7 @@ func runServe(logger *slog.Logger) {
 			ContextBuilder:  ctxBuilder,
 			Plugins:         pluginMgr,
 			CronStore:       cronStore,
-			ActivityStore:   agent.NewActivityStore(database.DB),
+			ActivityStore:   activityStore,
 			DB:              database.DB,
 			WorktreeManager: worktreeMgr,
 		})
@@ -561,7 +562,7 @@ func runServe(logger *slog.Logger) {
 		ToolConfig:     cfgAdapt,
 		Voice:          voiceSvc,
 		CronStore:      cronStore,
-		ActivityStore:  agent.NewActivityStore(database.DB),
+		ActivityStore:  activityStore,
 		Marketplace:    marketplace,
 		Approvals:      task.NewApprovalStore(database.DB),
 		AuthStore:      authStore,
@@ -771,6 +772,7 @@ func runServe(logger *slog.Logger) {
 				ContextBuilder: ctxBuilder,
 				JournalEntries: journalEntries,
 				Plugins:        pluginMgr,
+				ActivityStore:  activityStore,
 				ToolMemories:   memAdapter,
 				ToolEvents:     eventAdapter,
 				ToolDigest:     digestAdapt,

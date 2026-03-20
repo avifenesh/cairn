@@ -50,6 +50,9 @@ type InvocationContext struct {
 	// Session compaction config.
 	CompactionConfig CompactionConfig
 
+	// ActivityStore records tool execution stats (nil = no recording).
+	ActivityStore *ActivityStore
+
 	// Tool service adapters — passed through to ToolContext during execution.
 	ToolMemories tool.MemoryService
 	ToolEvents   tool.EventService

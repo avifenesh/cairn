@@ -385,6 +385,13 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 				}
 			}
 
+			// Record tool call stats for the activity dashboard.
+			if invCtx.ActivityStore != nil {
+				if recordErr := invCtx.ActivityStore.RecordToolCall(invCtx.Context, tc.Name, duration.Milliseconds(), errStr); recordErr != nil {
+					a.logger.Warn("failed to record tool call", "tool", tc.Name, "error", recordErr)
+				}
+			}
+
 			// Emit tool result.
 			emit(invCtx.Context, ch, RunEvent{Event: &Event{
 				ID:        newID(),

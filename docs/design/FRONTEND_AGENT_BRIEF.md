@@ -85,14 +85,14 @@ Mobile (< 768px):
 The Go backend reimplements the same REST API. Here's what the frontend consumes:
 
 ### Base URL
-Default: `http://localhost:8787`. Configurable via env or query param.
+Default: `http://localhost:8788`. Production: `https://agntic.garden` (Caddy proxy → :8788).
 
 ### Auth
-- **WebAuthn cookie**: `pub_session` HttpOnly cookie (primary auth after biometric login)
-- **Token header**: `x-api-token: <token>` for API token auth
+- **WebAuthn cookie**: `cairn_session` HttpOnly cookie (primary auth after biometric login)
+- **Token header**: `X-Api-Token: <token>` for API token auth
 - **SSE auth**: append `?token=<token>` as query param (EventSource can't send headers)
 - **Read endpoints**: optional `READ_API_TOKEN` (open when not configured)
-- **Write endpoints**: require `WRITE_API_TOKEN`
+- **Write endpoints**: require `WRITE_API_TOKEN` or valid `cairn_session` cookie
 
 ### Key Endpoints
 

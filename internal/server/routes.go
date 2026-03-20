@@ -1302,14 +1302,6 @@ func (s *Server) handleDenySoulPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the patch content before denying so we can save it to memory.
-	patch := s.soul.PendingPatch()
-	if patch == nil {
-		writeError(w, http.StatusNotFound, "no pending patch")
-		return
-	}
-	patchContent := patch.Content
-
 	if err := s.soul.DenyPatch(req.ID); err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
@@ -1318,11 +1310,11 @@ func (s *Server) handleDenySoulPatch(w http.ResponseWriter, r *http.Request) {
 	// Save denial reason + patch to memory.
 	if s.memories != nil && req.Reason != "" {
 		m := &memory.Memory{
-			Content:    fmt.Sprintf("Soul patch denied. Reason: %s\nProposed patch:\n%s", req.Reason, patchContent),
+			Content:    fmt.Sprintf("Soul patch denied. Reason: %s", req.Reason),
 			Category:   memory.CatDecision,
 			Scope:      memory.ScopeGlobal,
-			Status:     memory.StatusAccepted,
-			Confidence: 1.0,
+			Status:     memory.StatusProposed,
+			Confidence: 0.9,
 			Source:     "soul-review",
 		}
 		if err := s.memories.Create(r.Context(), m); err != nil {

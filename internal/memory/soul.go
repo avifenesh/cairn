@@ -162,7 +162,15 @@ func (s *Soul) ApprovePatch(id string) error {
 		return fmt.Errorf("soul: no pending patch with id %q", id)
 	}
 
-	newContent := s.content + "\n" + s.pending.Content
+	// Verify the patch preview is still valid (content hasn't changed since proposal).
+	expectedPreview := s.content + "\n" + s.pending.Content
+	if expectedPreview != s.pending.Preview {
+		// Content changed since patch was proposed - rebase the preview.
+		s.pending.Preview = expectedPreview
+		slog.Info("soul: patch rebased onto current content", "id", id)
+	}
+
+	newContent := expectedPreview
 	if err := os.WriteFile(s.filePath, []byte(newContent), 0644); err != nil {
 		return fmt.Errorf("soul: write patch: %w", err)
 	}

@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -572,6 +573,9 @@ func runServe(logger *slog.Logger) {
 	// Notify adapter — set when channels are configured, nil otherwise.
 	var notifyAdapt tool.NotifyService
 
+	// Channel mode overrides (per channel+chatID, in-memory).
+	var channelModes sync.Map
+
 	// Start channel router if any channels are configured.
 	if cfg.TelegramBotToken != "" || cfg.DiscordBotToken != "" || cfg.SlackBotToken != "" {
 		channelSessionStore := cairnchannel.NewSessionStore(database.DB)
@@ -585,6 +589,47 @@ func runServe(logger *slog.Logger) {
 					return nil, fmt.Errorf("channel session reset: %w", err)
 				}
 				return &cairnchannel.OutgoingMessage{Text: "New session started."}, nil
+			}
+
+			// Handle /mode command — switch agent mode for this session.
+			if msg.IsCommand && msg.Command == "mode" {
+				modeArg := strings.TrimSpace(strings.ToLower(msg.Args))
+				switch modeArg {
+				case "talk", "work", "coding":
+					// Store mode in channel session metadata via a lightweight DB update.
+					// We use a dedicated table column or piggyback on the session State.
+					// For now, store as a simple key in a session-scoped map.
+					channelModeKey := fmt.Sprintf("mode:%s:%s", msg.ChannelID, msg.ChatID)
+					channelModes.Store(channelModeKey, modeArg)
+					labels := map[string]string{
+						"talk":   "Talk (concise answers, 10 rounds)",
+						"work":   "Work (run commands, create artifacts, 20 rounds)",
+						"coding": "Coding (edit files, git, PRs, 100 rounds)",
+					}
+					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Mode: **%s**", labels[modeArg])}, nil
+				case "":
+					// Show current mode.
+					channelModeKey := fmt.Sprintf("mode:%s:%s", msg.ChannelID, msg.ChatID)
+					current := "talk"
+					if v, ok := channelModes.Load(channelModeKey); ok {
+						current = v.(string)
+					}
+					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Current mode: **%s**\nSwitch with: `/mode talk`, `/mode work`, `/mode coding`", current)}, nil
+				default:
+					return &cairnchannel.OutgoingMessage{Text: "Unknown mode. Use: `/mode talk`, `/mode work`, `/mode coding`"}, nil
+				}
+			}
+
+			// Determine mode from /mode command state (default: talk).
+			channelMode := tool.ModeTalk
+			channelModeKey := fmt.Sprintf("mode:%s:%s", msg.ChannelID, msg.ChatID)
+			if v, ok := channelModes.Load(channelModeKey); ok {
+				switch v.(string) {
+				case "work":
+					channelMode = tool.ModeWork
+				case "coding":
+					channelMode = tool.ModeCoding
+				}
 			}
 
 			// Look up or create session.
@@ -601,7 +646,7 @@ func runServe(logger *slog.Logger) {
 			if session == nil || isNew {
 				session = &agent.Session{
 					ID:    sessionID,
-					Mode:  tool.ModeTalk,
+					Mode:  channelMode,
 					State: map[string]any{"channel": msg.ChannelID, "chatID": msg.ChatID},
 				}
 				if err := sessionStore.Create(ctx, session); err != nil {
@@ -639,7 +684,7 @@ func runServe(logger *slog.Logger) {
 				Context:        ctx,
 				SessionID:      sessionID,
 				UserMessage:    text,
-				Mode:           tool.ModeTalk,
+				Mode:           channelMode,
 				Session:        session,
 				Tools:          toolRegistry,
 				LLM:            provider,
@@ -658,7 +703,7 @@ func runServe(logger *slog.Logger) {
 				ToolNotifier:   notifyAdapt,
 				ToolCrons:      cronAdapt,
 				ToolConfig:     cfgAdapt,
-				Config:         &agent.AgentConfig{Model: cfg.LLMModel, MaxRounds: cfg.MaxRoundsForMode("talk")},
+				Config:         &agent.AgentConfig{Model: cfg.LLMModel, MaxRounds: cfg.MaxRoundsForMode(string(channelMode))},
 				CompactionConfig: agent.CompactionConfig{
 					TriggerTokens:   cfg.CompactionTriggerTokens,
 					KeepRecentPairs: cfg.CompactionKeepRecent,

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"testing"
+	"time"
 )
 
 func TestParseIdleDecision_Valid(t *testing.T) {
@@ -61,42 +62,82 @@ func TestObservations_IsEmpty(t *testing.T) {
 	}
 }
 
-func TestBuildIdlePrompt_WithSoul(t *testing.T) {
+func TestBuildBriefingPrompt_RichContent(t *testing.T) {
 	obs := &Observations{
 		UnreadFeedCount: 3,
 		UnreadBySource:  map[string]int{"github": 2, "gmail": 1},
-		RecentErrors:    []string{"build failed"},
+		TopUnread: []FeedItem{
+			{Source: "github", Kind: "pr", Title: "fix: update deps", Actor: "avi"},
+		},
+		RelevantMemories: []string{"User prefers concise responses"},
+		RecentErrors:     []string{"build failed"},
+		RecentSessions: []JournalSummary{
+			{Summary: "Merged PR #96", Mode: "coding", CreatedAt: time.Now()},
+		},
+		UpcomingCrons:   []string{"morning-digest at 09:00"},
 		TicksSinceStart: 42,
+		CurrentTime:     "2026-03-20 10:00 UTC",
 	}
 
-	prompt := buildIdlePrompt("I am Cairn. Be concise.", obs)
+	prompt := buildBriefingPrompt(obs)
 
-	if !containsString(prompt, "I am Cairn") {
-		t.Error("expected SOUL content in prompt")
-	}
-	if !containsString(prompt, "Unread feed items: 3") {
-		t.Error("expected unread count in prompt")
+	if !containsString(prompt, "fix: update deps") {
+		t.Error("expected feed item title in briefing prompt")
 	}
 	if !containsString(prompt, "github: 2") {
-		t.Error("expected source breakdown in prompt")
+		t.Error("expected source breakdown in briefing prompt")
+	}
+	if !containsString(prompt, "User prefers concise") {
+		t.Error("expected memories in briefing prompt")
+	}
+	if !containsString(prompt, "Merged PR #96") {
+		t.Error("expected recent sessions in briefing prompt")
 	}
 	if !containsString(prompt, "build failed") {
-		t.Error("expected errors in prompt")
+		t.Error("expected errors in briefing prompt")
 	}
-	if !containsString(prompt, "wait") {
-		t.Error("expected wait option in prompt")
+	if !containsString(prompt, "morning-digest") {
+		t.Error("expected upcoming crons in briefing prompt")
 	}
 }
 
-func TestBuildIdlePrompt_NoSoul(t *testing.T) {
-	obs := &Observations{UnreadFeedCount: 1, TicksSinceStart: 1}
-	prompt := buildIdlePrompt("", obs)
-
-	if containsString(prompt, "personality and values") {
-		t.Error("should not include SOUL header when content is empty")
+func TestBuildDecisionPrompt_WithBriefing(t *testing.T) {
+	obs := &Observations{
+		UnreadFeedCount: 3,
+		UnreadBySource:  map[string]int{"github": 3},
+		CurrentTime:     "2026-03-20 10:00 UTC",
 	}
-	if !containsString(prompt, "Unread feed items: 1") {
-		t.Error("expected observations in prompt")
+
+	prompt := buildDecisionPrompt("I am Cairn.", "3 GitHub items: PR merged, star added, CI passed. Nothing urgent.", obs)
+
+	if !containsString(prompt, "I am Cairn") {
+		t.Error("expected SOUL in decision prompt")
+	}
+	if !containsString(prompt, "Situation Briefing") {
+		t.Error("expected briefing section in decision prompt")
+	}
+	if !containsString(prompt, "Nothing urgent") {
+		t.Error("expected briefing content in decision prompt")
+	}
+	if !containsString(prompt, "wait") {
+		t.Error("expected wait option in decision prompt")
+	}
+}
+
+func TestBuildDecisionPrompt_NoBriefing(t *testing.T) {
+	obs := &Observations{
+		UnreadFeedCount: 1,
+		UnreadBySource:  map[string]int{"github": 1},
+		CurrentTime:     "2026-03-20 10:00 UTC",
+	}
+
+	prompt := buildDecisionPrompt("", "", obs)
+
+	if containsString(prompt, "Situation Briefing") {
+		t.Error("should not include briefing section when empty")
+	}
+	if !containsString(prompt, "Unread feed: 1") {
+		t.Error("expected live signal counts")
 	}
 }
 

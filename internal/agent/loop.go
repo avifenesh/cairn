@@ -57,6 +57,10 @@ type Loop struct {
 	tickCount    atomic.Int64
 	lastReflect  time.Time
 	lastIdleTick time.Time
+
+	// Cached idle briefing — rebuilt by cheap model periodically.
+	idleBriefing    string
+	briefingBuiltAt time.Time
 }
 
 // LoopConfig configures the always-on agent loop.
@@ -69,6 +73,7 @@ type LoopConfig struct {
 	WorkMaxRounds      int      // Default: 20
 	CodingMaxRounds    int      // Default: 100
 	CodingAllowedRepos []string // Repo paths where coding is allowed (empty = cwd only)
+	BriefingModel      string   // Cheap model for context summarization (default: fallback model)
 }
 
 func (c LoopConfig) maxRoundsForMode(mode tool.Mode) int {

@@ -1,0 +1,89 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'frontend/**'
+
+# Only one deploy at a time.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: self-hosted
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build binary
+        run: |
+          go build -o /tmp/cairn-deploy-candidate ./cmd/cairn
+          echo "Binary built successfully"
+
+      - name: Backup current binary
+        run: |
+          PROD_BIN="/home/ubuntu/cairn-frontend/cairn-prod"
+          if [ -f "$PROD_BIN" ]; then
+            cp "$PROD_BIN" "${PROD_BIN}.rollback"
+            echo "Backup saved to ${PROD_BIN}.rollback"
+          else
+            echo "No existing binary to backup"
+          fi
+
+      - name: Deploy new binary
+        run: |
+          PROD_BIN="/home/ubuntu/cairn-frontend/cairn-prod"
+          mv /tmp/cairn-deploy-candidate "$PROD_BIN"
+          chmod +x "$PROD_BIN"
+          echo "Binary deployed"
+
+      - name: Restart service
+        run: |
+          sudo systemctl restart cairn
+          sleep 3
+          echo "Service restarted"
+
+      - name: Health check
+        id: health
+        run: |
+          for i in 1 2 3 4 5; do
+            if curl -sf http://localhost:8788/health > /dev/null 2>&1; then
+              echo "Health check passed on attempt $i"
+              exit 0
+            fi
+            echo "Health check attempt $i failed, waiting..."
+            sleep 2
+          done
+          echo "Health check failed after 5 attempts"
+          exit 1
+
+      - name: Rollback on failure
+        if: failure() && steps.health.outcome == 'failure'
+        run: |
+          PROD_BIN="/home/ubuntu/cairn-frontend/cairn-prod"
+          if [ -f "${PROD_BIN}.rollback" ]; then
+            echo "Rolling back to previous binary..."
+            mv "${PROD_BIN}.rollback" "$PROD_BIN"
+            sudo systemctl restart cairn
+            sleep 3
+            if curl -sf http://localhost:8788/health > /dev/null 2>&1; then
+              echo "Rollback successful — service healthy"
+            else
+              echo "WARNING: Rollback binary also unhealthy"
+            fi
+          else
+            echo "No rollback binary available"
+          fi
+
+      - name: Clean up rollback binary
+        if: success()
+        run: |
+          rm -f /home/ubuntu/cairn-frontend/cairn-prod.rollback
+          echo "Rollback binary cleaned up"

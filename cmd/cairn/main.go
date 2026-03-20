@@ -637,6 +637,16 @@ func runServe(logger *slog.Logger) {
 				}
 			}
 
+			// Handle /memories command — list, accept, reject, delete, compact, search.
+			if msg.IsCommand && msg.Command == "memories" {
+				return handleMemoriesCommand(ctx, msg.Args, memService)
+			}
+
+			// Handle /patch command — show, approve, deny pending SOUL patch.
+			if msg.IsCommand && msg.Command == "patch" {
+				return handlePatchCommand(ctx, msg.Args, soul)
+			}
+
 			// Determine mode from /mode command state (default: talk).
 			channelMode := tool.ModeTalk
 			channelModeKey := fmt.Sprintf("mode:%s:%s", msg.ChannelID, msg.ChatID)

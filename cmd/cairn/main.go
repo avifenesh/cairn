@@ -437,6 +437,10 @@ func runServe(logger *slog.Logger) {
 		logger.Info("memory auto-extraction enabled")
 	}
 
+	// Create cron and config adapters (needed by both server and agent loop).
+	cronAdapt := &cronAdapter{store: cronStore}
+	cfgAdapt := &configAdapter{cfg: cfg}
+
 	// Start always-on agent loop (if idle mode enabled and agent available).
 	var agentLoop *agent.Loop
 	if cfg.IdleModeEnabled && reactAgent != nil && provider != nil {
@@ -479,6 +483,10 @@ func runServe(logger *slog.Logger) {
 			ToolTasks:       taskAdapt,
 			ToolStatus:      statusAdapt,
 			ToolSkills:      skillAdapt,
+			ToolCrons:       cronAdapt,
+			ToolConfig:      cfgAdapt,
+			ContextBuilder:  ctxBuilder,
+			Plugins:         pluginMgr,
 			CronStore:       cronStore,
 			ActivityStore:   agent.NewActivityStore(database.DB),
 			DB:              database.DB,
@@ -523,10 +531,6 @@ func runServe(logger *slog.Logger) {
 			logger.Info("webauthn enabled", "rpID", rpID, "origin", cfg.FrontendOrigin)
 		}
 	}
-
-	// Create cron and config adapters (needed by both server and agent contexts).
-	cronAdapt := &cronAdapter{store: cronStore}
-	cfgAdapt := &configAdapter{cfg: cfg}
 
 	// Create and start the server.
 	srv := server.New(server.ServerConfig{

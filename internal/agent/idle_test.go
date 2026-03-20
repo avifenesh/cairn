@@ -108,7 +108,7 @@ func TestBuildDecisionPrompt_WithBriefing(t *testing.T) {
 		CurrentTime:     "2026-03-20 10:00 UTC",
 	}
 
-	prompt := buildDecisionPrompt("I am Cairn.", "3 GitHub items: PR merged, star added, CI passed. Nothing urgent.", obs)
+	prompt := buildDecisionPrompt("I am Cairn.", "3 GitHub items: PR merged, star added, CI passed. Nothing urgent.", obs, nil)
 
 	if !containsString(prompt, "I am Cairn") {
 		t.Error("expected SOUL in decision prompt")
@@ -131,7 +131,7 @@ func TestBuildDecisionPrompt_NoBriefing(t *testing.T) {
 		CurrentTime:     "2026-03-20 10:00 UTC",
 	}
 
-	prompt := buildDecisionPrompt("", "", obs)
+	prompt := buildDecisionPrompt("", "", obs, nil)
 
 	if containsString(prompt, "Situation Briefing") {
 		t.Error("should not include briefing section when empty")

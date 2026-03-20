@@ -269,15 +269,31 @@ func (l *Loop) tick(ctx context.Context) {
 			entry = &ActivityEntry{Type: "cron", Summary: "Submitted cron job(s)", DurationMs: dur}
 		} else if l.lastIdleDecision != nil {
 			d := l.lastIdleDecision
-			summary := d.Reason
-			if summary == "" {
-				summary = "Idle tick — " + d.Action
-			}
-			details := "Action: " + d.Action
+			// Short summary for the header (what was done).
+			summary := "Idle: " + d.Action
 			if d.Action == "notify" && d.Message != "" {
-				details += "\nMessage: " + d.Message
+				// First line of notification message as summary hint.
+				firstLine := d.Message
+				if idx := strings.IndexByte(firstLine, '\n'); idx > 0 {
+					firstLine = firstLine[:idx]
+				}
+				if len(firstLine) > 80 {
+					firstLine = firstLine[:77] + "..."
+				}
+				summary = "Notified: " + firstLine
+			} else if d.Action == "wait" {
+				summary = "Idle: wait"
 			}
-			entry = &ActivityEntry{Type: "idle", Summary: summary, Details: details, DurationMs: dur}
+			// Full details with reason, action, and message for the expandable body.
+			var detailBuf strings.Builder
+			fmt.Fprintf(&detailBuf, "Action: %s\n", d.Action)
+			if d.Reason != "" {
+				fmt.Fprintf(&detailBuf, "Reason: %s\n", d.Reason)
+			}
+			if d.Message != "" {
+				fmt.Fprintf(&detailBuf, "Message: %s\n", d.Message)
+			}
+			entry = &ActivityEntry{Type: "idle", Summary: summary, Details: detailBuf.String(), DurationMs: dur}
 			l.lastIdleDecision = nil
 		}
 		// Only record when something meaningful happened.

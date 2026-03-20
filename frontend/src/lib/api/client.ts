@@ -463,10 +463,11 @@ export const updateSkillApi = (name: string, body: { description?: string; conte
 export const deleteSkillApi = (name: string) => del<{ ok: boolean }>(`/v1/skills/${name}`);
 
 // Agent Activity
-export const getAgentActivity = (params?: { limit?: number; type?: string }) => {
+export const getAgentActivity = (params?: { limit?: number; type?: string; offset?: number }) => {
 	const q = new URLSearchParams();
 	if (params?.limit) q.set('limit', String(params.limit));
 	if (params?.type) q.set('type', params.type);
+	if (params?.offset) q.set('offset', String(params.offset));
 	const qs = q.toString();
 	return get<{ items: ActivityEntry[]; stats: ToolStatsOverview }>(`/v1/agent/activity${qs ? '?' + qs : ''}`);
 };

@@ -11,6 +11,10 @@
 
 	let expandedId = $state<string | null>(null);
 	let filterType = $state<string>('all');
+	let hasMore = $state(true);
+	let loadingMore = $state(false);
+
+	const PAGE_SIZE = 50;
 
 	const TYPE_CONFIG: Record<string, { color: string; label: string }> = {
 		task: { color: 'var(--cairn-accent)', label: 'Task' },
@@ -25,22 +29,35 @@
 	async function loadActivity(params?: Parameters<typeof getAgentActivity>[0]) {
 		try {
 			const res = await getAgentActivity(params);
-			activityStore.setEntries(res.items ?? []);
-			if (res.stats) activityStore.setToolStats(res.stats);
+			return res;
 		} catch (e) {
 			console.error('Failed to load activity:', e);
+			return { items: [], stats: undefined };
 		}
 	}
 
-	onMount(async () => {
-		await loadActivity({ limit: 100 });
-		activityStore.setLoading(false);
-	});
+	let fetchedCount = $state(0);
 
 	async function refresh() {
 		activityStore.setLoading(true);
-		await loadActivity({ limit: 100 }); // always fetch all, filter client-side
+		const res = await loadActivity({ limit: PAGE_SIZE });
+		activityStore.setEntries(res.items ?? []);
+		if (res.stats) activityStore.setToolStats(res.stats);
+		fetchedCount = (res.items ?? []).length;
+		hasMore = fetchedCount >= PAGE_SIZE;
 		activityStore.setLoading(false);
+	}
+
+	onMount(() => refresh());
+
+	async function loadMore() {
+		loadingMore = true;
+		const res = await loadActivity({ limit: PAGE_SIZE, offset: fetchedCount });
+		const newItems = res.items ?? [];
+		activityStore.setEntries([...activityStore.entries, ...newItems]);
+		fetchedCount += newItems.length;
+		hasMore = newItems.length >= PAGE_SIZE;
+		loadingMore = false;
 	}
 
 	const filteredEntries = $derived(
@@ -154,7 +171,7 @@
 								<Badge variant="outline" class="h-4 px-1 text-[9px] font-medium border-border-subtle" style="color: {cfg.color}">
 									{cfg.label}
 								</Badge>
-								<p class="text-sm text-[var(--text-primary)] truncate">{entry.summary}</p>
+								<p class="text-sm text-[var(--text-primary)] line-clamp-2">{entry.summary}</p>
 							</div>
 							<div class="flex items-center gap-2 mt-0.5 text-[10px] text-[var(--text-tertiary)]">
 								<time datetime={entry.createdAt}>{relativeTime(entry.createdAt)}</time>
@@ -203,5 +220,15 @@
 				</div>
 			{/each}
 		</div>
+
+		<!-- Load More -->
+		{#if hasMore && filterType === 'all'}
+			<div class="mt-4 flex justify-center">
+				<Button variant="outline" size="sm" class="text-xs gap-1" onclick={loadMore} disabled={loadingMore || activityStore.loading}>
+					{#if loadingMore}<Loader2 class="h-3 w-3 animate-spin" />{/if}
+					Load more
+				</Button>
+			</div>
+		{/if}
 	{/if}
 </div>

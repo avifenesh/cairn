@@ -73,9 +73,12 @@ func (s *ActivityStore) Record(ctx context.Context, entry ActivityEntry) error {
 }
 
 // List returns recent activity entries, newest first.
-func (s *ActivityStore) List(ctx context.Context, limit int, activityType string) ([]ActivityEntry, error) {
+func (s *ActivityStore) List(ctx context.Context, limit, offset int, activityType string) ([]ActivityEntry, error) {
 	if limit <= 0 {
 		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	query := "SELECT id, type, summary, details, errors, tool_count, duration_ms, created_at FROM agent_activity"
 	var args []any
@@ -83,8 +86,8 @@ func (s *ActivityStore) List(ctx context.Context, limit int, activityType string
 		query += " WHERE type = ?"
 		args = append(args, activityType)
 	}
-	query += " ORDER BY created_at DESC LIMIT ?"
-	args = append(args, limit)
+	query += " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {

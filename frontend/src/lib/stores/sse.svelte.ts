@@ -101,7 +101,17 @@ export const sseStore = {
 			});
 		}
 
-		handle('ready', source, (d) => appStore.setClientId(d.clientId));
+		handle('ready', source, (d) => {
+			appStore.setClientId(d.clientId);
+			// Bootstrap activity error count for badge (lightweight, errors only).
+			import('$lib/api/client').then(({ getAgentActivity }) => {
+				getAgentActivity({ limit: 50, type: 'error' }).then((res) => {
+					if (res.items?.length) activityStore.setEntries(res.items);
+					if (res.stats) activityStore.setToolStats(res.stats);
+					activityStore.setLoading(false);
+				}).catch(() => { activityStore.setLoading(false); });
+			});
+		});
 
 		// Feed
 		handle('feed_update', source, (d) => feedStore.addItem(d.item ?? d));

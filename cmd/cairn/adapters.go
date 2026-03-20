@@ -542,6 +542,21 @@ func (a *configAdapter) GetConfig(_ context.Context) (map[string]any, error) {
 	return result, nil
 }
 
+// --- Channel auth ---
+
+// isOwnerMessage checks if a channel message comes from the configured owner.
+func isOwnerMessage(msg *cairnchannel.IncomingMessage, cfg *config.Config) bool {
+	switch msg.ChannelID {
+	case "telegram":
+		return msg.ChatID == fmt.Sprintf("%d", cfg.TelegramChatID)
+	case "discord":
+		return msg.ChatID == cfg.DiscordChannelID
+	case "slack":
+		return msg.ChatID == cfg.SlackChannelID
+	}
+	return false
+}
+
 // --- Channel command handlers ---
 
 // handleMemoriesCommand handles /memories subcommands from channels.
@@ -725,10 +740,10 @@ func deduplicateMemories(ctx context.Context, svc *memory.Service) (int, error) 
 		return 0, err
 	}
 
-	seen := make(map[string]*memory.Memory) // normalized content → kept memory
+	seen := make(map[string]*memory.Memory) // content+category+scope → kept memory
 	removed := 0
 	for _, m := range mems {
-		key := strings.TrimSpace(strings.ToLower(m.Content))
+		key := fmt.Sprintf("%s:%s:%s", m.Category, m.Scope, strings.TrimSpace(strings.ToLower(m.Content)))
 		if kept, exists := seen[key]; exists {
 			// Duplicate found — delete the newer one, keep the older.
 			if m.CreatedAt.Before(kept.CreatedAt) {

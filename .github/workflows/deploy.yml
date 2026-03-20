@@ -36,11 +36,14 @@ jobs:
 
       - name: Backup and deploy
         run: |
+          exec 9>/tmp/cairn-build.lock
+          flock -w 30 9 || { echo "Build lock held by another process"; exit 1; }
           if [ -f "$PROD_BIN" ]; then
             cp "$PROD_BIN" "${PROD_BIN}.rollback"
           fi
           mv "${PROD_BIN}.new" "$PROD_BIN"
           chmod +x "$PROD_BIN"
+          exec 9>&-
 
       - name: Restart service
         run: |

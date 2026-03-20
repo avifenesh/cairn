@@ -745,7 +745,7 @@
 
 <!-- Marketplace preview dialog -->
 {#if mpPreviewSlug}
-	<Dialog.Root open={!!mpPreviewSlug} onOpenChange={(open) => { if (!open) mpPreviewSlug = null; }}>
+	<Dialog.Root open={!!mpPreviewSlug} onOpenChange={(open: boolean) => { if (!open) mpPreviewSlug = null; }}>
 		<Dialog.Content class="sm:max-w-2xl max-h-[80vh] overflow-y-auto bg-[var(--bg-0)] border-border-subtle">
 			<Dialog.Header>
 				<Dialog.Title class="text-[var(--text-primary)]">{mpPreviewSlug}</Dialog.Title>
@@ -768,7 +768,7 @@
 
 <!-- Security review dialog -->
 {#if reviewSlug}
-	<Dialog.Root open={!!reviewSlug} onOpenChange={(open) => { if (!open) { reviewSlug = null; reviewResult = null; } }}>
+	<Dialog.Root open={!!reviewSlug} onOpenChange={(open: boolean) => { if (!open) { reviewSlug = null; reviewResult = null; } }}>
 		<Dialog.Content class="sm:max-w-lg bg-[var(--bg-0)] border-border-subtle">
 			<Dialog.Header>
 				<Dialog.Title class="text-[var(--text-primary)] flex items-center gap-2">

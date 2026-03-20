@@ -18,7 +18,7 @@
 	];
 </script>
 
-<Dialog.Root {open} onOpenChange={(v) => !v && onclose()}>
+<Dialog.Root {open} onOpenChange={(v: boolean) => !v && onclose()}>
 	<Dialog.Content class="max-w-sm">
 		<Dialog.Header>
 			<Dialog.Title>Keyboard Shortcuts</Dialog.Title>

@@ -260,43 +260,36 @@ func (l *Loop) tick(ctx context.Context) {
 		})
 	}
 
-	// 6. Record tick activity.
+	// 6. Record tick activity (skip empty idle ticks — they're noise).
 	if l.activityStore != nil {
-		actType := "idle"
-		summary := "Idle tick — no pending work"
-		details := ""
+		var entry *ActivityEntry
 		if executed {
-			actType = "task"
-			summary = "Executed pending task"
+			entry = &ActivityEntry{Type: "task", Summary: "Executed pending task", DurationMs: dur}
 		} else if cronSubmitted {
-			actType = "cron"
-			summary = "Submitted cron job(s)"
+			entry = &ActivityEntry{Type: "cron", Summary: "Submitted cron job(s)", DurationMs: dur}
 		} else if l.lastIdleDecision != nil {
 			d := l.lastIdleDecision
-			actType = "idle"
-			summary = d.Reason
+			summary := d.Reason
 			if summary == "" {
 				summary = "Idle tick — " + d.Action
 			}
-			details = "Action: " + d.Action
+			details := "Action: " + d.Action
 			if d.Action == "notify" && d.Message != "" {
 				details += "\nMessage: " + d.Message
 			}
-			l.lastIdleDecision = nil // consumed
+			entry = &ActivityEntry{Type: "idle", Summary: summary, Details: details, DurationMs: dur}
+			l.lastIdleDecision = nil
 		}
-		entry := ActivityEntry{
-			Type:       actType,
-			Summary:    summary,
-			Details:    details,
-			DurationMs: dur,
-		}
-		if err := l.activityStore.Record(ctx, entry); err != nil {
-			l.logger.Warn("agent loop: failed to record activity", "error", err)
-		} else if l.bus != nil {
-			eventbus.Publish(l.bus, AgentActivityEvent{
-				EventMeta: eventbus.NewMeta("agent"),
-				Entry:     entry,
-			})
+		// Only record when something meaningful happened.
+		if entry != nil {
+			if err := l.activityStore.Record(ctx, *entry); err != nil {
+				l.logger.Warn("agent loop: failed to record activity", "error", err)
+			} else if l.bus != nil {
+				eventbus.Publish(l.bus, AgentActivityEvent{
+					EventMeta: eventbus.NewMeta("agent"),
+					Entry:     *entry,
+				})
+			}
 		}
 	}
 }

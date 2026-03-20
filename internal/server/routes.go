@@ -1659,9 +1659,15 @@ func (s *Server) handleAgentActivity(w http.ResponseWriter, r *http.Request) {
 			limit = n
 		}
 	}
+	offset := 0
+	if v := q.Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 && n <= 10000 {
+			offset = n
+		}
+	}
 	actType := q.Get("type")
 
-	entries, err := s.activityStore.List(r.Context(), limit, actType)
+	entries, err := s.activityStore.List(r.Context(), limit, offset, actType)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

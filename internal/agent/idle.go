@@ -97,6 +97,20 @@ func (l *Loop) idleTick(ctx context.Context) {
 	// Phase 1: Rebuild briefing if stale (cheap model).
 	if l.idleBriefing == "" || time.Since(l.briefingBuiltAt) > briefingMaxAge {
 		l.rebuildBriefing(ctx, obs)
+
+		// Phase 1b: Refresh skill suggestions alongside briefing (same cadence).
+		if l.skillSuggestor != nil && l.marketplace != nil {
+			var journalStore *JournalStore
+			if l.journaler != nil {
+				journalStore = l.journaler.store
+			}
+			signals := CollectSignals(ctx, journalStore, l.activityStore, l.toolSkills)
+			if len(signals) > 0 {
+				l.skillSuggestor.GenerateSuggestions(ctx, signals, l.marketplace, l.toolSkills)
+			} else {
+				l.skillSuggestor.ClearStale()
+			}
+		}
 	}
 
 	// Only update throttle after we have observations worth reasoning about.

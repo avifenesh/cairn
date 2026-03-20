@@ -178,6 +178,16 @@ export interface SoulPatch {
 	preview: string;
 }
 
+export interface SkillSuggestion {
+	slug: string;
+	displayName: string;
+	summary: string;
+	reason: string;
+	signal: string;
+	score: number;
+	createdAt: string;
+}
+
 export interface CostData {
 	todayUsd: number;
 	weekUsd: number;

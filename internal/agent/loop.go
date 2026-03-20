@@ -230,7 +230,26 @@ func (l *Loop) SetNotifier(n tool.NotifyService) {
 
 // buildInvocationContext creates a complete InvocationContext with all available
 // deps. Single source of truth — prevents field divergence across code paths.
+// Loads recent journal entries so the agent knows what happened across all sessions
+// (chat, idle, coding — shared context for one persona).
 func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessage string, mode tool.Mode, session *Session) *InvocationContext {
+	// Load recent journal entries (shared context: chat ↔ idle ↔ coding).
+	var journalEntries []memory.JournalDigestEntry
+	if l.journaler != nil && l.journaler.store != nil {
+		entries, err := l.journaler.store.Recent(ctx, 48*time.Hour)
+		if err == nil {
+			for _, e := range entries {
+				journalEntries = append(journalEntries, memory.JournalDigestEntry{
+					Summary:   e.Summary,
+					Mode:      e.Mode,
+					CreatedAt: e.CreatedAt,
+					Learnings: e.Learnings,
+					Errors:    e.Errors,
+				})
+			}
+		}
+	}
+
 	return &InvocationContext{
 		Context:        ctx,
 		SessionID:      sessionID,
@@ -243,6 +262,7 @@ func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessag
 		Soul:           l.soul,
 		Bus:            l.bus,
 		ContextBuilder: l.contextBuilder,
+		JournalEntries: journalEntries,
 		Plugins:        l.plugins,
 		ToolMemories:   l.toolMemories,
 		ToolEvents:     l.toolEvents,

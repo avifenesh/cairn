@@ -740,6 +740,22 @@ func runServe(logger *slog.Logger) {
 				}
 			}
 
+			// Load recent journal entries (shared context: chat ↔ idle ↔ coding).
+			var journalEntries []memory.JournalDigestEntry
+			if journalStore != nil {
+				if entries, err := journalStore.Recent(ctx, 48*time.Hour); err == nil {
+					for _, e := range entries {
+						journalEntries = append(journalEntries, memory.JournalDigestEntry{
+							Summary:   e.Summary,
+							Mode:      e.Mode,
+							CreatedAt: e.CreatedAt,
+							Learnings: e.Learnings,
+							Errors:    e.Errors,
+						})
+					}
+				}
+			}
+
 			// Build invocation context.
 			invCtx := &agent.InvocationContext{
 				Context:        ctx,
@@ -753,6 +769,7 @@ func runServe(logger *slog.Logger) {
 				Soul:           soul,
 				Bus:            bus,
 				ContextBuilder: ctxBuilder,
+				JournalEntries: journalEntries,
 				Plugins:        pluginMgr,
 				ToolMemories:   memAdapter,
 				ToolEvents:     eventAdapter,

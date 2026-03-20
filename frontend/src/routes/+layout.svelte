@@ -110,8 +110,8 @@
 					triggerPoll().catch(() => {});
 					break;
 				case 'a': {
-					// Approve focused approval in ops view
-					if (path === '/ops') {
+					// Approve focused approval (ops or today)
+					if (path === '/ops' || path === '/today' || path === '/') {
 						const appr = taskStore.pendingApprovals[keyboardNav.focusedIndex];
 						if (appr) {
 							taskStore.resolveApproval(appr.id, 'approved');
@@ -121,8 +121,8 @@
 					break;
 				}
 				case 'd': {
-					// Deny focused approval in ops view
-					if (path === '/ops') {
+					// Deny focused approval (ops or today)
+					if (path === '/ops' || path === '/today' || path === '/') {
 						const appr = taskStore.pendingApprovals[keyboardNav.focusedIndex];
 						if (appr) {
 							taskStore.resolveApproval(appr.id, 'denied');

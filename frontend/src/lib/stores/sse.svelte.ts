@@ -195,7 +195,7 @@ export const sseStore = {
 		// Agent
 		handle('agent_progress', source, (d) => appStore.setAgentProgress(d.agentId, d.message));
 		handle('agent_activity', source, (d) => activityStore.addEntry(d.entry ?? d));
-		handle('agent_heartbeat', source, () => {}); // heartbeat received, no action needed yet
+		handle('agent_heartbeat', source, (d) => appStore.setLastHeartbeat(d.tickNumber ?? 0));
 
 		// Skills
 		handle('skill_activated', source, (d) => {

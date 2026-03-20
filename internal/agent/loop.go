@@ -576,9 +576,12 @@ func (l *Loop) runReflection(ctx context.Context) {
 		})
 	}
 
-	// Surface soul patch via notification.
-	if result.SoulPatch != "" && l.notifier != nil {
-		l.notifier.Notify(ctx, fmt.Sprintf("SOUL.md patch proposed from reflection:\n\n%s", result.SoulPatch), 1)
+	// Propose soul patch for human review (surfaced on /soul page).
+	if result.SoulPatch != "" && l.soul != nil {
+		l.soul.ProposePatch(result.SoulPatch, "reflection")
+		if l.notifier != nil {
+			l.notifier.Notify(ctx, "SOUL.md patch proposed - review it on the Soul page", 1)
+		}
 	}
 }
 

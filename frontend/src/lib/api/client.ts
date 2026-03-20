@@ -359,6 +359,9 @@ export const getSoul = () => get<SoulContent>('/v1/soul');
 export const updateSoul = (content: string) => put<{ ok: boolean; sha: string }>('/v1/soul', { content });
 export const getSoulHistory = () => get<{ items: SoulHistoryEntry[] }>('/v1/soul/history');
 export const getSoulPatches = () => get<{ items: unknown[] }>('/v1/soul/patches');
+export const getSoulPatch = () => get<{ patch: import('$lib/types').SoulPatch | null }>('/v1/soul/patch');
+export const approveSoulPatch = (id: string) => post<{ ok: boolean }>('/v1/soul/patch/approve', { id });
+export const denySoulPatch = (id: string, reason: string) => post<{ ok: boolean }>('/v1/soul/patch/deny', { id, reason });
 
 // Metrics / Costs
 export const getCosts = () => {

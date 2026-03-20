@@ -322,6 +322,15 @@ Feed Signal Intelligence (see docs/design/FEED_SIGNAL_PLAN.md):
   PR D (Future integrations spec)    ─── docs committed + implemented RSS/SO/DevTo in #85
   PR #85 (RSS + SO + DevTo pollers)  ─── merged #85 (3-in-1, gofeed lib, 11 pollers total)
 
+UX + Agent Config:
+  PR #86 (npm/crates download metrics) ─── merged #86 (replace release notifs with download deltas)
+  PR #87 (Notification preferences)     ─── merged #87 (priority, quiet hours, muted sources, channel routing)
+  PR #88 (Cron system + resilience)     ─── merged #88 [backend] (cron store, agent recovery, state checkpoint)
+  PR #89 (Cron Manager UI)             ─── merged #89 (create, list, toggle, expand, edit, delete)
+  PR #90 (Review comments sweep)       ─── merged #90 (all skipped medium/low from PRs #80-89)
+  PR #91 (UX polish + agent config)    ─── merged #91 (cron edit, new chat, stop button, bulk actions, patchConfig/getConfig tools)
+  PR #95 (Activity observability)      ─── merged #95 (live stream, tool stats, error tracking, SSE broadcast)
+
 Google Workspace:
   GWS tools                          ─── merged (cairn.gwsQuery + cairn.gwsExecute, 17 services)
 ```
@@ -341,4 +350,5 @@ Google Workspace:
 | File Upload | 1 PR ✅ DONE | 1 PR ✅ DONE | C.6 — paperclip, paste, drag-and-drop, POST /v1/upload |
 | Polish | — | 4 PRs ✅ DONE | Mode dropdown, DnD, memory edit/delete, editable settings |
 | Feed Signal | 4 PRs ✅ DONE | 4 PRs ✅ DONE | Feed API, GitHub signal, Gmail+Calendar, RSS+SO+DevTo, 11 pollers |
-| **Total** | **32 merged** | **29/29 done** | **37 tools, 5 skills, MCP, 3 channels, file upload, voice + TTS, embeddings, compaction, 11 pollers** |
+| UX + Config | 6 PRs ✅ DONE | 6 PRs ✅ DONE | Notifs, cron UI, agent config tools, activity tab, stop button |
+| **Total** | **38 merged** | **35/35 done** | **39 tools, 11 pollers, cron, activity, agent config, notif prefs** |

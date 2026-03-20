@@ -112,7 +112,7 @@
 	];
 </script>
 
-<div class="mx-auto max-w-5xl p-6">
+<div class="mx-auto max-w-5xl px-4 py-4 sm:p-6">
 	<div class="mb-6 flex items-center justify-between">
 		<h1 class="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Memory</h1>
 		<MemoryEditor oncreate={handleCreate} />
@@ -122,7 +122,7 @@
 		<MemorySearch bind:value={memoryStore.searchQuery} onsearch={handleSearch} />
 	</div>
 
-	<div class="mb-4 flex items-center gap-1">
+	<div class="mb-4 flex flex-wrap items-center gap-1">
 		{#each filters as f}
 			<Button
 				variant={filter === f.key ? 'secondary' : 'ghost'}

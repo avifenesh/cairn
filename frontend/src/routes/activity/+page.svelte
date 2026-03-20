@@ -67,7 +67,7 @@
 	);
 </script>
 
-<div class="mx-auto max-w-5xl p-6 overflow-y-auto h-full">
+<div class="mx-auto max-w-5xl px-4 py-4 sm:p-6 overflow-y-auto h-full">
 	<div class="flex items-center justify-between mb-6">
 		<div>
 			<h1 class="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Activity</h1>

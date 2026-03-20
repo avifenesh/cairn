@@ -379,7 +379,7 @@
 	};
 </script>
 
-<div class="mx-auto max-w-5xl p-6">
+<div class="mx-auto max-w-5xl px-4 py-4 sm:p-6">
 	<div class="mb-4 flex items-center justify-between">
 		<h1 class="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Skills</h1>
 		<div class="flex items-center gap-3">
@@ -452,7 +452,7 @@
 	{#if showCreate}
 		<div class="mb-6 rounded-lg border border-[var(--cairn-accent)]/30 bg-[var(--bg-1)] p-4 space-y-3">
 			<p class="text-sm font-medium text-[var(--text-primary)]">Create New Skill</p>
-			<div class="grid grid-cols-2 gap-3">
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 				<div>
 					<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Name</p>
 					<Input type="text" bind:value={newName} placeholder="my-skill" class="h-7 text-xs font-mono" />
@@ -616,7 +616,7 @@
 										<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Description</p>
 										<Input type="text" bind:value={editDesc} class="h-7 text-xs" />
 									</div>
-									<div class="grid grid-cols-2 gap-2">
+									<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 										<div>
 											<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Inclusion</p>
 											<select bind:value={editInclusion} class="w-full h-7 rounded-md border border-border-subtle bg-[var(--bg-1)] px-2 text-xs text-[var(--text-primary)] focus:border-[var(--cairn-accent)] focus:outline-none">

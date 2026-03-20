@@ -114,7 +114,7 @@
 	});
 </script>
 
-<div class="mx-auto max-w-4xl p-6">
+<div class="mx-auto max-w-4xl px-4 py-4 sm:p-6">
 	<!-- Header -->
 	<div class="mb-6 flex items-center justify-between">
 		<div>

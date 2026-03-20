@@ -233,7 +233,7 @@
 					<div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--accent-dim)]">
 						<Bot class="h-3.5 w-3.5 text-[var(--cairn-accent)]" />
 					</div>
-					<div class="max-w-[80%] rounded-lg bg-[var(--bg-1)] border border-border-subtle px-4 py-3">
+					<div class="max-w-[90%] sm:max-w-[80%] rounded-lg bg-[var(--bg-1)] border border-border-subtle px-4 py-3">
 						{#if sm.toolCalls.length > 0}
 							<div class="mb-2 flex flex-wrap gap-1">
 								{#each sm.toolCalls as tc}
@@ -268,9 +268,9 @@
 	</div>
 
 	<!-- Input area -->
-	<div class="border-t border-border-subtle bg-[var(--bg-1)] p-4">
+	<div class="border-t border-border-subtle bg-[var(--bg-1)] px-3 py-3 sm:p-4">
 		<div class="mx-auto max-w-3xl">
-			<div class="mb-2 flex items-center gap-2">
+			<div class="mb-2 flex flex-wrap items-center gap-2">
 				<ModeSelector />
 				<SessionPicker />
 				<Button
@@ -280,7 +280,7 @@
 					onclick={startNewChat}
 					title="New chat"
 				>
-					<Plus class="h-3 w-3" /> New
+					<Plus class="h-3 w-3" /> <span class="hidden sm:inline">New</span>
 				</Button>
 				<ActiveSkillChip />
 			</div>

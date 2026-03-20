@@ -46,8 +46,9 @@ func NewReflectionEngine(journal *JournalStore, memories *memory.Service, soul *
 
 // ReflectionResult holds proposed changes from a reflection cycle.
 type ReflectionResult struct {
-	Memories  []ProposedMemory `json:"memories"`
-	SoulPatch string           `json:"soulPatch,omitempty"`
+	Memories       []ProposedMemory `json:"memories"`
+	StaleMemoryIDs []string         `json:"staleMemoryIds,omitempty"` // existing memory IDs that are now outdated
+	SoulPatch      string           `json:"soulPatch,omitempty"`
 }
 
 // ProposedMemory is a memory suggested by the reflection engine.
@@ -108,10 +109,11 @@ var validCategories = map[memory.Category]bool{
 }
 
 func (r *ReflectionEngine) Apply(ctx context.Context, result *ReflectionResult) error {
+	// Create proposed memories.
 	for _, pm := range result.Memories {
 		cat := memory.Category(pm.Category)
 		if !validCategories[cat] {
-			cat = memory.CatFact // default to fact if LLM returns unknown category
+			cat = memory.CatFact
 		}
 		m := &memory.Memory{
 			Content:    pm.Content,
@@ -125,6 +127,19 @@ func (r *ReflectionEngine) Apply(ctx context.Context, result *ReflectionResult) 
 			slog.Warn("reflection: failed to create memory", "error", err, "content", pm.Content)
 		}
 	}
+
+	// Reject stale memories identified by the LLM.
+	for _, id := range result.StaleMemoryIDs {
+		if id == "" {
+			continue
+		}
+		if err := r.memories.Reject(ctx, id); err != nil {
+			slog.Warn("reflection: failed to reject stale memory", "id", id, "error", err)
+		} else {
+			slog.Info("reflection: rejected stale memory", "id", id)
+		}
+	}
+
 	return nil
 }
 
@@ -132,11 +147,18 @@ func (r *ReflectionEngine) buildPrompt(entries []*JournalEntry, memories []*memo
 	var b strings.Builder
 
 	b.WriteString(`You are a reflection engine analyzing an agent's recent activity.
-Your job is to detect patterns, recurring themes, and lessons across sessions.
+Your TWO jobs:
+1. Detect patterns and propose NEW memories from recent sessions
+2. Review EXISTING memories and flag any that are NOW STALE or WRONG
+
+Facts change: bugs get fixed, configs change, tools get upgraded, projects evolve.
+A memory that was correct last week may be wrong today. If recent sessions show
+that an existing memory is no longer true, mark it stale.
 
 Respond with ONLY valid JSON (no markdown fences):
 {
   "memories": [{"content": "...", "category": "fact|preference|decision|hard_rule", "confidence": 0.0-1.0}],
+  "staleMemoryIds": ["id1", "id2"],
   "soulPatch": "optional text to add to SOUL.md if a behavioral pattern is strong"
 }
 
@@ -145,6 +167,9 @@ Rules:
 - Don't duplicate existing memories
 - soulPatch should only be set for strong, repeated patterns (3+ occurrences)
 - Keep memories concise (1-2 sentences)
+- staleMemoryIds: list IDs of existing memories that recent sessions CONTRADICT or INVALIDATE
+  (e.g., a "bug X is active" memory when recent sessions show the bug was fixed)
+- Be aggressive about staleness: if a fact memory describes a state that has clearly changed, flag it
 
 `)
 
@@ -160,11 +185,11 @@ Rules:
 		}
 	}
 
-	// Existing memories (to avoid duplicates).
+	// Existing memories — include IDs so the LLM can flag stale ones.
 	if len(memories) > 0 {
-		b.WriteString("\n## Existing Memories (do NOT duplicate)\n\n")
+		b.WriteString("\n## Existing Memories (do NOT duplicate — flag stale ones by ID)\n\n")
 		for _, m := range memories {
-			fmt.Fprintf(&b, "- [%s] %s\n", m.Category, m.Content)
+			fmt.Fprintf(&b, "- [%s] (id:%s) %s\n", m.Category, m.ID, m.Content)
 		}
 	}
 

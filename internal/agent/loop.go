@@ -567,13 +567,14 @@ func (l *Loop) runReflection(ctx context.Context) {
 		return
 	}
 
-	if len(result.Memories) == 0 && result.SoulPatch == "" {
+	if len(result.Memories) == 0 && result.SoulPatch == "" && len(result.StaleMemoryIDs) == 0 {
 		l.logger.Debug("agent loop: reflection found no patterns")
 		return
 	}
 
 	l.logger.Info("agent loop: reflection complete",
 		"memories", len(result.Memories),
+		"stale", len(result.StaleMemoryIDs),
 		"soulPatch", result.SoulPatch != "")
 
 	if err := l.reflector.Apply(ctx, result); err != nil {
@@ -582,8 +583,8 @@ func (l *Loop) runReflection(ctx context.Context) {
 
 	// Record activity.
 	if l.activityStore != nil {
-		summary := fmt.Sprintf("Reflection: %d memories proposed", len(result.Memories))
-		details := fmt.Sprintf("Memories proposed: %d\n", len(result.Memories))
+		summary := fmt.Sprintf("Reflection: %d proposed, %d stale", len(result.Memories), len(result.StaleMemoryIDs))
+		details := fmt.Sprintf("Memories proposed: %d\nStale rejected: %d\n", len(result.Memories), len(result.StaleMemoryIDs))
 		for _, m := range result.Memories {
 			details += fmt.Sprintf("- [%s] %s (%.0f%%)\n", m.Category, m.Content, m.Confidence*100)
 		}

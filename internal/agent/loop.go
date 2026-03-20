@@ -241,7 +241,7 @@ func (l *Loop) tick(ctx context.Context) {
 	cronSubmitted := l.checkDueCrons(ctx)
 
 	// 2. Check for pending tasks and execute the highest priority one.
-	executed := l.executePendingTask(ctx)
+	executed, taskSummary, taskDetails := l.executePendingTask(ctx)
 
 	// 3. If no task was executed and no cron submitted, run proactive idle tick.
 	if !executed && !cronSubmitted {
@@ -272,7 +272,7 @@ func (l *Loop) tick(ctx context.Context) {
 	if l.activityStore != nil {
 		var entry *ActivityEntry
 		if executed {
-			entry = &ActivityEntry{Type: "task", Summary: "Executed pending task", DurationMs: dur}
+			entry = &ActivityEntry{Type: "task", Summary: taskSummary, Details: taskDetails, DurationMs: dur}
 		} else if cronSubmitted {
 			entry = &ActivityEntry{Type: "cron", Summary: "Submitted cron job(s)", DurationMs: dur}
 		} else if l.lastIdleDecision != nil {
@@ -316,15 +316,29 @@ func (l *Loop) tick(ctx context.Context) {
 	}
 }
 
-func (l *Loop) executePendingTask(ctx context.Context) bool {
+func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, details string) {
 	if l.tasks == nil || l.agent == nil {
-		return false
+		return false, "", ""
 	}
 
 	// Try to claim any pending task.
 	t, err := l.tasks.Claim(ctx, "")
 	if err != nil || t == nil {
-		return false
+		return false, "", ""
+	}
+
+	// Build activity summary from task info.
+	desc := t.Description
+	if desc == "" {
+		desc = string(t.Type)
+	}
+	if len(desc) > 80 {
+		desc = desc[:77] + "..."
+	}
+	summary = fmt.Sprintf("Task: %s", desc)
+	details = fmt.Sprintf("Type: %s\nID: %s", string(t.Type), t.ID)
+	if t.Description != "" {
+		details += fmt.Sprintf("\nDescription: %s", t.Description)
 	}
 
 	l.logger.Info("agent loop: executing task", "task", t.ID, "type", t.Type, "description", t.Description)
@@ -355,7 +369,7 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 				l.logger.Error("agent loop: repo not in allowed list, failing task",
 					"repo", targetRepo, "allowed", l.config.CodingAllowedRepos)
 				l.tasks.Fail(ctx, t.ID, fmt.Errorf("repo %q not in CODING_ALLOWED_REPOS", targetRepo))
-				return true
+				return true, summary, details
 			}
 		}
 
@@ -363,7 +377,7 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 		if wtErr != nil {
 			l.logger.Error("agent loop: worktree creation failed, failing task", "task", t.ID, "error", wtErr)
 			l.tasks.Fail(ctx, t.ID, fmt.Errorf("worktree creation failed: %w", wtErr))
-			return true
+			return true, summary, details
 		} else {
 			session.State["workDir"] = wtPath
 			defer func() {
@@ -406,7 +420,7 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 			if err := l.tasks.Fail(ctx, t.ID, ev.Err); err != nil {
 				l.logger.Warn("agent loop: fail task error", "task", t.ID, "error", err)
 			}
-			return true
+			return true, summary, details
 		}
 		if ev.Event != nil {
 			session.Events = append(session.Events, ev.Event)
@@ -426,7 +440,7 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 		if fErr := l.tasks.Fail(ctx, t.ID, err); fErr != nil {
 			l.logger.Warn("agent loop: fail task error", "task", t.ID, "error", fErr)
 		}
-		return true
+		return true, summary, details
 	}
 	if err := l.tasks.Complete(ctx, t.ID, json.RawMessage(outputJSON)); err != nil {
 		l.logger.Warn("agent loop: complete task error", "task", t.ID, "error", err)
@@ -449,7 +463,7 @@ func (l *Loop) executePendingTask(ctx context.Context) bool {
 		}()
 	}
 
-	return true
+	return true, summary, details
 }
 
 func (l *Loop) runReflection(ctx context.Context) {

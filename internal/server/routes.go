@@ -90,6 +90,11 @@ func (s *Server) registerRoutes() {
 		s.mux.HandleFunc("DELETE /v1/crons/{id}", s.handleDeleteCron)
 	}
 
+	// Agent activity.
+	if s.activityStore != nil {
+		s.mux.HandleFunc("GET /v1/agent/activity", s.handleAgentActivity)
+	}
+
 	// Webhooks (optional, wired when WEBHOOK_SECRETS is configured).
 	if s.webhooks != nil {
 		s.mux.Handle("POST /v1/webhooks/{name}", s.webhooks)
@@ -1561,6 +1566,41 @@ func (s *Server) handleVoiceTTS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(audio)))
 	w.WriteHeader(http.StatusOK)
 	w.Write(audio)
+}
+
+// --- Agent activity handlers ---
+
+func (s *Server) handleAgentActivity(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	limit := 50
+	if v := q.Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
+			limit = n
+		}
+	}
+	actType := q.Get("type")
+
+	entries, err := s.activityStore.List(r.Context(), limit, actType)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if entries == nil {
+		entries = []agent.ActivityEntry{}
+	}
+
+	stats, err := s.activityStore.GetToolStats(r.Context())
+	if err != nil {
+		stats = &agent.ToolStatsOverview{
+			ByTool:       map[string]int{},
+			ErrorsByTool: map[string]int{},
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": entries,
+		"stats": stats,
+	})
 }
 
 // --- Cron job handlers ---

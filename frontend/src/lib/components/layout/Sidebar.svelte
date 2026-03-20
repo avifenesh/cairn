@@ -16,20 +16,23 @@
 		Settings,
 		PanelLeftClose,
 		PanelLeft,
+		Eye,
 	} from '@lucide/svelte';
+	import { activityStore } from '$lib/stores/activity.svelte';
 
 	const navItems = [
 		{ href: '/today', label: 'Today', icon: LayoutDashboard, key: '1' },
 		{ href: '/ops', label: 'Ops', icon: Inbox, key: '2' },
 		{ href: '/chat', label: 'Chat', icon: MessageSquare, key: '3' },
-		{ href: '/memory', label: 'Memory', icon: Brain, key: '4' },
-		{ href: '/agents', label: 'Agents', icon: Bot, key: '5' },
-		{ href: '/skills', label: 'Skills', icon: Sparkles, key: '6' },
-		{ href: '/soul', label: 'Soul', icon: Heart, key: '7' },
+		{ href: '/activity', label: 'Activity', icon: Eye, key: '4' },
+		{ href: '/memory', label: 'Memory', icon: Brain, key: '5' },
+		{ href: '/agents', label: 'Agents', icon: Bot, key: '6' },
+		{ href: '/skills', label: 'Skills', icon: Sparkles, key: '7' },
+		{ href: '/soul', label: 'Soul', icon: Heart, key: '8' },
 	];
 
 	const bottomItems = [
-		{ href: '/settings', label: 'Settings', icon: Settings, key: '8' },
+		{ href: '/settings', label: 'Settings', icon: Settings, key: '9' },
 	];
 
 	function isActive(href: string): boolean {
@@ -45,6 +48,10 @@
 		}
 		if (href === '/today') {
 			const count = feedStore.unreadCount;
+			return count > 0 ? count : null;
+		}
+		if (href === '/activity') {
+			const count = activityStore.errorCount;
 			return count > 0 ? count : null;
 		}
 		return null;

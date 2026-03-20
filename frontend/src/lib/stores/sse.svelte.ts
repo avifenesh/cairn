@@ -8,6 +8,7 @@ import { appStore } from './app.svelte';
 import { skillStore } from './skills.svelte';
 import { statusStore } from './status.svelte';
 import { offlineQueue } from './offline-queue.svelte';
+import { activityStore } from './activity.svelte';
 
 let eventSource: EventSource | null = $state(null);
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -100,7 +101,17 @@ export const sseStore = {
 			});
 		}
 
-		handle('ready', source, (d) => appStore.setClientId(d.clientId));
+		handle('ready', source, (d) => {
+			appStore.setClientId(d.clientId);
+			// Bootstrap activity error count for badge (lightweight, errors only).
+			import('$lib/api/client').then(({ getAgentActivity }) => {
+				getAgentActivity({ limit: 50, type: 'error' }).then((res) => {
+					if (res.items?.length) activityStore.setEntries(res.items);
+					if (res.stats) activityStore.setToolStats(res.stats);
+					activityStore.setLoading(false);
+				}).catch(() => { activityStore.setLoading(false); });
+			});
+		});
 
 		// Feed
 		handle('feed_update', source, (d) => feedStore.addItem(d.item ?? d));
@@ -183,6 +194,8 @@ export const sseStore = {
 
 		// Agent
 		handle('agent_progress', source, (d) => appStore.setAgentProgress(d.agentId, d.message));
+		handle('agent_activity', source, (d) => activityStore.addEntry(d.entry ?? d));
+		handle('agent_heartbeat', source, () => {}); // heartbeat received, no action needed yet
 
 		// Skills
 		handle('skill_activated', source, (d) => {

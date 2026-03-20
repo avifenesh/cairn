@@ -60,6 +60,9 @@ type Server struct {
 	// Cron store (optional).
 	cronStore *cron.Store
 
+	// Activity store (optional).
+	activityStore *agent.ActivityStore
+
 	// OnConfigPatch is called after PATCH /v1/config is applied.
 	// Allows external subsystems to react to config changes.
 	OnConfigPatch func()
@@ -96,6 +99,9 @@ type ServerConfig struct {
 
 	// Cron store (optional: scheduled tasks).
 	CronStore *cron.Store
+
+	// Activity store (optional: agent observability).
+	ActivityStore *agent.ActivityStore
 }
 
 // New creates a fully wired Server with all routes and middleware registered.
@@ -132,6 +138,7 @@ func New(cfg ServerConfig) *Server {
 		toolSkills:     cfg.ToolSkills,
 		voice:          cfg.Voice,
 		cronStore:      cfg.CronStore,
+		activityStore:  cfg.ActivityStore,
 	}
 
 	// Create SSE broadcaster.

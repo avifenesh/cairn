@@ -216,6 +216,25 @@ export interface CronJob {
 	nextRunAt?: string;
 }
 
+export interface ActivityEntry {
+	id: string;
+	type: 'task' | 'idle' | 'reflection' | 'cron' | 'error';
+	summary: string;
+	details?: string;
+	errors: string[];
+	toolCount: number;
+	durationMs: number;
+	createdAt: string;
+}
+
+export interface ToolStatsOverview {
+	totalCalls: number;
+	totalErrors: number;
+	byTool: Record<string, number>;
+	errorsByTool: Record<string, number>;
+	tools: { toolName: string; calls: number; errors: number; totalMs: number; lastError?: string }[];
+}
+
 export interface CronExecution {
 	id: string;
 	cronJobId: string;

@@ -471,6 +471,7 @@ func runServe(logger *slog.Logger) {
 			ToolStatus:      statusAdapt,
 			ToolSkills:      skillAdapt,
 			CronStore:       cronStore,
+			ActivityStore:   agent.NewActivityStore(database.DB),
 			DB:              database.DB,
 			WorktreeManager: worktreeMgr,
 		})
@@ -519,6 +520,7 @@ func runServe(logger *slog.Logger) {
 		ToolSkills:     skillAdapt,
 		Voice:          voiceSvc,
 		CronStore:      cronStore,
+		ActivityStore:  agent.NewActivityStore(database.DB),
 	})
 
 	// Graceful shutdown context — all subsystems observe this.

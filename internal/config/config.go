@@ -92,6 +92,11 @@ type Config struct {
 	AgentTickInterval  int // Seconds (default: 60)
 	ReflectionInterval int // Seconds (default: 1800)
 
+	// Tool round limits per mode
+	TalkMaxRounds   int // TALK_MAX_ROUNDS (default: 10)
+	WorkMaxRounds   int // WORK_MAX_ROUNDS (default: 20)
+	CodingMaxRounds int // CODING_MAX_ROUNDS (default: 100)
+
 	// Memory auto-extraction
 	MemoryAutoExtract bool // MEMORY_AUTO_EXTRACT (default: true)
 
@@ -250,6 +255,9 @@ func Load() (*Config, error) {
 		BudgetWeeklyCap:         envFloat("BUDGET_WEEKLY_CAP", envFloat("BEDROCK_WEEKLY_BUDGET_USD", 0)),
 		AgentTickInterval:       envInt("AGENT_TICK_INTERVAL", 60),
 		ReflectionInterval:      envInt("REFLECTION_INTERVAL", 1800),
+		TalkMaxRounds:           envInt("TALK_MAX_ROUNDS", 10),
+		WorkMaxRounds:           envInt("WORK_MAX_ROUNDS", 20),
+		CodingMaxRounds:         envInt("CODING_MAX_ROUNDS", 100),
 		MemoryAutoExtract:       envBool("MEMORY_AUTO_EXTRACT", true),
 		CompactionTriggerTokens: envInt("COMPACTION_TRIGGER_TOKENS", 80000),
 		CompactionKeepRecent:    envInt("COMPACTION_KEEP_RECENT", 10),
@@ -646,6 +654,20 @@ func (c *Config) GetPatchable() PatchableConfig {
 }
 
 func strPtr(s string) *string { return &s }
+
+// MaxRoundsForMode returns the configured tool round limit for the given mode string.
+func (c *Config) MaxRoundsForMode(mode string) int {
+	switch mode {
+	case "talk":
+		return c.TalkMaxRounds
+	case "work":
+		return c.WorkMaxRounds
+	case "coding":
+		return c.CodingMaxRounds
+	default:
+		return c.TalkMaxRounds
+	}
+}
 
 // splitTrimmed splits a comma-separated string and trims whitespace from each element.
 func splitTrimmed(s string) []string {

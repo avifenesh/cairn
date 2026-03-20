@@ -1,0 +1,823 @@
+{
+  "topic": "Coding environments for AI agents — git worktree isolation, sandboxed execution, model routing, tool call limits, log management, session lifecycle",
+  "slug": "coding-env-for-agents",
+  "generated": "2026-03-19T12:00:00Z",
+  "depth": "deep",
+  "totalSources": 42,
+  "sources": [
+    {
+      "url": "https://git-scm.com/docs/git-worktree",
+      "title": "git-worktree Documentation",
+      "qualityScore": 98,
+      "scores": {
+        "authority": 10,
+        "recency": 9,
+        "depth": 10,
+        "examples": 9,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Worktrees share object database but have private HEAD, index, and config",
+        "Per-worktree config enabled with extensions.worktreeConfig",
+        "git worktree add/remove/prune/repair lifecycle commands",
+        "git worktree lock prevents pruning for portable drives or long-running agents",
+        "Detached HEAD worktrees for ephemeral experiments with no branch pollution"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/sub-agents",
+      "title": "Claude Code: Create custom subagents",
+      "qualityScore": 97,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 10,
+        "examples": 10,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "isolation: worktree field gives subagents their own git worktree, auto-cleaned if no changes",
+        "model field supports haiku/sonnet/opus aliases or full model IDs for routing",
+        "maxTurns field per subagent caps tool call rounds",
+        "Built-in Explore subagent uses Haiku with read-only tools for cheap codebase exploration",
+        "PreToolUse hooks enable conditional command validation before execution",
+        "SubagentStart/Stop hooks for setup/cleanup at lifecycle boundaries"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/agent-teams",
+      "title": "Claude Code: Orchestrate teams of Claude Code sessions",
+      "qualityScore": 95,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 9,
+        "examples": 9,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Agent teams use file locking to prevent race conditions on shared task queue",
+        "Each teammate has own context window; lead coordinates via shared task list + mailbox",
+        "Teammates do not inherit lead conversation history — spawn prompt must include context",
+        "Token cost scales linearly with number of teammates",
+        "TeammateIdle and TaskCompleted hooks enforce quality gates",
+        "Team config stored at ~/.claude/teams/<name>/config.json"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/common-workflows",
+      "title": "Claude Code: Common Workflows",
+      "qualityScore": 94,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 9,
+        "examples": 10,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "claude --worktree <name> creates .claude/worktrees/<name> with branch worktree-<name>",
+        "Auto-generated name (random) when --worktree used without argument",
+        "Cleanup: auto-remove if no changes; prompt if commits exist",
+        "Add .claude/worktrees/ to .gitignore to prevent status noise",
+        "WorktreeCreate/WorktreeRemove hooks for non-git VCS systems"
+      ]
+    },
+    {
+      "url": "https://docs.openhands.dev/modules/usage/architecture/runtime",
+      "title": "OpenHands Runtime Architecture",
+      "qualityScore": 93,
+      "scores": {
+        "authority": 9,
+        "recency": 9,
+        "depth": 10,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Docker container per session with ActionExecutor managing bash, browser, Jupyter",
+        "Client-server model: backend sends actions via RESTful API, container returns observations",
+        "Image tagging: source tag (code hash) > lock tag (dep hash) > versioned tag",
+        "SANDBOX_VOLUME_OVERLAYS for copy-on-write overlay functionality",
+        "Plugin system extends capabilities asynchronously during runtime startup",
+        "File-locked port allocation for concurrent sessions"
+      ]
+    },
+    {
+      "url": "https://swe-agent.com/latest/usage/coding_challenges/",
+      "title": "SWE-agent: Usage and Environment",
+      "qualityScore": 90,
+      "scores": {
+        "authority": 8,
+        "recency": 9,
+        "depth": 9,
+        "examples": 8,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Ephemeral Docker container per task: docker run -i --rm sweagent/swe-agent:latest",
+        "Environment state via bash env vars: CURRENT_FILE, CURRENT_LINE, WINDOW",
+        "Interactive tools blocklisted: vim, python REPL, interactive git",
+        "Inline linting with flake8 after every edit call",
+        "Environment initialization takes ~1.5s before agent interaction begins"
+      ]
+    },
+    {
+      "url": "https://github.com/openai/codex/blob/main/codex-cli/README.md",
+      "title": "OpenAI Codex CLI: Architecture",
+      "qualityScore": 90,
+      "scores": {
+        "authority": 9,
+        "recency": 9,
+        "depth": 9,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Three tiers: Suggest (read-only), Auto Edit (patches), Full Auto (sandboxed)",
+        "macOS Full Auto: Apple Seatbelt sandbox-exec, writable only $PWD/$TMPDIR/~/.codex",
+        "Linux Full Auto: Docker with iptables blocking all outbound except LLM API",
+        "Built in Rust (95.6%), shell-tool-mcp directory for MCP shell integration",
+        "History stores up to 1000 entries with sensitive pattern filtering"
+      ]
+    },
+    {
+      "url": "https://github.com/anthropics/anthropic-sdk-go/blob/main/toolrunner/tool.go",
+      "title": "Anthropic Go SDK: Tool Runner",
+      "qualityScore": 90,
+      "scores": {
+        "authority": 10,
+        "recency": 9,
+        "depth": 9,
+        "examples": 10,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Generic type parameter T for type-safe JSON unmarshaling of tool inputs",
+        "Three schema creation paths: raw bytes, struct reflection, direct schema param",
+        "Reflection-based: jsonschema.Reflector with AllowAdditionalProperties: false",
+        "Execute flow: receive json.RawMessage -> parse to T -> call handler -> return result",
+        "Error wrapping with fmt.Errorf for context propagation through tool call chain"
+      ]
+    },
+    {
+      "url": "https://pkg.go.dev/log/slog",
+      "title": "Go slog: Structured Logging Package",
+      "qualityScore": 97,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 10,
+        "examples": 10,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "slog.NewJSONHandler outputs line-delimited JSON suitable for log aggregators",
+        "LevelVar enables runtime log level changes without restart",
+        "Groups organize attributes hierarchically to prevent key collisions across tools",
+        "LogValuer interface for custom types including secret redaction",
+        "MultiHandler (Go 1.26+) for simultaneous text (dev) and JSON (prod) output"
+      ]
+    },
+    {
+      "url": "https://github.com/e2b-dev/E2B",
+      "title": "E2B: Cloud Sandboxes for AI Agents",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 8,
+        "examples": 9,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Cloud-hosted Linux VMs as isolated sandboxes, SDK for JS/Python",
+        "State persists across runCode() calls within one sandbox instance",
+        "Lifecycle: create -> run (stateful) -> pause (snapshot) -> resume -> destroy",
+        "Supports filesystem, process management, Git, MCP server integration",
+        "Self-hostable on GCP (production-ready) and AWS (in progress)"
+      ]
+    },
+    {
+      "url": "https://e2b.mintlify.app/llms.txt",
+      "title": "E2B Documentation Index",
+      "qualityScore": 80,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 7,
+        "examples": 6,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Sandbox lifecycle: create, pause, resume, destroy with webhook support",
+        "Git integration within sandboxes for agent coding sessions",
+        "MCP integration with 200+ tools for agent tool use",
+        "SSH and PTY terminal access for advanced agent interactions",
+        "BYOC (Bring Your Own Cloud) for enterprise deployments"
+      ]
+    },
+    {
+      "url": "https://github.com/google/nsjail",
+      "title": "nsjail: Process Isolation Tool",
+      "qualityScore": 87,
+      "scores": {
+        "authority": 9,
+        "recency": 8,
+        "depth": 9,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Uses all 8 Linux namespaces: UTS, MOUNT, PID, IPC, NET, USER, CGROUPS, TIME",
+        "Seccomp-BPF filtering via Kafel policy language for fine-grained syscall control",
+        "Resource limits: --time_limit, --rlimit_as (memory), --rlimit_cpu",
+        "Lighter than Docker: no image management or daemon required",
+        "Ideal for per-command isolation inside an already-running container"
+      ]
+    },
+    {
+      "url": "https://docs.docker.com/engine/security/seccomp/",
+      "title": "Docker Seccomp Security Profiles",
+      "qualityScore": 93,
+      "scores": {
+        "authority": 10,
+        "recency": 9,
+        "depth": 9,
+        "examples": 8,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Default profile blocks ~44 of 300+ syscalls; use allowlist model",
+        "Blocks: clone/unshare (namespace escape), ptrace (host inspection), module loading",
+        "Apply with: docker run --security-opt seccomp=/path/to/profile.json",
+        "Pair with capability dropping for defense-in-depth",
+        "Recommendation: use default profile unless specific needs require change"
+      ]
+    },
+    {
+      "url": "https://docs.docker.com/engine/reference/run/#resource-constraints",
+      "title": "Docker Run: Resource Constraints",
+      "qualityScore": 92,
+      "scores": {
+        "authority": 10,
+        "recency": 9,
+        "depth": 9,
+        "examples": 9,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "--cpus=N for fractional CPU allocation; --cpuset-cpus for core pinning",
+        "-m/--memory for hard memory limit; --memory-reservation for soft limit",
+        "--memory-swap equal to --memory to disable swap for bounded execution",
+        "--network none for full network isolation; custom networks for inter-container comms",
+        "--cap-drop=ALL then add only required capabilities"
+      ]
+    },
+    {
+      "url": "https://firejail.wordpress.com/documentation-2/",
+      "title": "Firejail Sandbox Documentation",
+      "qualityScore": 80,
+      "scores": {
+        "authority": 8,
+        "recency": 7,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Desktop-focused process sandboxing using Linux user namespaces",
+        "Seccomp filtering, Linux capabilities restriction, network controls",
+        "1000+ pre-built profiles; transparent integration via firecfg",
+        "Best for sandboxing individual tool invocations rather than full runtime envs",
+        "Lighter than Docker for per-process isolation within a development environment"
+      ]
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/docs/build-with-claude/tool-use/overview",
+      "title": "Anthropic: Tool Use with Claude",
+      "qualityScore": 95,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 9,
+        "examples": 10,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Tool access is highest-leverage primitive: adds outsized capability gains on benchmarks",
+        "strict: true on tool definitions guarantees schema conformance (production agents)",
+        "Agentic loop: complete -> execute tools -> results back -> repeat until end_turn",
+        "Tool results go back as user-role messages to continue the conversation",
+        "stop_reason == 'end_turn' signals agent loop termination"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/settings",
+      "title": "Claude Code: Settings",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 6
+      },
+      "keyInsights": [
+        "Four scope hierarchy: Managed > Local > Project > User",
+        "Project settings (.claude/settings.json) shared with team via git",
+        "Managed settings deployed via MDM/OS policies for enterprise",
+        "Permission modes: default, acceptEdits, dontAsk, bypassPermissions, plan",
+        "env field in settings.json for persistent environment variables"
+      ]
+    },
+    {
+      "url": "https://aider.chat/docs/faq.html",
+      "title": "Aider: FAQ",
+      "qualityScore": 83,
+      "scores": {
+        "authority": 8,
+        "recency": 8,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Model routing via edit format: wholefile for weak models, editblock for GPT-4o, universal diff for GPT-4 Turbo",
+        "Repo map disabled by default for weak models (overwhelming), force with --map-tokens",
+        "Reads latest file state on each message send, allowing mid-session file edits",
+        ".aiderignore files and --subtree-only flag for working-directory scoping",
+        "All changes committed to git with attribution tracking"
+      ]
+    },
+    {
+      "url": "https://aider.chat/docs/usage.html",
+      "title": "Aider: Usage Guide",
+      "qualityScore": 80,
+      "scores": {
+        "authority": 8,
+        "recency": 8,
+        "depth": 7,
+        "examples": 8,
+        "uniqueness": 6
+      },
+      "keyInsights": [
+        "Model switching via /model command during session or --model flag at startup",
+        "Automatic git commits for all AI changes with undo via /undo",
+        "Context management: add specific files rather than entire codebase",
+        "Related files auto-pulled for context without explicit addition",
+        "Supports OpenAI, Anthropic, DeepSeek, local models via --model flag"
+      ]
+    },
+    {
+      "url": "https://github.com/plandex-ai/plandex",
+      "title": "Plandex: AI Coding Agent",
+      "qualityScore": 85,
+      "scores": {
+        "authority": 8,
+        "recency": 9,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Cumulative diff review sandbox keeps changes isolated until developer runs apply",
+        "Full version control: plandex log, plandex rewind, plandex branch",
+        "Branch before rewind to prevent history loss",
+        "v2.0: default auto-reverts project files when rewinding past apply",
+        "Context file paths relative to plan creation directory for scoping"
+      ]
+    },
+    {
+      "url": "https://docs.plandex.ai/core-concepts/plans",
+      "title": "Plandex: Plans Documentation",
+      "qualityScore": 82,
+      "scores": {
+        "authority": 8,
+        "recency": 9,
+        "depth": 7,
+        "examples": 6,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "A plan = conversation + accumulated pending changes + loaded context",
+        "Plans archived (retained) or deleted permanently; plandex cd to switch",
+        "Working directory isolation: paths relative to plan creation directory",
+        "Plans can range from single-prompt to extensive multi-file sessions"
+      ]
+    },
+    {
+      "url": "https://docs.plandex.ai/core-concepts/version-control",
+      "title": "Plandex: Version Control",
+      "qualityScore": 80,
+      "scores": {
+        "authority": 8,
+        "recency": 9,
+        "depth": 7,
+        "examples": 6,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Every aspect version-controlled: context, prompts, responses, pending changes, model updates",
+        "plandex rewind [step count | commit id] for state restoration",
+        "No undo for rewind within a branch -- use branch strategy",
+        "plandex log for complete history; plandex convo for conversation history"
+      ]
+    },
+    {
+      "url": "https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/code-executors.html",
+      "title": "AutoGen: Code Executors",
+      "qualityScore": 85,
+      "scores": {
+        "authority": 9,
+        "recency": 9,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "max_tool_iterations=10 configurable per agent for tool call limits",
+        "Docker executor for safe code execution in isolated containers",
+        "Local executor for trusted environments without container overhead",
+        "AgentTool pattern: agents as callable tools for delegation",
+        "Explicit init + close lifecycle: await agent.run() / await model_client.close()"
+      ]
+    },
+    {
+      "url": "https://github.com/microsoft/autogen",
+      "title": "AutoGen Framework",
+      "qualityScore": 83,
+      "scores": {
+        "authority": 9,
+        "recency": 9,
+        "depth": 7,
+        "examples": 7,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Layered APIs: Extensions (low-level) + AgentChat (high-level, opinionated)",
+        "Multiple LLM backends via pluggable model client pattern",
+        "Agent-to-agent communication via AgentTool for delegation patterns",
+        "Supports OpenAI, Azure, local models via configuration"
+      ]
+    },
+    {
+      "url": "https://openai.github.io/openai-agents-python/",
+      "title": "OpenAI Agents SDK",
+      "qualityScore": 87,
+      "scores": {
+        "authority": 9,
+        "recency": 10,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Built-in agent loop handles tool invocation, result injection, and loop continuation",
+        "Handoffs as primary routing mechanism: agent-direct delegation",
+        "Sessions with multiple backends: SQLAlchemy, SQLite, encrypted",
+        "Agents as tools: callable via AgentTool for delegation patterns",
+        "Human-in-the-loop built into lifecycle management"
+      ]
+    },
+    {
+      "url": "https://openai.github.io/openai-agents-python/handoffs/",
+      "title": "OpenAI Agents SDK: Handoffs",
+      "qualityScore": 86,
+      "scores": {
+        "authority": 9,
+        "recency": 10,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "LLM-driven selection: register multiple handoffs, model decides which specialist to use",
+        "transfer_to_<agent_name> pattern for typed delegation",
+        "input_type adds metadata to chosen handoff for structured reasoning",
+        "Input filters transform history before receiving agent sees it",
+        "is_enabled: bool | function for runtime conditional handoffs",
+        "RECOMMENDED_PROMPT_PREFIX for consistent handoff instructions"
+      ]
+    },
+    {
+      "url": "https://github.com/openai/swarm",
+      "title": "OpenAI Swarm",
+      "qualityScore": 84,
+      "scores": {
+        "authority": 9,
+        "recency": 8,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Handoff via function return: returning Agent object transfers execution",
+        "Stateless between calls; Response object carries messages + active_agent + context_vars",
+        "model_override parameter in client.run() for per-call model routing",
+        "Sequential tool call execution with error appended to history for recovery",
+        "Auto-converts Python functions to JSON Schema from docstrings + type hints"
+      ]
+    },
+    {
+      "url": "https://lilianweng.github.io/posts/2023-06-23-agent/",
+      "title": "LLM Powered Autonomous Agents (Lilian Weng)",
+      "qualityScore": 94,
+      "scores": {
+        "authority": 9,
+        "recency": 7,
+        "depth": 10,
+        "examples": 8,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Three components: Planning (decomposition + reflection), Memory (in-context + external), Tools",
+        "ReAct framework: Thought -> Action -> Observation cycle until completion",
+        "Short-term memory in context window; long-term via vector stores with ANN search",
+        "Critical limitations: finite context window, long-term planning difficulties, NL interface reliability",
+        "GPT-Engineer two-phase: clarification (resolve ambiguity) then implementation"
+      ]
+    },
+    {
+      "url": "https://www.swebench.com/",
+      "title": "SWE-bench Benchmark",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 9,
+        "recency": 10,
+        "depth": 7,
+        "examples": 6,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Top: Claude Opus 4.6 (high reasoning) 76.8% at 32.9 API calls, $0.75/issue",
+        "Gemini Flash 75.8% at 56.1 API calls, $0.36/issue -- cost efficiency matters",
+        "Reasoning-enhanced models outperform standard variants significantly",
+        "No single architecture dominates; efficiency tradeoffs vary by problem type",
+        "Tests resolve real GitHub issues against existing test suites"
+      ]
+    },
+    {
+      "url": "https://github.com/anthropics/anthropic-sdk-go",
+      "title": "Anthropic Go SDK",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 10,
+        "recency": 9,
+        "depth": 7,
+        "examples": 8,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "betatoolrunner for agent tool execution management",
+        "betaskill / betaskillversion for versioned skill definitions",
+        "messagebatch for batch processing in agent workflows",
+        "Thread-safe client design for concurrent agent operations",
+        "Go 1.22+ required; 447 commits, 1.1k dependents in production"
+      ]
+    },
+    {
+      "url": "https://github.com/princeton-nlp/SWE-agent",
+      "title": "SWE-agent (Princeton NLP)",
+      "qualityScore": 87,
+      "scores": {
+        "authority": 8,
+        "recency": 9,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Single YAML config governs all agent behavior including tool limits",
+        "Docker container per task with ephemeral lifecycle (--rm)",
+        "Domain-specific tools: open, goto, search_dir, search_file, find_file, edit, create",
+        "Git patches track changes from base commit for review and integration",
+        "Environment initialization: ~1.5s container startup before agent begins"
+      ]
+    },
+    {
+      "url": "https://github.com/All-Hands-AI/OpenHands",
+      "title": "OpenHands (formerly OpenDevin)",
+      "qualityScore": 86,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 7,
+        "examples": 7,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "77.6% SWE-bench score; supports 1000s of cloud agents",
+        "Software Agent SDK as composable Python library",
+        "Local GUI via REST API + single-page React app",
+        "Multi-user cloud with Slack, Jira, Linear integrations",
+        "MIT license for core; enterprise features separately licensed"
+      ]
+    },
+    {
+      "url": "https://cline.bot",
+      "title": "Cline (VS Code Extension)",
+      "qualityScore": 80,
+      "scores": {
+        "authority": 7,
+        "recency": 10,
+        "depth": 7,
+        "examples": 6,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Human-in-the-loop GUI approves every file change and terminal command",
+        "Direct IDE/filesystem access rather than sandboxed isolation",
+        "Workspace checkpoint functionality for compare and restore",
+        "Multi-provider model support: OpenRouter, Anthropic, OpenAI, Gemini, Bedrock, etc.",
+        "Human approval model trades autonomy for transparency"
+      ]
+    },
+    {
+      "url": "https://github.com/RooVetGit/Roo-Code",
+      "title": "Roo Code",
+      "qualityScore": 75,
+      "scores": {
+        "authority": 7,
+        "recency": 9,
+        "depth": 5,
+        "examples": 5,
+        "uniqueness": 6
+      },
+      "keyInsights": [
+        "Mode-based routing: Code (everyday editing), Architect (planning), Ask, Debug",
+        "Mode selection routes to appropriate tool access and behavior",
+        "Codebase indexing for local repository awareness",
+        "MCP server integration for external tool access"
+      ]
+    },
+    {
+      "url": "https://github.com/smol-ai/developer",
+      "title": "smol developer",
+      "qualityScore": 74,
+      "scores": {
+        "authority": 7,
+        "recency": 7,
+        "depth": 6,
+        "examples": 7,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Modal for parallelizable code generation and dependency isolation",
+        "Three deployment modes: Git Repo, Library, API (Agent Protocol)",
+        "Sequential pipeline: plan() -> specify_file_paths() -> generate_code()",
+        "No native sandboxing for generated code -- relies on Modal's isolation"
+      ]
+    },
+    {
+      "url": "https://google.github.io/oss-fuzz-gen",
+      "title": "Google OSS-Fuzz Gen",
+      "qualityScore": 78,
+      "scores": {
+        "authority": 8,
+        "recency": 8,
+        "depth": 7,
+        "examples": 6,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Containerized build isolation via Dockerfile + Dockerfile.cloudbuild-agent",
+        "Four-stage evaluation: compilability check before runtime testing",
+        "Multiple LLM backends: Vertex AI, OpenAI, Azure via abstraction layer",
+        "Batch processing via run_all_experiments.py with per-experiment results",
+        "Persistent bug tracking across execution cycles"
+      ]
+    },
+    {
+      "url": "https://12factor.net/logs",
+      "title": "The 12-Factor App: Logs",
+      "qualityScore": 90,
+      "scores": {
+        "authority": 9,
+        "recency": 8,
+        "depth": 7,
+        "examples": 6,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Apps write to stdout only; never manage log files",
+        "Execution environment captures and routes log streams",
+        "Enables historical retrieval, trend analysis, alerting without app changes",
+        "Log routers (Logplex, Fluentd) handle persistence/rotation/indexing",
+        "Decouples app from infrastructure concerns for portability"
+      ]
+    },
+    {
+      "url": "https://man7.org/linux/man-pages/man8/logrotate.8.html",
+      "title": "logrotate man page",
+      "qualityScore": 90,
+      "scores": {
+        "authority": 10,
+        "recency": 9,
+        "depth": 9,
+        "examples": 8,
+        "uniqueness": 6
+      },
+      "keyInsights": [
+        "size directive triggers rotation before time interval if file too large",
+        "delaycompress keeps yesterday's log uncompressed for active tail",
+        "maxage removes rotated logs older than N days",
+        "sharedscripts runs postrotate once for wildcarded patterns",
+        "postrotate/endscript for signaling apps to reopen log handles"
+      ]
+    },
+    {
+      "url": "https://github.com/anthropics/claude-code-action",
+      "title": "Claude Code GitHub Action",
+      "qualityScore": 82,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 6,
+        "examples": 7,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Runs entirely on your GitHub runner infrastructure",
+        "Only LLM API calls go to Anthropic (or Bedrock/Vertex/Foundry)",
+        "Structured JSON outputs automatically become GitHub Action outputs",
+        "Visual progress indicators with dynamically updated checkboxes",
+        "CI/CD integration pattern: PR reviews, issue triage, automated fixes"
+      ]
+    },
+    {
+      "url": "https://openai.github.io/openai-agents-python/",
+      "title": "OpenAI Agents SDK: Lifecycle Management",
+      "qualityScore": 85,
+      "scores": {
+        "authority": 9,
+        "recency": 10,
+        "depth": 8,
+        "examples": 8,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Multiple session backends: SQLAlchemy, SQLite, encrypted for different persistence needs",
+        "Handoffs enable agent-direct model routing without central orchestrator",
+        "Function tools: automatic schema generation from Python type hints via Pydantic",
+        "MCP server integration: works identically to standard function tools",
+        "Human-in-the-loop as first-class lifecycle concern"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/overview",
+      "title": "Claude Code Overview",
+      "qualityScore": 85,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 7,
+        "examples": 7,
+        "uniqueness": 6
+      },
+      "keyInsights": [
+        "Reads codebase, edits files, runs commands across IDE, terminal, desktop, browser",
+        "CLAUDE.md for persistent project instructions across sessions",
+        "Auto-memory builds across sessions without explicit writing",
+        "Sub-agents spawnable for parallel task execution",
+        "GitHub Actions / GitLab CI integration for automated PR review"
+      ]
+    },
+    {
+      "url": "https://e2b.dev/docs",
+      "title": "E2B Documentation",
+      "qualityScore": 82,
+      "scores": {
+        "authority": 8,
+        "recency": 10,
+        "depth": 7,
+        "examples": 8,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Isolated sandboxes for safe AI code execution with full Linux VM",
+        "State persistence within sandbox across multiple runCode() calls",
+        "Snapshot-based pause/resume for long-running agent sessions",
+        "SDK available for JavaScript and Python",
+        "MCP integration enables 200+ tool access within sandboxes"
+      ]
+    },
+    {
+      "url": "https://docs.plandex.ai/",
+      "title": "Plandex Installation Docs",
+      "qualityScore": 72,
+      "scores": {
+        "authority": 8,
+        "recency": 9,
+        "depth": 5,
+        "examples": 5,
+        "uniqueness": 5
+      },
+      "keyInsights": [
+        "Written in Go; WSL required for Windows",
+        "curl install or manual GitHub releases download",
+        "Build-from-source supported for Go developers"
+      ]
+    }
+  ]
+}

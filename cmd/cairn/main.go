@@ -232,6 +232,15 @@ func runServe(logger *slog.Logger) {
 	// Initialize cron store.
 	cronStore := cairncron.NewStore(database.DB)
 
+	// Initialize worktree manager for coding task isolation.
+	var worktreeMgr *task.WorktreeManager
+	if cfg.CodingEnabled {
+		repoDir, _ := os.Getwd()
+		worktreeDir := filepath.Join(os.TempDir(), "cairn-worktrees")
+		worktreeMgr = task.NewWorktreeManager(repoDir, worktreeDir)
+		logger.Info("worktree manager initialized", "repoDir", repoDir, "worktreeDir", worktreeDir)
+	}
+
 	// Create the ReAct agent.
 	var reactAgent agent.Agent
 	if provider != nil {
@@ -434,28 +443,32 @@ func runServe(logger *slog.Logger) {
 			ReflectionInterval: time.Duration(cfg.ReflectionInterval) * time.Second,
 			Model:              cfg.LLMModel,
 			IdleEnabled:        true,
+			TalkMaxRounds:      cfg.TalkMaxRounds,
+			WorkMaxRounds:      cfg.WorkMaxRounds,
+			CodingMaxRounds:    cfg.CodingMaxRounds,
 		}, agent.LoopDeps{
-			Agent:        reactAgent,
-			Tasks:        taskEngine,
-			Events:       eventStore,
-			Memories:     memService,
-			Soul:         soul,
-			Tools:        toolRegistry,
-			Provider:     provider,
-			Bus:          bus,
-			Journaler:    journaler,
-			Extractor:    memExtractor,
-			Reflector:    reflector,
-			Logger:       logger,
-			ToolMemories: memAdapter,
-			ToolEvents:   eventAdapter,
-			ToolDigest:   digestAdapt,
-			ToolJournal:  journalAdapt,
-			ToolTasks:    taskAdapt,
-			ToolStatus:   statusAdapt,
-			ToolSkills:   skillAdapt,
-			CronStore:    cronStore,
-			DB:           database.DB,
+			Agent:           reactAgent,
+			Tasks:           taskEngine,
+			Events:          eventStore,
+			Memories:        memService,
+			Soul:            soul,
+			Tools:           toolRegistry,
+			Provider:        provider,
+			Bus:             bus,
+			Journaler:       journaler,
+			Extractor:       memExtractor,
+			Reflector:       reflector,
+			Logger:          logger,
+			ToolMemories:    memAdapter,
+			ToolEvents:      eventAdapter,
+			ToolDigest:      digestAdapt,
+			ToolJournal:     journalAdapt,
+			ToolTasks:       taskAdapt,
+			ToolStatus:      statusAdapt,
+			ToolSkills:      skillAdapt,
+			CronStore:       cronStore,
+			DB:              database.DB,
+			WorktreeManager: worktreeMgr,
 		})
 		agentLoop.SetInitialState(loopState)
 		agentLoop.Start()
@@ -600,7 +613,7 @@ func runServe(logger *slog.Logger) {
 				ToolNotifier:   notifyAdapt,
 				ToolCrons:      cronAdapt,
 				ToolConfig:     &configAdapter{cfg: cfg},
-				Config:         &agent.AgentConfig{Model: cfg.LLMModel},
+				Config:         &agent.AgentConfig{Model: cfg.LLMModel, MaxRounds: cfg.MaxRoundsForMode("talk")},
 				CompactionConfig: agent.CompactionConfig{
 					TriggerTokens:   cfg.CompactionTriggerTokens,
 					KeepRecentPairs: cfg.CompactionKeepRecent,

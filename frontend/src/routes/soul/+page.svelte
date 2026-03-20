@@ -33,8 +33,8 @@
 			content = soulRes.content;
 			sha = soulRes.sha ?? null;
 			patch = patchRes.patch ?? null;
-		} catch {
-			// handled
+		} catch (e) {
+			console.error('Failed to load soul:', e);
 		} finally {
 			loading = false;
 		}

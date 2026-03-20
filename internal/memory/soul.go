@@ -155,7 +155,10 @@ func (s *Soul) ApprovePatch(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.pending == nil || s.pending.ID != id {
+	if s.pending == nil {
+		return fmt.Errorf("soul: no pending patch")
+	}
+	if s.pending.ID != id {
 		return fmt.Errorf("soul: no pending patch with id %q", id)
 	}
 
@@ -177,7 +180,10 @@ func (s *Soul) DenyPatch(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.pending == nil || s.pending.ID != id {
+	if s.pending == nil {
+		return fmt.Errorf("soul: no pending patch")
+	}
+	if s.pending.ID != id {
 		return fmt.Errorf("soul: no pending patch with id %q", id)
 	}
 

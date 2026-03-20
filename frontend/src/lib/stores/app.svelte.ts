@@ -125,6 +125,15 @@ export const appStore = {
 		agentProgresses = { ...agentProgresses, [agentId]: message };
 	},
 
+	clearAgentProgress(agentId: string) {
+		const { [agentId]: _, ...rest } = agentProgresses;
+		agentProgresses = rest;
+	},
+
+	clearAllAgentProgresses() {
+		agentProgresses = {};
+	},
+
 	setLastHeartbeat(tick: number) {
 		lastHeartbeat = { tick, at: Date.now() };
 	},

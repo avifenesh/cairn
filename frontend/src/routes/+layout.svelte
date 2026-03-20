@@ -31,7 +31,9 @@
 	$effect(() => {
 		const path = page.url.pathname;
 		if (path === '/' || path === '/today') {
-			keyboardNav.setItemCount(feedStore.items.length);
+			// On home page, keyboard targets approvals first, then feed
+			const approvalCount = taskStore.pendingApprovals.length;
+			keyboardNav.setItemCount(approvalCount > 0 ? approvalCount : feedStore.items.length);
 		} else if (path === '/ops') {
 			keyboardNav.setItemCount(taskStore.pendingApprovals.length);
 		} else {

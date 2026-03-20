@@ -118,7 +118,13 @@ export const sseStore = {
 		handle('poll_completed', source, (d) => appStore.setPollStatus(d.source, d.newCount));
 
 		// Tasks & Approvals
-		handle('task_update', source, (d) => taskStore.upsertTask(d.task ?? d));
+		handle('task_update', source, (d) => {
+			const task = d.task ?? d;
+			taskStore.upsertTask(task);
+			if (task.status === 'completed' || task.status === 'failed') {
+				appStore.clearAllAgentProgresses();
+			}
+		});
 		handle('approval_required', source, (d) => taskStore.addApproval(d.approval ?? d));
 
 		// Chat streaming — batch deltas with requestAnimationFrame for performance

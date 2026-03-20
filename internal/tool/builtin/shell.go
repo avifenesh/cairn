@@ -62,9 +62,9 @@ var shell = tool.Define("cairn.shell",
 				workDir = filepath.Clean(p.WorkDir)
 			}
 		}
-		// Fall back to $HOME so the agent can work across repos,
-		// then to "." if HOME is unavailable.
-		if workDir == "" || workDir == "." {
+		// Fall back to $HOME when no workDir is set at all, so the agent
+		// can work across repos. "." (process cwd) is kept as-is.
+		if workDir == "" {
 			if home, err := os.UserHomeDir(); err == nil && home != "" {
 				workDir = home
 			} else {
@@ -152,8 +152,8 @@ var shell = tool.Define("cairn.shell",
 
 		if err != nil {
 			// SIGPIPE (exit 141) is normal for pipe patterns like `cmd | head`.
-			// Treat as success if we got stdout output.
-			if exitCode == 141 && stdout.Len() > 0 {
+			// Only treat as success when the command contains a pipe operator.
+			if exitCode == 141 && stdout.Len() > 0 && detectPipeOrRedirect(p.Command) == "|" {
 				meta["sigpipe"] = true
 			} else if execCtx.Err() == context.DeadlineExceeded {
 				result.Error = fmt.Sprintf("command timed out after %ds", timeout)

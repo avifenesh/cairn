@@ -330,6 +330,17 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 	// Build activity summary from task info.
 	desc := t.Description
 	if desc == "" {
+		// Fallback: extract instruction from Input JSON (cron tasks store it there).
+		var inputData map[string]string
+		if json.Unmarshal(t.Input, &inputData) == nil {
+			if inst := inputData["instruction"]; inst != "" {
+				desc = inst
+			} else if msg := inputData["message"]; msg != "" {
+				desc = msg
+			}
+		}
+	}
+	if desc == "" {
 		desc = string(t.Type)
 	}
 	if len(desc) > 80 {
@@ -390,10 +401,21 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 		}
 	}
 
+	// Use description as user message; fall back to instruction from Input JSON.
+	userMessage := t.Description
+	if userMessage == "" {
+		var inputData map[string]string
+		if json.Unmarshal(t.Input, &inputData) == nil {
+			if inst := inputData["instruction"]; inst != "" {
+				userMessage = inst
+			}
+		}
+	}
+
 	invCtx := &InvocationContext{
 		Context:      ctx,
 		SessionID:    sessionID,
-		UserMessage:  t.Description,
+		UserMessage:  userMessage,
 		Mode:         mode,
 		Session:      session,
 		Tools:        l.tools,

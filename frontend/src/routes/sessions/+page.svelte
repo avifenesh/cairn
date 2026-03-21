@@ -9,6 +9,14 @@
 	let sessions = $state<ChatSession[]>([]);
 	let loading = $state(true);
 
+	function displayTitle(session: ChatSession): string {
+		if (session.title) return session.title;
+		const channel = session.metadata?.channel as string | undefined;
+		if (channel) return `Chat via ${channel.charAt(0).toUpperCase() + channel.slice(1)}`;
+		if (session.mode) return `${session.mode.charAt(0).toUpperCase() + session.mode.slice(1)} session`;
+		return `Session ${session.id.slice(0, 8)}`;
+	}
+
 	onMount(async () => {
 		try {
 			const res = await getSessions();
@@ -52,7 +60,7 @@
 			{#each sessions as session (session.id)}
 				<a href="/session/{session.id}" class="session-card">
 					<div class="session-card-header">
-						<span class="session-title">{session.title || 'Untitled session'}</span>
+						<span class="session-title">{displayTitle(session)}</span>
 						<ChevronRight size={14} class="text-[var(--text-tertiary)] shrink-0" />
 					</div>
 					<div class="session-card-meta">

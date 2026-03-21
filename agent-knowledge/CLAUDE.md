@@ -10,6 +10,9 @@
 | LLM Session Compaction and Conversation Summarization | session-compaction.md | 7 local + 30 web | deep | 2026-03-19 |
 | Automatic Memory Extraction from LLM Conversations | auto-memory-extraction.md | 22 local + 42 web | deep | 2026-03-19 |
 | Telegram Bot API & Mini Apps Development | telegram-development.md | 6 official | deep | 2026-03-21 |
+| Subagent Architectures for AI Agents | subagents.md | 22 web | deep | 2026-03-21 |
+| Orchestrator Agent Pattern for Autonomous Systems | orchestrator-pattern.md | 16 web | deep | 2026-03-21 |
+| Autonomous Agent Self-Improvement with Quality Gates | autonomous-agent-quality.md | 18 web | medium | 2026-03-21 |
 
 ## Trigger Phrases
 
@@ -58,6 +61,21 @@ Use this knowledge when the user asks about:
 - "Cairn memory gaps" → auto-memory-extraction.md
 - "ADD/UPDATE/DELETE memory actions" → auto-memory-extraction.md
 - "HippoRAG knowledge graph retrieval" → auto-memory-extraction.md
+- "subagent" or "sub-agent" → subagents.md
+- "spawn agent" or "delegate to agent" → subagents.md
+- "agent-as-tool" → subagents.md
+- "two-level max" or "no grandchildren" → subagents.md
+- "context isolation" for agents → subagents.md
+- "orchestrator" or "supervisor agent" → orchestrator-pattern.md
+- "thin management layer" → orchestrator-pattern.md
+- "idle tick replacement" → orchestrator-pattern.md
+- "AIOS" or "agent operating system kernel" → orchestrator-pattern.md
+- "autonomous quality" or "self-improvement" → autonomous-agent-quality.md
+- "guardrails for agents" → autonomous-agent-quality.md
+- "property-based testing LLM" → autonomous-agent-quality.md
+- "memory auto-accept" → autonomous-agent-quality.md
+- "permission allowlist" → autonomous-agent-quality.md
+- "Voyager skill library" → autonomous-agent-quality.md
 
 ## Quick Lookup
 
@@ -86,6 +104,15 @@ Use this knowledge when the user asks about:
 | contradiction resolution, fact invalidation | auto-memory-extraction.md |
 | memory confidence, poignancy score | auto-memory-extraction.md |
 | proposition extraction, atomic facts | auto-memory-extraction.md |
+| subagent, spawn, delegate, child agent | subagents.md |
+| agent-as-tool, two-level max, worktree isolation | subagents.md |
+| LangGraph supervisor, CrewAI, AutoGen, OpenAI handoffs | subagents.md |
+| orchestrator, supervisor, management layer | orchestrator-pattern.md |
+| idle tick, thin orchestrator, system state scan | orchestrator-pattern.md |
+| AIOS, agent kernel, agent scheduler | orchestrator-pattern.md |
+| autonomous quality, guardrails, self-improvement | autonomous-agent-quality.md |
+| property-based testing, PBT, self-verification | autonomous-agent-quality.md |
+| Voyager, skill library, auto-accept, permission model | autonomous-agent-quality.md |
 
 ## How to Use
 

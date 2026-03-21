@@ -2,7 +2,7 @@
 
 Self-hosted, always-on personal agent OS. Single Go binary.
 
-Cairn watches your world (GitHub, Gmail, Calendar, HN, Reddit, npm, crates.io, RSS, Stack Overflow, Dev.to, webhooks), acts on your behalf through an LLM-powered agent with 49 tools, learns over time through episodic memory and reflection, and stays on 24/7.
+Cairn watches your world (GitHub, Gmail, Calendar, HN, Reddit, npm, crates.io, RSS, Stack Overflow, Dev.to, webhooks), acts on your behalf through an LLM-powered agent with 50 tools, learns over time through episodic memory and reflection, and stays on 24/7.
 
 ## Quick Start
 
@@ -37,7 +37,7 @@ make build-prod
 - Webhooks (HMAC-SHA256 signature verification)
 - LLM-powered digest generation
 
-**Agent** - ReAct loop with 49 tools, three modes (talk/work/coding), session persistence.
+**Agent** - ReAct loop with 50 tools, three modes (talk/work/coding), session persistence.
 
 - File tools: read, write, edit, delete, list, search (path traversal protection)
 - Shell: policy engine, env filtering, shell detection
@@ -180,7 +180,7 @@ internal/
   signal/           Event store, scheduler, 11 pollers, webhooks, digest
   skill/            SKILL.md parser, discovery, hot-reload, ClawHub marketplace
   task/             Priority queue, worktree isolation, lease engine, approvals
-  tool/             Tool interface, registry, permissions, 49 built-in tools
+  tool/             Tool interface, registry, permissions, 50 built-in tools
   voice/            Whisper STT + edge-tts TTS
 frontend/           SvelteKit 5 app + embed.FS package (242 tests)
 skills/             41 bundled SKILL.md files

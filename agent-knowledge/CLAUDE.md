@@ -25,7 +25,8 @@
 | Keywords | Guide |
 |----------|-------|
 | compaction, context overflow, sliding window, truncate, context rot | session-compaction.md |
-| MemGPT, Letta, Zep, chain of density, Anthropic compaction | session-compaction.md |
+| chain of density, Anthropic compaction, pause_after_compaction | session-compaction.md |
+| MemGPT, Letta, Zep (both guides) | session-compaction.md, auto-memory-extraction.md |
 | memory extraction, auto-extract, contradiction detection, confidence | auto-memory-extraction.md |
 | Mem0, HippoRAG, entity extraction, memory decay, Ebbinghaus | auto-memory-extraction.md |
 | subagent, spawn, delegate, agent-as-tool, two-level max | subagents.md |
@@ -34,7 +35,7 @@
 | autonomous quality, guardrails, self-improvement, Voyager | autonomous-agent-quality.md |
 | property-based testing, PBT, permission allowlist, auto-accept | autonomous-agent-quality.md |
 | telegram bot, mini app, webhook, inline keyboard | telegram-development.md |
-| GLM, Z.ai, zhipu, MCP tool, vision API | zai-glm-api.md |
+| GLM, Z.ai, zhipu, vision API, web search API | zai-glm-api.md |
 | thinking UI, reasoning trace, streaming indicator | ai-thinking-ui-patterns.md |
 | active learning, user adaptation, preference learning | active-learning-user-adaptation.md |
 | agent personality, SOUL, agent OS, identity | agent-os-personality.md |
@@ -46,5 +47,5 @@
 
 1. Match user question to keywords above
 2. Read the guide file
-3. For Cairn implementation: check "Implementation Roadmap" sections
-4. For research: check "Further Reading" sections
+3. Check "Best Practices" and "Common Pitfalls" sections for actionable advice
+4. Check "Further Reading" for authoritative sources

@@ -68,6 +68,25 @@ func TestSplitMessage_Empty(t *testing.T) {
 	}
 }
 
+func TestSplitMessage_Unicode(t *testing.T) {
+	// Multi-byte runes (emoji, CJK) should not be split mid-character.
+	text := strings.Repeat("🎉", 15) // 15 emoji = 15 runes (but 60 bytes)
+	chunks := splitMessage(text, 10)
+	if len(chunks) != 2 {
+		t.Fatalf("expected 2 chunks, got %d: %v", len(chunks), chunks)
+	}
+	for i, c := range chunks {
+		if len([]rune(c)) > 10 {
+			t.Errorf("chunk %d exceeds rune limit: runes=%d", i, len([]rune(c)))
+		}
+	}
+	// Content preserved.
+	joined := strings.Join(chunks, "")
+	if joined != text {
+		t.Errorf("content not preserved")
+	}
+}
+
 func TestSplitMessage_TelegramLimits(t *testing.T) {
 	// Simulate a 10000-char message split at Telegram's markdown limit.
 	text := strings.Repeat("Hello world. ", 800) // ~10400 chars

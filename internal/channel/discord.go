@@ -290,11 +290,16 @@ func splitMessage(text string, maxLen int) []string {
 		segment := string(runes[:maxLen])
 
 		// Find a good split point: prefer newline, then space, then hard cut.
+		// Only use space-based split if it yields at least half the max length
+		// to avoid tiny chunks from early spaces before long unbroken tokens.
 		cut := maxLen
 		if idx := strings.LastIndex(segment, "\n"); idx > 0 {
 			cut = utf8.RuneCountInString(segment[:idx+1])
 		} else if idx := strings.LastIndex(segment, " "); idx > 0 {
-			cut = utf8.RuneCountInString(segment[:idx+1])
+			spaceCut := utf8.RuneCountInString(segment[:idx+1])
+			if spaceCut >= maxLen/2 {
+				cut = spaceCut
+			}
 		}
 
 		chunks = append(chunks, string(runes[:cut]))

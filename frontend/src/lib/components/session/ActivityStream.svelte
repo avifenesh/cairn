@@ -20,7 +20,7 @@
 
 	// Track which tool calls have completed (have a matching tool_result).
 	const completedToolIds = $derived(
-		new Set(events.filter((e) => e.eventType === 'tool_result').map((e) => e.payload.toolId as string))
+		new Set(events.filter((e) => e.eventType === 'tool_result').map((e) => String(e.payload.toolId ?? '')))
 	);
 
 	// Auto-scroll to bottom on new events.

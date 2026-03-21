@@ -11,7 +11,7 @@
 	const p = $derived(event.payload);
 	const isError = $derived(p.isError === true || p.state === 'failed');
 	const toolPending = $derived(
-		event.eventType === 'tool_call' && !completedToolIds.has(p.toolId as string)
+		event.eventType === 'tool_call' && !completedToolIds.has(String(p.toolId ?? ''))
 	);
 
 	let expanded = $state(false);

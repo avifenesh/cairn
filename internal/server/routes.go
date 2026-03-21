@@ -25,6 +25,7 @@ import (
 	"github.com/avifenesh/cairn/internal/llm"
 	cairnmcp "github.com/avifenesh/cairn/internal/mcp"
 	"github.com/avifenesh/cairn/internal/memory"
+	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
 )
@@ -1535,16 +1536,43 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCosts(w http.ResponseWriter, r *http.Request) {
-	// Stub: cost tracking would integrate with the LLM budget system.
-	writeJSON(w, http.StatusOK, map[string]any{
-		"totalUSD":  0.0,
-		"today":     0.0,
-		"thisMonth": 0.0,
-	})
+	// Match frontend CostData interface: todayUsd, weekUsd, budgetDailyUsd, budgetWeeklyUsd.
+	result := map[string]any{
+		"todayUsd":        0.0,
+		"weekUsd":         0.0,
+		"budgetDailyUsd":  0.0,
+		"budgetWeeklyUsd": 0.0,
+		"totalCalls":      int64(0),
+		"blocked":         int64(0),
+	}
+	if s.plugins != nil {
+		for _, p := range s.plugins.Plugins() {
+			if bp, ok := p.(*plugin.BudgetPlugin); ok {
+				stats := bp.Stats()
+				result["todayUsd"] = stats.DailySpend
+				result["weekUsd"] = stats.WeeklySpend
+				result["budgetDailyUsd"] = stats.DailyCap
+				result["budgetWeeklyUsd"] = stats.WeeklyCap
+				result["totalCalls"] = stats.TotalCalls
+				result["blocked"] = stats.Blocked
+				break
+			}
+		}
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) handlePollRun(w http.ResponseWriter, r *http.Request) {
-	// Stub: manual poll trigger would integrate with the signal plane.
+	if s.pollTrigger == nil {
+		writeError(w, http.StatusServiceUnavailable, "signal plane not configured")
+		return
+	}
+	// Use background context - the poll must outlive the HTTP request.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	go func() {
+		defer cancel()
+		s.pollTrigger.PollNow(ctx)
+	}()
 	writeJSON(w, http.StatusAccepted, map[string]any{"ok": true, "message": "poll triggered"})
 }
 

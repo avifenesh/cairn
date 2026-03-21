@@ -20,17 +20,14 @@
 			const cmd = String(inp.command ?? '');
 			return cmd.length > 120 ? cmd.slice(0, 120) + '...' : cmd;
 		}
-		if (name === 'cairn.readFile' || name.endsWith('.readFile')) {
-			return String(inp.path ?? '');
-		}
-		if (name === 'cairn.writeFile' || name.endsWith('.writeFile')) {
-			return String(inp.path ?? '');
-		}
-		if (name === 'cairn.editFile' || name.endsWith('.editFile')) {
+		if (['cairn.readFile', 'cairn.writeFile', 'cairn.editFile'].includes(name) ||
+			name.endsWith('.readFile') || name.endsWith('.writeFile') || name.endsWith('.editFile')) {
 			return String(inp.path ?? '');
 		}
 		if (name === 'cairn.gitRun' || name.endsWith('.gitRun')) {
-			return 'git ' + String(inp.args ?? inp.command ?? '');
+			const args = inp.args ?? inp.command ?? '';
+			const argsStr = Array.isArray(args) ? args.join(' ') : String(args);
+			return 'git ' + argsStr;
 		}
 		if (name === 'cairn.webSearch' || name.endsWith('.webSearch')) {
 			return String(inp.query ?? '');

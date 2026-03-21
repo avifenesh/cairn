@@ -42,12 +42,12 @@ func TestBuildBriefingPrompt_RichContent(t *testing.T) {
 	prompt := buildBriefingPrompt(obs)
 
 	checks := map[string]string{
-		"fix: update deps":        "feed item title",
-		"github: 2":               "source breakdown",
-		"User prefers concise":    "memories",
-		"Merged PR #96":           "recent sessions",
-		"build failed":            "errors",
-		"morning-digest":          "upcoming crons",
+		"fix: update deps":     "feed item title",
+		"github: 2":            "source breakdown",
+		"User prefers concise": "memories",
+		"Merged PR #96":        "recent sessions",
+		"build failed":         "errors",
+		"morning-digest":       "upcoming crons",
 	}
 
 	for sub, label := range checks {

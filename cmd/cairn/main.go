@@ -447,6 +447,36 @@ func runServe(logger *slog.Logger) {
 	cfgAdapt := &configAdapter{cfg: cfg}
 	activityStore := agent.NewActivityStore(database.DB)
 
+	// Create subagent runner (available to both Loop and Server).
+	var subagentRunner *agent.SubagentRunner
+	if provider != nil && toolRegistry != nil {
+		subagentRunner = agent.NewSubagentRunner(agent.SubagentRunnerDeps{
+			Tasks:          taskEngine,
+			Tools:          toolRegistry,
+			Provider:       provider,
+			Bus:            bus,
+			Worktrees:      worktreeMgr,
+			Logger:         logger,
+			Memories:       memService,
+			Soul:           soul,
+			ContextBuilder: ctxBuilder,
+			Plugins:        pluginMgr,
+			ActivityStore:  activityStore,
+			ToolMemories:   memAdapter,
+			ToolEvents:     eventAdapter,
+			ToolDigest:     digestAdapt,
+			ToolJournal:    journalAdapt,
+			ToolTasks:      taskAdapt,
+			ToolStatus:     statusAdapt,
+			ToolSkills:     skillAdapt,
+			ToolNotifier:   nil, // set later after channels init
+			ToolCrons:      cronAdapt,
+			ToolConfig:     cfgAdapt,
+			Model:          cfg.LLMModel,
+		})
+		logger.Info("subagent runner initialized")
+	}
+
 	// Start always-on agent loop (if idle mode enabled and agent available).
 	var agentLoop *agent.Loop
 	if cfg.IdleModeEnabled && reactAgent != nil && provider != nil {
@@ -500,6 +530,7 @@ func runServe(logger *slog.Logger) {
 			CronStore:       cronStore,
 			ActivityStore:   activityStore,
 			DB:              database.DB,
+			SubagentRunner:  subagentRunner,
 			WorktreeManager: worktreeMgr,
 			Marketplace:     marketplace,
 		})
@@ -573,7 +604,8 @@ func runServe(logger *slog.Logger) {
 		ToolStatus:     statusAdapt,
 		ToolSkills:     skillAdapt,
 		ToolCrons:      cronAdapt,
-		ToolConfig:     cfgAdapt,
+		ToolConfig:      cfgAdapt,
+		SubagentRunner: subagentRunner,
 		Voice:          voiceSvc,
 		CronStore:      cronStore,
 		ActivityStore:  activityStore,

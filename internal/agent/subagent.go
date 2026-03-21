@@ -38,9 +38,9 @@ var builtinTypes = map[string]subagentTypeConfig{
 		SystemPrompt: "You are a research agent. Gather information thoroughly, cite sources, and return a comprehensive summary. You have read-only access - you cannot modify files or run commands.",
 	},
 	"coder": {
-		Mode:      tool.ModeCoding,
-		MaxRounds: 50,
-		Worktree:  true,
+		Mode:         tool.ModeCoding,
+		MaxRounds:    50,
+		Worktree:     true,
 		SystemPrompt: "You are a coding agent working in an isolated git worktree. Implement the requested changes, run tests, and commit your work. Focus on correctness and clean code.",
 	},
 	"reviewer": {
@@ -305,7 +305,7 @@ func (r *SubagentRunner) runForeground(ctx context.Context, parentTaskID string,
 					}
 				}
 				eventbus.Publish(r.bus, eventbus.SubagentProgress{
-					EventMeta: eventbus.NewMeta("agent"),
+					EventMeta:  eventbus.NewMeta("agent"),
 					SubagentID: childID,
 					Round:      rounds,
 					MaxRounds:  maxRounds,

@@ -604,7 +604,7 @@ func runServe(logger *slog.Logger) {
 		ToolStatus:     statusAdapt,
 		ToolSkills:     skillAdapt,
 		ToolCrons:      cronAdapt,
-		ToolConfig:      cfgAdapt,
+		ToolConfig:     cfgAdapt,
 		SubagentRunner: subagentRunner,
 		Voice:          voiceSvc,
 		CronStore:      cronStore,

@@ -56,7 +56,7 @@ type Loop struct {
 	cronStore       *cairncron.Store         // nil = cron disabled
 	activityStore   *ActivityStore           // nil = activity tracking disabled
 	db              *sql.DB                  // for state checkpoint
-	subagentRunner  tool.SubagentService      // nil = subagent spawning disabled
+	subagentRunner  tool.SubagentService     // nil = subagent spawning disabled
 	worktreeManager *task.WorktreeManager    // nil = no worktree isolation
 	notifier        tool.NotifyService       // nil = notifications disabled
 	skillSuggestor  *SkillSuggestor          // nil = skill suggestions disabled
@@ -197,7 +197,7 @@ type LoopDeps struct {
 	CronStore       *cairncron.Store         // optional: enables cron job checking in tick
 	ActivityStore   *ActivityStore           // optional: enables activity recording
 	DB              *sql.DB                  // optional: enables state checkpoint
-	SubagentRunner  tool.SubagentService      // optional: enables subagent spawning from tools
+	SubagentRunner  tool.SubagentService     // optional: enables subagent spawning from tools
 	WorktreeManager *task.WorktreeManager    // optional: worktree isolation for coding tasks
 	Notifier        tool.NotifyService       // optional: routes notifications to channels
 	Marketplace     *skill.MarketplaceClient // optional: ClawHub marketplace for suggestions

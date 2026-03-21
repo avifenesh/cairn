@@ -150,15 +150,19 @@ export class SessionStore {
 						// Flush any pending text before tool events.
 						flush();
 						const isResult = part.status === 'completed' || part.status === 'failed';
+						const payload: Record<string, unknown> = {
+							toolId: part.callId, toolName: part.toolName,
+							input: part.input,
+							isError: part.status === 'failed',
+							durationMs: part.duration ? Math.round(part.duration / 1000000) : undefined,
+						};
+						// Include output and error for tool results.
+						if (part.output) payload.output = part.output;
+						if (part.error) payload.error = part.error;
 						this.addEvent({
 							sessionId: this.sessionId,
 							eventType: isResult ? 'tool_result' : 'tool_call',
-							payload: {
-								toolId: part.callId, toolName: part.toolName,
-								input: part.input,
-								isError: part.status === 'failed',
-								durationMs: part.duration ? Math.round(part.duration / 1000000) : undefined,
-							},
+							payload,
 							timestamp: ts,
 						});
 						if (isResult) this.totalToolCalls++;

@@ -151,7 +151,7 @@ const (
 // stays within the Telegram message size limit. Since escaping adds one backslash per
 // special character, we conservatively assume 15% inflation for typical agent output.
 // Computed as (tgMaxMessageChars - tgChunkHeaderMaxLen) / 1.15 ≈ 3526.
-var tgRawChunkLimit = (tgMaxMessageChars - tgChunkHeaderMaxLen) * 85 / 100
+var tgRawChunkLimit = (tgMaxMessageChars - tgChunkHeaderMaxLen) * 100 / 115
 
 // sendChunks splits text into chunks respecting Telegram's message size limit
 // and sends them sequentially with a small delay between chunks.
@@ -187,7 +187,10 @@ func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, text str
 // the risk of malformed MarkdownV2 that Telegram rejects, but does not guarantee that
 // arbitrary higher-level Markdown constructs (such as very long links, code blocks, or
 // emphasis spans) will remain entirely within a single chunk.
-func (t *TelegramAdapter) sendChunksMarkdownV2(ctx context.Context, chatID int64, rawText string, replyMarkup *telego.InlineKeyboardMarkup) error {
+//
+// Returns (true, nil) if at least one chunk was delivered successfully, so callers
+// can avoid duplicate plain-text retries after partial sends.
+func (t *TelegramAdapter) sendChunksMarkdownV2(ctx context.Context, chatID int64, rawText string, replyMarkup *telego.InlineKeyboardMarkup) (sent bool, err error) {
 	// Estimate chunk limit for raw text that won't exceed Telegram limit after escaping.
 	// Use a per-rune limit that accounts for escaping inflation and header overhead.
 	rawLimit := tgRawChunkLimit
@@ -203,9 +206,9 @@ func (t *TelegramAdapter) sendChunksMarkdownV2(ctx context.Context, chatID int64
 				params = params.WithReplyMarkup(replyMarkup)
 			}
 			if _, err := t.bot.SendMessage(ctx, params); err != nil {
-				return err
+				return false, err
 			}
-			return nil
+			return true, nil
 		}
 		// Escaped text too large — fall through to chunking path.
 	}
@@ -221,14 +224,15 @@ func (t *TelegramAdapter) sendChunksMarkdownV2(ctx context.Context, chatID int64
 				params = params.WithReplyMarkup(replyMarkup)
 			}
 			_, err := t.bot.SendMessage(ctx, params)
-			return err
+			return err == nil, err
 		}
 		// Even a single chunk escaped is too large — re-split with tighter limit.
 		retryLimit := tgRawChunkLimit - tgChunkHeaderMaxLen
 		chunks = splitMessage(rawText, retryLimit)
 	}
 
-	return t.sendChunkedMessages(ctx, chatID, chunks, telego.ModeMarkdownV2, replyMarkup)
+	err = t.sendChunkedMessages(ctx, chatID, chunks, telego.ModeMarkdownV2, replyMarkup)
+	return err == nil, err
 }
 
 // sendChunkedMessages sends pre-split text chunks with per-part headers and rate-limit delays.
@@ -325,20 +329,16 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 	}
 
 	// Try MarkdownV2 first with per-chunk escaping to avoid mid-entity splits.
-	err := t.sendChunksMarkdownV2(ctx, chatID, msg.Text, replyMarkup)
+	sent, err := t.sendChunksMarkdownV2(ctx, chatID, msg.Text, replyMarkup)
 	if err != nil {
-		// Only fall back to plain text for single-message Markdown parse failures.
-		// For chunked sends, a later chunk error means earlier chunks were already
-		// delivered — retrying from scratch would duplicate them in the chat.
-		// Check whether any chunks were likely sent by comparing text length to limit.
-		rawRunes := len([]rune(msg.Text))
-		if rawRunes > tgRawChunkLimit {
-			// Chunked send was attempted — do NOT retry from scratch.
-			t.logger.Warn("telegram: markdown chunked send failed, skipping plain-text fallback to avoid duplicates",
-				"error", err, "rawRunes", rawRunes)
+		// Only fall back to plain text if nothing was delivered yet.
+		// If any chunk was sent, retrying from scratch would duplicate content in the chat.
+		if sent {
+			t.logger.Warn("telegram: markdown chunked send failed after partial delivery, skipping plain-text fallback",
+				"error", err)
 			return err
 		}
-		// Single-message Markdown parse failure — safe to retry as plain text.
+		// No chunks were delivered — safe to retry as plain text.
 		t.logger.Warn("telegram: markdown send failed, retrying plain", "error", err)
 		plain := stripMarkdown(msg.Text)
 		if err2 := t.sendChunks(ctx, chatID, plain, "", replyMarkup); err2 != nil {

@@ -207,3 +207,36 @@ func TestNormalizePerChunkMarkdownV2(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitMessageDelimiterPreservation(t *testing.T) {
+	// When splitting at a newline or space boundary, the delimiter must be
+	// included in the current chunk so that reassembly preserves the original.
+	text := strings.Repeat("ab ", 50) // 150 chars with spaces between words
+	chunks := splitMessage(text, 80)
+	reassembled := strings.Join(chunks, "")
+	if reassembled != text {
+		t.Fatalf("reassembled text does not match original: got len=%d, want len=%d", len(reassembled), len(text))
+	}
+	for i, c := range chunks {
+		if len([]rune(c)) > 80 {
+			t.Fatalf("chunk %d: %d runes exceeds limit", i, len([]rune(c)))
+		}
+	}
+
+	// Newline boundaries.
+	lines := make([]string, 20)
+	for i := range lines {
+		lines[i] = strings.Repeat("x", 30)
+	}
+	text = strings.Join(lines, "\n")
+	chunks = splitMessage(text, 80)
+	reassembled = strings.Join(chunks, "")
+	if reassembled != text {
+		t.Fatalf("newline reassembly mismatch: got len=%d, want len=%d", len(reassembled), len(text))
+	}
+	for i, c := range chunks {
+		if len([]rune(c)) > 80 {
+			t.Fatalf("chunk %d: %d runes exceeds limit", i, len([]rune(c)))
+		}
+	}
+}

@@ -218,21 +218,27 @@ func (t *TelegramAdapter) sendChunkedMessages(ctx context.Context, chatID int64,
 
 		// For MarkdownV2, escape the chunk content independently.
 		text := chunk
+		effectiveParseMode := parseMode
 		if parseMode != "" {
 			text = Normalize(chunk, "telegram")
 		}
 		full := header + text
 
-		// Safety check: if escaped chunk still exceeds limit, truncate (rare edge case
-		// with extremely heavy escaping). Prefer partial delivery over failure.
+		// Safety check: if escaped chunk still exceeds limit, fall back to plain text
+		// instead of truncating mid-escape (which would produce invalid MarkdownV2).
 		if len([]rune(full)) > tgMaxMessageChars {
-			runes := []rune(full)
-			full = string(runes[:tgMaxMessageChars])
+			if parseMode != "" {
+				full = header + chunk
+				effectiveParseMode = ""
+			} else {
+				rs := []rune(full)
+				full = string(rs[:tgMaxMessageChars])
+			}
 		}
 
 		params := tu.Message(tu.ID(chatID), full)
-		if parseMode != "" {
-			params = params.WithParseMode(parseMode)
+		if effectiveParseMode != "" {
+			params = params.WithParseMode(effectiveParseMode)
 		}
 		// Only attach keyboard to the last chunk.
 		if i == len(chunks)-1 && replyMarkup != nil {

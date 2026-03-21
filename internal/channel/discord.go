@@ -287,18 +287,23 @@ func splitMessage(text string, maxLen int) []string {
 		}
 
 		// Find a good split point: prefer newline, then space, then hard split.
+		// When splitting at a delimiter, include it in the current chunk (cut = idx + 1)
+		// so that reassembly via strings.Join(chunks, "") preserves the original text.
 		cut := maxLen
 		if idx := runeLastIndex(runes[:maxLen], '\n'); idx > maxLen/2 {
-			cut = idx
+			cut = idx + 1
 		} else if idx := runeLastIndex(runes[:maxLen], ' '); idx > maxLen/2 {
-			cut = idx
+			cut = idx + 1
 		}
 		// else: hard split at maxLen
 
 		chunks = append(chunks, string(runes[:cut]))
 		runes = runes[cut:]
-		// Skip leading whitespace from next chunk for clean output.
-		runes = runesTrimLeft(runes, '\n', '\r', ' ')
+		// For hard splits only, trim leading whitespace from next chunk for clean output.
+		// (When split at a delimiter, cut already consumed it above.)
+		if cut == maxLen {
+			runes = runesTrimLeft(runes, '\n', '\r', ' ')
+		}
 	}
 	return chunks
 }

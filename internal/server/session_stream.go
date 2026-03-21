@@ -211,4 +211,3 @@ func (s *Server) RegisterSteeringChannel(sessionID string, ch chan agent.Steerin
 func (s *Server) UnregisterSteeringChannel(sessionID string) {
 	s.steeringChannels.Delete(sessionID)
 }
-

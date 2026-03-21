@@ -76,7 +76,7 @@
 			<!-- Inline steering input at bottom of stream -->
 			<div class="steer-bar">
 				{#if isActive}
-					<Button size="sm" variant="destructive" onclick={() => store.stop()} class="shrink-0">
+					<Button size="sm" variant="destructive" onclick={() => store.stop().catch(() => {})} class="shrink-0">
 						<Square size={14} />
 					</Button>
 					<input

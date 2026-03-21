@@ -154,13 +154,10 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 		}
 	}
 
-	text := Normalize(msg.Text, "telegram")
+	text := msg.Text
 	if text == "" {
 		return nil
 	}
-
-	params := tu.Message(tu.ID(chatID), text).
-		WithParseMode(telego.ModeMarkdownV2)
 
 	// Build inline keyboard if there are actions.
 	var replyMarkup *telego.InlineKeyboardMarkup
@@ -177,28 +174,62 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 			rows = append(rows, row)
 		}
 		replyMarkup = &telego.InlineKeyboardMarkup{InlineKeyboard: rows}
-		params = params.WithReplyMarkup(replyMarkup)
 	}
 
-	if _, err := t.bot.SendMessage(ctx, params); err != nil {
-		// Fallback: try without markdown if parse fails, keep buttons.
-		t.logger.Warn("telegram: markdown send failed, retrying plain", "error", err)
-		plain := tu.Message(tu.ID(chatID), stripMarkdown(msg.Text))
-		if replyMarkup != nil {
-			plain = plain.WithReplyMarkup(replyMarkup)
+	// Chunk the raw text so each piece fits within Telegram's limit
+	// after MarkdownV2 escaping (which can expand special chars).
+	chunks, parseMd := chunkTelegramMessage(text, telegramMaxMessageLen)
+
+	for i, chunk := range chunks {
+		params := tu.Message(tu.ID(chatID), chunk)
+		if parseMd[i] {
+			params = params.WithParseMode(telego.ModeMarkdownV2)
 		}
-		if _, err2 := t.bot.SendMessage(ctx, plain); err2 != nil {
-			t.logger.Error("telegram: send failed", "error", err2)
-			return err2
+
+		// Attach buttons only to the last chunk.
+		if replyMarkup != nil && i == len(chunks)-1 {
+			params = params.WithReplyMarkup(replyMarkup)
+		}
+
+		if _, err := t.bot.SendMessage(ctx, params); err != nil {
+			// Fallback: try without markdown if parse fails, keep buttons.
+			t.logger.Warn("telegram: markdown send failed, retrying plain", "error", err)
+			plain := tu.Message(tu.ID(chatID), stripMarkdown(chunk))
+			if replyMarkup != nil && i == len(chunks)-1 {
+				plain = plain.WithReplyMarkup(replyMarkup)
+			}
+			if _, err2 := t.bot.SendMessage(ctx, plain); err2 != nil {
+				t.logger.Error("telegram: send failed", "error", err2, "chunk", i+1, "total", len(chunks))
+				return err2
+			}
 		}
 	}
 	return nil
 }
 
 func (t *TelegramAdapter) sendText(ctx context.Context, chatID int64, text string) {
-	params := tu.Message(tu.ID(chatID), text)
-	if _, err := t.bot.SendMessage(ctx, params); err != nil {
-		t.logger.Error("telegram: send text failed", "error", err)
+	if len(text) <= telegramMaxMessageLen {
+		params := tu.Message(tu.ID(chatID), text)
+		if _, err := t.bot.SendMessage(ctx, params); err != nil {
+			t.logger.Error("telegram: send text failed", "error", err)
+		}
+		return
+	}
+	// Chunk plain text on newlines.
+	remaining := text
+	safeLen := telegramMaxMessageLen * 3 / 5
+	for len(remaining) > 0 {
+		cut := safeLen
+		if len(remaining) <= telegramMaxMessageLen {
+			cut = len(remaining)
+		} else if nl := strings.LastIndex(remaining[:safeLen], "\n"); nl > safeLen/2 {
+			cut = nl + 1
+		}
+		params := tu.Message(tu.ID(chatID), remaining[:cut])
+		if _, err := t.bot.SendMessage(ctx, params); err != nil {
+			t.logger.Error("telegram: send text failed", "error", err)
+		}
+		remaining = remaining[cut:]
 	}
 }
 
@@ -304,6 +335,71 @@ func (t *TelegramAdapter) downloadFile(ctx context.Context, fileID string) ([]by
 	return io.ReadAll(resp.Body)
 }
 
+const (
+	// telegramMaxMessageLen is the maximum message length for Telegram's sendMessage API.
+	// Telegram rejects messages exceeding this limit with a "message is too long" error.
+	telegramMaxMessageLen = 4096
+)
+
+// chunkMessage splits text into chunks that fit within Telegram's message size limit.
+// It splits on newline boundaries to avoid breaking mid-paragraph.
+// Each chunk is Normalized to Telegram MarkdownV2 before being returned,
+// so the caller can send chunks directly without further processing.
+// The markdown flag indicates whether each chunk should use markdown parse mode.
+func chunkTelegramMessage(text string, maxLen int) (chunks []string, parseMarkdown []bool) {
+	if len(text) == 0 {
+		return nil, nil
+	}
+
+	// Raw chunking with a conservative byte limit to leave room for escaping.
+	// MarkdownV2 escaping can add up to ~1 backslash per byte in worst case.
+	// We use ~60% of the limit as the raw chunk size, then check after escaping.
+	safeRawLen := maxLen * 3 / 5
+
+	var rawChunks []string
+	remaining := text
+
+	for len(remaining) > 0 {
+		if len(remaining) <= safeRawLen {
+			rawChunks = append(rawChunks, remaining)
+			break
+		}
+
+		// Find a newline break point within the limit.
+		cut := safeRawLen
+		if nl := strings.LastIndex(remaining[:safeRawLen], "\n"); nl > safeRawLen/2 {
+			cut = nl + 1 // include the newline
+		}
+
+		rawChunks = append(rawChunks, remaining[:cut])
+		remaining = remaining[cut:]
+	}
+
+	// Normalize each chunk and verify it fits. If a chunk still exceeds the limit
+	// after escaping (rare), split it further.
+	for _, raw := range rawChunks {
+		normalized := Normalize(raw, "telegram")
+		if len(normalized) <= maxLen {
+			chunks = append(chunks, normalized)
+			parseMarkdown = append(parseMarkdown, true)
+		} else {
+			// Fallback: strip markdown and send plain (guaranteed shorter or equal).
+			plain := stripMarkdown(raw)
+			if len(plain) <= maxLen {
+				chunks = append(chunks, plain)
+				parseMarkdown = append(parseMarkdown, false)
+			} else {
+				// Last resort: byte-truncate the plain text.
+				chunks = append(chunks, plain[:maxLen])
+				parseMarkdown = append(parseMarkdown, false)
+			}
+		}
+	}
+
+	return chunks, parseMarkdown
+}
+
+// truncate shortens a string to max bytes for logging.
 func truncate(s string, max int) string {
 	if len(s) <= max {
 		return s

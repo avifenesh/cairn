@@ -139,19 +139,21 @@ func (t *TelegramAdapter) Close() error {
 	return nil // long polling stops when context is cancelled
 }
 
-// Telegram's sendMessage limit is 4096 UTF-8 bytes.
+// Telegram's sendMessage limit is 4096 characters (runes).
 // MarkdownV2 escaping can inflate text significantly (special chars get backslash-prefixed),
 // so we use a conservative limit for MarkdownV2 and the full 4096 for plain text.
 const (
-	tgMaxMessageBytes   = 4096
+	tgMaxMessageChars   = 4096
 	tgMarkdownV2Limit   = 3500 // conservative limit for MarkdownV2 to account for escaping inflation
-	tgChunkHeaderMaxLen = 40   // "─── Part X/Y ───\n"
+	tgChunkHeaderMaxLen = 40   // "─── Part X/Y ───\n" (max chars for part header)
 )
 
 // sendChunks splits text into chunks respecting Telegram's message size limit
 // and sends them sequentially with a small delay between chunks.
+// When chunking is needed (multiple chunks), the chunk limit is reduced by
+// tgChunkHeaderMaxLen so that the per-part header fits within the total limit.
 func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, text string, parseMode string, replyMarkup *telego.InlineKeyboardMarkup) error {
-	limit := tgMaxMessageBytes
+	limit := tgMaxMessageChars
 	if parseMode != "" {
 		limit = tgMarkdownV2Limit
 	}
@@ -170,7 +172,10 @@ func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, text str
 		return err
 	}
 
-	// Multiple chunks: add part headers, attach keyboard to last chunk only.
+	// Multiple chunks: reduce limit to account for per-part headers, re-split.
+	chunkLimit := limit - tgChunkHeaderMaxLen
+	chunks = splitMessage(text, chunkLimit)
+
 	for i, chunk := range chunks {
 		header := fmt.Sprintf("─── Part %d/%d ───\n", i+1, len(chunks))
 		full := header + chunk
@@ -193,9 +198,11 @@ func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, text str
 
 		// Brief delay between chunks to avoid rate limiting.
 		if i < len(chunks)-1 {
+			timer := time.NewTimer(300 * time.Millisecond)
 			select {
-			case <-time.After(300 * time.Millisecond):
+			case <-timer.C:
 			case <-ctx.Done():
+				timer.Stop()
 				return ctx.Err()
 			}
 		}

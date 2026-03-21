@@ -34,14 +34,14 @@ func TestSplitMessageOverLimit(t *testing.T) {
 		t.Fatalf("expected 2 chunks, got %d", len(chunks))
 	}
 	for i, c := range chunks {
-		if len(c) > 100 {
-			t.Fatalf("chunk %d: %d chars exceeds limit", i, len(c))
+		if len([]rune(c)) > 100 {
+			t.Fatalf("chunk %d: %d runes exceeds limit", i, len([]rune(c)))
 		}
 	}
-	// Verify data is preserved (chunks may have leading whitespace trimmed).
-	reassembled := strings.Join(chunks, " ")
-	if len(reassembled) < len(text) {
-		t.Fatalf("reassembled length %d < original length %d", len(reassembled), len(text))
+	// Exact preservation: no data loss from splitting.
+	reassembled := strings.Join(chunks, "")
+	if reassembled != text {
+		t.Fatalf("reassembled text does not match original: got len=%d, want len=%d", len(reassembled), len(text))
 	}
 }
 
@@ -68,14 +68,14 @@ func TestSplitMessageNoGoodBreakpoint(t *testing.T) {
 	text := strings.Repeat("abcdefgh", 500) // 4000 chars, no whitespace
 	chunks := splitMessage(text, 1000)
 	for i, c := range chunks {
-		if len(c) > 1000 {
-			t.Fatalf("chunk %d: %d chars exceeds limit", i, len(c))
+		if len([]rune(c)) > 1000 {
+			t.Fatalf("chunk %d: %d runes exceeds limit", i, len([]rune(c)))
 		}
 	}
-	// Verify data is preserved.
-	reassembled := strings.Join(chunks, " ")
-	if len(reassembled) < len(text) {
-		t.Fatalf("reassembled length %d < original length %d", len(reassembled), len(text))
+	// Exact preservation: no data loss from splitting.
+	reassembled := strings.Join(chunks, "")
+	if reassembled != text {
+		t.Fatalf("reassembled text does not match original: got len=%d, want len=%d", len(reassembled), len(text))
 	}
 }
 
@@ -95,8 +95,59 @@ func TestSplitMessageThreeChunks(t *testing.T) {
 		t.Fatalf("expected 3+ chunks, got %d", len(chunks))
 	}
 	for i, c := range chunks {
-		if len(c) > limit {
-			t.Fatalf("chunk %d: %d chars exceeds limit %d", i, len(c), limit)
+		if len([]rune(c)) > limit {
+			t.Fatalf("chunk %d: %d runes exceeds limit %d", i, len([]rune(c)), limit)
+		}
+	}
+}
+
+func TestSplitMessageMultibyteUnicode(t *testing.T) {
+	// Multi-byte runes (emoji, CJK) near chunk boundary.
+	// Each 🧪 is 4 bytes but 1 rune. If splitting is byte-based, it could split mid-rune.
+	text := strings.Repeat("🧪", 250) // 250 runes, 1000 bytes
+	chunks := splitMessage(text, 100)
+	if len(chunks) != 3 { // 100, 100, 50
+		t.Fatalf("expected 3 chunks, got %d", len(chunks))
+	}
+	for i, c := range chunks {
+		runes := []rune(c)
+		if len(runes) > 100 {
+			t.Fatalf("chunk %d: %d runes exceeds limit", i, len(runes))
+		}
+		// Verify no corrupted runes — all runes should be valid emoji.
+		for _, r := range runes {
+			if r != '🧪' {
+				t.Fatalf("chunk %d: corrupted rune %U", i, r)
+			}
+		}
+	}
+	// Exact preservation.
+	reassembled := strings.Join(chunks, "")
+	if reassembled != text {
+		t.Fatalf("reassembled text does not match original")
+	}
+}
+
+func TestSplitMessageCJKNearBoundary(t *testing.T) {
+	// CJK characters are 3 bytes each. Test splitting near boundary.
+	text := strings.Repeat("漢", 150) // 150 runes, 450 bytes
+	chunks := splitMessage(text, 100)
+	if len(chunks) != 2 {
+		t.Fatalf("expected 2 chunks, got %d", len(chunks))
+	}
+	reassembled := strings.Join(chunks, "")
+	if reassembled != text {
+		t.Fatalf("reassembled text does not match original")
+	}
+	for i, c := range chunks {
+		runes := []rune(c)
+		if len(runes) > 100 {
+			t.Fatalf("chunk %d: %d runes exceeds limit", i, len(runes))
+		}
+		for _, r := range runes {
+			if r != '漢' {
+				t.Fatalf("chunk %d: corrupted rune %U", i, r)
+			}
 		}
 	}
 }

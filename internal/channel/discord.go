@@ -270,33 +270,59 @@ func buildDiscordComponents(actions []ActionGroup) []discordgo.MessageComponent 
 	return components
 }
 
-// splitMessage splits text into chunks of at most maxLen characters,
-// preferring to split on newline boundaries.
+// splitMessage splits text into chunks of at most maxLen runes,
+// preferring to break on newline or space boundaries.
+// Leading whitespace on subsequent chunks is trimmed for clean output.
 func splitMessage(text string, maxLen int) []string {
-	if len(text) <= maxLen {
+	runes := []rune(text)
+	if len(runes) <= maxLen {
 		return []string{text}
 	}
 
 	var chunks []string
-	for len(text) > 0 {
-		if len(text) <= maxLen {
-			chunks = append(chunks, text)
+	for len(runes) > 0 {
+		if len(runes) <= maxLen {
+			chunks = append(chunks, string(runes))
 			break
 		}
 
 		// Find a good split point: prefer newline, then space, then hard split.
 		cut := maxLen
-		if idx := strings.LastIndex(text[:maxLen], "\n"); idx > maxLen/2 {
+		if idx := runeLastIndex(runes[:maxLen], '\n'); idx > maxLen/2 {
 			cut = idx
-		} else if idx := strings.LastIndex(text[:maxLen], " "); idx > maxLen/2 {
+		} else if idx := runeLastIndex(runes[:maxLen], ' '); idx > maxLen/2 {
 			cut = idx
 		}
 		// else: hard split at maxLen
 
-		chunks = append(chunks, text[:cut])
-		text = text[cut:]
-		// Skip leading whitespace from next chunk.
-		text = strings.TrimLeft(text, "\n\r ")
+		chunks = append(chunks, string(runes[:cut]))
+		runes = runes[cut:]
+		// Skip leading whitespace from next chunk for clean output.
+		runes = runesTrimLeft(runes, '\n', '\r', ' ')
 	}
 	return chunks
+}
+
+// runeLastIndex returns the last index of r in runes, or -1.
+func runeLastIndex(runes []rune, r rune) int {
+	for i := len(runes) - 1; i >= 0; i-- {
+		if runes[i] == r {
+			return i
+		}
+	}
+	return -1
+}
+
+// runesTrimLeft removes leading occurrences of cutset runes.
+func runesTrimLeft(runes []rune, cutset ...rune) []rune {
+	cut := make(map[rune]bool, len(cutset))
+	for _, r := range cutset {
+		cut[r] = true
+	}
+	for i, r := range runes {
+		if !cut[r] {
+			return runes[i:]
+		}
+	}
+	return runes[:0]
 }

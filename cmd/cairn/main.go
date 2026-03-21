@@ -452,8 +452,11 @@ func runServe(logger *slog.Logger) {
 	if cfg.IdleModeEnabled && reactAgent != nil && provider != nil {
 		journaler := agent.NewJournaler(journalStore, provider, cfg.LLMModel)
 
+		// Use process cwd as repo dir for reflection git context.
+		reflectRepoDir, _ := os.Getwd()
 		reflector := agent.NewReflectionEngine(journalStore, memService, soul, provider, cfg.LLMModel, agent.ReflectionConfig{
 			Interval: time.Duration(cfg.ReflectionInterval) * time.Second,
+			RepoDir:  reflectRepoDir,
 		})
 
 		// Recover agent state from previous run.

@@ -251,13 +251,43 @@ func (r *ReflectionEngine) gatherRecentChanges() string {
 	}
 
 	// Recently merged PRs on main (last 48h) — key ground truth.
+	// Include both merge commits and PR-style non-merge commits (e.g., squash/rebase merges).
+	var prSubjects []string
+
+	// 1) Traditional merge commits, which typically represent merged PRs.
 	cmd = exec.CommandContext(ctx, "git", "log", "main", "--merges", "--since=48 hours ago", "-20",
 		"--format=%s") // subject line only (includes PR title)
 	cmd.Dir = r.repoDir
 	if out, err := cmd.Output(); err == nil && len(out) > 0 {
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" {
+				prSubjects = append(prSubjects, line)
+			}
+		}
+	}
+
+	// 2) Squash/rebase merges on main: non-merge commits whose subject looks like a PR title.
+	cmd = exec.CommandContext(ctx, "git", "log", "main", "--no-merges", "--since=48 hours ago", "-100",
+		"--format=%s") // subject line only
+	cmd.Dir = r.repoDir
+	if out, err := cmd.Output(); err == nil && len(out) > 0 {
+		for _, line := range strings.Split(string(out), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" {
+				continue
+			}
+			// Heuristics for PR-style commits, e.g. "Add feature X (#123)" or "Merge pull request #123".
+			if strings.Contains(trimmed, "(#") || strings.Contains(trimmed, "pull request") {
+				prSubjects = append(prSubjects, trimmed)
+			}
+		}
+	}
+
+	if len(prSubjects) > 0 {
 		b.WriteString("Recently merged PRs:\n")
-		b.Write(out)
-		b.WriteString("\n")
+		b.WriteString(strings.Join(prSubjects, "\n"))
+		b.WriteString("\n\n")
 	}
 
 	return b.String()

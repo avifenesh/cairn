@@ -110,16 +110,7 @@ func TestEditFile_WarnUnread(t *testing.T) {
 	ctx, dir := fileTestCtx(t)
 	writeTestFile(t, dir, "code.go", "func main() {\n\tfmt.Println(\"hello\")\n}")
 
-	// Edit records the file as read internally, so the warning check happens
-	// against session state. Since editFile records the file, subsequent edits
-	// won't warn. First edit to an unread file is the scenario we test via
-	// the checkReadBeforeWrite path.
-	// Note: editFile calls recordRead, so it won't trigger the warning itself.
-	// The read-before-write check in editFile fires before recordRead.
-	// Actually, looking at the code: editFile calls recordRead THEN checks wasRead.
-	// Since recordRead is called first, wasRead will always be true in editFile.
-	// The warning for editFile would only apply if we check before recording.
-	// Let's verify the actual behavior:
+	// Edit an existing file without reading it first — should warn.
 	result := execTool(t, editFile, ctx, editFileParams{
 		Path: "code.go",
 		Old:  "hello",
@@ -128,8 +119,22 @@ func TestEditFile_WarnUnread(t *testing.T) {
 	if result.Error != "" {
 		t.Fatalf("unexpected error: %s", result.Error)
 	}
-	// editFile records read internally, so no warning expected.
-	// The read-before-write protection is most relevant for writeFile.
+	if !strings.Contains(result.Output, "[WARNING]") {
+		t.Error("expected warning about unread file on first edit")
+	}
+
+	// Second edit — file was marked as read by first edit, no warning.
+	result = execTool(t, editFile, ctx, editFileParams{
+		Path: "code.go",
+		Old:  "world",
+		New:  "universe",
+	})
+	if result.Error != "" {
+		t.Fatalf("unexpected error: %s", result.Error)
+	}
+	if strings.Contains(result.Output, "[WARNING]") {
+		t.Error("unexpected warning on second edit (file already read)")
+	}
 }
 
 // --- Feature 2: Ambiguous Match Detection ---
@@ -358,6 +363,39 @@ func TestUndoEdit_MultipleEdits(t *testing.T) {
 	}
 }
 
+func TestUndoEdit_NewFileCreation(t *testing.T) {
+	ctx, dir := fileTestCtx(t)
+
+	// Write a brand new file (no prior read needed).
+	result := execTool(t, writeFile, ctx, writeFileParams{
+		Path:    "brand_new.txt",
+		Content: "created",
+	})
+	if result.Error != "" {
+		t.Fatalf("write failed: %s", result.Error)
+	}
+
+	// File should exist.
+	absPath := filepath.Join(dir, "brand_new.txt")
+	if _, err := os.Stat(absPath); err != nil {
+		t.Fatal("file should exist after write")
+	}
+
+	// Undo — should delete the file (it didn't exist before).
+	result = execTool(t, undoEdit, ctx, undoEditParams{Path: "brand_new.txt"})
+	if result.Error != "" {
+		t.Fatalf("undo failed: %s", result.Error)
+	}
+	if !strings.Contains(result.Output, "Removed") {
+		t.Errorf("expected 'Removed' in output, got: %s", result.Output)
+	}
+
+	// File should be gone.
+	if _, err := os.Stat(absPath); err == nil {
+		t.Fatal("file should not exist after undo of creation")
+	}
+}
+
 func TestUndoEdit_RingBuffer(t *testing.T) {
 	ctx, dir := fileTestCtx(t)
 	writeTestFile(t, dir, "file.txt", "v0")
@@ -511,8 +549,8 @@ func TestReadFile_Offset(t *testing.T) {
 	ctx, dir := fileTestCtx(t)
 	writeTestFile(t, dir, "lines.txt", "line1\nline2\nline3\nline4\nline5\n")
 
-	five := 3
-	result := execTool(t, readFile, ctx, readFileParams{Path: "lines.txt", Offset: &five})
+	offset := 3
+	result := execTool(t, readFile, ctx, readFileParams{Path: "lines.txt", Offset: &offset})
 	if result.Error != "" {
 		t.Fatalf("unexpected error: %s", result.Error)
 	}

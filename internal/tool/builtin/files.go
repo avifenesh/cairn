@@ -36,6 +36,11 @@ type fileSessionState struct {
 var sessions sync.Map
 
 func getOrCreateSessionState(sessionID string) *fileSessionState {
+	if sessionID == "" {
+		// MCP and other contexts may not have a session ID.
+		// Use a per-goroutine fallback to avoid shared state.
+		sessionID = "_anonymous"
+	}
 	if v, ok := sessions.Load(sessionID); ok {
 		return v.(*fileSessionState)
 	}
@@ -67,17 +72,18 @@ func (st *fileSessionState) wasRead(absPath string) bool {
 
 func (st *fileSessionState) snapshot(absPath, operation string) {
 	data, err := os.ReadFile(absPath)
-	if err != nil {
-		return // file doesn't exist yet — no snapshot needed
-	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	cps := st.checkpoints[absPath]
-	cps = append(cps, fileCheckpoint{
-		Content:   data,
+	cp := fileCheckpoint{
 		Timestamp: time.Now(),
 		Operation: operation,
-	})
+	}
+	if err == nil {
+		cp.Content = data
+	}
+	// err != nil means file didn't exist — Content stays nil (sentinel for "delete to undo").
+	cps := st.checkpoints[absPath]
+	cps = append(cps, cp)
 	if len(cps) > maxCheckpointsPerFile {
 		cps = cps[len(cps)-maxCheckpointsPerFile:]
 	}
@@ -331,14 +337,21 @@ var readFile = tool.Define("cairn.readFile",
 
 		output := strings.Join(lines[startLine:endLine], "\n")
 
+		// Clamp metadata so fromLine <= toLine always.
+		fromLine := startLine + 1
+		toLine := endLine
+		if fromLine > toLine {
+			fromLine = toLine
+		}
+
 		return &tool.ToolResult{
 			Output: output,
 			Metadata: map[string]any{
 				"path":       absPath,
 				"size":       len(data),
 				"totalLines": totalLines,
-				"fromLine":   startLine + 1,
-				"toLine":     endLine,
+				"fromLine":   fromLine,
+				"toLine":     toLine,
 			},
 		}, nil
 	},
@@ -442,15 +455,14 @@ var editFile = tool.Define("cairn.editFile",
 
 		content := string(data)
 
-		// Editing implies reading — track for read-before-write.
+		// Check read-before-write BEFORE recording this as a read.
 		st := getOrCreateSessionState(ctx.SessionID)
-		st.recordRead(absPath)
-
-		// Read-before-write warning for edit (file was loaded but not via readFile).
 		var warning string
 		if !st.wasRead(absPath) {
 			warning += checkReadBeforeWrite(ctx, absPath)
 		}
+		// Mark as read after the check — editing loads the file content.
+		st.recordRead(absPath)
 
 		if !strings.Contains(content, p.Old) {
 			// Try fuzzy match (whitespace-normalized).
@@ -522,19 +534,45 @@ var editFile = tool.Define("cairn.editFile",
 	},
 )
 
-// findMatchLocations returns line-number descriptions for each occurrence.
+// findMatchLocations returns line-number descriptions for each occurrence of old in content.
 func findMatchLocations(content, old string) []string {
+	if old == "" {
+		return nil
+	}
 	lines := strings.Split(content, "\n")
-	firstSearchLine := strings.SplitN(old, "\n", 2)[0]
+	// Build line start offsets for byte-offset to line-number mapping.
+	lineStarts := make([]int, len(lines))
+	offset := 0
+	for i, line := range lines {
+		lineStarts[i] = offset
+		offset += len(line) + 1
+	}
 
 	var locations []string
-	for i, line := range lines {
-		if strings.Contains(line, firstSearchLine) {
-			preview := strings.TrimSpace(line)
+	searchFrom := 0
+	for {
+		idx := strings.Index(content[searchFrom:], old)
+		if idx == -1 {
+			break
+		}
+		matchPos := searchFrom + idx
+		lineNum := 0
+		for i := len(lineStarts) - 1; i >= 0; i-- {
+			if matchPos >= lineStarts[i] {
+				lineNum = i + 1
+				break
+			}
+		}
+		if lineNum > 0 && lineNum <= len(lines) {
+			preview := strings.TrimSpace(lines[lineNum-1])
 			if len(preview) > 80 {
 				preview = preview[:80] + "..."
 			}
-			locations = append(locations, fmt.Sprintf("  line %d: %s", i+1, preview))
+			locations = append(locations, fmt.Sprintf("  line %d: %s", lineNum, preview))
+		}
+		searchFrom = matchPos + len(old)
+		if searchFrom >= len(content) {
+			break
 		}
 	}
 	return locations
@@ -599,6 +637,20 @@ var undoEdit = tool.Define("cairn.undoEdit",
 		cp, ok := st.popCheckpoint(absPath)
 		if !ok {
 			return &tool.ToolResult{Error: "no checkpoints available for this file in this session"}, nil
+		}
+
+		if cp.Content == nil {
+			// Sentinel: file didn't exist before — undo means delete.
+			os.Remove(absPath) // best-effort; ignore errors if already gone
+			publishFileChange(ctx, absPath, "undo")
+			return &tool.ToolResult{
+				Output: fmt.Sprintf("Removed %s (file did not exist before %s)", absPath, cp.Operation),
+				Metadata: map[string]any{
+					"path":           absPath,
+					"restoredBytes":  0,
+					"remainingUndos": st.checkpointCount(absPath),
+				},
+			}, nil
 		}
 
 		dir := filepath.Dir(absPath)

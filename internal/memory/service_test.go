@@ -360,3 +360,77 @@ func (e *testEmbedder) Embed(_ context.Context, texts []string) ([][]float32, er
 }
 
 func (e *testEmbedder) Dimensions() int { return e.dims }
+
+func TestService_SemanticDedup(t *testing.T) {
+	d := openTestDB(t)
+	store := NewStore(d)
+	mock := &testEmbedder{dims: 3, vec: []float32{0.1, 0.2, 0.3}}
+	svc := NewService(store, mock, nil)
+	ctx := context.Background()
+
+	// Create 3 accepted memories: 2 near-duplicates (same embedding) + 1 different.
+	m1 := &Memory{Content: "Go uses goroutines for concurrency", Category: CatFact, Scope: ScopeGlobal}
+	m2 := &Memory{Content: "Go concurrency is based on goroutines", Category: CatFact, Scope: ScopeGlobal}
+	m3 := &Memory{Content: "Svelte uses runes for reactivity", Category: CatFact, Scope: ScopeGlobal}
+
+	for _, m := range []*Memory{m1, m2, m3} {
+		if err := svc.Create(ctx, m); err != nil {
+			t.Fatal(err)
+		}
+		if err := svc.Accept(ctx, m.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Set embeddings: m1 and m2 nearly identical, m3 different.
+	store.UpdateEmbedding(ctx, m1.ID, []float32{0.9, 0.1, 0.0})
+	store.UpdateEmbedding(ctx, m2.ID, []float32{0.89, 0.12, 0.01}) // cosine ~0.998
+	store.UpdateEmbedding(ctx, m3.ID, []float32{0.0, 0.1, 0.9})    // very different
+
+	removed, err := svc.SemanticDedup(ctx, 0.92)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if removed != 1 {
+		t.Errorf("removed = %d, want 1", removed)
+	}
+
+	// Should have 2 memories left.
+	remaining, _ := svc.List(ctx, ListOpts{Status: StatusAccepted})
+	if len(remaining) != 2 {
+		t.Errorf("remaining = %d, want 2", len(remaining))
+	}
+}
+
+func TestService_SemanticDedup_RespectsScope(t *testing.T) {
+	d := openTestDB(t)
+	store := NewStore(d)
+	mock := &testEmbedder{dims: 3, vec: []float32{0.5, 0.5, 0.0}}
+	svc := NewService(store, mock, nil)
+	ctx := context.Background()
+
+	// Same content/embedding but different scopes — should NOT dedup.
+	m1 := &Memory{Content: "always use feature branches", Category: CatHardRule, Scope: ScopeProject}
+	m2 := &Memory{Content: "always use feature branches", Category: CatHardRule, Scope: ScopeGlobal}
+
+	for _, m := range []*Memory{m1, m2} {
+		if err := svc.Create(ctx, m); err != nil {
+			t.Fatal(err)
+		}
+		if err := svc.Accept(ctx, m.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Same embedding for both.
+	store.UpdateEmbedding(ctx, m1.ID, []float32{0.9, 0.1, 0.0})
+	store.UpdateEmbedding(ctx, m2.ID, []float32{0.9, 0.1, 0.0})
+
+	removed, err := svc.SemanticDedup(ctx, 0.92)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if removed != 0 {
+		t.Errorf("removed = %d, want 0 (different scopes)", removed)
+	}
+}

@@ -5,16 +5,21 @@
 	import SessionHeader from '$lib/components/session/SessionHeader.svelte';
 	import ActivityStream from '$lib/components/session/ActivityStream.svelte';
 	import DiffViewer from '$lib/components/session/DiffViewer.svelte';
-	import SteeringSidebar from '$lib/components/session/SteeringSidebar.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { List, FileText, MessageSquare } from '@lucide/svelte';
+	import { Send, Square, FileText, PanelRightClose, PanelRight } from '@lucide/svelte';
 
 	const sessionId = $page.params.id ?? '';
 	const store = new SessionStore(sessionId);
 
-	// Mobile tab state.
-	let activeTab = $state<'activity' | 'diffs' | 'steer'>('activity');
+	let steerInput = $state('');
+	let sending = $state(false);
 	let selectedFile = $state<string | null>(null);
+	let showDiffs = $state(false);
+
+	const isActive = $derived(
+		store.status === 'running' || store.status === 'paused' || store.status === 'waiting_approval'
+	);
+	const hasFiles = $derived(store.fileChanges.length > 0);
 
 	onMount(() => {
 		store.connect();
@@ -23,6 +28,26 @@
 	onDestroy(() => {
 		store.disconnect();
 	});
+
+	async function sendSteer() {
+		if (!steerInput.trim() || sending) return;
+		sending = true;
+		try {
+			await store.steer(steerInput.trim());
+			steerInput = '';
+		} catch (e) {
+			console.error('Steering failed:', e);
+		} finally {
+			sending = false;
+		}
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			sendSteer();
+		}
+	}
 </script>
 
 <svelte:head>
@@ -39,66 +64,60 @@
 		totalTokensOut={store.totalTokensOut}
 	/>
 
-	<!-- Mobile tab bar -->
-	<div class="tab-bar md:hidden">
-		<Button
-			variant={activeTab === 'activity' ? 'default' : 'ghost'}
-			size="sm"
-			onclick={() => (activeTab = 'activity')}
-		>
-			<List size={14} />
-			<span class="ml-1">Activity</span>
-		</Button>
-		<Button
-			variant={activeTab === 'diffs' ? 'default' : 'ghost'}
-			size="sm"
-			onclick={() => (activeTab = 'diffs')}
-		>
-			<FileText size={14} />
-			<span class="ml-1">Diffs</span>
-			{#if store.fileChanges.length > 0}
-				<span class="tab-badge">{store.fileChanges.length}</span>
-			{/if}
-		</Button>
-		<Button
-			variant={activeTab === 'steer' ? 'default' : 'ghost'}
-			size="sm"
-			onclick={() => (activeTab = 'steer')}
-		>
-			<MessageSquare size={14} />
-			<span class="ml-1">Steer</span>
-			{#if store.pendingApprovals.length > 0}
-				<span class="tab-badge tab-badge--warn">{store.pendingApprovals.length}</span>
-			{/if}
-		</Button>
-	</div>
-
-	<!-- Panels -->
-	<div class="panels">
-		<!-- Activity Stream (always visible on desktop, tab on mobile) -->
-		<div class="panel panel-activity" class:hidden-mobile={activeTab !== 'activity'}>
+	<div class="main-area">
+		<!-- Activity stream with inline steering -->
+		<div class="stream-panel">
 			<ActivityStream
 				events={store.events}
 				streamingText={store.streamingText}
 				thinkingText={store.thinkingText}
 			/>
+
+			<!-- Inline steering input at bottom of stream -->
+			<div class="steer-bar">
+				{#if isActive}
+					<Button size="sm" variant="destructive" onclick={() => store.stop()} class="shrink-0">
+						<Square size={14} />
+					</Button>
+					<input
+						type="text"
+						bind:value={steerInput}
+						onkeydown={handleKeydown}
+						placeholder="Steer the agent..."
+						class="steer-input"
+						disabled={sending}
+					/>
+					<Button size="sm" variant="default" onclick={sendSteer} disabled={!steerInput.trim() || sending} class="shrink-0">
+						<Send size={14} />
+					</Button>
+				{:else}
+					<span class="session-ended-label">Session {store.status}</span>
+				{/if}
+				{#if hasFiles}
+					<Button
+						size="sm"
+						variant={showDiffs ? 'secondary' : 'ghost'}
+						onclick={() => (showDiffs = !showDiffs)}
+						class="shrink-0 ml-1"
+						title="Toggle diff panel"
+					>
+						{#if showDiffs}<PanelRightClose size={14} />{:else}<PanelRight size={14} />{/if}
+						<span class="ml-1 text-xs">{store.fileChanges.length}</span>
+					</Button>
+				{/if}
+			</div>
 		</div>
 
-		<!-- Diff Viewer (always visible on desktop, tab on mobile) -->
-		<div class="panel panel-diff" class:hidden-mobile={activeTab !== 'diffs'}>
-			<DiffViewer files={store.fileChanges} bind:selectedFile />
-		</div>
-
-		<!-- Steering Sidebar (always visible on desktop, tab on mobile) -->
-		<div class="panel panel-steer" class:hidden-mobile={activeTab !== 'steer'}>
-			<SteeringSidebar {store} status={store.status} />
-		</div>
+		<!-- Diff panel (toggleable, only shown when there are file changes) -->
+		{#if showDiffs && hasFiles}
+			<div class="diff-panel">
+				<DiffViewer files={store.fileChanges} bind:selectedFile />
+			</div>
+		{/if}
 	</div>
 
 	{#if store.error}
-		<div class="error-banner">
-			{store.error}
-		</div>
+		<div class="error-banner">{store.error}</div>
 	{/if}
 </div>
 
@@ -110,55 +129,57 @@
 		overflow: hidden;
 	}
 
-	.tab-bar {
-		display: flex;
-		gap: 0.25rem;
-		padding: 0.375rem 0.5rem;
-		border-bottom: 1px solid hsl(var(--border));
-		overflow-x: auto;
-	}
-
-	.tab-badge {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-width: 1.125rem;
-		height: 1.125rem;
-		border-radius: 9999px;
-		background: hsl(var(--muted));
-		font-size: 0.625rem;
-		font-weight: 600;
-		margin-left: 0.25rem;
-	}
-	.tab-badge--warn {
-		background: #f59e0b;
-		color: black;
-	}
-
-	.panels {
+	.main-area {
 		flex: 1;
 		display: flex;
 		overflow: hidden;
 	}
 
-	.panel {
+	.stream-panel {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
-		position: relative;
+		min-width: 0;
 	}
 
-	.panel-activity {
-		flex: 2;
-		border-right: 1px solid hsl(var(--border));
+	.diff-panel {
+		width: 40%;
+		min-width: 300px;
+		max-width: 600px;
+		border-left: 1px solid hsl(var(--border));
+		overflow: hidden;
 	}
-	.panel-diff {
-		flex: 2;
-		border-right: 1px solid hsl(var(--border));
+
+	.steer-bar {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.5rem 0.75rem;
+		border-top: 1px solid hsl(var(--border));
+		background: hsl(var(--background));
 	}
-	.panel-steer {
+
+	.steer-input {
 		flex: 1;
-		min-width: 240px;
+		padding: 0.375rem 0.625rem;
+		border-radius: 0.375rem;
+		border: 1px solid hsl(var(--border));
+		background: hsl(var(--background));
+		color: inherit;
+		font-size: 0.8125rem;
+		min-width: 0;
+	}
+	.steer-input:focus {
+		outline: none;
+		border-color: var(--cairn-accent, #60a5fa);
+	}
+
+	.session-ended-label {
+		flex: 1;
+		font-size: 0.8125rem;
+		color: var(--text-tertiary, hsl(var(--muted-foreground)));
+		text-align: center;
 	}
 
 	.error-banner {
@@ -169,25 +190,17 @@
 		text-align: center;
 	}
 
-	/* Mobile: hide non-active panels */
 	@media (max-width: 768px) {
-		.hidden-mobile {
-			display: none !important;
-		}
-		.panel {
-			flex: 1;
-		}
-		.panel-activity,
-		.panel-diff,
-		.panel-steer {
-			border-right: none;
-		}
-	}
-
-	/* Desktop: always show all panels, hide tab bar */
-	@media (min-width: 769px) {
-		.tab-bar {
-			display: none;
+		.diff-panel {
+			position: absolute;
+			right: 0;
+			top: 0;
+			bottom: 0;
+			width: 85%;
+			max-width: none;
+			z-index: 20;
+			background: hsl(var(--background));
+			box-shadow: -4px 0 16px rgba(0, 0, 0, 0.2);
 		}
 	}
 </style>

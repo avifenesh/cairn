@@ -20,7 +20,9 @@ function getStreamUrl(path: string): string {
 // Session store state — created per session panel instance.
 export class SessionStore {
 	events = $state<SessionEvent[]>([]);
-	status = $state<SessionStatus>('running');
+	// Default to 'completed' — only set to 'running' when we receive a state_change event.
+	// Pre-existing sessions that never had session events shouldn't show as active.
+	status = $state<SessionStatus>('completed');
 	currentRound = $state(0);
 	totalToolCalls = $state(0);
 	totalTokensIn = $state(0);

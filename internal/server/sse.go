@@ -135,6 +135,11 @@ func (b *SSEBroadcaster) Start() {
 				"content":  e.Content,
 			})
 		}),
+		eventbus.Subscribe(b.bus, func(e eventbus.SoulPatchProposed) {
+			b.broadcast("soul_patch_proposed", e.ID, map[string]any{
+				"patchId": e.PatchID,
+			})
+		}),
 		eventbus.Subscribe(b.bus, func(e agent.AgentHeartbeat) {
 			b.broadcast("agent_heartbeat", e.ID, map[string]any{
 				"tickNumber": e.TickNumber,

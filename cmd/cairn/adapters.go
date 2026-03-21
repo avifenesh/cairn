@@ -693,14 +693,19 @@ func handleMemoriesCommand(ctx context.Context, args string, svc *memory.Service
 		return &cairnchannel.OutgoingMessage{Text: "Memory compaction complete."}, nil
 
 	case "dedup":
-		count, err := deduplicateMemories(ctx, svc)
+		exact, err := deduplicateMemories(ctx, svc)
 		if err != nil {
 			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Dedup error: %s", err)}, nil
 		}
-		if count == 0 {
+		semantic, sErr := svc.SemanticDedup(ctx, 0.92)
+		if sErr != nil {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Exact: %d removed. Semantic dedup error: %s", exact, sErr)}, nil
+		}
+		total := exact + semantic
+		if total == 0 {
 			return &cairnchannel.OutgoingMessage{Text: "No duplicates found."}, nil
 		}
-		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Removed %d duplicate memories.", count)}, nil
+		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Removed %d duplicates (%d exact, %d semantic).", total, exact, semantic)}, nil
 
 	default:
 		return &cairnchannel.OutgoingMessage{Text: "Usage:\n`/memories` — list accepted\n`/memories proposed` — list proposed\n`/memories search <query>`\n`/memories accept <id>`\n`/memories reject <id>`\n`/memories delete <id>`\n`/memories compact`\n`/memories dedup`"}, nil

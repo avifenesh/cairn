@@ -218,3 +218,60 @@ func (s *Service) Compact(ctx context.Context) error {
 	}
 	return nil
 }
+
+// SemanticDedup finds near-duplicate accepted memories using embedding cosine
+// similarity and removes the lower-confidence (or newer) duplicate.
+// Returns the number of duplicates removed.
+func (s *Service) SemanticDedup(ctx context.Context, threshold float64) (int, error) {
+	if threshold <= 0 || threshold > 1 {
+		threshold = 0.92
+	}
+
+	mems, err := s.store.AllAcceptedWithEmbeddings(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if len(mems) < 2 {
+		return 0, nil
+	}
+
+	// Mark which memories to delete (keep the better one from each pair).
+	toDelete := make(map[string]bool)
+	removed := 0
+
+	for i := 0; i < len(mems); i++ {
+		if toDelete[mems[i].ID] {
+			continue
+		}
+		for j := i + 1; j < len(mems); j++ {
+			if toDelete[mems[j].ID] {
+				continue
+			}
+			// Only compare within the same category.
+			if mems[i].Category != mems[j].Category {
+				continue
+			}
+			sim := cosineSimilarity(mems[i].Embedding, mems[j].Embedding)
+			if sim >= threshold {
+				// Keep the one with higher confidence, or older if tied.
+				victim := mems[j]
+				if mems[j].Confidence > mems[i].Confidence ||
+					(mems[j].Confidence == mems[i].Confidence && mems[j].CreatedAt.Before(mems[i].CreatedAt)) {
+					victim = mems[i]
+				}
+				toDelete[victim.ID] = true
+			}
+		}
+	}
+
+	for id := range toDelete {
+		if err := s.store.Delete(ctx, id); err == nil {
+			removed++
+		}
+	}
+
+	if removed > 0 {
+		slog.Info("semantic dedup complete", "removed", removed, "threshold", threshold, "scanned", len(mems))
+	}
+	return removed, nil
+}

@@ -1,0 +1,685 @@
+{
+  "topic": "File Write/Edit Tools in AI Coding Assistants",
+  "slug": "ai-file-edit-tools",
+  "generated": "2026-03-21T00:00:00Z",
+  "depth": "deep",
+  "totalSources": 42,
+  "selfEvaluation": {
+    "coverage": 9,
+    "diversity": 8,
+    "examples": 8,
+    "accuracy": 9,
+    "gaps": [
+      "Windsurf internal edit mechanism is proprietary/undocumented",
+      "Google Jules internal architecture not publicly available",
+      "OpenCode archived before tools were fully documented",
+      "Amazon Q Developer agentic editing details sparse",
+      "No direct performance benchmarks comparing all tools against each other"
+    ]
+  },
+  "sources": [
+    {
+      "url": "https://code.claude.com/docs/en/tools-reference.md",
+      "title": "Claude Code Tools Reference",
+      "qualityScore": 95,
+      "authority": 10,
+      "recency": 10,
+      "depth": 9,
+      "examples": 8,
+      "uniqueness": 9,
+      "keyInsights": [
+        "Edit tool for targeted search-replace, Write for create/overwrite, Read for inspection",
+        "Permission system: Edit and Write require permission, Read does not",
+        "NotebookEdit for Jupyter notebooks",
+        "LSP integration reports errors automatically after file edits"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/how-claude-code-works.md",
+      "title": "How Claude Code Works - Agentic Loop and Tools",
+      "qualityScore": 92,
+      "authority": 10,
+      "recency": 10,
+      "depth": 9,
+      "examples": 7,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Five tool categories: file operations, search, execution, web, code intelligence",
+        "Agentic loop: gather context, take action, verify results",
+        "Checkpoints created per-prompt before file changes",
+        "Read-before-Write requirement for Write tool"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/checkpointing.md",
+      "title": "Claude Code Checkpointing System",
+      "qualityScore": 90,
+      "authority": 10,
+      "recency": 10,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 9,
+      "keyInsights": [
+        "Every user prompt creates a new checkpoint",
+        "Checkpoints persist across sessions (30-day default retention)",
+        "Rewind menu: restore code, conversation, or both",
+        "Does NOT track changes made by Bash commands (rm, mv, cp)",
+        "Summarize from here option for targeted context compression"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/best-practices.md",
+      "title": "Claude Code Best Practices",
+      "qualityScore": 90,
+      "authority": 10,
+      "recency": 10,
+      "depth": 9,
+      "examples": 9,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Context window is the most important resource to manage",
+        "Hooks for deterministic post-edit actions (lint, format)",
+        "Plan mode for exploration before editing",
+        "Read-before-Write enforcement prevents destructive overwrites"
+      ]
+    },
+    {
+      "url": "https://cursor.com/blog/instant-apply",
+      "title": "Cursor Instant Apply - Technical Deep Dive",
+      "qualityScore": 97,
+      "authority": 9,
+      "recency": 9,
+      "depth": 10,
+      "examples": 9,
+      "uniqueness": 10,
+      "keyInsights": [
+        "Full-file rewrite chosen over diff because models struggle with line numbers",
+        "Fine-tuned Llama-3-70B achieves ~1000 tokens/sec with speculative edits",
+        "13x speedup over standard inference, 9x over GPT-4",
+        "Speculative decoding uses deterministic prediction (most output = input unchanged)",
+        "Only Claude Opus reliably generated Aider-style SEARCH/REPLACE diffs",
+        "80/20 mix of real apply examples and cmd-k prompts for training"
+      ]
+    },
+    {
+      "url": "https://aider.chat/docs/more/edit-formats.html",
+      "title": "Aider Edit Formats Documentation",
+      "qualityScore": 88,
+      "authority": 9,
+      "recency": 8,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 9,
+      "keyInsights": [
+        "Six edit formats: whole, diff, diff-fenced, udiff, editor-diff, editor-whole",
+        "diff-fenced created specifically for Gemini models",
+        "udiff reduced GPT-4 Turbo laziness",
+        "Editor formats for architect mode two-model approach"
+      ]
+    },
+    {
+      "url": "https://aider.chat/2023/12/21/unified-diffs.html",
+      "title": "Aider Unified Diffs - 3x Performance Improvement",
+      "qualityScore": 95,
+      "authority": 9,
+      "recency": 7,
+      "depth": 10,
+      "examples": 8,
+      "uniqueness": 10,
+      "keyInsights": [
+        "Unified diffs tripled GPT-4 Turbo benchmark from 20% to 61%",
+        "Disabling flexible patching caused 9x increase in editing errors",
+        "High-level diff prompting reduced errors by 30-50%",
+        "Lazy comments dropped from 12 to 4 tasks with udiff",
+        "GPT acts more like writing data for a program than talking to a person"
+      ]
+    },
+    {
+      "url": "https://aider.chat/2024/08/14/code-in-json.html",
+      "title": "Aider - Code in JSON Degrades Performance",
+      "qualityScore": 93,
+      "authority": 9,
+      "recency": 8,
+      "depth": 9,
+      "examples": 8,
+      "uniqueness": 10,
+      "keyInsights": [
+        "ALL models performed worse with JSON-wrapped code",
+        "Claude 3.5 Sonnet and DeepSeek most severely impacted",
+        "JSON escaping causes syntax errors in generated code",
+        "Even without syntax errors, JSON cognitive burden reduces reasoning",
+        "OpenAI strict mode provided no improvement over standard JSON"
+      ]
+    },
+    {
+      "url": "https://aider.chat/2024/09/26/architect.html",
+      "title": "Aider Architect Mode - Two-Model Approach",
+      "qualityScore": 90,
+      "authority": 9,
+      "recency": 8,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 9,
+      "keyInsights": [
+        "Architect model describes solution, editor model formats edits",
+        "o1-preview + DeepSeek/o1-mini editor achieves 85% pass rate",
+        "Decouples reasoning ability from formatting compliance",
+        "Inspired by o1 models excelling at reasoning but struggling with edit formats"
+      ]
+    },
+    {
+      "url": "https://aider.chat/docs/troubleshooting/edit-errors.html",
+      "title": "Aider Edit Error Handling",
+      "qualityScore": 78,
+      "authority": 9,
+      "recency": 8,
+      "depth": 6,
+      "examples": 5,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Reports 'Failed to apply edit' on malformed edits",
+        "Makes every effort to handle 'almost' correctly formatted edits",
+        "Weaker models more prone to format violations",
+        "Recommends --edit-format whole or --architect for unreliable models"
+      ]
+    },
+    {
+      "url": "https://aider.chat/docs/usage/commands.html",
+      "title": "Aider Commands - Undo and File Management",
+      "qualityScore": 80,
+      "authority": 9,
+      "recency": 8,
+      "depth": 7,
+      "examples": 6,
+      "uniqueness": 6,
+      "keyInsights": [
+        "/undo reverts last aider-made git commit",
+        "Git-based undo mechanism",
+        "Files must be /add-ed to chat context before editing",
+        "/drop removes files to free context"
+      ]
+    },
+    {
+      "url": "https://aider.chat/2024/05/22/swe-bench-lite.html",
+      "title": "Aider SWE-Bench Lite Results",
+      "qualityScore": 85,
+      "authority": 9,
+      "recency": 8,
+      "depth": 8,
+      "examples": 6,
+      "uniqueness": 7,
+      "keyInsights": [
+        "26.3% on SWE-bench Lite (SOTA at time of publication)",
+        "Repo map via tree-sitter AST analysis, not RAG",
+        "Correctly identified target file in 70.3% of tasks",
+        "Multi-model strategy alternating GPT-4o and Claude Opus"
+      ]
+    },
+    {
+      "url": "https://github.com/openai/codex/blob/main/codex-cli/README.md",
+      "title": "Codex CLI README - Sandbox and Approval Modes",
+      "qualityScore": 88,
+      "authority": 10,
+      "recency": 9,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Three modes: suggest (diffs), auto-edit (patches auto-applied), full-auto (complete autonomy)",
+        "macOS: Apple Seatbelt sandbox, Linux: Bubblewrap/Docker",
+        "Network blocked in sandbox except OpenAI API",
+        "Warns on non-git directories"
+      ]
+    },
+    {
+      "url": "https://github.com/openai/codex/blob/main/codex-rs/apply-patch/src/lib.rs",
+      "title": "Codex apply-patch Rust Implementation",
+      "qualityScore": 92,
+      "authority": 10,
+      "recency": 9,
+      "depth": 10,
+      "examples": 8,
+      "uniqueness": 9,
+      "keyInsights": [
+        "Custom patch format: *** Begin Patch / *** End Patch",
+        "Three operations: Add File, Update File, Delete File",
+        "Fuzzy matching with Unicode normalization via seek_sequence",
+        "Replacements applied in reverse order to preserve indices",
+        "Supports file move/rename within patches"
+      ]
+    },
+    {
+      "url": "https://github.com/openai/codex/blob/main/codex-rs/apply-patch/apply_patch_tool_instructions.md",
+      "title": "Codex apply_patch Tool Instructions",
+      "qualityScore": 95,
+      "authority": 10,
+      "recency": 9,
+      "depth": 10,
+      "examples": 9,
+      "uniqueness": 9,
+      "keyInsights": [
+        "Exact patch format specification with Begin/End markers",
+        "@@ headers with optional context (class/function names)",
+        "3 lines of context before/after changes by default",
+        "File paths must be relative, never absolute",
+        "Multiple @@ statements for nested context disambiguation"
+      ]
+    },
+    {
+      "url": "https://github.com/openai/codex/blob/main/codex-rs/core/README.md",
+      "title": "Codex Rust Core - Sandbox Architecture",
+      "qualityScore": 85,
+      "authority": 10,
+      "recency": 9,
+      "depth": 8,
+      "examples": 6,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Platform-specific sandboxing: Seatbelt (macOS), Bubblewrap (Linux), elevated backends (Windows)",
+        ".git directories protected as read-only",
+        "Binary convention: codex-linux-sandbox for sandbox ops, --codex-run-as-apply-patch for patches",
+        "Complex carveouts auto-route through bubblewrap over legacy enforcement"
+      ]
+    },
+    {
+      "url": "https://github.com/cline/cline/blob/main/src/core/assistant-message/diff.ts",
+      "title": "Cline diff.ts - Tiered Matching Implementation",
+      "qualityScore": 90,
+      "authority": 8,
+      "recency": 8,
+      "depth": 10,
+      "examples": 7,
+      "uniqueness": 9,
+      "keyInsights": [
+        "Three-tier fallback: exact match, line-trimmed, block anchor",
+        "SEARCH/REPLACE format with ------- SEARCH / ======= / +++++++ REPLACE markers",
+        "Empty SEARCH = entire file replacement",
+        "Streaming-compatible: processes chunks sequentially",
+        "Handles out-of-order edits and partial markers at chunk boundaries"
+      ]
+    },
+    {
+      "url": "https://docs.roocode.com/advanced-usage/available-tools/apply-diff",
+      "title": "Roo Code apply_diff Tool Documentation",
+      "qualityScore": 88,
+      "authority": 8,
+      "recency": 9,
+      "depth": 9,
+      "examples": 8,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Fuzzy matching via Levenshtein distance on normalized strings",
+        "start_line hint guides middle-out search within BUFFER_LINES window (default 40)",
+        "Configurable confidence threshold (0.8-1.0)",
+        "consecutiveMistakeCountForApplyDiff tracks repeated failures",
+        "<<<<<<< SEARCH / ======= / >>>>>>> REPLACE format with mandatory :start_line:"
+      ]
+    },
+    {
+      "url": "https://docs.roocode.com/advanced-usage/available-tools/write-to-file",
+      "title": "Roo Code write_to_file Tool Documentation",
+      "qualityScore": 85,
+      "authority": 8,
+      "recency": 9,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Parameters: path, content, line_count (for truncation detection)",
+        "Much slower and less efficient than apply_diff for modifications",
+        "Checks .rooignore and workspace boundaries",
+        "Preprocesses to remove code block markers and escaped HTML",
+        "Interactive approval required before write"
+      ]
+    },
+    {
+      "url": "https://docs.continue.dev/customize/model-roles/apply",
+      "title": "Continue.dev Apply Model Role Documentation",
+      "qualityScore": 82,
+      "authority": 8,
+      "recency": 8,
+      "depth": 7,
+      "examples": 6,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Dedicated apply role generates precise diffs from chat suggestions",
+        "Recommended: Morph Fast Apply, Relace Instant Apply (free tiers)",
+        "Handlebars templates: {{{original_code}}} and {{{new_code}}}",
+        "Bridges gap when chat/edit outputs don't align with existing code"
+      ]
+    },
+    {
+      "url": "https://github.com/continuedev/continue/blob/main/core/edit/lazy/deterministic.ts",
+      "title": "Continue.dev Deterministic Apply - AST-Based",
+      "qualityScore": 90,
+      "authority": 8,
+      "recency": 8,
+      "depth": 10,
+      "examples": 7,
+      "uniqueness": 10,
+      "keyInsights": [
+        "AST-based matching using tree-sitter parsers",
+        "Handles lazy blocks ('... existing code ...') via node matching",
+        "Myers diff-like algorithm for lazy block consumption",
+        "Rejects diffs with >30% removals (REMOVAL_PERCENTAGE_THRESHOLD)",
+        "Falls back to LLM-based apply for uncertain transformations"
+      ]
+    },
+    {
+      "url": "https://docs.windsurf.com/windsurf/cascade",
+      "title": "Windsurf Cascade Documentation",
+      "qualityScore": 72,
+      "authority": 8,
+      "recency": 9,
+      "depth": 5,
+      "examples": 4,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Code mode: direct file creation/modification; Chat mode: proposal-based",
+        "Automatic linter fix on generated code (free of credit charge)",
+        "Checkpoint/revert system (currently irreversible reverts)",
+        "Uses Search, Analyze, Web Search, MCP, terminal tools"
+      ]
+    },
+    {
+      "url": "https://docs.cloud.google.com/gemini/docs/codeassist/overview",
+      "title": "Google Gemini Code Assist Overview",
+      "qualityScore": 68,
+      "authority": 9,
+      "recency": 9,
+      "depth": 4,
+      "examples": 3,
+      "uniqueness": 5,
+      "keyInsights": [
+        "Inline code completions, full block generation from comments",
+        "Smart actions via right-click context menu",
+        "Chat-based modification requests",
+        "All suggestions require developer review and validation"
+      ]
+    },
+    {
+      "url": "https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/code-transformation.html",
+      "title": "Amazon Q Developer Code Transformation",
+      "qualityScore": 75,
+      "authority": 9,
+      "recency": 9,
+      "depth": 7,
+      "examples": 6,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Three-stage: build, transform, verify",
+        "Minimal changes necessary philosophy",
+        "Diff view review before application",
+        "Supports dependency upgrade YAML specification",
+        "JetBrains module-based, VS Code project-based"
+      ]
+    },
+    {
+      "url": "https://github.com/opencode-ai/opencode",
+      "title": "OpenCode Repository (Archived)",
+      "qualityScore": 65,
+      "authority": 7,
+      "recency": 7,
+      "depth": 5,
+      "examples": 4,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Go-based terminal AI assistant with TUI (Bubble Tea)",
+        "File searching, modification, command execution",
+        "LSP and MCP integration",
+        "SQLite session storage",
+        "Now archived, succeeded by Charm's Crush"
+      ]
+    },
+    {
+      "url": "https://opencode.ai",
+      "title": "OpenCode Website",
+      "qualityScore": 60,
+      "authority": 7,
+      "recency": 9,
+      "depth": 4,
+      "examples": 3,
+      "uniqueness": 5,
+      "keyInsights": [
+        "120K+ GitHub stars, 800+ contributors",
+        "LSP integration: automatically loads right LSPs",
+        "Parallel agents on same project",
+        "Privacy-first: does not store code or context data"
+      ]
+    },
+    {
+      "url": "https://github.com/RooVetGit/Roo-Code",
+      "title": "Roo Code Repository",
+      "qualityScore": 70,
+      "authority": 8,
+      "recency": 9,
+      "depth": 5,
+      "examples": 4,
+      "uniqueness": 6,
+      "keyInsights": [
+        "VS Code extension, TypeScript-based (98.7%)",
+        "Five modes: Code, Architect, Ask, Debug, Custom",
+        "Human-in-the-loop: every modification requires approval",
+        "Monorepo structure with pnpm workspace"
+      ]
+    },
+    {
+      "url": "https://github.com/cline/cline",
+      "title": "Cline Repository",
+      "qualityScore": 72,
+      "authority": 8,
+      "recency": 9,
+      "depth": 6,
+      "examples": 5,
+      "uniqueness": 6,
+      "keyInsights": [
+        "VS Code extension for AI-assisted development",
+        "Diff view for review before changes applied",
+        "Error monitoring: tracks linter/compiler errors proactively",
+        "Changes recorded in VS Code Timeline for rollback"
+      ]
+    },
+    {
+      "url": "https://cursor.com/docs/agent/overview",
+      "title": "Cursor Agent Mode Documentation",
+      "qualityScore": 78,
+      "authority": 9,
+      "recency": 9,
+      "depth": 6,
+      "examples": 5,
+      "uniqueness": 7,
+      "keyInsights": [
+        "No limit on tool calls per task",
+        "Automatic checkpoints before significant changes",
+        "Tools: semantic search, file/folder search, shell, browser, image generation",
+        "Model-specific tuning of instructions and tools"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/overview.md",
+      "title": "Claude Code Overview",
+      "qualityScore": 80,
+      "authority": 10,
+      "recency": 10,
+      "depth": 6,
+      "examples": 6,
+      "uniqueness": 5,
+      "keyInsights": [
+        "Available in terminal, IDE, desktop, browser, web",
+        "Hooks for auto-formatting after file edits",
+        "Skills for reusable workflows",
+        "Subagents for isolated task delegation"
+      ]
+    },
+    {
+      "url": "https://sourcegraph.com/blog/the-lifecycle-of-a-code-ai-completion",
+      "title": "Sourcegraph - Lifecycle of AI Code Completion",
+      "qualityScore": 85,
+      "authority": 8,
+      "recency": 7,
+      "depth": 9,
+      "examples": 7,
+      "uniqueness": 9,
+      "keyInsights": [
+        "Four-stage pipeline: planning, retrieval, generation, post-processing",
+        "Tree-sitter for syntax validation and truncation",
+        "Levenshtein edit distances for duplicate detection",
+        "Fill-in-the-middle (infilling) with prefix+suffix context",
+        "End-to-end latency must be under 1 second"
+      ]
+    },
+    {
+      "url": "https://harper.blog/2025/02/16/my-llm-codegen-workflow-atm/",
+      "title": "LLM Code Generation Workflow Comparison",
+      "qualityScore": 70,
+      "authority": 6,
+      "recency": 8,
+      "depth": 6,
+      "examples": 7,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Manual copy-paste (Claude.ai) vs automated application (Aider)",
+        "Aider handles testing automatically",
+        "Structured planning produces discrete executable chunks",
+        "repomix for context bundling in established codebases"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/llms.txt",
+      "title": "Claude Code Documentation Index",
+      "qualityScore": 75,
+      "authority": 10,
+      "recency": 10,
+      "depth": 5,
+      "examples": 2,
+      "uniqueness": 5,
+      "keyInsights": [
+        "Full documentation structure with 60+ pages",
+        "Tools reference, checkpointing, hooks, skills, subagents documented",
+        "Separate pages for permissions, sandboxing, security"
+      ]
+    },
+    {
+      "url": "https://github.com/openai/codex",
+      "title": "OpenAI Codex Repository",
+      "qualityScore": 72,
+      "authority": 10,
+      "recency": 9,
+      "depth": 5,
+      "examples": 4,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Two implementations: codex-cli (TypeScript) and codex-rs (Rust)",
+        "Open source coding agent from OpenAI",
+        "Available via npm and Homebrew"
+      ]
+    },
+    {
+      "url": "https://github.com/continuedev/continue",
+      "title": "Continue.dev Repository",
+      "qualityScore": 65,
+      "authority": 7,
+      "recency": 8,
+      "depth": 5,
+      "examples": 4,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Source-controlled AI checks on pull requests",
+        "Generates diffs as suggestions, not autonomous changes",
+        "Markdown-based check configuration in .continue/checks/",
+        "CLI tool (cn command) for automation"
+      ]
+    },
+    {
+      "url": "https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/what-is.html",
+      "title": "Amazon Q Developer Overview",
+      "qualityScore": 62,
+      "authority": 9,
+      "recency": 9,
+      "depth": 4,
+      "examples": 3,
+      "uniqueness": 5,
+      "keyInsights": [
+        "IDE integrations: VS Code, JetBrains, Visual Studio, Eclipse",
+        "Chat, inline completions, code generation, security scanning",
+        "Also available in AWS Console, Slack, Teams"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/hooks-guide.md",
+      "title": "Claude Code Hooks Guide (referenced)",
+      "qualityScore": 80,
+      "authority": 10,
+      "recency": 10,
+      "depth": 7,
+      "examples": 7,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Shell commands run before/after tool execution",
+        "Auto-format after file edits",
+        "Block writes to protected directories",
+        "Deterministic unlike CLAUDE.md instructions which are advisory"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/sandboxing.md",
+      "title": "Claude Code Sandboxing (referenced)",
+      "qualityScore": 78,
+      "authority": 10,
+      "recency": 10,
+      "depth": 7,
+      "examples": 5,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Filesystem and network isolation",
+        "OS-level sandbox for full-auto workflows",
+        "Complements permission system"
+      ]
+    },
+    {
+      "url": "https://github.com/RooVetGit/Roo-Code/wiki/Tools",
+      "title": "Roo Code Wiki - Tools",
+      "qualityScore": 55,
+      "authority": 7,
+      "recency": 8,
+      "depth": 3,
+      "examples": 2,
+      "uniqueness": 4,
+      "keyInsights": [
+        "Wiki pages reference tool documentation",
+        "Multiple tool categories available",
+        "Community-maintained documentation"
+      ]
+    },
+    {
+      "url": "https://github.com/cline/cline/wiki",
+      "title": "Cline Wiki",
+      "qualityScore": 50,
+      "authority": 7,
+      "recency": 8,
+      "depth": 3,
+      "examples": 2,
+      "uniqueness": 4,
+      "keyInsights": [
+        "AI assistant for VSCode using CLI and editor",
+        "Git checkpoints for safety",
+        "Shell integration documentation referenced"
+      ]
+    },
+    {
+      "url": "https://simonwillison.net/2025/May/16/openai-codex/",
+      "title": "Simon Willison on OpenAI Codex",
+      "qualityScore": 60,
+      "authority": 7,
+      "recency": 8,
+      "depth": 5,
+      "examples": 3,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Codex CLI described as 'same shape as Claude Code'",
+        "Agentic Codex runs in network-disconnected sandbox during agent loop",
+        "Returns results as diffs after 8-10 minutes"
+      ]
+    }
+  ]
+}

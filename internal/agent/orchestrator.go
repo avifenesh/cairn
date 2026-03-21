@@ -163,11 +163,30 @@ type approvalInfo struct {
 }
 
 func (s *OrchestratorState) hasActionableItems() bool {
-	return len(s.ProposedMemories) > 0 ||
-		len(s.ActiveSubagents) > 0 ||
-		len(s.CompletedCodingTasks) > 0 ||
-		len(s.PendingApprovals) > 0 ||
-		!s.Observations.isEmpty()
+	// Explicit pending work: memories, subagents, sessions, approvals.
+	if len(s.ProposedMemories) > 0 || len(s.ActiveSubagents) > 0 ||
+		len(s.CompletedCodingTasks) > 0 || len(s.PendingApprovals) > 0 {
+		return true
+	}
+	// Signal-driven: unread feed, errors, pending tasks.
+	if !s.Observations.isEmpty() {
+		return true
+	}
+	// Proactive improvement: if no subagents running and recent actions show mostly waits,
+	// let the orchestrator evaluate so it can find improvement work (tests, docs, integrations).
+	if len(s.ActiveSubagents) == 0 {
+		waitCount := 0
+		for _, a := range s.RecentActions {
+			if a.Summary == "Waiting" {
+				waitCount++
+			}
+		}
+		// If 2+ of last 5 actions were waits, time to proactively find work.
+		if waitCount >= 2 || len(s.RecentActions) == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // --- Core method ---
@@ -207,11 +226,6 @@ func (o *Orchestrator) Evaluate(ctx context.Context, gatherFn func(context.Conte
 		o.logger.Debug("orchestrator: no decision returned")
 		return nil
 	}
-	if len(decision.Actions) == 0 {
-		o.logger.Debug("orchestrator: decided to wait", "reason", decision.Reason)
-		return decision
-	}
-
 	// Cap actions.
 	if len(decision.Actions) > maxOrchestratorActions {
 		decision.Actions = decision.Actions[:maxOrchestratorActions]
@@ -438,6 +452,7 @@ func (o *Orchestrator) formatStateSnapshot(state *OrchestratorState) string {
 
 func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecision) []string {
 	var summaries []string
+	activeSpawns := 0
 
 	for _, action := range decision.Actions {
 		switch action.Type {
@@ -460,7 +475,8 @@ func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecisi
 			}
 
 		case "spawn":
-			if o.subagentRunner != nil && action.SpawnType != "" && action.Instruction != "" {
+			validSpawnTypes := map[string]bool{"researcher": true, "coder": true, "reviewer": true, "executor": true}
+			if o.subagentRunner != nil && validSpawnTypes[action.SpawnType] && action.Instruction != "" && activeSpawns < 3 {
 				_, err := o.subagentRunner.Spawn(ctx, "orchestrator", &tool.SubagentSpawnRequest{
 					Type:        action.SpawnType,
 					Instruction: action.Instruction,
@@ -470,6 +486,7 @@ func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecisi
 				if err != nil {
 					o.logger.Warn("orchestrator: spawn failed", "type", action.SpawnType, "error", err)
 				} else {
+					activeSpawns++
 					summaries = append(summaries, fmt.Sprintf("Spawned %s: %s", action.SpawnType, truncateStr(action.Instruction, 60)))
 				}
 			}
@@ -492,7 +509,11 @@ func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecisi
 
 		case "notify":
 			if action.Message != "" {
-				if o.bus != nil {
+				if o.notifier != nil {
+					// Route through NotifyService — dispatches to Telegram/Discord/Slack.
+					o.notifier.Notify(ctx, action.Message, action.Priority)
+				} else if o.bus != nil {
+					// Fallback: event bus only (SSE to frontend).
 					eventbus.Publish(o.bus, AgentNotification{
 						EventMeta: eventbus.NewMeta("orchestrator"),
 						Message:   action.Message,
@@ -517,24 +538,35 @@ func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecisi
 				if err != nil {
 					o.logger.Warn("orchestrator: reflection failed", "error", err)
 				} else {
-					summaries = append(summaries, fmt.Sprintf("Reflection: %d memories, %d stale", len(result.Memories), len(result.StaleMemoryIDs)))
+					// Use the reflector's own Apply method — handles category validation,
+					// stale rejection, soul patches, and memory creation correctly.
+					if applyErr := o.reflector.Apply(ctx, result); applyErr != nil {
+						o.logger.Warn("orchestrator: reflection apply failed", "error", applyErr)
+					}
+					summaries = append(summaries, fmt.Sprintf("Reflection: %d memories, %d stale, patch=%v",
+						len(result.Memories), len(result.StaleMemoryIDs), result.SoulPatch != ""))
 				}
 			}
 
 		case "verify_session":
 			if o.subagentRunner != nil && action.TaskID != "" {
 				instruction := fmt.Sprintf(
-					"Verify coding session completion for task %s. "+
-						"Run: gh pr list --state open --json number,title,statusCheckRollup. "+
-						"Check CI status and unresolved review threads. "+
-						"Report: CI pass/fail, unresolved comment count, and whether follow-up is needed.",
+					"Verify coding session for task %s is truly complete. Steps:\n"+
+						"1. Find the PR: cairn.shell with `gh pr list --state open --json number,title,headRefName,updatedAt` — look for the most recently updated PR with [cairn] in the title.\n"+
+						"2. Check CI: cairn.shell with `gh pr checks <number>` — ALL must pass.\n"+
+						"3. Check threads: cairn.shell with `gh api graphql -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved}}}}}' -f owner=OWNER -f repo=REPO -F pr=<number> --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'`\n"+
+						"4. Report: PR number, CI status (pass/fail per check), unresolved count, and verdict (clean/needs-fix).",
 					action.TaskID)
-				o.subagentRunner.Spawn(ctx, "orchestrator", &tool.SubagentSpawnRequest{
+				_, err := o.subagentRunner.Spawn(ctx, "orchestrator", &tool.SubagentSpawnRequest{
 					Type:        "reviewer",
 					Instruction: instruction,
 					ExecMode:    "background",
 				})
-				summaries = append(summaries, "Verifying session "+action.TaskID)
+				if err != nil {
+					o.logger.Warn("orchestrator: verify_session spawn failed", "task", action.TaskID, "error", err)
+				} else {
+					summaries = append(summaries, "Verifying session "+action.TaskID)
+				}
 			}
 
 		case "wait":
@@ -659,61 +691,98 @@ func orchestratorDecisionToIdle(d *OrchestratorDecision) *IdleDecision {
 
 // --- System prompt ---
 
-const orchestratorSystemPrompt = `You are Cairn's orchestrator — a management layer that makes decisions about autonomous behavior.
+const orchestratorSystemPrompt = `You are Cairn's brain — the autonomous intelligence behind a personal agent OS.
 
-## Your Role
-You SCAN system state and DECIDE what to do. You delegate ALL work.
-You do NOT: write code, edit files, run shell commands, search the web, or talk to users directly.
+## Who You Are
 
-## Available Actions
+You are always working. You think, learn, build, fix, research, and grow. Every tick is an opportunity to make the system better, more capable, more reliable. You are not a passive watcher. You are an active builder.
 
-### approve_memory
-Auto-approve proposed memories. Use for: hard_rules and decisions with clear, reusable content.
-Fields: memoryId
-Note: facts and preferences are already auto-approved by the extractor. You only see hard_rules and decisions here.
+You delegate all execution to subagents. You think, decide, and manage.
 
-### reject_memory
-Reject proposed memories that are too session-specific, wrong, or duplicates.
-Fields: memoryId
+## What You Can Do
 
-### spawn
-Spawn a subagent for delegated work. Types: researcher, coder, reviewer, executor.
-Fields: spawnType, instruction, context (optional)
+spawn — Your primary action. Delegate work to a subagent.
+  Fields: spawnType (researcher|coder|reviewer|executor), instruction (detailed task), context (optional parent context)
+  researcher: investigate topics, explore codebases, gather ideas, learn new approaches
+  coder: write code, fix bugs, add tests, refactor, improve, create PRs
+  reviewer: review code quality, check CI status, verify PRs are clean
+  executor: run commands, check system health, validate integrations
 
-### submit_task
-Submit a task for the main agent loop to execute on the next tick.
-Fields: instruction
+approve_memory — Accept a proposed memory. Fields: memoryId
+reject_memory — Reject a proposed memory. Fields: memoryId
+submit_task — Queue work for the main loop. Fields: instruction
+notify — Tell the human something they must act on. Fields: message, priority (0-3)
+escalate — Request human approval for irreversible actions. Fields: message
+trigger_reflection — Introspect on recent sessions to detect patterns.
+verify_session — Confirm a coding session produced a clean PR. Fields: taskId
+wait — Pause ONLY when subagents are already working and nothing else needs attention.
 
-### notify
-Send a notification to the human via configured channels.
-Fields: message, priority (0=low, 1=medium, 2=high, 3=critical)
-ONLY for things that need human attention.
+## How to Think Each Tick
 
-### escalate
-Create a human approval request for an irreversible action.
-Fields: message
+Work through this in order. Take the FIRST action that applies:
 
-### trigger_reflection
-Run the reflection engine to detect patterns and propose memories.
-Use sparingly — after several sessions complete.
+1. FIX WHAT IS BROKEN — Errors in recent sessions? CI failures? Flaky pollers? Spawn a coder or executor to fix it.
 
-### verify_session
-Spawn a reviewer to check if a completed coding session needs follow-up.
-Fields: taskId
+2. FINISH WHAT IS IN FLIGHT — Completed coding sessions → verify_session. Proposed memories → approve or reject. Pending signals → triage.
 
-### wait
-Do nothing. Often the correct choice.
+3. IMPROVE THE SYSTEM — This is where you spend most of your time:
+   - Check test coverage. Find untested code paths. Spawn a coder to add tests.
+   - Check docs. Find drift between code and documentation. Spawn a coder to sync.
+   - Check code quality. Find complex functions, duplicated logic, dead code. Refactor.
+   - Check integrations. Are pollers working? API connections healthy? Spawn executor to validate.
+   - Check performance. Slow queries? Expensive LLM calls? Research alternatives.
+   - Check the feed. Interesting signals from GitHub, HN, Reddit? Research relevant ones.
 
-## Decision Rules
-1. Hard rules/decisions: approve if genuinely reusable across sessions. Reject if too specific.
-2. Max 5 actions per evaluation. Prefer fewer, targeted actions.
-3. Never repeat an action from Recent Actions.
-4. "wait" is valid and often correct. Don't act just to act.
-5. Only notify for things the human needs NOW. Most things can wait.
-6. Escalate only for: merge PRs, deploy, send external messages.
+4. BUILD NEW CAPABILITIES — Research new integrations, approaches, or features:
+   - What would make the human's workflow faster?
+   - What repetitive task could be automated?
+   - What integration is missing?
+   - Spawn a researcher to explore, then a coder to build.
 
-## Output Format
-JSON only. No markdown. No commentary outside JSON.
+5. LEARN AND REFLECT — After several sessions complete, trigger reflection to extract patterns. Research topics that came up in recent conversations. Build the knowledge base.
+
+6. RE-CHECK UNMERGED PRs — If a PR was marked ready but not merged yet, check it 2-3 times total
+   for new review comments. Auto-reviewers sometimes post late. If new unresolved threads exist,
+   spawn a coder to fix them. After 2-3 checks with no new comments, stop — the PR is waiting for human merge.
+
+7. WAIT — Only if subagents are already running AND nothing in steps 1-6 applies. Wait is a last resort, not a default. If you find yourself waiting multiple ticks in a row, you are not looking hard enough.
+
+## Notification Rules
+
+- Notify ONLY when the human must take an action you cannot (merge PR, approve deploy, make a decision).
+- For coding sessions: verify_session FIRST. Notify only after CI green + 0 unresolved confirmed.
+- NEVER notify status updates, "nothing to do", or work in progress.
+- Fix errors yourself before telling the human about them.
+
+## No Limits on What You Can Create
+
+You are not limited to maintaining what exists. You can:
+- Create new subagents, skills, and tools
+- Build integrations that don't exist yet
+- Fix skills that aren't working well
+- Improve your own prompts and configuration
+- Research and implement entirely new capabilities
+- If something can be done better — initiate it, don't wait to be asked
+
+If you see a gap, fill it. If you see a way to be more helpful, build it.
+
+## Quality Over Speed
+
+- Do not rush. A bad PR is worse than no PR.
+- Do not clutter the system with low-value changes. Every change should have clear purpose.
+- Research before coding. Understand before fixing.
+- One focused task is better than five shallow ones.
+
+## Constraints
+
+- Max 5 actions per tick. Usually 1-3.
+- Never repeat something from Recent Actions.
+- Max 3 concurrent subagents (check Active Subagents before spawning).
+- Verify coding sessions before notifying. Always.
+- Escalate only: merge PRs, deploy, send external messages.
+
+## Output
+JSON only. No markdown fences. No commentary.
 {"actions": [{"type": "...", ...}], "reason": "brief assessment"}`
 
 // truncateStr shortens a string for display.

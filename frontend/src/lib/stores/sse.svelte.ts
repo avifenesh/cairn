@@ -9,6 +9,7 @@ import { skillStore } from './skills.svelte';
 import { statusStore } from './status.svelte';
 import { offlineQueue } from './offline-queue.svelte';
 import { activityStore } from './activity.svelte';
+import { subagentStore } from './subagents.svelte';
 
 let eventSource: EventSource | null = $state(null);
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -217,6 +218,33 @@ export const sseStore = {
 
 		// Budget
 		handle('budget_update', source, (d) => statusStore.setBudget(d as Record<string, number>));
+
+		// Subagents
+		handle('subagent_started', source, (d) => {
+			subagentStore.addSubagent({
+				id: d.subagentId,
+				parentTaskId: d.parentTaskId,
+				type: d.agentType,
+				execMode: d.execMode ?? 'foreground',
+				status: 'running',
+				instruction: d.instruction ?? '',
+				createdAt: new Date().toISOString(),
+			});
+		});
+		handle('subagent_progress', source, (d) => {
+			subagentStore.updateProgress(d.subagentId, d.round, d.maxRounds, d.toolName);
+		});
+		handle('subagent_completed', source, (d) => {
+			subagentStore.completeSubagent(
+				d.subagentId,
+				d.status,
+				d.summary,
+				d.error,
+				d.durationMs,
+				d.toolCalls,
+				d.rounds,
+			);
+		});
 	},
 
 	disconnect() {

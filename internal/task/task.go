@@ -19,6 +19,7 @@ const (
 	TypeDigest   TaskType = "digest"
 	TypeTriage   TaskType = "triage"
 	TypeWorkflow TaskType = "workflow"
+	TypeSubagent TaskType = "subagent"
 )
 
 // TaskStatus tracks the lifecycle state of a task.

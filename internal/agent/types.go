@@ -57,6 +57,9 @@ type InvocationContext struct {
 	// Checked between ReAct rounds. Nil = no steering support.
 	SteeringCh <-chan SteeringMessage
 
+	// Subagents spawns child agents. Nil = spawning not available (e.g., inside a child agent).
+	Subagents tool.SubagentService
+
 	// Tool service adapters — passed through to ToolContext during execution.
 	ToolMemories tool.MemoryService
 	ToolEvents   tool.EventService
@@ -78,8 +81,9 @@ type SteeringMessage struct {
 
 // AgentConfig holds per-invocation agent configuration.
 type AgentConfig struct {
-	Model     string
-	MaxRounds int
+	Model              string
+	MaxRounds          int
+	SubagentSystemHint string // Optional system prompt hint for subagent types (prepended to main prompt)
 }
 
 // Event represents a single event in the agent's execution.

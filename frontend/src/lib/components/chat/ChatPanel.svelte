@@ -10,11 +10,13 @@
 	import VoiceButton from './VoiceButton.svelte';
 	import FileButton from './FileButton.svelte';
 	import ActiveSkillChip from './ActiveSkillChip.svelte';
+	import SubagentCard from './SubagentCard.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import ReasoningBlock from './ReasoningBlock.svelte';
 	import { Bot, Send, Loader2, X, Plus, Square } from '@lucide/svelte';
 	import type { Attachment } from '$lib/types';
-	import { uploadFile } from '$lib/api/client';
+	import { uploadFile, cancelSubagent } from '$lib/api/client';
+	import { subagentStore } from '$lib/stores/subagents.svelte';
 
 	let inputText = $state('');
 	let messagesEnd: HTMLDivElement;
@@ -237,10 +239,23 @@
 						{#if sm.toolCalls.length > 0}
 							<div class="mb-2 flex flex-wrap gap-1">
 								{#each sm.toolCalls as tc}
-									<ToolCallChip toolName={tc.toolName} phase={tc.phase} args={tc.args} result={tc.result} error={tc.error} durationMs={tc.durationMs} isExternal={tc.isExternal} />
+									{#if tc.toolName === 'cairn.spawnSubagent'}
+										<!-- Subagent tool calls rendered as cards below -->
+									{:else}
+										<ToolCallChip toolName={tc.toolName} phase={tc.phase} args={tc.args} result={tc.result} error={tc.error} durationMs={tc.durationMs} isExternal={tc.isExternal} />
+									{/if}
 								{/each}
 							</div>
 						{/if}
+						<!-- Subagent cards for this task -->
+						{#each subagentStore.forParentTask(sm.taskId) as sa (sa.id)}
+							<div class="mb-2">
+								<SubagentCard
+									subagent={sa}
+									onCancel={sa.execMode === 'background' ? () => cancelSubagent(sa.id).catch((e) => console.warn('cancel subagent failed:', e)) : undefined}
+								/>
+							</div>
+						{/each}
 						{#if sm.reasoning.length > 0}
 							<ReasoningBlock steps={sm.reasoning} isStreaming={sm.isStreaming} />
 						{/if}

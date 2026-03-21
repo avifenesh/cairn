@@ -160,6 +160,39 @@ type SessionEvent struct {
 	Payload   any    `json:"payload"`
 }
 
+// --- Subagent events ---
+
+// SubagentStarted is emitted when a child agent is spawned.
+type SubagentStarted struct {
+	EventMeta
+	ParentTaskID string `json:"parentTaskId"`
+	SubagentID   string `json:"subagentId"`
+	AgentType    string `json:"agentType"`
+	ExecMode     string `json:"execMode"`
+	Instruction  string `json:"instruction"`
+}
+
+// SubagentProgress is emitted on each ReAct round of a running subagent.
+type SubagentProgress struct {
+	EventMeta
+	SubagentID string `json:"subagentId"`
+	Round      int    `json:"round"`
+	MaxRounds  int    `json:"maxRounds"`
+	ToolName   string `json:"toolName,omitempty"`
+}
+
+// SubagentCompleted is emitted when a child agent finishes or fails.
+type SubagentCompleted struct {
+	EventMeta
+	SubagentID string `json:"subagentId"`
+	Status     string `json:"status"` // "completed", "failed", "canceled"
+	Summary    string `json:"summary"`
+	Error      string `json:"error,omitempty"`
+	DurationMs int64  `json:"durationMs"`
+	ToolCalls  int    `json:"toolCalls"`
+	Rounds     int    `json:"rounds"`
+}
+
 // --- System events ---
 
 // ShutdownInitiated is emitted when the system begins shutting down.

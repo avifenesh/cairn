@@ -456,7 +456,11 @@ type cronAdapter struct {
 	store *cairncron.Store
 }
 
-func (a *cronAdapter) Create(ctx context.Context, name, schedule, instruction string, priority int) (string, error) {
+func (a *cronAdapter) Create(ctx context.Context, name, schedule, instruction string, priority int, cooldownMs *int64) (string, error) {
+	var cd int64 = 300000 // 5 minutes default
+	if cooldownMs != nil {
+		cd = *cooldownMs // 0 = no cooldown, respected
+	}
 	job := &cairncron.CronJob{
 		Enabled:     true,
 		Name:        name,
@@ -464,7 +468,7 @@ func (a *cronAdapter) Create(ctx context.Context, name, schedule, instruction st
 		Instruction: instruction,
 		Timezone:    "UTC",
 		Priority:    priority,
-		CooldownMs:  3600000,
+		CooldownMs:  cd,
 	}
 	if err := a.store.Create(ctx, job); err != nil {
 		return "", err

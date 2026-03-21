@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -21,11 +22,13 @@ type ReflectionEngine struct {
 	provider llm.Provider
 	model    string
 	interval time.Duration
+	repoDir  string // Git repo for recent changes context (empty = skip)
 }
 
 // ReflectionConfig configures the reflection engine.
 type ReflectionConfig struct {
 	Interval time.Duration // Default: 30 minutes
+	RepoDir  string        // Git repo path for change context (empty = skip)
 }
 
 // NewReflectionEngine creates a reflection engine.
@@ -41,6 +44,7 @@ func NewReflectionEngine(journal *JournalStore, memories *memory.Service, soul *
 		provider: provider,
 		model:    model,
 		interval: interval,
+		repoDir:  cfg.RepoDir,
 	}
 }
 
@@ -84,8 +88,11 @@ func (r *ReflectionEngine) Reflect(ctx context.Context) (*ReflectionResult, erro
 	// 3. Get current SOUL.md content.
 	soulContent := r.soul.Content()
 
-	// 4. Build prompt.
-	prompt := r.buildPrompt(entries, existingMemories, soulContent)
+	// 4. Gather recent code changes (merged PRs, commits) for ground truth.
+	recentChanges := r.gatherRecentChanges()
+
+	// 5. Build prompt.
+	prompt := r.buildPrompt(entries, existingMemories, soulContent, recentChanges)
 
 	// 5. Call LLM.
 	result, err := r.callLLM(ctx, prompt)
@@ -143,17 +150,23 @@ func (r *ReflectionEngine) Apply(ctx context.Context, result *ReflectionResult) 
 	return nil
 }
 
-func (r *ReflectionEngine) buildPrompt(entries []*JournalEntry, memories []*memory.Memory, soulContent string) string {
+func (r *ReflectionEngine) buildPrompt(entries []*JournalEntry, memories []*memory.Memory, soulContent, recentChanges string) string {
 	var b strings.Builder
 
 	b.WriteString(`You are a reflection engine analyzing an agent's recent activity.
-Your TWO jobs:
+Your THREE jobs:
 1. Detect patterns and propose NEW memories from recent sessions
 2. Review EXISTING memories and flag any that are NOW STALE or WRONG
+3. Cross-reference memories against RECENT CODE CHANGES — if a PR or commit
+   fixed an issue described in a memory, that memory is STALE
 
 Facts change: bugs get fixed, configs change, tools get upgraded, projects evolve.
-A memory that was correct last week may be wrong today. If recent sessions show
-that an existing memory is no longer true, mark it stale.
+A memory that was correct last week may be wrong today.
+
+CRITICAL: The "Recent Code Changes" section shows what was actually merged/deployed.
+If a memory says "X is broken" or "X has high failure rate" but a PR was merged
+that fixes X, the memory is STALE. Flag it. Don't wait for sessions to confirm —
+the code change IS the ground truth.
 
 Respond with ONLY valid JSON (no markdown fences):
 {
@@ -167,9 +180,9 @@ Rules:
 - Don't duplicate existing memories
 - soulPatch should only be set for strong, repeated patterns (3+ occurrences)
 - Keep memories concise (1-2 sentences)
-- staleMemoryIds: list IDs of existing memories that recent sessions CONTRADICT or INVALIDATE
-  (e.g., a "bug X is active" memory when recent sessions show the bug was fixed)
-- Be aggressive about staleness: if a fact memory describes a state that has clearly changed, flag it
+- staleMemoryIds: list IDs of existing memories that recent sessions OR code changes CONTRADICT
+  (e.g., "shell has 50% failure rate" when a PR fixed shell reliability)
+- Be aggressive about staleness: merged PRs are ground truth, not just evidence
 
 `)
 
@@ -193,6 +206,13 @@ Rules:
 		}
 	}
 
+	// Recent code changes (merged PRs, commits) — ground truth for staleness.
+	if recentChanges != "" {
+		b.WriteString("\n## Recent Code Changes (GROUND TRUTH — use to invalidate stale memories)\n\n")
+		b.WriteString(recentChanges)
+		b.WriteString("\n")
+	}
+
 	// SOUL.md excerpt.
 	if soulContent != "" {
 		b.WriteString("\n## Current SOUL.md\n\n")
@@ -204,6 +224,40 @@ Rules:
 		} else {
 			b.WriteString(soulContent)
 		}
+	}
+
+	return b.String()
+}
+
+// gatherRecentChanges collects recent git commits and merged PRs from the repo.
+// This provides ground truth for the LLM to invalidate stale memories.
+func (r *ReflectionEngine) gatherRecentChanges() string {
+	if r.repoDir == "" {
+		return ""
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var b strings.Builder
+
+	// Recent commits on main (last 48h).
+	cmd := exec.CommandContext(ctx, "git", "log", "main", "--oneline", "--since=48 hours ago", "--no-merges", "-20")
+	cmd.Dir = r.repoDir
+	if out, err := cmd.Output(); err == nil && len(out) > 0 {
+		b.WriteString("Recent commits on main (last 48h):\n")
+		b.Write(out)
+		b.WriteString("\n")
+	}
+
+	// Recently merged PRs on main (last 48h) — key ground truth.
+	cmd = exec.CommandContext(ctx, "git", "log", "main", "--merges", "--since=48 hours ago", "-20",
+		"--format=%s") // subject line only (includes PR title)
+	cmd.Dir = r.repoDir
+	if out, err := cmd.Output(); err == nil && len(out) > 0 {
+		b.WriteString("Recently merged PRs:\n")
+		b.Write(out)
+		b.WriteString("\n")
 	}
 
 	return b.String()

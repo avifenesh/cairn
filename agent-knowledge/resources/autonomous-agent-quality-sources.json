@@ -1,0 +1,27 @@
+{
+  "topic": "autonomous agent self-improvement with quality gates",
+  "slug": "autonomous-agent-quality",
+  "generated": "2026-03-21T14:00:00.000Z",
+  "depth": "medium",
+  "totalSources": 18,
+  "sources": [
+    {"url": "https://devin.ai/agents101", "title": "Coding Agents 101 - Devin", "qualityScore": 88},
+    {"url": "https://www.agno.com/blog/guardrails-for-ai-agents", "title": "Guardrails for AI Agents - Agno", "qualityScore": 92},
+    {"url": "https://www.coderio.com/blog/expertise/advanced-technologies/agent-guardrails-101-permissions-tool-scopes-audit-trails-policy-code/", "title": "Agent Guardrails 101 - Coderio", "qualityScore": 82},
+    {"url": "https://www.ksred.com/claude-code-dangerously-skip-permissions-when-to-use-it-and-when-you-absolutely-shouldnt/", "title": "Claude Code Skip Permissions Guide", "qualityScore": 90},
+    {"url": "https://thomas-wiegold.com/blog/claude-code-dangerously-skip-permissions/", "title": "Claude Code Permissions Risk Analysis", "qualityScore": 91},
+    {"url": "https://blog.promptlayer.com/claude-dangerously-skip-permissions/", "title": "Claude Code YOLO Mode - PromptLayer", "qualityScore": 85},
+    {"url": "https://voyager.minedojo.org/", "title": "Voyager: Open-Ended Embodied Agent", "qualityScore": 95},
+    {"url": "https://arxiv.org/abs/2305.16291", "title": "Voyager Paper (arXiv)", "qualityScore": 95},
+    {"url": "https://github.com/darrenhinde/OpenAgentsControl", "title": "OpenAgentsControl - GitHub", "qualityScore": 84},
+    {"url": "https://www.augmentcode.com/tools/autonomous-code-review-platforms-for-enterprise-teams", "title": "Autonomous Code Review Platforms", "qualityScore": 86},
+    {"url": "https://arxiv.org/html/2506.18315v1", "title": "Property-Based Testing for LLM Code - arXiv", "qualityScore": 93},
+    {"url": "https://galileo.ai/blog/ai-agent-guardrails-framework", "title": "AI Agent Guardrails Framework - Galileo", "qualityScore": 80},
+    {"url": "https://medium.com/@visrow/bmad-method-how-ai-guardrails-can-keep-autonomous-systems-safe-8c709238c2f2", "title": "BMAD Method: AI Guardrails", "qualityScore": 78},
+    {"url": "https://medium.com/@addyosmani/my-llm-coding-workflow-going-into-2026-52fe1681325e", "title": "LLM Coding Workflow 2026 - Addy Osmani", "qualityScore": 85},
+    {"url": "https://arxiv.org/html/2511.10271v2", "title": "QA of LLM-generated Code - arXiv", "qualityScore": 88},
+    {"url": "https://github.com/tmgthb/Autonomous-Agents", "title": "Autonomous Agents Research Papers", "qualityScore": 82},
+    {"url": "https://codegen.com/blog/best-ai-coding-agents/", "title": "Best AI Coding Agents 2026", "qualityScore": 80},
+    {"url": "https://neurips.cc/virtual/2025/poster/119270", "title": "SpecMAS: Self-Verifying Multi-Agent - NeurIPS", "qualityScore": 90}
+  ]
+}

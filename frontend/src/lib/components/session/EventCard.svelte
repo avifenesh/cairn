@@ -3,10 +3,16 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Wrench, Brain, FileText, AlertTriangle, MessageSquare, CheckCircle, XCircle, Loader2, Play, ChevronDown, ChevronUp } from '@lucide/svelte';
 
-	let { event }: { event: SessionEvent } = $props();
+	let { event, completedToolIds = new Set<string>() }: {
+		event: SessionEvent;
+		completedToolIds?: Set<string>;
+	} = $props();
 
 	const p = $derived(event.payload);
 	const isError = $derived(p.isError === true || p.state === 'failed');
+	const toolPending = $derived(
+		event.eventType === 'tool_call' && !completedToolIds.has(String(p.toolId ?? ''))
+	);
 
 	let expanded = $state(false);
 
@@ -63,7 +69,9 @@
 		<div class="event-body">
 			<div class="event-header">
 				<Badge variant="outline" class="text-xs">{p.toolName}</Badge>
-				<Loader2 size={12} class="animate-spin text-muted-foreground" />
+				{#if toolPending}
+					<Loader2 size={12} class="animate-spin text-muted-foreground" />
+				{/if}
 			</div>
 			{#if summary}
 				<p class="tool-summary">{summary}</p>

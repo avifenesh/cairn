@@ -121,8 +121,8 @@ func (s *Store) GetByName(ctx context.Context, name string) (*CronJob, error) {
 	return scanJobRow(row)
 }
 
-// Update modifies a cron job. Only non-zero fields are updated.
-func (s *Store) Update(ctx context.Context, id string, enabled *bool, schedule, instruction, description *string, priority *int) error {
+// Update modifies a cron job. Only non-nil fields are updated.
+func (s *Store) Update(ctx context.Context, id string, enabled *bool, schedule, instruction, description *string, priority *int, cooldownMs *int64) error {
 	sets := []string{"updated_at = ?"}
 	args := []any{time.Now().UTC().Format(timeFormat)}
 
@@ -153,6 +153,10 @@ func (s *Store) Update(ctx context.Context, id string, enabled *bool, schedule, 
 	if priority != nil {
 		sets = append(sets, "priority = ?")
 		args = append(args, *priority)
+	}
+	if cooldownMs != nil {
+		sets = append(sets, "cooldown_ms = ?")
+		args = append(args, *cooldownMs)
 	}
 
 	args = append(args, id)

@@ -2083,12 +2083,13 @@ func (s *Server) handleUpdateCron(w http.ResponseWriter, r *http.Request) {
 		Instruction *string `json:"instruction"`
 		Description *string `json:"description"`
 		Priority    *int    `json:"priority"`
+		CooldownMs  *int64  `json:"cooldownMs"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	if err := s.cronStore.Update(r.Context(), id, req.Enabled, req.Schedule, req.Instruction, req.Description, req.Priority); err != nil {
+	if err := s.cronStore.Update(r.Context(), id, req.Enabled, req.Schedule, req.Instruction, req.Description, req.Priority, req.CooldownMs); err != nil {
 		if err == sql.ErrNoRows {
 			writeError(w, http.StatusNotFound, "cron job not found")
 		} else {

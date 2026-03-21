@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -217,4 +218,76 @@ func (s *Service) Compact(ctx context.Context) error {
 		slog.Info("memory compaction complete", "decayed", decayed, "rejected", rejected)
 	}
 	return nil
+}
+
+// DefaultSemanticDedupThreshold is the cosine similarity threshold above which
+// two memories (same category + scope) are considered near-duplicates.
+const DefaultSemanticDedupThreshold = 0.92
+
+// SemanticDedup finds near-duplicate accepted memories using embedding cosine
+// similarity and removes the lower-confidence (or newer) duplicate.
+// Only compares memories within the same category and scope.
+// Returns the number of duplicates removed.
+func (s *Service) SemanticDedup(ctx context.Context, threshold float64) (int, error) {
+	if threshold <= 0 || threshold > 1 {
+		threshold = DefaultSemanticDedupThreshold
+	}
+
+	mems, err := s.store.AllAcceptedWithEmbeddings(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if len(mems) < 2 {
+		return 0, nil
+	}
+
+	// Mark which memories to delete (keep the better one from each pair).
+	toDelete := make(map[string]bool)
+
+	for i := 0; i < len(mems); i++ {
+		if toDelete[mems[i].ID] {
+			continue
+		}
+		for j := i + 1; j < len(mems); j++ {
+			if toDelete[mems[j].ID] {
+				continue
+			}
+			// Only compare within the same category and scope.
+			if mems[i].Category != mems[j].Category || mems[i].Scope != mems[j].Scope {
+				continue
+			}
+			sim := cosineSimilarity(mems[i].Embedding, mems[j].Embedding)
+			if sim >= threshold {
+				// Keep the one with higher confidence, or older if tied.
+				victim := mems[j]
+				if mems[j].Confidence > mems[i].Confidence ||
+					(mems[j].Confidence == mems[i].Confidence && mems[j].CreatedAt.Before(mems[i].CreatedAt)) {
+					victim = mems[i]
+				}
+				toDelete[victim.ID] = true
+				// If victim was mems[i], stop comparing with it.
+				if victim.ID == mems[i].ID {
+					break
+				}
+			}
+		}
+	}
+
+	removed := 0
+	var deleteErrors []string
+	for id := range toDelete {
+		if err := s.store.Delete(ctx, id); err != nil {
+			deleteErrors = append(deleteErrors, fmt.Sprintf("%s: %v", id[:8], err))
+		} else {
+			removed++
+		}
+	}
+
+	if removed > 0 {
+		slog.Info("semantic dedup complete", "removed", removed, "threshold", threshold, "scanned", len(mems))
+	}
+	if len(deleteErrors) > 0 {
+		return removed, fmt.Errorf("semantic dedup: %d deletes failed: %s", len(deleteErrors), deleteErrors[0])
+	}
+	return removed, nil
 }

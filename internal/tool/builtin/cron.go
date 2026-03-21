@@ -13,6 +13,7 @@ type createCronParams struct {
 	Schedule    string `json:"schedule" desc:"5-field cron expression (e.g. '0 9 * * 1-5' for weekdays at 9am)"`
 	Instruction string `json:"instruction" desc:"Natural language instruction for what the agent should do each time"`
 	Priority    *int   `json:"priority" desc:"Task priority 0-4 (0=critical, 2=normal, 4=idle). Default: 3 (low)"`
+	CooldownMs  *int64 `json:"cooldownMs" desc:"Minimum milliseconds between runs. Default: 300000 (5 min). Set to 0 for no cooldown"`
 }
 
 var createCron = tool.Define("cairn.createCron",
@@ -42,7 +43,12 @@ var createCron = tool.Define("cairn.createCron",
 			priority = *p.Priority
 		}
 
-		id, err := ctx.Crons.Create(ctx.Cancel, p.Name, p.Schedule, p.Instruction, priority)
+		var cooldownMs int64
+		if p.CooldownMs != nil {
+			cooldownMs = *p.CooldownMs
+		}
+
+		id, err := ctx.Crons.Create(ctx.Cancel, p.Name, p.Schedule, p.Instruction, priority, cooldownMs)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to create cron job: %v", err)}, nil
 		}

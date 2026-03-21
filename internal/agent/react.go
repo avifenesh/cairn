@@ -2,8 +2,10 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -430,11 +432,28 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 				recordCancel()
 			}
 
-			// Emit tool result.
-			publishSessionEvent(invCtx, "tool_result", map[string]any{
+			// Emit tool result with truncated output for observability.
+			resultPayload := map[string]any{
 				"toolId": tc.ID, "toolName": tc.Name, "isError": status == ToolFailed,
 				"durationMs": duration.Milliseconds(), "round": round,
-			})
+			}
+			if errStr != "" {
+				resultPayload["error"] = errStr
+			}
+			if output != "" {
+				// Truncate output for the SSE stream (full output stays in session events).
+				if len(output) > 2000 {
+					resultPayload["output"] = output[:2000] + "\n... (truncated)"
+				} else {
+					resultPayload["output"] = output
+				}
+			}
+			publishSessionEvent(invCtx, "tool_result", resultPayload)
+
+			// Emit file_change for file-modifying tools.
+			if status != ToolFailed {
+				emitFileChangeIfNeeded(invCtx, tc.Name, tc.Input, output)
+			}
 			roundToolCalls++
 			emit(invCtx.Context, ch, RunEvent{Event: &Event{
 				ID:        newID(),
@@ -540,6 +559,46 @@ func emit(ctx context.Context, ch chan<- RunEvent, ev RunEvent) {
 	case ch <- ev:
 	case <-ctx.Done():
 	}
+}
+
+// fileModifyingTools maps tool names to how we extract the file path from their input.
+var fileModifyingTools = map[string]string{
+	"cairn.writeFile": "path",
+	"cairn.editFile":  "path",
+}
+
+// emitFileChangeIfNeeded checks if the tool modifies files and emits a file_change SessionEvent.
+func emitFileChangeIfNeeded(invCtx *InvocationContext, toolName string, input json.RawMessage, output string) {
+	pathKey, ok := fileModifyingTools[toolName]
+	if !ok {
+		return
+	}
+	var inp map[string]any
+	if err := json.Unmarshal(input, &inp); err != nil {
+		return
+	}
+	filePath, _ := inp[pathKey].(string)
+	if filePath == "" {
+		return
+	}
+
+	op := "write"
+	// Try to get a diff from git in the workDir.
+	diff := ""
+	wd := workDir(invCtx)
+	if wd != "" && wd != "." {
+		out, err := exec.CommandContext(invCtx.Context, "git", "-C", wd, "diff", "--", filePath).Output()
+		if err == nil && len(out) > 0 {
+			diff = string(out)
+			if len(diff) > 10000 {
+				diff = diff[:10000] + "\n... (truncated)"
+			}
+		}
+	}
+
+	publishSessionEvent(invCtx, "file_change", map[string]any{
+		"path": filePath, "operation": op, "diff": diff,
+	})
 }
 
 // publishSessionEvent emits a SessionEvent on the bus for real-time observability.

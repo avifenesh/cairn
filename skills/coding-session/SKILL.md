@@ -55,41 +55,80 @@ CRITICAL rules:
 - Always `[cairn]` prefix in title
 - Never run `gh pr merge` — blocked by policy
 
-### 7. Monitor CI
-```bash
-cairn.shell: "gh pr checks <number>"
+### 7. CI & Review Monitor Loop (BLOCKING - do not skip)
+
+This loop runs until BOTH conditions are met: CI green AND 0 unresolved review threads.
+Do NOT exit the coding session until this loop completes.
+
+**Max iterations: 10. Initial reviewer wait: 180 seconds (3 minutes).**
+
 ```
-- If CI fails: read logs with `gh run view <run-id> --log-failed`, fix, push
-- If CI passes: proceed to notification
+iteration = 0
+while iteration < 10:
+    iteration += 1
+
+    # Step A: Wait for CI to complete (poll every 60s, max 15 polls)
+    poll = 0
+    while poll < 15:
+        cairn.shell: "sleep 60 && gh pr checks <number>"
+        poll += 1
+        # If all checks completed (no "pending"): break
+        # If any check failed:
+        #   1. Get failure logs: cairn.shell: "gh run view <run-id> --log-failed"
+        #   2. Fix the issue
+        #   3. Commit + push
+        #   4. Continue loop (CI will re-run)
+
+    # Step B: First iteration only — wait 180s for auto-reviewers
+    if iteration == 1:
+        cairn.shell: "sleep 180"
+
+    # Step C: Check for unresolved review threads
+    cairn.shell: "gh api graphql -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved}}}}}' -f owner=OWNER -f repo=REPO -F pr=<number> --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'"
+
+    # Step D: If 0 unresolved → DONE
+    if unresolved == 0:
+        break
+
+    # Step E: Address ALL comments (read comments, fix code, commit, push)
+    cairn.shell: "gh api repos/{owner}/{repo}/pulls/<number>/comments --jq '.[] | {id, path, line, body}'"
+    # Fix every comment — high, medium, AND low priority
+    # Commit: cairn.gitRun: ["commit", "-m", "fix: address review feedback (iteration N)"]
+    # Push: cairn.shell: "git push"
+
+    # Step F: Brief pause before next iteration
+    cairn.shell: "sleep 30"
+```
+
+When the loop exits with 0 unresolved:
+```
+cairn.shell: "gh pr ready <number>"  # Remove draft status
+```
 
 ### 8. Notify
-When draft PR is ready and CI green:
+When PR is ready and all reviews addressed:
 ```
-cairn.notify: message="Draft PR ready: [cairn] <title> — CI green. Review at <url>", priority=medium
-```
-
-### 9. Create PR review monitor
-After creating the draft PR, set up a cron job to automatically address review comments:
-```
-cairn.createCron: name="pr-watch-{owner}-{repo}-<PR_NUMBER>", schedule="0 * * * *", instruction="PR #<PR_NUMBER> review monitor:
-  1. Check if PR is still open: gh pr view <PR_NUMBER> --json state --jq '.state'
-  2. If merged or closed → delete this cron job: cairn.deleteCron: name="pr-watch-{owner}-{repo}-<PR_NUMBER>" and stop.
-  3. If open, check for unresolved review comments: gh api repos/{owner}/{repo}/pulls/<PR_NUMBER>/comments — filter for comments where the bot hasn't replied.
-  4. If unresolved review comments found → address them in coding mode. Fix the issues, push, iterate until resolved.
-  5. If no comments → do nothing."
+cairn.notify: message="PR ready: [cairn] <title> — CI green, all reviews addressed. Review at <url>", priority=medium
 ```
 
-This runs hourly (matches the 1h cooldown in `createCron`), self-terminates when the PR closes, and auto-fixes review comments.
+### 9. Completion
+The session is COMPLETE only after:
+- [x] CI checks all pass
+- [x] 0 unresolved review threads
+- [x] PR marked as ready (not draft)
+- [x] Notification sent
+
+Output: `[SESSION_COMPLETE] PR #<number> — CI green, 0 unresolved, ready for merge.`
 
 ### 10. Running out of rounds?
-If you're approaching the round limit and work isn't done:
+If you're approaching the round limit (check current round vs 400 max) and the CI/review loop is not done:
 - Commit what you have
 - Push to the branch
-- In your final response, clearly state:
-  - What was completed
-  - What remains to be done
-  - Which files still need changes
-This enables the continuation mechanism to pick up where you left off.
+- Create a continuation cron job:
+```
+cairn.createCron: name="pr-watch-{owner}-{repo}-<PR_NUMBER>", schedule="0 * * * *", instruction="Continue PR #<PR_NUMBER> review loop. Check CI + unresolved comments. Fix issues and push. Delete this cron when PR is merged/closed."
+```
+- In your final response, state what remains for the continuation to pick up.
 
 ## Rules
 - One logical change per PR — don't mix unrelated fixes

@@ -84,21 +84,37 @@ func (e *Extractor) Extract(ctx context.Context, transcript string) {
 	}
 
 	// Stage 2: Classify each fact against existing memories and apply.
+	// Auto-accept facts and preferences — they survived dedup + contradiction checks.
+	// Hard rules and decisions stay proposed — they affect agent policy and deserve review.
 	added, updated, skipped, contradicted := 0, 0, 0, 0
 	for _, fact := range facts {
 		action := e.classifyFact(ctx, fact)
 		switch action {
 		case "add":
 			cat := normCategory(fact.Category)
+			autoAccept := cat == CatFact || cat == CatPreference
+			status := StatusProposed
+			confidence := 0.6
+			if autoAccept {
+				status = StatusAccepted
+				confidence = 0.7
+			}
 			m := &Memory{
 				Content:    fact.Content,
 				Category:   cat,
+				Status:     status,
 				Source:     "auto-extract",
-				Confidence: 0.6,
+				Confidence: confidence,
 			}
 			if err := e.memService.Create(ctx, m); err != nil {
 				e.logger.Warn("memory extraction: create failed", "content", truncate(fact.Content, 80), "error", err)
 			} else {
+				if autoAccept {
+					// Create already emits MemoryProposed; transition to accepted.
+					if acceptErr := e.memService.Accept(ctx, m.ID); acceptErr != nil {
+						e.logger.Warn("memory extraction: auto-accept failed", "id", m.ID, "error", acceptErr)
+					}
+				}
 				added++
 			}
 		case "update":
@@ -106,17 +122,30 @@ func (e *Extractor) Extract(ctx context.Context, transcript string) {
 		case "skip":
 			skipped++
 		case "contradict":
-			// Old memory was rejected — add the new fact as proposed.
+			// Old memory was rejected — add the new fact.
 			cat := normCategory(fact.Category)
+			autoAccept := cat == CatFact || cat == CatPreference
+			status := StatusProposed
+			confidence := 0.7
+			if autoAccept {
+				status = StatusAccepted
+				confidence = 0.8
+			}
 			m := &Memory{
 				Content:    fact.Content,
 				Category:   cat,
+				Status:     status,
 				Source:     "auto-extract",
-				Confidence: 0.7, // Slightly higher confidence — it replaced something.
+				Confidence: confidence,
 			}
 			if err := e.memService.Create(ctx, m); err != nil {
 				e.logger.Warn("memory extraction: create after contradiction failed", "error", err)
 			} else {
+				if autoAccept {
+					if acceptErr := e.memService.Accept(ctx, m.ID); acceptErr != nil {
+						e.logger.Warn("memory extraction: auto-accept after contradiction failed", "id", m.ID, "error", acceptErr)
+					}
+				}
 				added++
 			}
 			contradicted++

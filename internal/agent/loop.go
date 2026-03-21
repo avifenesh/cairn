@@ -56,6 +56,7 @@ type Loop struct {
 	cronStore       *cairncron.Store         // nil = cron disabled
 	activityStore   *ActivityStore           // nil = activity tracking disabled
 	db              *sql.DB                  // for state checkpoint
+	orchestrator    *Orchestrator            // management layer (replaces idleTick)
 	subagentRunner  tool.SubagentService     // nil = subagent spawning disabled
 	worktreeManager *task.WorktreeManager    // nil = no worktree isolation
 	notifier        tool.NotifyService       // nil = notifications disabled
@@ -161,6 +162,26 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		notifier:        deps.Notifier,
 		marketplace:     deps.Marketplace,
 		skillSuggestor:  NewSkillSuggestor(logger),
+		orchestrator: NewOrchestrator(OrchestratorDeps{
+			Memories:       deps.Memories,
+			Tasks:          deps.Tasks,
+			Events:         deps.Events,
+			Soul:           deps.Soul,
+			Approvals:      deps.Approvals,
+			SubagentRunner: deps.SubagentRunner,
+			Bus:            deps.Bus,
+			Provider:       deps.Provider,
+			Model:          cfg.Model,
+			BriefingModel:  cfg.BriefingModel,
+			ActivityStore:  deps.ActivityStore,
+			Reflector:      deps.Reflector,
+			SkillSuggestor: NewSkillSuggestor(logger),
+			Marketplace:    deps.Marketplace,
+			ToolSkills:     deps.ToolSkills,
+			Journaler:      deps.Journaler,
+			Logger:         logger,
+			CodingEnabled:  cfg.CodingEnabled,
+		}),
 	}
 }
 
@@ -201,6 +222,7 @@ type LoopDeps struct {
 	WorktreeManager *task.WorktreeManager    // optional: worktree isolation for coding tasks
 	Notifier        tool.NotifyService       // optional: routes notifications to channels
 	Marketplace     *skill.MarketplaceClient // optional: ClawHub marketplace for suggestions
+	Approvals       *task.ApprovalStore      // optional: human-in-the-loop approvals
 }
 
 // Start begins the agent loop in a background goroutine. Safe to call only once.
@@ -238,6 +260,9 @@ func (l *Loop) SkillSuggestor() *SkillSuggestor { return l.skillSuggestor }
 func (l *Loop) SetNotifier(n tool.NotifyService) {
 	l.notifier = n
 	l.toolNotifier = n // also wire to tool context
+	if l.orchestrator != nil {
+		l.orchestrator.notifier = n
+	}
 }
 
 // buildInvocationContext creates a complete InvocationContext with all available
@@ -307,8 +332,15 @@ func (l *Loop) tick(ctx context.Context) {
 	// 2. Check for pending tasks and execute the highest priority one.
 	executed, taskSummary, taskDetails := l.executePendingTask(ctx)
 
-	// 3. If no task was executed and no cron submitted, run proactive idle tick.
-	if !executed && !cronSubmitted {
+	// 3. If no task was executed and no cron submitted, run orchestrator evaluation.
+	if !executed && !cronSubmitted && l.orchestrator != nil {
+		obs := l.gatherObservations(ctx)
+		l.gatherMemories(ctx, obs)
+		if decision := l.orchestrator.Evaluate(ctx, obs, l.tickCount.Load()); decision != nil {
+			l.lastIdleDecision = orchestratorDecisionToIdle(decision)
+		}
+	} else if !executed && !cronSubmitted {
+		// Fallback to legacy idleTick if orchestrator not configured.
 		l.idleTick(ctx)
 	}
 

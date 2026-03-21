@@ -578,9 +578,10 @@ func runServe(logger *slog.Logger) {
 			}
 			return nil
 		}(),
-		MCPClients: mcpClientMgr,
-		AuthStore:  authStore,
-		WebAuthn:   webauthnHandler,
+		MCPClients:  mcpClientMgr,
+		AuthStore:   authStore,
+		WebAuthn:    webauthnHandler,
+		PollTrigger: scheduler,
 	})
 
 	// Graceful shutdown context — all subsystems observe this.

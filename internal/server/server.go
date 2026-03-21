@@ -85,9 +85,17 @@ type Server struct {
 	authStore *auth.Store
 	webauthn  *auth.WebAuthn
 
+	// Poll trigger (optional: manual poll via POST /v1/poll/run).
+	pollTrigger PollTrigger
+
 	// OnConfigPatch is called after PATCH /v1/config is applied.
 	// Allows external subsystems to react to config changes.
 	OnConfigPatch func()
+}
+
+// PollTrigger allows the server to trigger a manual poll cycle.
+type PollTrigger interface {
+	PollNow(ctx context.Context)
 }
 
 // ServerConfig carries all dependencies needed to construct a Server.
@@ -143,6 +151,9 @@ type ServerConfig struct {
 	// WebAuthn auth (optional: biometric login).
 	AuthStore *auth.Store
 	WebAuthn  *auth.WebAuthn
+
+	// Poll trigger (optional: manual poll via POST /v1/poll/run).
+	PollTrigger PollTrigger
 }
 
 // New creates a fully wired Server with all routes and middleware registered.
@@ -189,6 +200,7 @@ func New(cfg ServerConfig) *Server {
 		approvals:      cfg.Approvals,
 		authStore:      cfg.AuthStore,
 		webauthn:       cfg.WebAuthn,
+		pollTrigger:    cfg.PollTrigger,
 	}
 
 	// Create SSE broadcaster.

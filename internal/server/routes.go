@@ -1564,7 +1564,7 @@ func (s *Server) handleCosts(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePollRun(w http.ResponseWriter, r *http.Request) {
 	if s.pollTrigger == nil {
-		writeError(w, http.StatusServiceUnavailable, "no pollers configured")
+		writeError(w, http.StatusServiceUnavailable, "signal plane not configured")
 		return
 	}
 	// Use background context - the poll must outlive the HTTP request.

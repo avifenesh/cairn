@@ -578,15 +578,10 @@ func runServe(logger *slog.Logger) {
 			}
 			return nil
 		}(),
-		MCPClients: mcpClientMgr,
-		AuthStore:  authStore,
-		WebAuthn:   webauthnHandler,
-		PollTrigger: func() server.PollTrigger {
-			if len(pollerNames) > 0 {
-				return scheduler
-			}
-			return nil
-		}(),
+		MCPClients:  mcpClientMgr,
+		AuthStore:   authStore,
+		WebAuthn:    webauthnHandler,
+		PollTrigger: scheduler,
 	})
 
 	// Graceful shutdown context — all subsystems observe this.

@@ -19,19 +19,14 @@ CAIRN_DIR="/home/ubuntu/cairn"
 BINARY="$CAIRN_DIR/cairn-prod"
 LOCK="/tmp/cairn-build.lock"
 
-# Prevent concurrent builds.
+# Prevent concurrent builds — uses flock to match the deploy workflow.
 acquire_lock() {
-    if [ -f "$LOCK" ]; then
-        local pid
-        pid=$(cat "$LOCK" 2>/dev/null) || true
-        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-            echo "[cairn] ERROR: another build is running (PID $pid). Aborting."
-            exit 1
-        fi
-        rm -f "$LOCK"
+    exec 9>"$LOCK"
+    if ! flock -w 30 9; then
+        echo "[cairn] ERROR: another build is running. Aborting."
+        exit 1
     fi
-    echo $$ > "$LOCK"
-    trap 'rm -f "$LOCK"' EXIT
+    # Lock held until script exits (fd 9 auto-closed).
 }
 
 build() {

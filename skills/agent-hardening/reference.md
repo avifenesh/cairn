@@ -1,5 +1,7 @@
 # Agent Hardening -- Cairn Defense Inventory & Gap Analysis
 
+> **Note:** This analysis was written against the original TypeScript/Node.js codebase. Cairn has since been rewritten in Go. File paths, validation frameworks (Zod → Go struct tags), and specific function names may be outdated. The security patterns and gap categories remain relevant.
+
 Companion reference for the `agent-hardening` skill. Documents Cairn's existing security layers, identifies gaps, and recommends remediations.
 
 ## Cairn's Current Defense Inventory
@@ -71,7 +73,7 @@ Per-session sliding window rate limiter on all MCP write operations. Default 100
 
 ### GAP-4 (LOW): MCP create_memory allows 16KB free-text
 
-**Location:** `tools-write.ts:136` -- `pub_create_memory` accepts content up to 16,384 characters with no content sanitization beyond Zod string validation.
+**Location:** `internal/tool/builtin/memory.go` -- `cairn.createMemory` accepts content up to 16,384 characters with no content sanitization beyond Zod string validation.
 
 **Risk:** An external MCP client could store large content blocks that influence future LLM behavior when injected via memory context. The `sanitizeMemoryContent()` function at read time mitigates this, but a tighter size limit reduces the attack surface.
 
@@ -111,7 +113,7 @@ Add a `sanitizeMemoryContent()` call at insert time in the memory repository, pr
 
 ### GAP-4 (LOW priority): Tighten MCP memory content limits
 
-Reduce `pub_create_memory` content maximum from 16KB to 4KB in the Zod schema. Add `stripTags()` to the content before storage. This limits the volume of unsanitized external content that can accumulate in the memory store.
+Reduce `cairn.createMemory` content maximum from 16KB to 4KB in the Zod schema. Add `stripTags()` to the content before storage. This limits the volume of unsanitized external content that can accumulate in the memory store.
 
 ### GAP-5 (LOW priority): Add injection marker detection to skill scanner
 

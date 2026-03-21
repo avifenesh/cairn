@@ -110,7 +110,7 @@ type AuthMiddleware struct {
 // 1. x-api-token header
 // 2. Authorization: Bearer header
 // 3. ?token= query param (for EventSource)
-// 4. pub_session cookie (WebAuthn)
+// 4. cairn_session cookie (WebAuthn)
 ```
 
 ## Static File Server

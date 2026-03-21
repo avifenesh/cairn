@@ -138,8 +138,8 @@ func TestContainsAnyWord(t *testing.T) {
 		{"password", []string{"pass"}, false},
 		{"pass the butter", []string{"pass"}, true},
 		{"ok", []string{"ok"}, true},
-		{"ok,", []string{"ok"}, true},       // punctuation stripped
-		{"yes!", []string{"yes"}, true},      // punctuation stripped
+		{"ok,", []string{"ok"}, true},   // punctuation stripped
+		{"yes!", []string{"yes"}, true}, // punctuation stripped
 		{"hello world", []string{"ok"}, false},
 	}
 

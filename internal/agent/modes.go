@@ -21,17 +21,17 @@ func DefaultModes() map[tool.Mode]*ModeConfig {
 	return map[tool.Mode]*ModeConfig{
 		tool.ModeTalk: {
 			Mode:      tool.ModeTalk,
-			MaxRounds: 20,
+			MaxRounds: 40,
 			Prompt:    "You are in talk mode. Give concise, helpful answers. Use tools to look things up when needed.",
 		},
 		tool.ModeWork: {
 			Mode:      tool.ModeWork,
-			MaxRounds: 40,
+			MaxRounds: 80,
 			Prompt:    "You are in work mode. Complete tasks thoroughly: write files, run commands, create artifacts. Be systematic and verify your work.",
 		},
 		tool.ModeCoding: {
 			Mode:      tool.ModeCoding,
-			MaxRounds: 200,
+			MaxRounds: 400,
 			Prompt:    "You are in coding mode. Write, edit, test, and commit code. Follow project conventions. Run tests after changes. Create PRs when work is complete.",
 		},
 	}

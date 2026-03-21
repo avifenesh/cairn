@@ -619,9 +619,9 @@ func runServe(logger *slog.Logger) {
 					channelModeKey := fmt.Sprintf("mode:%s:%s", msg.ChannelID, msg.ChatID)
 					channelModes.Store(channelModeKey, modeArg)
 					labels := map[string]string{
-						"talk":   "Talk (concise answers, 10 rounds)",
-						"work":   "Work (run commands, create artifacts, 20 rounds)",
-						"coding": "Coding (edit files, git, PRs, 100 rounds)",
+						"talk":   "Talk (concise answers, 40 rounds)",
+						"work":   "Work (run commands, create artifacts, 80 rounds)",
+						"coding": "Coding (edit files, git, PRs, 400 rounds)",
 					}
 					return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Mode: **%s**", labels[modeArg])}, nil
 				case "":

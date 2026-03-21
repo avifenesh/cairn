@@ -210,7 +210,26 @@
 		mpDebounceTimer = setTimeout(() => mpSearch(query), 300);
 	}
 
-	const FEATURED_QUERIES = ['git', 'docker', 'python', 'react', 'typescript', 'rust', 'go', 'svelte'];
+	const FEATURED_QUERIES = [
+		// Languages & runtimes
+		'python', 'rust', 'go', 'typescript', 'java', 'ruby', 'elixir', 'zig', 'swift', 'kotlin', 'lua', 'perl', 'haskell', 'scala', 'clojure',
+		// Frontend frameworks
+		'react', 'svelte', 'vue', 'angular', 'next', 'nuxt', 'astro', 'htmx', 'solid', 'remix',
+		// Backend & infrastructure
+		'docker', 'kubernetes', 'terraform', 'ansible', 'nginx', 'caddy', 'postgres', 'redis', 'mongodb', 'sqlite', 'graphql', 'grpc',
+		// DevOps & CI
+		'git', 'github', 'gitlab', 'jenkins', 'ci', 'deploy', 'monitoring', 'logging', 'prometheus', 'grafana',
+		// AI & data
+		'llm', 'openai', 'langchain', 'embedding', 'ml', 'data', 'pandas', 'jupyter', 'huggingface', 'rag',
+		// Cloud
+		'aws', 'gcp', 'azure', 'cloudflare', 'vercel', 'netlify', 'railway', 'fly',
+		// Security & testing
+		'security', 'auth', 'oauth', 'testing', 'jest', 'vitest', 'playwright', 'cypress',
+		// Tools & productivity
+		'cli', 'shell', 'regex', 'markdown', 'api', 'rest', 'websocket', 'sse', 'cron', 'email', 'slack',
+		// Architecture
+		'microservices', 'serverless', 'wasm', 'mcp', 'agent', 'workflow', 'queue', 'cache',
+	];
 
 	async function mpBrowseLoad() {
 		mpLoading = true;
@@ -222,8 +241,8 @@
 				mpBrowse = items;
 				return;
 			}
-			// Browse returned empty — seed with featured search results instead.
-			const picks = FEATURED_QUERIES.sort(() => Math.random() - 0.5).slice(0, 4);
+			// Browse returned empty — seed with featured search results across diverse categories.
+			const picks = FEATURED_QUERIES.sort(() => Math.random() - 0.5).slice(0, 6);
 			const batched = await Promise.allSettled(picks.map(q => searchMarketplace(q, 5)));
 			const seeded: MarketplaceSkill[] = [];
 			const seen = new Set<string>();

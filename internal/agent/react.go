@@ -563,8 +563,10 @@ func emit(ctx context.Context, ch chan<- RunEvent, ev RunEvent) {
 
 // fileModifyingTools maps tool names to how we extract the file path from their input.
 var fileModifyingTools = map[string]string{
-	"cairn.writeFile": "path",
-	"cairn.editFile":  "path",
+	"cairn.writeFile":  "path",
+	"cairn.editFile":   "path",
+	"cairn.deleteFile": "path",
+	"cairn.undoEdit":   "path",
 }
 
 // emitFileChangeIfNeeded checks if the tool modifies files and emits a file_change SessionEvent.

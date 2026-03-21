@@ -7,10 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
-	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/tool"
 )
 
@@ -433,115 +431,8 @@ func TestUndoEdit_RingBuffer(t *testing.T) {
 	}
 }
 
-// --- Feature 5: Post-Edit Events ---
-
-func TestWriteFile_PublishesEvent(t *testing.T) {
-	ctx, dir := fileTestCtx(t)
-	bus := eventbus.New()
-	defer bus.Close()
-	ctx.Bus = bus
-
-	var received []eventbus.SessionEvent
-	var mu sync.Mutex
-	eventbus.Subscribe(bus, func(ev eventbus.SessionEvent) {
-		mu.Lock()
-		received = append(received, ev)
-		mu.Unlock()
-	})
-
-	writeTestFile(t, dir, "file.txt", "old")
-	execTool(t, readFile, ctx, readFileParams{Path: "file.txt"})
-	execTool(t, writeFile, ctx, writeFileParams{Path: "file.txt", Content: "new"})
-
-	// Give async subscriber time to process.
-	bus.Close()
-
-	mu.Lock()
-	defer mu.Unlock()
-	found := false
-	for _, ev := range received {
-		if ev.EventType == "file_change" {
-			payload, ok := ev.Payload.(map[string]any)
-			if ok && payload["operation"] == "write" {
-				found = true
-			}
-		}
-	}
-	if !found {
-		t.Error("expected file_change event with operation=write")
-	}
-}
-
-func TestEditFile_PublishesEvent(t *testing.T) {
-	ctx, dir := fileTestCtx(t)
-	bus := eventbus.New()
-	defer bus.Close()
-	ctx.Bus = bus
-
-	var received []eventbus.SessionEvent
-	var mu sync.Mutex
-	eventbus.Subscribe(bus, func(ev eventbus.SessionEvent) {
-		mu.Lock()
-		received = append(received, ev)
-		mu.Unlock()
-	})
-
-	writeTestFile(t, dir, "file.txt", "hello world")
-	execTool(t, readFile, ctx, readFileParams{Path: "file.txt"})
-	execTool(t, editFile, ctx, editFileParams{Path: "file.txt", Old: "hello", New: "goodbye"})
-
-	bus.Close()
-
-	mu.Lock()
-	defer mu.Unlock()
-	found := false
-	for _, ev := range received {
-		if ev.EventType == "file_change" {
-			payload, ok := ev.Payload.(map[string]any)
-			if ok && payload["operation"] == "edit" {
-				found = true
-			}
-		}
-	}
-	if !found {
-		t.Error("expected file_change event with operation=edit")
-	}
-}
-
-func TestDeleteFile_PublishesEvent(t *testing.T) {
-	ctx, dir := fileTestCtx(t)
-	bus := eventbus.New()
-	defer bus.Close()
-	ctx.Bus = bus
-
-	var received []eventbus.SessionEvent
-	var mu sync.Mutex
-	eventbus.Subscribe(bus, func(ev eventbus.SessionEvent) {
-		mu.Lock()
-		received = append(received, ev)
-		mu.Unlock()
-	})
-
-	writeTestFile(t, dir, "file.txt", "content")
-	execTool(t, deleteFile, ctx, deleteFileParams{Path: "file.txt"})
-
-	bus.Close()
-
-	mu.Lock()
-	defer mu.Unlock()
-	found := false
-	for _, ev := range received {
-		if ev.EventType == "file_change" {
-			payload, ok := ev.Payload.(map[string]any)
-			if ok && payload["operation"] == "delete" {
-				found = true
-			}
-		}
-	}
-	if !found {
-		t.Error("expected file_change event with operation=delete")
-	}
-}
+// Note: file_change events are published at the agent layer (react.go emitFileChangeIfNeeded),
+// not at the tool layer. Agent-level integration tests cover this.
 
 // --- Feature 6: ReadFile Offset ---
 

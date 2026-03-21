@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/tool"
 )
 
@@ -72,6 +71,9 @@ func (st *fileSessionState) wasRead(absPath string) bool {
 
 func (st *fileSessionState) snapshot(absPath, operation string) {
 	data, err := os.ReadFile(absPath)
+	if err != nil && !os.IsNotExist(err) {
+		return // unreadable (permission error, etc.) — skip checkpoint
+	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	cp := fileCheckpoint{
@@ -81,7 +83,7 @@ func (st *fileSessionState) snapshot(absPath, operation string) {
 	if err == nil {
 		cp.Content = data
 	}
-	// err != nil means file didn't exist — Content stays nil (sentinel for "delete to undo").
+	// os.IsNotExist → Content stays nil (sentinel: "delete to undo creation").
 	cps := st.checkpoints[absPath]
 	cps = append(cps, cp)
 	if len(cps) > maxCheckpointsPerFile {
@@ -106,23 +108,6 @@ func (st *fileSessionState) checkpointCount(absPath string) int {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	return len(st.checkpoints[absPath])
-}
-
-// --- Post-edit event publishing ---
-
-func publishFileChange(ctx *tool.ToolContext, absPath, operation string) {
-	if ctx.Bus == nil {
-		return
-	}
-	eventbus.Publish(ctx.Bus, eventbus.SessionEvent{
-		EventMeta: eventbus.NewMeta("file_tool"),
-		SessionID: ctx.SessionID,
-		EventType: "file_change",
-		Payload: map[string]any{
-			"path":      absPath,
-			"operation": operation,
-		},
-	})
 }
 
 // checkReadBeforeWrite returns a warning string if the file exists but was
@@ -403,8 +388,6 @@ var writeFile = tool.Define("cairn.writeFile",
 			}
 		}
 
-		publishFileChange(ctx, absPath, "write")
-
 		return &tool.ToolResult{
 			Output: warning + fmt.Sprintf("Wrote %d bytes to %s", len(p.Content), absPath),
 			Metadata: map[string]any{
@@ -476,8 +459,6 @@ var editFile = tool.Define("cairn.editFile",
 					return &tool.ToolResult{Error: fmt.Sprintf("failed to write file: %v", err)}, nil
 				}
 
-				publishFileChange(ctx, absPath, "edit")
-
 				return &tool.ToolResult{
 					Output: fmt.Sprintf("[WARN] Exact match not found. Applied whitespace-normalized match in %s.\nMatched: %q",
 						absPath, truncate(match, 120)),
@@ -521,8 +502,6 @@ var editFile = tool.Define("cairn.editFile",
 		if err := os.WriteFile(absPath, []byte(newContent), 0644); err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to write file: %v", err)}, nil
 		}
-
-		publishFileChange(ctx, absPath, "edit")
 
 		return &tool.ToolResult{
 			Output: warning + fmt.Sprintf("Replaced %d occurrence(s) in %s", count, absPath),
@@ -604,8 +583,6 @@ var deleteFile = tool.Define("cairn.deleteFile",
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to delete file: %v", err)}, nil
 		}
 
-		publishFileChange(ctx, absPath, "delete")
-
 		return &tool.ToolResult{
 			Output: fmt.Sprintf("Deleted %s", absPath),
 			Metadata: map[string]any{
@@ -642,7 +619,6 @@ var undoEdit = tool.Define("cairn.undoEdit",
 		if cp.Content == nil {
 			// Sentinel: file didn't exist before — undo means delete.
 			os.Remove(absPath) // best-effort; ignore errors if already gone
-			publishFileChange(ctx, absPath, "undo")
 			return &tool.ToolResult{
 				Output: fmt.Sprintf("Removed %s (file did not exist before %s)", absPath, cp.Operation),
 				Metadata: map[string]any{
@@ -660,8 +636,6 @@ var undoEdit = tool.Define("cairn.undoEdit",
 		if err := os.WriteFile(absPath, cp.Content, 0644); err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to restore file: %v", err)}, nil
 		}
-
-		publishFileChange(ctx, absPath, "undo")
 
 		return &tool.ToolResult{
 			Output: fmt.Sprintf("Restored %s to checkpoint from %s (before %s, %d bytes)",

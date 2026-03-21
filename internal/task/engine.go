@@ -377,7 +377,14 @@ func (e *Engine) RecoverStuck(ctx context.Context, reason string) (requeued, fai
 				t.Status = StatusFailed
 				t.Error = reason
 				t.UpdatedAt = time.Now()
-				e.store.Update(ctx, t)
+				if updateErr := e.store.Update(ctx, t); updateErr != nil {
+					slog.Error("recovery: force-fail update also failed", "id", t.ID, "err", updateErr)
+				}
+				eventbus.Publish(e.bus, eventbus.TaskFailed{
+					EventMeta: eventbus.NewMeta("task-recovery"),
+					TaskID:    t.ID,
+					Error:     reason,
+				})
 				failed = append(failed, t.ID)
 				continue
 			}

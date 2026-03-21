@@ -142,10 +142,9 @@ func TestRecoverLoopState_NilDB(t *testing.T) {
 // --- Task recovery tests (RecoverOnStartup) ---
 
 func TestRecoverOnStartup_NoTasks(t *testing.T) {
-	engine, d, _ := testRecoveryWithEngine(t)
+	engine, _, _ := testRecoveryWithEngine(t)
 
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
-		DB:         d.DB,
 		TaskEngine: engine,
 		Logger:     slog.Default(),
 	})
@@ -170,7 +169,6 @@ func TestRecoverOnStartup_RequeuesRetryable(t *testing.T) {
 	insertStuckTask(t, d.DB, "retry1", "running", 0, 2, "2099-01-01T00:00:00.000Z")
 
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
-		DB:         d.DB,
 		TaskEngine: engine,
 		Logger:     slog.Default(),
 	})
@@ -191,7 +189,6 @@ func TestRecoverOnStartup_FailsExhaustedRetries(t *testing.T) {
 	insertStuckTask(t, d.DB, "exhausted1", "running", 1, 2, "2099-01-01T00:00:00.000Z")
 
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
-		DB:         d.DB,
 		TaskEngine: engine,
 		Logger:     slog.Default(),
 	})
@@ -213,7 +210,6 @@ func TestRecoverOnStartup_ActiveLeaseRecovered(t *testing.T) {
 	insertStuckTask(t, d.DB, "zombie1", "running", 0, 2, future)
 
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
-		DB:         d.DB,
 		TaskEngine: engine,
 		Logger:     slog.Default(),
 	})
@@ -237,7 +233,6 @@ func TestRecoverOnStartup_RecoveryStats(t *testing.T) {
 	insertStuckTask(t, d.DB, "f2", "running", 2, 2, "2020-01-01T00:00:00.000Z")
 
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
-		DB:         d.DB,
 		TaskEngine: engine,
 		Logger:     slog.Default(),
 	})
@@ -260,7 +255,6 @@ func TestRecoverOnStartup_RecordsActivity(t *testing.T) {
 	insertStuckTask(t, d.DB, "act1", "running", 0, 2, "2099-01-01T00:00:00.000Z")
 
 	RecoverOnStartup(context.Background(), RecoveryDeps{
-		DB:            d.DB,
 		TaskEngine:    engine,
 		ActivityStore: activityStore,
 		Logger:        slog.Default(),
@@ -289,7 +283,6 @@ func TestRecoverOnStartup_PublishesTaskFailedEvent(t *testing.T) {
 	})
 
 	RecoverOnStartup(context.Background(), RecoveryDeps{
-		DB:         d.DB,
 		TaskEngine: engine,
 		Logger:     slog.Default(),
 	})
@@ -313,7 +306,6 @@ func TestRecoverOnStartup_ChatTaskNeverRetried(t *testing.T) {
 	insertStuckTask(t, d.DB, "gen1", "running", 0, 3, "2099-01-01T00:00:00.000Z")
 
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
-		DB:         d.DB,
 		TaskEngine: engine,
 		Logger:     slog.Default(),
 	})

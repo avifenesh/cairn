@@ -21,7 +21,6 @@ type LoopState struct {
 
 // RecoveryDeps carries dependencies for startup recovery.
 type RecoveryDeps struct {
-	DB            *sql.DB
 	TaskEngine    *task.Engine
 	ActivityStore *ActivityStore
 	Logger        *slog.Logger

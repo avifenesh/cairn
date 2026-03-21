@@ -484,7 +484,6 @@ func runServe(logger *slog.Logger) {
 	// Recover stuck tasks unconditionally — tasks die on restart regardless
 	// of whether idle mode is enabled.
 	recoveryStats := agent.RecoverOnStartup(context.Background(), agent.RecoveryDeps{
-		DB:            database.DB,
 		TaskEngine:    taskEngine,
 		ActivityStore: activityStore,
 		Logger:        logger,

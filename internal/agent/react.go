@@ -13,6 +13,9 @@ import (
 	"github.com/avifenesh/cairn/internal/tool"
 )
 
+// Session state key for the currently executing task ID.
+const sessionStateKeyTaskID = "taskId"
+
 // ReActAgent implements the ReAct (Reason + Act) loop.
 // Each round: call LLM → if tool calls, execute them → feed results back → repeat.
 // Stops when LLM produces text without tool calls, or max rounds reached.
@@ -469,7 +472,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 // taskIDFromSession extracts the task ID from session state (set by the agent loop).
 func taskIDFromSession(ctx *InvocationContext) string {
 	if ctx.Session != nil && ctx.Session.State != nil {
-		if id, ok := ctx.Session.State["taskId"].(string); ok {
+		if id, ok := ctx.Session.State[sessionStateKeyTaskID].(string); ok {
 			return id
 		}
 	}

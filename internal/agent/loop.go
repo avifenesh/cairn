@@ -425,7 +425,7 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 	session := &Session{
 		ID:    sessionID,
 		Mode:  mode,
-		State: map[string]any{"taskId": t.ID},
+		State: map[string]any{sessionStateKeyTaskID: t.ID},
 	}
 
 	// Create isolated worktree for coding tasks.

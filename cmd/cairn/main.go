@@ -453,14 +453,14 @@ func runServe(logger *slog.Logger) {
 		journaler := agent.NewJournaler(journalStore, provider, cfg.LLMModel)
 
 		// Use process cwd as repo dir for reflection git context.
-reflectRepoDir, err := os.Getwd()
-if err != nil {
-	logger.Warn("failed to get working directory for reflection, git context will be disabled", "error", err)
-}
-reflector := agent.NewReflectionEngine(journalStore, memService, soul, provider, cfg.LLMModel, agent.ReflectionConfig{
-	Interval: time.Duration(cfg.ReflectionInterval) * time.Second,
-	RepoDir:  reflectRepoDir,
-})
+		reflectRepoDir, err := os.Getwd()
+		if err != nil {
+			logger.Warn("failed to get working directory for reflection, git context will be disabled", "error", err)
+		}
+		reflector := agent.NewReflectionEngine(journalStore, memService, soul, provider, cfg.LLMModel, agent.ReflectionConfig{
+			Interval: time.Duration(cfg.ReflectionInterval) * time.Second,
+			RepoDir:  reflectRepoDir,
+		})
 
 		// Recover agent state from previous run.
 		loopState := agent.RecoverOnStartup(context.Background(), database.DB, logger)

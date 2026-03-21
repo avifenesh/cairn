@@ -61,7 +61,13 @@ func (t *TelegramAdapter) Start(ctx context.Context) error {
 		return fmt.Errorf("telegram: start polling: %w", err)
 	}
 
-	t.logger.Info("telegram polling started", "chatID", t.chatID)
+	t.logger.Info("telegram polling started", "chatID", t.chatID, "notificationChatID", t.notificationChatID)
+
+	// Security: if notificationChatID is set but chatID is 0, inbound auth is disabled.
+	// Warn loudly — commands would be accepted from any chat.
+	if t.chatID == 0 && t.notificationChatID != 0 {
+		t.logger.Error("telegram: TELEGRAM_CHAT_ID is 0 but TELEGRAM_NOTIFICATION_CHAT_ID is set — inbound command auth is disabled, bot will accept messages from any chat")
+	}
 
 	for update := range updates {
 		if update.Message == nil {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/avifenesh/cairn/internal/eventbus"
@@ -199,21 +200,19 @@ func (e *Engine) Complete(ctx context.Context, taskID string, output json.RawMes
 	if t == nil {
 		return fmt.Errorf("task engine: complete: task %s not found", taskID)
 	}
-	// Already completed: update output if caller provides non-empty content and notify subscribers.
+	// Already completed: update output if caller provides semantically non-empty content.
 	if t.Status == StatusCompleted {
-		if len(output) > 0 && string(output) != `""` {
+		if isNonEmptyOutput(output) {
 			t.Output = output
 			t.UpdatedAt = time.Now()
 			if err := e.store.Update(ctx, t); err != nil {
 				return fmt.Errorf("task engine: complete update: %w", err)
 			}
-
 			eventbus.Publish(e.bus, eventbus.TaskCompleted{
 				EventMeta: eventbus.NewMeta("task-engine"),
 				TaskID:    taskID,
 				Result:    string(output),
 			})
-
 			slog.Info("task output updated for completed task", "id", taskID)
 		}
 		return nil
@@ -355,6 +354,13 @@ func (e *Engine) reap() {
 			slog.Info("reaper: task failed", "id", t.ID)
 		}
 	}
+}
+
+// isNonEmptyOutput checks whether a json.RawMessage is semantically non-empty.
+// Treats whitespace, `null`, and `""` as empty.
+func isNonEmptyOutput(output json.RawMessage) bool {
+	s := strings.TrimSpace(string(output))
+	return s != "" && s != "null" && s != `""`
 }
 
 // checkDuplicate looks for queued/claimed/running tasks with the same Type and Input.

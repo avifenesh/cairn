@@ -89,7 +89,7 @@ func (r *ReflectionEngine) Reflect(ctx context.Context) (*ReflectionResult, erro
 	soulContent := r.soul.Content()
 
 	// 4. Gather recent code changes (merged PRs, commits) for ground truth.
-	recentChanges := r.gatherRecentChanges()
+	recentChanges := r.gatherRecentChanges(ctx)
 
 	// 5. Build prompt.
 	prompt := r.buildPrompt(entries, existingMemories, soulContent, recentChanges)
@@ -231,12 +231,12 @@ Rules:
 
 // gatherRecentChanges collects recent git commits and merged PRs from the repo.
 // This provides ground truth for the LLM to invalidate stale memories.
-func (r *ReflectionEngine) gatherRecentChanges() string {
+func (r *ReflectionEngine) gatherRecentChanges(ctx context.Context) string {
 	if r.repoDir == "" {
 		return ""
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	var b strings.Builder
@@ -244,42 +244,44 @@ func (r *ReflectionEngine) gatherRecentChanges() string {
 	// Recent commits on main (last 48h).
 	cmd := exec.CommandContext(ctx, "git", "log", "main", "--oneline", "--since=48 hours ago", "--no-merges", "-20")
 	cmd.Dir = r.repoDir
-	if out, err := cmd.Output(); err == nil && len(out) > 0 {
+	if out, err := cmd.Output(); err != nil {
+		slog.Warn("gatherRecentChanges: failed to get recent commits", "dir", r.repoDir, "error", err)
+	} else if len(out) > 0 {
 		b.WriteString("Recent commits on main (last 48h):\n")
 		b.Write(out)
 		b.WriteString("\n")
 	}
 
 	// Recently merged PRs on main (last 48h) — key ground truth.
-	// Include both merge commits and PR-style non-merge commits (e.g., squash/rebase merges).
+	// Captures both traditional merge commits and squash/rebase merges
+	// (commits whose subject contains a PR number like "(#123)").
 	var prSubjects []string
 
-	// 1) Traditional merge commits, which typically represent merged PRs.
+	// 1) Traditional merge commits.
 	cmd = exec.CommandContext(ctx, "git", "log", "main", "--merges", "--since=48 hours ago", "-20",
-		"--format=%s") // subject line only (includes PR title)
+		"--format=%s")
 	cmd.Dir = r.repoDir
-	if out, err := cmd.Output(); err == nil && len(out) > 0 {
+	if out, err := cmd.Output(); err != nil {
+		slog.Warn("gatherRecentChanges: failed to get merged PRs", "dir", r.repoDir, "error", err)
+	} else {
 		for _, line := range strings.Split(string(out), "\n") {
-			line = strings.TrimSpace(line)
-			if line != "" {
+			if line = strings.TrimSpace(line); line != "" {
 				prSubjects = append(prSubjects, line)
 			}
 		}
 	}
 
-	// 2) Squash/rebase merges on main: non-merge commits whose subject looks like a PR title.
+	// 2) Squash/rebase merges: non-merge commits with PR numbers in the subject.
 	cmd = exec.CommandContext(ctx, "git", "log", "main", "--no-merges", "--since=48 hours ago", "-100",
-		"--format=%s") // subject line only
+		"--format=%s")
 	cmd.Dir = r.repoDir
-	if out, err := cmd.Output(); err == nil && len(out) > 0 {
+	if out, err := cmd.Output(); err != nil {
+		slog.Warn("gatherRecentChanges: failed to get squash-merge commits", "dir", r.repoDir, "error", err)
+	} else {
 		for _, line := range strings.Split(string(out), "\n") {
-			trimmed := strings.TrimSpace(line)
-			if trimmed == "" {
-				continue
-			}
-			// Heuristics for PR-style commits, e.g. "Add feature X (#123)" or "Merge pull request #123".
-			if strings.Contains(trimmed, "(#") || strings.Contains(trimmed, "pull request") {
-				prSubjects = append(prSubjects, trimmed)
+			if line = strings.TrimSpace(line); line != "" &&
+				(strings.Contains(line, "(#") || strings.Contains(line, "pull request")) {
+				prSubjects = append(prSubjects, line)
 			}
 		}
 	}
@@ -287,7 +289,7 @@ func (r *ReflectionEngine) gatherRecentChanges() string {
 	if len(prSubjects) > 0 {
 		b.WriteString("Recently merged PRs:\n")
 		b.WriteString(strings.Join(prSubjects, "\n"))
-		b.WriteString("\n\n")
+		b.WriteString("\n")
 	}
 
 	return b.String()

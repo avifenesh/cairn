@@ -106,7 +106,7 @@ describe('chatStore', () => {
 	describe('sessions', () => {
 		it('setSessions and currentSession', () => {
 			chatStore.setSessions([
-				{ id: 's1', messageCount: 5, lastMessageAt: '2026-01-01', createdAt: '2026-01-01' },
+				{ id: 's1', messageCount: 5, updatedAt: '2026-01-01', createdAt: '2026-01-01' },
 			]);
 			expect(chatStore.sessions).toHaveLength(1);
 			chatStore.setCurrentSession('s1');

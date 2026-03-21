@@ -17,6 +17,7 @@
 		PanelLeftClose,
 		PanelLeft,
 		Eye,
+		MonitorPlay,
 	} from '@lucide/svelte';
 	import { activityStore } from '$lib/stores/activity.svelte';
 
@@ -25,19 +26,21 @@
 		{ href: '/ops', label: 'Ops', icon: Inbox, key: '2' },
 		{ href: '/chat', label: 'Chat', icon: MessageSquare, key: '3' },
 		{ href: '/activity', label: 'Activity', icon: Eye, key: '4' },
-		{ href: '/memory', label: 'Memory', icon: Brain, key: '5' },
-		{ href: '/agents', label: 'Agents', icon: Bot, key: '6' },
-		{ href: '/skills', label: 'Skills', icon: Sparkles, key: '7' },
-		{ href: '/soul', label: 'Soul', icon: Heart, key: '8' },
+		{ href: '/sessions', label: 'Sessions', icon: MonitorPlay, key: '5' },
+		{ href: '/memory', label: 'Memory', icon: Brain, key: '6' },
+		{ href: '/agents', label: 'Agents', icon: Bot, key: '7' },
+		{ href: '/skills', label: 'Skills', icon: Sparkles, key: '8' },
+		{ href: '/soul', label: 'Soul', icon: Heart, key: '9' },
 	];
 
 	const bottomItems = [
-		{ href: '/settings', label: 'Settings', icon: Settings, key: '9' },
+		{ href: '/settings', label: 'Settings', icon: Settings, key: '0' },
 	];
 
 	function isActive(href: string): boolean {
 		const path = page.url.pathname;
 		if (href === '/today') return path === '/' || path === '/today';
+		if (href === '/sessions') return path.startsWith('/sessions') || path.startsWith('/session/');
 		return path.startsWith(href);
 	}
 

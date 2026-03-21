@@ -48,11 +48,16 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 		seenURLs = s.queryExistingURLs(ctx, urls)
 	}
 
-	// Filter out events with already-seen URLs.
+	// Filter out events with already-seen URLs (in DB or earlier in this batch).
 	var filtered []*RawEvent
 	for _, ev := range events {
-		if ev.URL != "" && seenURLs[ev.URL] {
-			continue
+		if ev.URL != "" {
+			if seenURLs[ev.URL] {
+				continue
+			}
+			// Track within this batch to catch duplicates from RSS feeds
+			// aggregating the same article across multiple feed URLs.
+			seenURLs[ev.URL] = true
 		}
 		filtered = append(filtered, ev)
 	}
@@ -125,7 +130,7 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 // devto poller and an RSS feed subscription).
 func (s *EventStore) queryExistingURLs(ctx context.Context, urls []string) map[string]bool {
 	if len(urls) == 0 {
-		return nil
+		return map[string]bool{}
 	}
 
 	placeholders := make([]string, len(urls))
@@ -139,7 +144,7 @@ func (s *EventStore) queryExistingURLs(ctx context.Context, urls []string) map[s
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		slog.Warn("signal: cross-source URL dedup query failed, skipping", "error", err)
-		return nil
+		return map[string]bool{}
 	}
 	defer rows.Close()
 
@@ -147,9 +152,14 @@ func (s *EventStore) queryExistingURLs(ctx context.Context, urls []string) map[s
 	for rows.Next() {
 		var url string
 		if err := rows.Scan(&url); err != nil {
-			continue
+			slog.Warn("signal: cross-source URL dedup scan failed, skipping query", "error", err)
+			return map[string]bool{}
 		}
 		result[url] = true
+	}
+	if err := rows.Err(); err != nil {
+		slog.Warn("signal: cross-source URL dedup rows iteration failed, skipping", "error", err)
+		return map[string]bool{}
 	}
 	return result
 }

@@ -55,7 +55,7 @@ func TestMigrateIdempotent(t *testing.T) {
 		t.Fatalf("second Migrate: %v", err)
 	}
 
-	// Should still have exactly seven migration records (001-007).
+	// Should still have exactly eight migration records (001-008).
 	var count int
 	if err := d.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil {
 		t.Fatalf("count migrations: %v", err)

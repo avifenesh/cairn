@@ -131,12 +131,13 @@ export class SessionStore {
 				if (currentText.trim()) {
 					this.addEvent({
 						sessionId: this.sessionId,
-						eventType: currentAuthor === 'user' ? 'user_steer' : 'text_delta',
+						eventType: 'text_delta',
 						payload: { text: currentText.trim(), author: currentAuthor },
 						timestamp: currentTimestamp,
 					});
 				}
 				currentText = '';
+				currentTimestamp = '';
 			};
 
 			for (const ev of data.events) {

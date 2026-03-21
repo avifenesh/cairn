@@ -26,7 +26,8 @@ allowed-tools: "cairn.shell,cairn.gitRun,cairn.readFile,cairn.webFetch"
 - `gh pr comment` — on my own `[cairn]` PRs (creates issue-level comments, NOT inline review comment replies)
 - `gh pr revert` — reverting my own `[cairn]` merges
 - `gh run view --log` — reading CI logs
-- `gh api` with `--method POST` on `/comments/{id}/replies` — replying to review comments on own PRs
+- `gh api` with `--method POST` on `/repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies` — replying to review comments on own PRs
+- `gh api` with `--method POST` on `/repos/{owner}/{repo}/pulls/{pull_number}/comments` with `in_reply_to` field — replying to review comments on own PRs (alternative)
 
 ### Require explicit approval from Avi
 - `gh pr merge` — **never merge without Avi's explicit approval**, regardless of CI status
@@ -103,7 +104,7 @@ Key distinction:
 ### Issues
 ```
 gh issue list [-R owner/repo] [--limit N] [--state open|closed|all] [--author LOGIN] [--assignee LOGIN] [--label LBL] [--milestone NAME] [--search QRY]
-gh issue view <number|url|branch> [-R owner/repo]
+gh issue view <number|url> [-R owner/repo]
 gh issue create --title "..." --body "..." [-R owner/repo]
 gh issue close <number> [-R owner/repo]
 gh issue comment <number> -b "..." [-R owner/repo]

@@ -82,14 +82,16 @@ gh api repos/{owner}/{repo}/issues/{issue_number}/comments \
 ### Reply workflow
 1. Fetch review comments: `gh api repos/{owner}/{repo}/pulls/{number}/comments`
 2. Fetch issue comments: `gh api repos/{owner}/{repo}/issues/{number}/comments`
-3. Fix ALL comments — high, medium, AND low priority
-4. Commit fixes as new commit (never amend)
-5. Push and re-check CI
-6. Reply to each comment using the correct endpoint based on comment type
+3. Check review state: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --jq '.[] | {id, state: .state, user: .user.login, body}'` — a `CHANGES_REQUESTED` review body may carry blocking feedback even without inline comments
+4. Dedupe review comments by top-level thread — `in_reply_to_id` is null on top-level comments; replies share the same parent. Reply only to the top-level parent, not to each reply.
+5. Fix ALL comments — high, medium, AND low priority
+6. Commit fixes as new commit (never amend)
+7. Push and re-check CI
+8. Reply to each top-level comment using the correct endpoint based on comment type
 
 ### Fallback for position mapping failures
 
-When inline review replies fail because the comment's `position` no longer maps to the current diff (after new commits), fall back to a regular PR comment referencing the review discussion number:
+When creating a new inline review comment (using path/line/position) fails because the diff `position` no longer maps to the current code (after new commits), fall back to a regular PR comment referencing the affected file/line or review discussion:
 ```bash
 gh pr comment {pr_number} --body "Addressed review on {path} L{line} in COMMIT_HASH"
 ```

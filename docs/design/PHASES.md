@@ -179,15 +179,15 @@ Phase 1: Foundation (Event Bus + LLM Client + SQLite)
 
 | Subphase | Description | Blocks | Status |
 |----------|-------------|--------|--------|
-| 5.1 | API compatibility layer — ensure Go server matches Node API contract | Phase 4a | Pending |
-| 5.2 | Frontend migration — test web client against Go backend | Phase 4a | Pending |
+| 5.1 | API compatibility layer — ensure Go server matches Node API contract | Phase 4a | Done (v1 replaced) |
+| 5.2 | Frontend migration — test web client against Go backend | Phase 4a | Done (SvelteKit 5 frontend) |
 | 5.3 | Always-on agent loop (idle mode, proactive behavior) | Phase 3, 4b, Piece 6 (memory) | Done (PR #10) |
-| 5.4 | Session migration — import SQLite data from v1 | Phase 3.3 | Pending |
+| 5.4 | Session migration — import SQLite data from v1 | Phase 3.3 | N/A (clean start) |
 | 5.5 | Episodic memory: session journaler | Phase 3, Piece 6 | Done (PR #10) |
-| 5.6 | Reflection engine (pattern detection → memories + soul patches) | Piece 6 (subphase 6.7) | Done (PR #10) |
+| 5.6 | Reflection engine (pattern detection → memories + soul patches) | Piece 6 (subphase 6.7) | Done (PR #10, #125) |
 | 5.7 | Performance testing (30-day soak test) | All | Pending |
-| 5.8 | Documentation (README, CONTRIBUTING, architecture guide) | All | Pending |
-| 5.9 | CI/CD (GitHub Actions: build, test, release binaries) | All | Pending |
+| 5.8 | Documentation (README, CONTRIBUTING, architecture guide) | All | Partial (README done) |
+| 5.9 | CI/CD (GitHub Actions: build, test, release binaries) | All | Done (PR #134 auto-deploy) |
 | 5.10 | Open-source release (LICENSE, cleanup, public repo) | All | Pending |
 | 10.12 | Go embed frontend | Phase 4a | Done (PR #11) |
 

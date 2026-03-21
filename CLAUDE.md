@@ -29,7 +29,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 13 | Intelligence - embeddings, session compaction | Done | `internal/memory/`, `internal/agent/compaction.go` |
 | 14 | Voice - Whisper STT + edge-tts TTS | Done | `internal/voice/` |
 
-Frontend feature-complete. 242 tests, 49 tools (base + zai + vision), 11 pollers, 41 skills. 38+ PRs merged. Home: command center (agent status pill, approvals inline, activity stream, unread highlights, system pulse, quick chat input). Chat: text, voice, file upload, vision, stop button, new chat, ?msg= from home. Feed: API wired, archive/delete, source filters, bulk archive/delete, GitHub signal, Gmail/Calendar (auto-archive GH emails), RSS/SO/DevTo. Skills: CRUD + ClawHub marketplace (search/browse/install with LLM security review, stats enrichment, client-side sort). Settings: 11 sections, all editable via UI and agent tools. Cron manager with inline edit. Notification prefs (priority, quiet hours, muted sources, channel routing). Agent config tools (patchConfig/getConfig). Activity observability tab (live stream, tool stats, error tracking). npm/crates download metrics.
+770 tests (528 Go + 242 frontend), 49 built-in tools + MCP client tools, 11 pollers, 41 skills. 53+ PRs merged. Auto-deploy on merge via self-hosted runner. MCP server (expose tools) + MCP client (consume external servers). Home: command center (agent status pill, approvals inline, activity stream, unread highlights, system pulse, quick chat input). Chat: text, voice, file upload, vision, stop button, new chat, ?msg= from home. Feed: API wired, archive/delete, source filters, bulk archive/delete, GitHub signal, Gmail/Calendar (auto-archive GH emails), RSS/SO/DevTo. Skills: CRUD + ClawHub marketplace (search/browse/install with LLM security review, stats enrichment, client-side sort) + auto-discovery suggestions. Soul: markdown render, patch review flow (approve/deny). Settings: 11 sections, all editable via UI and agent tools, dynamic MCP connections. Approval system with channel commands. Cron manager with inline edit. Notification prefs (priority, quiet hours, muted sources, channel routing). Agent config tools (patchConfig/getConfig). Activity observability tab (live stream, tool stats, error tracking). GLM fallback chain (glm-5-turbo -> glm-5 -> glm-4.7).
 
 ## Phases
 
@@ -41,7 +41,8 @@ Phase 4: Server + Skills + Signal Plane (4a+4b+4c)             [DONE]
 Phase 5: Always-on, CI/CD, docs, open-source                   [DONE]
 Phase 6: Tools & Skills + MCP server                          [DONE]
 Phase 7: Channels (Telegram, Discord, Slack) + Z.ai tools      [DONE]
-Phase 8: Intelligence (embeddings, compaction, voice, Gmail)    [PARTIAL — embeddings + compaction + voice done, Gmail/auto-extract remaining]
+Phase 8: Intelligence (embeddings, compaction, voice, Gmail)    [DONE]
+Phase 9: Agent Autonomy (MCP client, approvals, auto-deploy)   [DONE]
 ```
 
 Full plan: `docs/design/PHASE6_PLAN.md`
@@ -64,15 +65,17 @@ Key design decisions:
 - SQLite: WAL mode, single writer, foreign keys ON, MMAP 256MB
 - Frontend uses Svelte 5 runes (`.svelte.ts` stores), `tailwind-variants` for component styling
 
-## Planned Differentiators (not yet implemented unless marked Done above)
+## Differentiators
 
-1. **Worktree isolation** - every coding task gets its own git worktree.
-2. **Permission engine** - wildcard rules scoped per agent mode, per tool, per file pattern.
-3. **Always-on with proactive behavior** - Soul, episodic + semantic + procedural memory.
-4. **Skill ecosystem compatibility** - OpenClaw SKILL.md format.
-5. **Multi-protocol** - A2A, MCP, ACP first-class.
-6. **Event-sourced sessions** - append-only, branchable, compactable, replayable.
-7. **Single binary** - `scp cairn server:/usr/local/bin/`. No Node, no Python, no Docker.
+1. **Worktree isolation** - every coding task gets its own git worktree. ✅ Done
+2. **Permission engine** - wildcard rules scoped per agent mode, per tool, per file pattern. ✅ Done
+3. **Always-on with proactive behavior** - Soul, episodic + semantic + procedural memory. ✅ Done
+4. **Skill ecosystem compatibility** - OpenClaw SKILL.md format + ClawHub marketplace. ✅ Done
+5. **Multi-protocol** - MCP server + client done. A2A deferred.
+6. **Event-sourced sessions** - append-only, compactable. ✅ Done
+7. **Single binary** - `scp cairn server:/usr/local/bin/`. ✅ Done
+8. **Auto-deploy** - CI deploys on merge to main via self-hosted runner. ✅ Done
+9. **Approval system** - channel commands, interactive buttons, human-in-the-loop. ✅ Done
 
 ## Current Structure
 
@@ -91,7 +94,8 @@ internal/
   plugin/                     Lifecycle hooks (agent/tool/LLM), logging plugin, budget plugin
   server/                     HTTP server, REST routes, SSE broadcaster, auth, static (embed+FS), webhooks
   skill/                      SKILL.md parser, discovery, hot-reload, prompt injection
-  signal/                     Signal plane: event store, scheduler, 5 pollers, webhooks, digest
+  mcp/                        MCP server (expose tools) + MCP client (consume external servers)
+  signal/                     Signal plane: event store, scheduler, 11 pollers, webhooks, digest
 frontend/                     SvelteKit 5 app + embed.FS package for production binary
   src/routes/                 today, chat, ops, memory, agents, skills, soul, settings
   src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav)

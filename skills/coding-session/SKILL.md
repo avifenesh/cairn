@@ -3,7 +3,7 @@ name: coding-session
 description: "Autonomous coding workflow: branch, code, test, draft PR with [cairn] prefix. Use when starting a coding task from the idle loop or continuing an incomplete session. Keywords: code, fix, PR, CI, review, test, implement"
 inclusion: always
 context: "tick"
-allowed-tools: "cairn.shell,cairn.readFile,cairn.writeFile,cairn.editFile,cairn.deleteFile,cairn.listFiles,cairn.searchFiles,cairn.gitRun,cairn.notify,cairn.loadSkill"
+allowed-tools: "cairn.shell,cairn.readFile,cairn.writeFile,cairn.editFile,cairn.deleteFile,cairn.listFiles,cairn.searchFiles,cairn.gitRun,cairn.notify,cairn.loadSkill,cairn.createCron,cairn.deleteCron"
 ---
 
 # Autonomous Coding Session
@@ -68,7 +68,20 @@ When draft PR is ready and CI green:
 cairn.notify: message="Draft PR ready: [cairn] <title> — CI green. Review at <url>", priority=medium
 ```
 
-### 9. Running out of rounds?
+### 9. Create PR review monitor
+After creating the draft PR, set up a cron job to automatically address review comments:
+```
+cairn.createCron: name="pr-watch-{owner}-{repo}-<PR_NUMBER>", schedule="0 * * * *", instruction="PR #<PR_NUMBER> review monitor:
+  1. Check if PR is still open: gh pr view <PR_NUMBER> --json state --jq '.state'
+  2. If merged or closed → delete this cron job: cairn.deleteCron: name="pr-watch-{owner}-{repo}-<PR_NUMBER>" and stop.
+  3. If open, check for unresolved review comments: gh api repos/{owner}/{repo}/pulls/<PR_NUMBER>/comments — filter for comments where the bot hasn't replied.
+  4. If unresolved review comments found → address them in coding mode. Fix the issues, push, iterate until resolved.
+  5. If no comments → do nothing."
+```
+
+This runs hourly (matches the 1h cooldown in `createCron`), self-terminates when the PR closes, and auto-fixes review comments.
+
+### 10. Running out of rounds?
 If you're approaching the round limit and work isn't done:
 - Commit what you have
 - Push to the branch

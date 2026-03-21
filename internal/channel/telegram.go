@@ -139,6 +139,73 @@ func (t *TelegramAdapter) Close() error {
 	return nil // long polling stops when context is cancelled
 }
 
+// Telegram's sendMessage limit is 4096 UTF-8 bytes.
+// MarkdownV2 escaping can inflate text significantly (special chars get backslash-prefixed),
+// so we use a conservative limit for MarkdownV2 and the full 4096 for plain text.
+const (
+	tgMaxMessageBytes     = 4096
+	tgMarkdownV2Limit     = 3500 // conservative limit for MarkdownV2 to account for escaping inflation
+	tgChunkHeaderMaxLen   = 40   // "─── Part X/Y ───\n"
+)
+
+// sendChunks splits text into chunks respecting Telegram's message size limit
+// and sends them sequentially with a small delay between chunks.
+func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, text string, parseMode string, replyMarkup *telego.InlineKeyboardMarkup) error {
+	limit := tgMaxMessageBytes
+	if parseMode != "" {
+		limit = tgMarkdownV2Limit
+	}
+
+	chunks := splitMessage(text, limit)
+
+	if len(chunks) == 1 {
+		params := tu.Message(tu.ID(chatID), chunks[0])
+		if parseMode != "" {
+			params = params.WithParseMode(parseMode)
+		}
+		if replyMarkup != nil {
+			params = params.WithReplyMarkup(replyMarkup)
+		}
+		_, err := t.bot.SendMessage(ctx, params)
+		return err
+	}
+
+	// Multiple chunks: add part headers, attach keyboard to last chunk only.
+	for i, chunk := range chunks {
+		header := fmt.Sprintf("─── Part %d/%d ───\n", i+1, len(chunks))
+		full := header + chunk
+
+		params := tu.Message(tu.ID(chatID), full)
+		if parseMode != "" {
+			params = params.WithParseMode(parseMode)
+		}
+		// Only attach keyboard to the last chunk.
+		if i == len(chunks)-1 && replyMarkup != nil {
+			params = params.WithReplyMarkup(replyMarkup)
+		}
+
+		if _, err := t.bot.SendMessage(ctx, params); err != nil {
+			t.logger.Error("telegram: chunk send failed",
+				"chunk", i+1, "total", len(chunks),
+				"chars", len(full), "error", err)
+			return err
+		}
+
+		// Brief delay between chunks to avoid rate limiting.
+		if i < len(chunks)-1 {
+			select {
+			case <-time.After(300 * time.Millisecond):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
+	return nil
+}
+
+
+
 func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *OutgoingMessage) error {
 	// Send voice note if audio is present.
 	if len(msg.Audio) > 0 {
@@ -159,9 +226,6 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 		return nil
 	}
 
-	params := tu.Message(tu.ID(chatID), text).
-		WithParseMode(telego.ModeMarkdownV2)
-
 	// Build inline keyboard if there are actions.
 	var replyMarkup *telego.InlineKeyboardMarkup
 	if len(msg.Actions) > 0 {
@@ -177,17 +241,15 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 			rows = append(rows, row)
 		}
 		replyMarkup = &telego.InlineKeyboardMarkup{InlineKeyboard: rows}
-		params = params.WithReplyMarkup(replyMarkup)
 	}
 
-	if _, err := t.bot.SendMessage(ctx, params); err != nil {
-		// Fallback: try without markdown if parse fails, keep buttons.
+	// Try MarkdownV2 first, with automatic chunking for long messages.
+	err := t.sendChunks(ctx, chatID, text, telego.ModeMarkdownV2, replyMarkup)
+	if err != nil {
+		// Fallback: try plain text with chunking.
 		t.logger.Warn("telegram: markdown send failed, retrying plain", "error", err)
-		plain := tu.Message(tu.ID(chatID), stripMarkdown(msg.Text))
-		if replyMarkup != nil {
-			plain = plain.WithReplyMarkup(replyMarkup)
-		}
-		if _, err2 := t.bot.SendMessage(ctx, plain); err2 != nil {
+		plain := stripMarkdown(msg.Text)
+		if err2 := t.sendChunks(ctx, chatID, plain, "", replyMarkup); err2 != nil {
 			t.logger.Error("telegram: send failed", "error", err2)
 			return err2
 		}
@@ -196,8 +258,7 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 }
 
 func (t *TelegramAdapter) sendText(ctx context.Context, chatID int64, text string) {
-	params := tu.Message(tu.ID(chatID), text)
-	if _, err := t.bot.SendMessage(ctx, params); err != nil {
+	if err := t.sendChunks(ctx, chatID, text, "", nil); err != nil {
 		t.logger.Error("telegram: send text failed", "error", err)
 	}
 }

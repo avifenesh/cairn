@@ -284,14 +284,19 @@ func splitMessage(text string, maxLen int) []string {
 			break
 		}
 
-		// Find a good split point (last newline within limit).
+		// Find a good split point: prefer newline, then space, then hard split.
 		cut := maxLen
-		if idx := strings.LastIndex(text[:maxLen], "\n"); idx > 0 {
-			cut = idx + 1
+		if idx := strings.LastIndex(text[:maxLen], "\n"); idx > maxLen/2 {
+			cut = idx
+		} else if idx := strings.LastIndex(text[:maxLen], " "); idx > maxLen/2 {
+			cut = idx
 		}
+		// else: hard split at maxLen
 
 		chunks = append(chunks, text[:cut])
 		text = text[cut:]
+		// Skip leading whitespace from next chunk.
+		text = strings.TrimLeft(text, "\n\r ")
 	}
 	return chunks
 }

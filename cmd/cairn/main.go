@@ -830,6 +830,7 @@ func runServe(logger *slog.Logger) {
 				logger.Error("telegram adapter failed", "error", err)
 			} else {
 				channelRouter.Register(tg)
+				builtin.SetTelegramBot(tg.Bot(), cfg.TelegramChatID)
 				logger.Info("telegram channel registered", "chatID", cfg.TelegramChatID)
 			}
 		}

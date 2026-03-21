@@ -256,7 +256,7 @@ func TestStore_Update(t *testing.T) {
 
 	newInstruction := "new instruction"
 	disabled := false
-	if err := store.Update(ctx, job.ID, &disabled, nil, &newInstruction, nil, nil); err != nil {
+	if err := store.Update(ctx, job.ID, &disabled, nil, &newInstruction, nil, nil, nil); err != nil {
 		t.Fatalf("update: %v", err)
 	}
 

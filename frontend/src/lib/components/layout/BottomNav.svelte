@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { taskStore } from '$lib/stores/tasks.svelte';
-	import { Brain, Bot, Sparkles, Heart, Settings, LayoutDashboard, Inbox, MessageSquare, MoreHorizontal, Eye } from '@lucide/svelte';
+	import { Brain, Bot, Sparkles, Heart, Settings, LayoutDashboard, Inbox, MessageSquare, MoreHorizontal, Eye, MonitorPlay } from '@lucide/svelte';
 
 	let moreOpen = $state(false);
 
@@ -13,6 +13,7 @@
 	];
 
 	const moreItems = [
+		{ href: '/sessions', label: 'Sessions', icon: MonitorPlay },
 		{ href: '/memory', label: 'Memory', icon: Brain },
 		{ href: '/agents', label: 'Agents', icon: Bot },
 		{ href: '/skills', label: 'Skills', icon: Sparkles },
@@ -23,6 +24,7 @@
 	function isActive(href: string): boolean {
 		const path = page.url.pathname;
 		if (href === '/today') return path === '/' || path === '/today';
+		if (href === '/sessions') return path.startsWith('/sessions') || path.startsWith('/session/');
 		return path.startsWith(href);
 	}
 

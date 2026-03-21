@@ -34,12 +34,12 @@ GitHub has two distinct comment systems on PRs:
 
 To list review comments:
 ```bash
-gh api repos/{owner}/{repo}/pulls/{number}/comments --jq '.[] | {id, path, line, body, user: .user.login, in_reply_to_id}'
+gh api repos/{owner}/{repo}/pulls/{pull_number}/comments --jq '.[] | {id, path, line, body, user: .user.login, in_reply_to_id}'
 ```
 
 To list issue comments:
 ```bash
-gh api repos/{owner}/{repo}/issues/{number}/comments --jq '.[] | {id, body, user: .user.login}'
+gh api repos/{owner}/{repo}/issues/{pull_number}/comments --jq '.[] | {id, body, user: .user.login}'
 ```
 
 ### Reply to review comments (inline diff comments)
@@ -69,20 +69,20 @@ When `in_reply_to` is set, all other parameters (commit_id, path, line, etc.) ar
 
 Issue comments have no threading API. Reply by posting a new issue comment and referencing the original:
 ```bash
-gh pr comment {pr_number} --body "Re: review feedback — addressed in COMMIT_HASH"
+gh pr comment <number> --body "Re: review feedback — addressed in COMMIT_HASH"
 ```
 
 Or via API:
 ```bash
-gh api repos/{owner}/{repo}/issues/{issue_number}/comments \
+gh api repos/{owner}/{repo}/issues/{pull_number}/comments \
   --method POST \
   --field body="Re: review feedback — addressed in COMMIT_HASH"
 ```
 
 ### Reply workflow
-1. Fetch review comments: `gh api repos/{owner}/{repo}/pulls/{number}/comments`
-2. Fetch issue comments: `gh api repos/{owner}/{repo}/issues/{number}/comments`
-3. Check review state: `gh api repos/{owner}/{repo}/pulls/{number}/reviews --jq '.[] | {id, state: .state, user: .user.login, body}'` — a `CHANGES_REQUESTED` review body may carry blocking feedback even without inline comments
+1. Fetch review comments: `gh api repos/{owner}/{repo}/pulls/{pull_number}/comments`
+2. Fetch issue comments: `gh api repos/{owner}/{repo}/issues/{pull_number}/comments`
+3. Check review state: `gh api repos/{owner}/{repo}/pulls/{pull_number}/reviews --jq '.[] | {id, state: .state, user: .user.login, body}'` — a `CHANGES_REQUESTED` review body may carry blocking feedback even without inline comments
 4. Dedupe review comments by top-level thread — `in_reply_to_id` is null on top-level comments; replies share the same parent. Reply only to the top-level parent, not to each reply.
 5. Fix ALL comments — high, medium, AND low priority
 6. Commit fixes as new commit (never amend)
@@ -93,7 +93,7 @@ gh api repos/{owner}/{repo}/issues/{issue_number}/comments \
 
 When creating a new inline review comment (using path/line/position) fails because the diff `position` no longer maps to the current code (after new commits), fall back to a regular PR comment referencing the affected file/line or review discussion:
 ```bash
-gh pr comment {pr_number} --body "Addressed review on {path} L{line} in COMMIT_HASH"
+gh pr comment <number> --body "Addressed review on {path} L{line} in COMMIT_HASH"
 ```
 
 ## Merge

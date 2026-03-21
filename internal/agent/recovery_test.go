@@ -147,7 +147,7 @@ func TestRecoverOnStartup_NoTasks(t *testing.T) {
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Logger: slog.Default(),
+		Logger:     slog.Default(),
 	})
 	if stats.Total != 0 {
 		t.Errorf("expected 0 recovered, got %d", stats.Total)
@@ -172,7 +172,7 @@ func TestRecoverOnStartup_RequeuesRetryable(t *testing.T) {
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Logger: slog.Default(),
+		Logger:     slog.Default(),
 	})
 
 	status := getTaskStatus(t, d.DB, "retry1")
@@ -193,7 +193,7 @@ func TestRecoverOnStartup_FailsExhaustedRetries(t *testing.T) {
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Logger: slog.Default(),
+		Logger:     slog.Default(),
 	})
 
 	status := getTaskStatus(t, d.DB, "exhausted1")
@@ -215,7 +215,7 @@ func TestRecoverOnStartup_ActiveLeaseRecovered(t *testing.T) {
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Logger: slog.Default(),
+		Logger:     slog.Default(),
 	})
 
 	status := getTaskStatus(t, d.DB, "zombie1")
@@ -239,7 +239,7 @@ func TestRecoverOnStartup_RecoveryStats(t *testing.T) {
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Logger: slog.Default(),
+		Logger:     slog.Default(),
 	})
 
 	if stats.Total != 4 {
@@ -291,7 +291,7 @@ func TestRecoverOnStartup_PublishesTaskFailedEvent(t *testing.T) {
 	RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Logger: slog.Default(),
+		Logger:     slog.Default(),
 	})
 
 	select {
@@ -315,7 +315,7 @@ func TestRecoverOnStartup_ChatTaskNeverRetried(t *testing.T) {
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Logger: slog.Default(),
+		Logger:     slog.Default(),
 	})
 
 	chatStatus := getTaskStatus(t, d.DB, "chat1")

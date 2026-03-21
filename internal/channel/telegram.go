@@ -143,9 +143,9 @@ func (t *TelegramAdapter) Close() error {
 // MarkdownV2 escaping can inflate text significantly (special chars get backslash-prefixed),
 // so we use a conservative limit for MarkdownV2 and the full 4096 for plain text.
 const (
-	tgMaxMessageBytes     = 4096
-	tgMarkdownV2Limit     = 3500 // conservative limit for MarkdownV2 to account for escaping inflation
-	tgChunkHeaderMaxLen   = 40   // "─── Part X/Y ───\n"
+	tgMaxMessageBytes   = 4096
+	tgMarkdownV2Limit   = 3500 // conservative limit for MarkdownV2 to account for escaping inflation
+	tgChunkHeaderMaxLen = 40   // "─── Part X/Y ───\n"
 )
 
 // sendChunks splits text into chunks respecting Telegram's message size limit
@@ -203,8 +203,6 @@ func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, text str
 
 	return nil
 }
-
-
 
 func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *OutgoingMessage) error {
 	// Send voice note if audio is present.

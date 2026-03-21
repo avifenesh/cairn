@@ -36,43 +36,19 @@ type RecoveryStats struct {
 	Total    int
 }
 
-// RecoverOnStartup restores agent loop state from the database and recovers
-// any tasks stuck in running/claimed state. Tasks with retries remaining are
-// re-queued; exhausted tasks are marked failed with events published.
-// Returns the restored state and recovery statistics.
-func RecoverOnStartup(ctx context.Context, deps RecoveryDeps) (LoopState, RecoveryStats) {
-	state := LoopState{}
+// RecoverOnStartup recovers any tasks stuck in running/claimed state.
+// Tasks with retries remaining are re-queued; exhausted tasks are marked
+// failed with events published. Runs unconditionally on startup (not gated
+// by idle mode). Loop state is restored separately via RecoverLoopState.
+func RecoverOnStartup(ctx context.Context, deps RecoveryDeps) RecoveryStats {
 	stats := RecoveryStats{}
-
-	if deps.DB == nil {
-		return state, stats
-	}
 
 	logger := deps.Logger
 	if logger == nil {
 		logger = slog.Default()
 	}
 
-	// 1. Restore loop state.
-	var tickCount int64
-	var lastReflectStr sql.NullString
-	err := deps.DB.QueryRowContext(ctx,
-		`SELECT tick_count, last_reflection_at FROM agent_loop_state WHERE id = ?`,
-		loopStateID,
-	).Scan(&tickCount, &lastReflectStr)
-	if err == nil {
-		state.TickCount = tickCount
-		if lastReflectStr.Valid {
-			if t, err := time.Parse("2006-01-02T15:04:05Z", lastReflectStr.String); err == nil {
-				state.LastReflection = t
-			}
-		}
-		logger.Info("agent state restored", "tickCount", state.TickCount, "lastReflection", state.LastReflection)
-	} else if err != sql.ErrNoRows {
-		logger.Warn("agent state restore failed", "error", err)
-	}
-
-	// 2. Recover stuck tasks via engine (re-queues retryable, fails exhausted).
+	// Recover stuck tasks via engine (re-queues retryable, fails exhausted).
 	if deps.TaskEngine != nil {
 		requeued, failed := deps.TaskEngine.RecoverStuck(ctx, "stuck_task_recovery: server restarted")
 		stats.Requeued = requeued
@@ -101,10 +77,10 @@ func RecoverOnStartup(ctx context.Context, deps RecoveryDeps) (LoopState, Recove
 					Summary: summary,
 					Details: details.String(),
 				}
-				deps.ActivityStore.Record(ctx, entry)
-
-				// Publish for SSE so frontend sees it immediately.
-				if deps.Bus != nil {
+				if err := deps.ActivityStore.Record(ctx, entry); err != nil {
+					logger.Warn("recovery: failed to record activity", "error", err)
+				} else if deps.Bus != nil {
+					// Only publish SSE event if activity was persisted.
 					eventbus.Publish(deps.Bus, AgentActivityEvent{
 						EventMeta: eventbus.NewMeta("recovery"),
 						Entry:     entry,
@@ -114,7 +90,40 @@ func RecoverOnStartup(ctx context.Context, deps RecoveryDeps) (LoopState, Recove
 		}
 	}
 
-	return state, stats
+	return stats
+}
+
+// RecoverLoopState restores only the agent loop state (tick count, reflection time)
+// from the database. Separated from RecoverOnStartup so loop state can be restored
+// inside the idle-mode block while task recovery runs unconditionally.
+func RecoverLoopState(ctx context.Context, db *sql.DB, logger *slog.Logger) (LoopState, error) {
+	state := LoopState{}
+	if db == nil {
+		return state, nil
+	}
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	var tickCount int64
+	var lastReflectStr sql.NullString
+	err := db.QueryRowContext(ctx,
+		`SELECT tick_count, last_reflection_at FROM agent_loop_state WHERE id = ?`,
+		loopStateID,
+	).Scan(&tickCount, &lastReflectStr)
+	if err == nil {
+		state.TickCount = tickCount
+		if lastReflectStr.Valid {
+			if t, err := time.Parse("2006-01-02T15:04:05Z", lastReflectStr.String); err == nil {
+				state.LastReflection = t
+			}
+		}
+		logger.Info("agent state restored", "tickCount", state.TickCount, "lastReflection", state.LastReflection)
+	} else if err != sql.ErrNoRows {
+		logger.Warn("agent state restore failed", "error", err)
+	}
+
+	return state, nil
 }
 
 // CheckpointState persists the current loop state to the database.

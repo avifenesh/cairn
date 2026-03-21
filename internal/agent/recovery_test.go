@@ -15,7 +15,6 @@ import (
 )
 
 // testRecoveryDB creates a lightweight DB with just the agent_loop_state table.
-// Use testRecoveryWithEngine for tests that need the full task engine.
 func testRecoveryDB(t *testing.T) *sql.DB {
 	t.Helper()
 	rawDB, err := sql.Open("sqlite", ":memory:")
@@ -98,34 +97,30 @@ func getTaskStatus(t *testing.T, rawDB *sql.DB, id string) string {
 	return status
 }
 
-func TestRecoverOnStartup_NoState(t *testing.T) {
+// --- Loop state tests (RecoverLoopState) ---
+
+func TestRecoverLoopState_NoState(t *testing.T) {
 	rawDB := testRecoveryDB(t)
 
-	state, stats := RecoverOnStartup(context.Background(), RecoveryDeps{
-		DB:     rawDB,
-		Logger: slog.Default(),
-	})
+	state, err := RecoverLoopState(context.Background(), rawDB, slog.Default())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if state.TickCount != 0 {
 		t.Errorf("expected tick count 0, got %d", state.TickCount)
 	}
 	if !state.LastReflection.IsZero() {
 		t.Errorf("expected zero time, got %v", state.LastReflection)
 	}
-	if stats.Total != 0 {
-		t.Errorf("expected 0 recovered, got %d", stats.Total)
-	}
 }
 
-func TestRecoverOnStartup_RestoresState(t *testing.T) {
+func TestRecoverLoopState_RestoresState(t *testing.T) {
 	rawDB := testRecoveryDB(t)
 
 	rawDB.Exec(`INSERT INTO agent_loop_state (id, tick_count, last_reflection_at, updated_at)
 		VALUES ('agent', 42, '2026-03-19T10:00:00Z', '2026-03-19T10:01:00Z')`)
 
-	state, _ := RecoverOnStartup(context.Background(), RecoveryDeps{
-		DB:     rawDB,
-		Logger: slog.Default(),
-	})
+	state, _ := RecoverLoopState(context.Background(), rawDB, slog.Default())
 	if state.TickCount != 42 {
 		t.Errorf("expected tick count 42, got %d", state.TickCount)
 	}
@@ -134,11 +129,36 @@ func TestRecoverOnStartup_RestoresState(t *testing.T) {
 	}
 }
 
-func TestRecoverOnStartup_NilDB(t *testing.T) {
-	state, stats := RecoverOnStartup(context.Background(), RecoveryDeps{})
+func TestRecoverLoopState_NilDB(t *testing.T) {
+	state, err := RecoverLoopState(context.Background(), nil, slog.Default())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if state.TickCount != 0 {
 		t.Errorf("expected tick count 0, got %d", state.TickCount)
 	}
+}
+
+// --- Task recovery tests (RecoverOnStartup) ---
+
+func TestRecoverOnStartup_NoTasks(t *testing.T) {
+	engine, d, bus := testRecoveryWithEngine(t)
+
+	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
+		DB:         d.DB,
+		TaskEngine: engine,
+		Bus:        bus,
+		Logger:     slog.Default(),
+	})
+	if stats.Total != 0 {
+		t.Errorf("expected 0 recovered, got %d", stats.Total)
+	}
+}
+
+func TestRecoverOnStartup_NilEngine(t *testing.T) {
+	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
+		Logger: slog.Default(),
+	})
 	if stats.Total != 0 {
 		t.Errorf("expected 0 recovered, got %d", stats.Total)
 	}
@@ -150,7 +170,7 @@ func TestRecoverOnStartup_RequeuesRetryable(t *testing.T) {
 	// Task with retries=0, max_retries=2: should be re-queued (0+1 < 2).
 	insertStuckTask(t, d.DB, "retry1", "running", 0, 2, "2099-01-01T00:00:00.000Z")
 
-	_, stats := RecoverOnStartup(context.Background(), RecoveryDeps{
+	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
 		Bus:        bus,
@@ -172,7 +192,7 @@ func TestRecoverOnStartup_FailsExhaustedRetries(t *testing.T) {
 	// Task with retries=1, max_retries=2: should be failed (1+1 >= 2).
 	insertStuckTask(t, d.DB, "exhausted1", "running", 1, 2, "2099-01-01T00:00:00.000Z")
 
-	_, stats := RecoverOnStartup(context.Background(), RecoveryDeps{
+	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
 		Bus:        bus,
@@ -195,7 +215,7 @@ func TestRecoverOnStartup_ActiveLeaseRecovered(t *testing.T) {
 	future := time.Now().UTC().Add(5 * time.Minute).Format("2006-01-02T15:04:05.000Z")
 	insertStuckTask(t, d.DB, "zombie1", "running", 0, 2, future)
 
-	_, stats := RecoverOnStartup(context.Background(), RecoveryDeps{
+	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
 		Bus:        bus,
@@ -220,7 +240,7 @@ func TestRecoverOnStartup_RecoveryStats(t *testing.T) {
 	insertStuckTask(t, d.DB, "f1", "running", 1, 2, "2020-01-01T00:00:00.000Z")
 	insertStuckTask(t, d.DB, "f2", "running", 2, 2, "2020-01-01T00:00:00.000Z")
 
-	_, stats := RecoverOnStartup(context.Background(), RecoveryDeps{
+	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
 		Bus:        bus,
@@ -252,7 +272,6 @@ func TestRecoverOnStartup_RecordsActivity(t *testing.T) {
 		Logger:        slog.Default(),
 	})
 
-	// Check that an activity entry was recorded.
 	entries, err := activityStore.List(context.Background(), 10, 0, "recovery")
 	if err != nil {
 		t.Fatalf("list activity: %v", err)
@@ -268,10 +287,8 @@ func TestRecoverOnStartup_RecordsActivity(t *testing.T) {
 func TestRecoverOnStartup_PublishesTaskFailedEvent(t *testing.T) {
 	engine, d, bus := testRecoveryWithEngine(t)
 
-	// Exhausted task should publish TaskFailed event via engine.Fail().
 	insertStuckTask(t, d.DB, "ev1", "running", 1, 2, "2099-01-01T00:00:00.000Z")
 
-	// Subscribe to TaskFailed events before recovery.
 	received := make(chan eventbus.TaskFailed, 1)
 	eventbus.Subscribe(bus, func(e eventbus.TaskFailed) {
 		received <- e
@@ -297,14 +314,12 @@ func TestRecoverOnStartup_PublishesTaskFailedEvent(t *testing.T) {
 func TestRecoverOnStartup_ChatTaskNeverRetried(t *testing.T) {
 	engine, d, bus := testRecoveryWithEngine(t)
 
-	// Chat task with retries remaining: should still be failed (not re-queued)
-	// because the user's HTTP connection is gone after restart.
+	// Chat task with retries remaining: should still be failed (not re-queued).
 	insertStuckTaskTyped(t, d.DB, "chat1", "chat", "running", 0, 3, "2099-01-01T00:00:00.000Z")
-
-	// Also add a general task with same retry config - this one SHOULD be re-queued.
+	// General task with same config: should be re-queued.
 	insertStuckTask(t, d.DB, "gen1", "running", 0, 3, "2099-01-01T00:00:00.000Z")
 
-	_, stats := RecoverOnStartup(context.Background(), RecoveryDeps{
+	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
 		Bus:        bus,
@@ -329,11 +344,12 @@ func TestRecoverOnStartup_ChatTaskNeverRetried(t *testing.T) {
 	}
 }
 
+// --- Checkpoint tests ---
+
 func TestCheckpointState(t *testing.T) {
 	rawDB := testRecoveryDB(t)
 	ctx := context.Background()
 
-	// First checkpoint.
 	CheckpointState(ctx, rawDB, 10, time.Date(2026, 3, 19, 10, 0, 0, 0, time.UTC))
 
 	var tickCount int64
@@ -342,7 +358,6 @@ func TestCheckpointState(t *testing.T) {
 		t.Errorf("expected tick count 10, got %d", tickCount)
 	}
 
-	// Update checkpoint.
 	CheckpointState(ctx, rawDB, 20, time.Date(2026, 3, 19, 10, 30, 0, 0, time.UTC))
 
 	rawDB.QueryRow("SELECT tick_count FROM agent_loop_state WHERE id = 'agent'").Scan(&tickCount)
@@ -352,6 +367,5 @@ func TestCheckpointState(t *testing.T) {
 }
 
 func TestCheckpointState_NilDB(t *testing.T) {
-	// Should not panic.
 	CheckpointState(context.Background(), nil, 5, time.Now())
 }

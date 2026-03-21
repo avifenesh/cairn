@@ -350,7 +350,8 @@ func (e *Engine) reap() {
 // RecoverStuck finds all in-flight tasks (running/claimed) and processes them
 // through Fail(). Tasks with retries remaining are re-queued; exhausted tasks
 // are marked failed with events published. Chat tasks are always failed (no
-// retry) because the user's HTTP connection is gone after restart.
+// retry) because the user's HTTP connection is gone after restart. Coding
+// tasks get their orphaned worktrees cleaned up before re-queue.
 // Called once at startup.
 func (e *Engine) RecoverStuck(ctx context.Context, reason string) (requeued, failed []string) {
 	inflight, err := e.store.FindInFlight(ctx)
@@ -360,12 +361,34 @@ func (e *Engine) RecoverStuck(ctx context.Context, reason string) (requeued, fai
 	}
 
 	for _, t := range inflight {
-		// Chat tasks are tied to HTTP connections - no point retrying after restart.
-		// Exhaust retries so Fail() takes the terminal path.
+		// Chat tasks are tied to HTTP connections - never retry after restart.
+		// Set retries to MaxRetries-1 so Fail() increments to exactly MaxRetries
+		// (avoids retries > MaxRetries in persisted metadata).
 		if t.Type == TypeChat {
-			t.Retries = t.MaxRetries
+			target := t.MaxRetries
+			if target > 0 {
+				target--
+			}
+			t.Retries = target
 			if err := e.store.Update(ctx, t); err != nil {
-				slog.Error("recovery: exhaust chat retries", "id", t.ID, "err", err)
+				// Update failed - can't guarantee Fail() will see exhausted retries.
+				// Directly mark failed to prevent accidental re-queue.
+				slog.Error("recovery: exhaust chat retries failed, force-failing", "id", t.ID, "err", err)
+				t.Status = StatusFailed
+				t.Error = reason
+				t.UpdatedAt = time.Now()
+				e.store.Update(ctx, t)
+				failed = append(failed, t.ID)
+				continue
+			}
+		}
+
+		// Clean up orphaned worktrees for coding tasks before re-queue.
+		// If the worktree still exists from the crashed session, Remove it
+		// so the retry can create a fresh one.
+		if t.Type == TypeCoding && e.worktree != nil {
+			if rmErr := e.worktree.Remove(t.ID); rmErr != nil {
+				slog.Debug("recovery: worktree cleanup (may not exist)", "id", t.ID, "err", rmErr)
 			}
 		}
 

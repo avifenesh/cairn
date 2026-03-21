@@ -480,6 +480,22 @@ func runServe(logger *slog.Logger) {
 		logger.Info("subagent runner initialized")
 	}
 
+	// Recover stuck tasks unconditionally — tasks die on restart regardless
+	// of whether idle mode is enabled.
+	recoveryStats := agent.RecoverOnStartup(context.Background(), agent.RecoveryDeps{
+		DB:            database.DB,
+		TaskEngine:    taskEngine,
+		ActivityStore: activityStore,
+		Bus:           bus,
+		Logger:        logger,
+	})
+	if recoveryStats.Total > 0 {
+		logger.Info("startup recovery complete",
+			"recoveredTasks", recoveryStats.Total,
+			"requeued", len(recoveryStats.Requeued),
+			"failed", len(recoveryStats.Failed))
+	}
+
 	// Start always-on agent loop (if idle mode enabled and agent available).
 	var agentLoop *agent.Loop
 	if cfg.IdleModeEnabled && reactAgent != nil && provider != nil {
@@ -492,14 +508,8 @@ func runServe(logger *slog.Logger) {
 			RepoDir:  reflectRepoDir,
 		})
 
-		// Recover agent state from previous run and re-queue/fail stuck tasks.
-		loopState, recoveryStats := agent.RecoverOnStartup(context.Background(), agent.RecoveryDeps{
-			DB:            database.DB,
-			TaskEngine:    taskEngine,
-			ActivityStore: activityStore,
-			Bus:           bus,
-			Logger:        logger,
-		})
+		// Restore loop state from previous run.
+		loopState, _ := agent.RecoverLoopState(context.Background(), database.DB, logger)
 
 		agentLoop = agent.NewLoop(agent.LoopConfig{
 			TickInterval:       time.Duration(cfg.AgentTickInterval) * time.Second,
@@ -548,8 +558,7 @@ func runServe(logger *slog.Logger) {
 		agentLoop.Start()
 		defer agentLoop.Close()
 		logger.Info("agent loop started", "tick", cfg.AgentTickInterval, "reflection", cfg.ReflectionInterval,
-			"restoredTicks", loopState.TickCount,
-			"recoveredTasks", recoveryStats.Total, "requeued", len(recoveryStats.Requeued))
+			"restoredTicks", loopState.TickCount)
 	}
 
 	// Initialize voice service (optional).

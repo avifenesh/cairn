@@ -6,7 +6,7 @@
 	import ActivityStream from '$lib/components/session/ActivityStream.svelte';
 	import DiffViewer from '$lib/components/session/DiffViewer.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Send, Square, FileText, PanelRightClose, PanelRight } from '@lucide/svelte';
+	import { Send, Square, PanelRightClose, PanelRight, X } from '@lucide/svelte';
 
 	const sessionId = $page.params.id ?? '';
 	const store = new SessionStore(sessionId);
@@ -76,7 +76,7 @@
 			<!-- Inline steering input at bottom of stream -->
 			<div class="steer-bar">
 				{#if isActive}
-					<Button size="sm" variant="destructive" onclick={() => store.stop().catch(() => {})} class="shrink-0">
+					<Button size="sm" variant="destructive" aria-label="Stop session" onclick={() => store.stop().catch(() => {})} class="shrink-0">
 						<Square size={14} />
 					</Button>
 					<input
@@ -87,7 +87,7 @@
 						class="steer-input"
 						disabled={sending}
 					/>
-					<Button size="sm" variant="default" onclick={sendSteer} disabled={!steerInput.trim() || sending} class="shrink-0">
+					<Button size="sm" variant="default" aria-label="Send steering message" onclick={sendSteer} disabled={!steerInput.trim() || sending} class="shrink-0">
 						<Send size={14} />
 					</Button>
 				{:else}
@@ -99,7 +99,8 @@
 						variant={showDiffs ? 'secondary' : 'ghost'}
 						onclick={() => (showDiffs = !showDiffs)}
 						class="shrink-0 ml-1"
-						title="Toggle diff panel"
+						aria-label={showDiffs ? 'Hide diffs' : 'Show diffs'}
+						aria-pressed={showDiffs}
 					>
 						{#if showDiffs}<PanelRightClose size={14} />{:else}<PanelRight size={14} />{/if}
 						<span class="ml-1 text-xs">{store.fileChanges.length}</span>
@@ -111,6 +112,12 @@
 		<!-- Diff panel (toggleable, only shown when there are file changes) -->
 		{#if showDiffs && hasFiles}
 			<div class="diff-panel">
+				<div class="diff-panel-header md:hidden">
+					<span class="text-xs font-medium">Changed Files</span>
+					<Button size="sm" variant="ghost" aria-label="Close diff panel" onclick={() => (showDiffs = false)}>
+						<X size={14} />
+					</Button>
+				</div>
 				<DiffViewer files={store.fileChanges} bind:selectedFile />
 			</div>
 		{/if}
@@ -133,6 +140,7 @@
 		flex: 1;
 		display: flex;
 		overflow: hidden;
+		position: relative;
 	}
 
 	.stream-panel {
@@ -149,6 +157,16 @@
 		max-width: 600px;
 		border-left: 1px solid hsl(var(--border));
 		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.diff-panel-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.375rem 0.5rem;
+		border-bottom: 1px solid hsl(var(--border));
 	}
 
 	.steer-bar {

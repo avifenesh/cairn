@@ -265,37 +265,33 @@ var zaiWebSearch = tool.Define("cairn.webSearch",
 		}
 
 		// Use MCP web_search_prime (coding plan quota) as primary.
-		// REST API at /api/paas/v4/web_search is pay-as-you-go and returns error 1113
-		// for coding plan users without separate balance.
 		// Note: actual tool name is "web_search_prime" (snake_case), NOT "webSearchPrime".
+		// When quota is exhausted, Z.ai returns "[]" silently (no isError flag) — treat as failure.
 		args := map[string]any{
 			"search_query": p.Query,
 			"location":     "us",
 			"content_size": "medium",
 		}
 		text, err := callZaiMCP(safeCtx(ctx.Cancel), "web_search_prime", "web_search_prime", args)
-		if err != nil {
-			// MCP failed — try SearXNG, then REST, then give up.
+		if err != nil || isZaiEmptySearch(text) {
+			// MCP failed or returned empty — try web_search service (Pro/Std), then SearXNG, then REST.
+			if result := tryZaiWebSearchFallback(safeCtx(ctx.Cancel), p.Query, p.NumResults); result != nil {
+				return result, nil
+			}
 			if result := trySearXNG(safeCtx(ctx.Cancel), p.Query, p.NumResults); result != nil {
 				return result, nil
 			}
 			text, restErr := callZaiWebSearchREST(safeCtx(ctx.Cancel), p.Query, p.NumResults)
 			if restErr != nil {
-				return &tool.ToolResult{Error: fmt.Sprintf("web search failed: %v (REST: %v)", err, restErr)}, nil
+				if err != nil {
+					return &tool.ToolResult{Error: fmt.Sprintf("web search failed: all providers unavailable (MCP: %v, REST: %v)", err, restErr)}, nil
+				}
+				return &tool.ToolResult{Error: fmt.Sprintf("web search failed: Z.ai returned empty, REST fallback failed: %v", restErr)}, nil
 			}
 			return &tool.ToolResult{
 				Output:   text,
 				Metadata: map[string]any{"provider": "zai-rest"},
 			}, nil
-		}
-
-		// MCP returns "[]" when quota is exhausted or platform bug.
-		trimmed := strings.TrimSpace(text)
-		if trimmed == "" || trimmed == "\"[]\"" || trimmed == "[]" {
-			if result := trySearXNG(safeCtx(ctx.Cancel), p.Query, p.NumResults); result != nil {
-				return result, nil
-			}
-			return &tool.ToolResult{Output: "No search results found."}, nil
 		}
 
 		return &tool.ToolResult{
@@ -534,7 +530,59 @@ var zaiReadRepoFile = tool.Define("cairn.readRepoFile",
 	},
 )
 
+// isZaiEmptySearch detects the broken Z.ai MCP response where quota exhaustion
+// returns a literal string "[]" (quoted) instead of a proper error. A bare []
+// (valid empty JSON array) is a legitimate no-results response and should NOT
+// trigger the fallback chain.
+func isZaiEmptySearch(text string) bool {
+	trimmed := strings.TrimSpace(text)
+	return trimmed == "" || trimmed == `"[]"`
+}
+
+// tryZaiWebSearchFallback tries the Z.ai web_search MCP service (webSearchPro/webSearchStd)
+// as a fallback when web_search_prime returns empty. These tools properly report errors
+// when quota is exhausted (429), but may work if only prime quota is drained.
+func tryZaiWebSearchFallback(ctx context.Context, query string, numResults *int) *tool.ToolResult {
+	count := 10
+	if numResults != nil && *numResults > 0 {
+		count = *numResults
+		if count > 50 {
+			count = 50
+		}
+	}
+
+	// Try each Z.ai web_search tool in order of quality.
+	tools := []struct {
+		service  string
+		toolName string
+	}{
+		{"web_search", "webSearchPro"},
+		{"web_search", "webSearchStd"},
+	}
+	for _, t := range tools {
+		args := map[string]any{
+			"search_query": query,
+			"content_size": "medium",
+			"count":        count,
+		}
+		text, err := callZaiMCP(ctx, t.service, t.toolName, args)
+		if err != nil {
+			// Quota error or other failure — try next tool.
+			continue
+		}
+		if isZaiEmptySearch(text) {
+			continue
+		}
+		return &tool.ToolResult{
+			Output:   text,
+			Metadata: map[string]any{"provider": fmt.Sprintf("zai-%s", t.toolName)},
+		}
+	}
+	return nil
+}
+
 // trySearXNG attempts a SearXNG search if configured. Returns nil if unavailable or no results.
+// Uses categories=it for better relevance on technical queries and language=en for English results.
 func trySearXNG(ctx context.Context, query string, numResults *int) *tool.ToolResult {
 	if webConfig.SearXNGURL == "" {
 		return nil

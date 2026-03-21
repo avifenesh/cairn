@@ -22,7 +22,7 @@ allowed-tools: "cairn.shell,cairn.gitRun,cairn.readFile,cairn.editFile"
 4. Fix issues, commit, push again
 
 ## Address Review Comments
-1. Read comments: `cairn.shell` with `gh api repos/{owner}/{repo}/pulls/{number}/comments`
+1. Read comments: `cairn.shell` with `gh api repos/{owner}/{repo}/pulls/{number}/comments --paginate`
 2. Fix ALL comments — high, medium, AND low priority
 3. Commit fixes as new commit (never amend)
 4. Push and re-check CI

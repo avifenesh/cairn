@@ -1,12 +1,63 @@
 <script lang="ts">
 	import type { SessionEvent } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Wrench, Brain, FileText, AlertTriangle, MessageSquare, CheckCircle, XCircle, Loader2, Play } from '@lucide/svelte';
+	import { Wrench, Brain, FileText, AlertTriangle, MessageSquare, CheckCircle, XCircle, Loader2, Play, ChevronDown, ChevronUp } from '@lucide/svelte';
 
 	let { event }: { event: SessionEvent } = $props();
 
 	const p = $derived(event.payload);
 	const isError = $derived(p.isError === true || p.state === 'failed');
+
+	let expanded = $state(false);
+
+	// Extract a human-readable summary from tool input.
+	function toolInputSummary(toolName: unknown, input: unknown): string {
+		if (!input || typeof input !== 'object') return '';
+		const inp = input as Record<string, unknown>;
+		const name = String(toolName ?? '');
+
+		if (name === 'cairn.shell' || name.endsWith('.shell')) {
+			const cmd = String(inp.command ?? '');
+			return cmd.length > 120 ? cmd.slice(0, 120) + '...' : cmd;
+		}
+		if (name === 'cairn.readFile' || name.endsWith('.readFile')) {
+			return String(inp.path ?? '');
+		}
+		if (name === 'cairn.writeFile' || name.endsWith('.writeFile')) {
+			return String(inp.path ?? '');
+		}
+		if (name === 'cairn.editFile' || name.endsWith('.editFile')) {
+			return String(inp.path ?? '');
+		}
+		if (name === 'cairn.gitRun' || name.endsWith('.gitRun')) {
+			return 'git ' + String(inp.args ?? inp.command ?? '');
+		}
+		if (name === 'cairn.webSearch' || name.endsWith('.webSearch')) {
+			return String(inp.query ?? '');
+		}
+		if (name === 'cairn.readURL' || name.endsWith('.readURL')) {
+			return String(inp.url ?? '');
+		}
+		// Generic: show first string value
+		for (const v of Object.values(inp)) {
+			if (typeof v === 'string' && v.length > 0) {
+				return v.length > 100 ? v.slice(0, 100) + '...' : v;
+			}
+		}
+		return '';
+	}
+
+	function formatInput(input: unknown): string {
+		if (!input) return '';
+		try {
+			return JSON.stringify(input, null, 2);
+		} catch {
+			return String(input);
+		}
+	}
+
+	const summary = $derived(toolInputSummary(p.toolName, p.input));
+	const fullInput = $derived(formatInput(p.input));
 </script>
 
 {#if event.eventType === 'tool_call'}
@@ -17,6 +68,18 @@
 				<Badge variant="outline" class="text-xs">{p.toolName}</Badge>
 				<Loader2 size={12} class="animate-spin text-muted-foreground" />
 			</div>
+			{#if summary}
+				<p class="tool-summary">{summary}</p>
+			{/if}
+			{#if fullInput}
+				<button class="expand-btn" onclick={() => (expanded = !expanded)}>
+					{#if expanded}<ChevronUp size={10} />{:else}<ChevronDown size={10} />{/if}
+					<span>{expanded ? 'hide' : 'input'}</span>
+				</button>
+				{#if expanded}
+					<pre class="tool-input">{fullInput}</pre>
+				{/if}
+			{/if}
 		</div>
 	</div>
 {:else if event.eventType === 'tool_result'}
@@ -122,6 +185,44 @@
 	.event-meta {
 		font-size: 0.6875rem;
 		color: var(--text-tertiary, hsl(var(--muted-foreground)));
+	}
+	.tool-summary {
+		font-size: 0.75rem;
+		font-family: var(--font-mono, monospace);
+		color: var(--text-secondary, hsl(var(--muted-foreground)));
+		margin-top: 0.25rem;
+		word-break: break-all;
+		white-space: pre-wrap;
+		line-height: 1.4;
+	}
+	.expand-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		font-size: 0.625rem;
+		color: var(--text-tertiary, hsl(var(--muted-foreground)));
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0.125rem 0;
+		margin-top: 0.125rem;
+	}
+	.expand-btn:hover {
+		color: var(--cairn-accent, #60a5fa);
+	}
+	.tool-input {
+		font-size: 0.6875rem;
+		font-family: var(--font-mono, monospace);
+		background: hsl(var(--muted) / 0.5);
+		border-radius: 0.25rem;
+		padding: 0.375rem 0.5rem;
+		margin-top: 0.25rem;
+		overflow-x: auto;
+		max-height: 12rem;
+		overflow-y: auto;
+		white-space: pre-wrap;
+		word-break: break-all;
+		line-height: 1.3;
 	}
 	.event-card--approval {
 		border-left: 2px solid var(--color-warning, #f59e0b);

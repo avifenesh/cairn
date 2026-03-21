@@ -67,15 +67,10 @@ type Loop struct {
 	stopped atomic.Bool
 	wg      sync.WaitGroup
 
-	tickCount    atomic.Int64
-	lastReflect  time.Time
-	lastIdleTick time.Time
+	tickCount   atomic.Int64
+	lastReflect time.Time
 
-	// Cached idle briefing — rebuilt by cheap model periodically.
-	idleBriefing    string
-	briefingBuiltAt time.Time
-
-	// Last idle decision — recorded in activity store for UI visibility.
+	// Last orchestrator decision — recorded in activity store for UI visibility.
 	lastIdleDecision *IdleDecision
 }
 
@@ -332,16 +327,18 @@ func (l *Loop) tick(ctx context.Context) {
 	// 2. Check for pending tasks and execute the highest priority one.
 	executed, taskSummary, taskDetails := l.executePendingTask(ctx)
 
-	// 3. If no task was executed and no cron submitted, run orchestrator evaluation.
-	if !executed && !cronSubmitted && l.orchestrator != nil {
-		obs := l.gatherObservations(ctx)
-		l.gatherMemories(ctx, obs)
-		if decision := l.orchestrator.Evaluate(ctx, obs, l.tickCount.Load()); decision != nil {
+	// 3. If no task was executed and no cron submitted, run orchestrator.
+	// Observations are gathered inside Evaluate (after throttle check) to avoid
+	// unnecessary DB queries on every tick.
+	if !executed && !cronSubmitted && l.config.IdleEnabled {
+		gatherFn := func(gCtx context.Context) *Observations {
+			obs := l.gatherObservations(ctx)
+			l.gatherMemories(ctx, obs)
+			return obs
+		}
+		if decision := l.orchestrator.Evaluate(ctx, gatherFn, l.tickCount.Load()); decision != nil {
 			l.lastIdleDecision = orchestratorDecisionToIdle(decision)
 		}
-	} else if !executed && !cronSubmitted {
-		// Fallback to legacy idleTick if orchestrator not configured.
-		l.idleTick(ctx)
 	}
 
 	// 4. Run reflection if interval elapsed.

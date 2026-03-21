@@ -173,14 +173,18 @@ func (s *OrchestratorState) hasActionableItems() bool {
 // --- Core method ---
 
 // Evaluate runs one orchestrator cycle. Called from Loop.tick() when no task was executed.
+// The gatherFn is called only after the throttle check passes, avoiding unnecessary DB queries.
 // Returns nil if throttled or nothing to do.
-func (o *Orchestrator) Evaluate(ctx context.Context, obs *Observations, tickCount int64) *OrchestratorDecision {
+func (o *Orchestrator) Evaluate(ctx context.Context, gatherFn func(context.Context) *Observations, tickCount int64) *OrchestratorDecision {
 	if o.provider == nil {
 		return nil
 	}
 	if time.Since(o.lastEvaluation) < minIdleInterval {
 		return nil
 	}
+
+	// Gather observations only after throttle passes.
+	obs := gatherFn(ctx)
 
 	// Extend observations with management state.
 	state := o.gatherState(ctx, obs, tickCount)

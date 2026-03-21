@@ -110,7 +110,7 @@ Phase 1: Foundation (Event Bus + LLM Client + SQLite)
 | 3.2 | Piece 4 (4.2) | ReAct loop implementation | 3.1 |
 | 3.3 | Piece 4 (4.3) | Session store (SQLite) | 3.1 |
 | 3.4 | Piece 4 (4.5) | Agent modes (talk/work/coding) + system prompt | 3.2 |
-| 3.5 | Piece 4 (4.6) | Sub-agent spawning via task engine | 3.2, Phase 2b |
+| 3.5 | Piece 4 (4.6) | Sub-agent spawning via tool (cairn.spawnSubagent) | Done (PR #146). 3.2, Phase 2b |
 | 3.6 | Piece 4 (4.4) | Session compaction (LLM summarization) | 3.2, 3.3 |
 | 3.7 | Piece 4 (4.7) | Checkpoint/resume | 3.2, 3.3 |
 | 3.8 | Integration test | Full loop: user → LLM → tool → LLM → response | All |

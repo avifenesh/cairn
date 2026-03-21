@@ -159,20 +159,39 @@ type SessionStore interface {
 | work | 10 | operational (+ write, shell, create, deploy) | Deep work, artifacts, triage |
 | coding | 100 | everything (+ file edit, git, PR) | AGENTS.md loaded, full coding workflow |
 
-## Sub-Agents
+## Sub-Agents (Phase 4.6 - Done, PR #146)
 
-```go
-// Agents can spawn sub-agents for delegation
-type SubAgentConfig struct {
-    Name   string
-    Mode   tool.Mode
-    Prompt string
-}
+The parent agent spawns isolated child agents via `cairn.spawnSubagent` tool. Each subagent runs in its own context window with scoped tools.
 
-// Via tool: pub.spawnSubagent
-// Creates a new task in the task engine, returns taskID
-// Sub-agent runs in its own goroutine with its own session
-```
+**Built-in types:**
+| Type | Mode | Tools | MaxRounds | Isolation |
+|------|------|-------|-----------|-----------|
+| researcher | talk | readFile, listFiles, searchFiles, searchMemory, webSearch, webFetch, readFeed | 15 | none |
+| coder | coding | ALL except spawnSubagent | 50 | worktree |
+| reviewer | work | readFile, listFiles, searchFiles, shell, gitRun | 10 | none |
+| executor | work | shell, readFile, writeFile, editFile, gitRun | 10 | none |
+
+**Two-level max**: children cannot spawn grandchildren (spawnSubagent excluded from child tool registries).
+
+**Execution modes**: foreground (blocks parent tool call) and background (goroutine, returns immediately).
+
+**Implementation**: `internal/agent/subagent.go` (SubagentRunner), `internal/tool/builtin/subagent.go` (tool definition).
+
+See also: `docs/design/SUBAGENT_PLAN.md` for full spec.
+
+## Orchestrator (Done, PR #157)
+
+Thin management layer that replaces `idleTick()`. Runs on every tick when no task was executed.
+
+**What it does**: scans system state (proposed memories, active subagents, completed coding tasks, pending approvals, feed events), calls LLM once with management-only prompt, produces structured JSON with up to 5 actions.
+
+**Actions**: approve_memory, reject_memory, spawn, submit_task, notify, escalate, trigger_reflection, verify_session, wait.
+
+**What it does NOT do**: write code, edit files, run shell commands, search the web.
+
+**Implementation**: `internal/agent/orchestrator.go`.
+
+See also: `agent-knowledge/orchestrator-pattern.md` for research.
 
 ## Subphases
 
@@ -181,11 +200,12 @@ type SubAgentConfig struct {
 | 4.1 | Agent interface + Event model | 1 (event bus) | Done (PR #3) |
 | 4.2 | ReAct loop implementation | 2 (LLM), 3 (tools), 4.1 | Done (PR #3) |
 | 4.3 | Session store (SQLite) | 4.1 | Done (PR #3) |
-| 4.4 | Session compaction | 4.2, 4.3, 2 (LLM for summarization) | Deferred |
+| 4.4 | Session compaction | 4.2, 4.3, 2 (LLM for summarization) | Done (PR #10) |
 | 4.5 | Agent modes + system prompt building | 4.2 | Done (PR #3) |
-| 4.6 | Sub-agent spawning | 4.2, 5 (task engine) | Deferred |
+| 4.6 | Sub-agent spawning | 4.2, 5 (task engine) | Done (PR #146) |
 | 4.7 | Checkpoint/resume (Eino pattern) | 4.2, 4.3 | Deferred |
 | 4.8 | Tests | All | Done (19 tests) |
+| 4.9 | Orchestrator layer | 4.2, 4.6, 5, 6, 7 | Done (PR #157) |
 
 ### Phase 5 Additions (PR #10)
 | # | Addition | Status |

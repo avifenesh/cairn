@@ -6,7 +6,7 @@
 ## Current State (updated 2026-03-21)
 
 528 backend tests, 242 frontend tests, 18 packages, ~30K lines of Go.
-49 built-in tools (all `cairn.*` prefix, GLM+Vision) + MCP client tools. 41 bundled SKILL.md files.
+50 built-in tools (all `cairn.*` prefix, GLM+Vision) + MCP client tools. 41 bundled SKILL.md files.
 
 **Phase 6 COMPLETE** — backend PRs #21, #24, #26. Frontend PRs #28-50 (15/15 done).
 **Phase 6.5 COMPLETE** — PR A (#37), PR B (#39).
@@ -374,4 +374,4 @@ Agent Autonomy (PRs #118-137):
 | Feed Signal | 4 PRs ✅ DONE | 4 PRs ✅ DONE | Feed API, GitHub signal, Gmail+Calendar, RSS+SO+DevTo, 11 pollers |
 | UX + Config | 6 PRs ✅ DONE | 6 PRs ✅ DONE | Notifs, cron UI, agent config tools, activity tab, stop button |
 | Agent Autonomy | 15 PRs ✅ DONE | — | MCP client, auto-deploy, approval system, skill discovery, soul page, coding sessions |
-| **Total** | **53+ merged** | **35/35 done** | **49 tools + MCP, 11 pollers, 41 skills, 528 Go tests, 242 FE tests** |
+| **Total** | **53+ merged** | **35/35 done** | **50 tools + MCP, 11 pollers, 41 skills, 528 Go tests, 242 FE tests** |

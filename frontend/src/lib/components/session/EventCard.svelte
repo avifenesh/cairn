@@ -1,11 +1,27 @@
+<script lang="ts" module>
+	function formatDiff(diff: string): string {
+		return diff.split('\n').map(line => {
+			const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+			if (line.startsWith('+') && !line.startsWith('+++')) return `<span class="diff-add">${escaped}</span>`;
+			if (line.startsWith('-') && !line.startsWith('---')) return `<span class="diff-del">${escaped}</span>`;
+			if (line.startsWith('@@')) return `<span class="diff-hunk">${escaped}</span>`;
+			return escaped;
+		}).join('\n');
+	}
+</script>
+
 <script lang="ts">
 	import type { SessionEvent } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Wrench, Brain, FileText, AlertTriangle, MessageSquare, CheckCircle, XCircle, Loader2, Play, ChevronDown, ChevronUp, Code } from '@lucide/svelte';
+	import { renderMarkdown } from '$lib/utils/markdown';
+	import { relativeTime, formatTime } from '$lib/utils/time';
+	import { Wrench, Brain, AlertTriangle, MessageSquare, CheckCircle, XCircle, Loader2, Play, ChevronDown, ChevronUp, Code } from '@lucide/svelte';
 
-	let { event, completedToolIds = new Set<string>() }: {
+	let { event, completedToolIds = new Set<string>(), isCompleted = false, onFileClick }: {
 		event: SessionEvent;
 		completedToolIds?: Set<string>;
+		isCompleted?: boolean;
+		onFileClick?: (path: string) => void;
 	} = $props();
 
 	const p = $derived(event.payload);
@@ -19,19 +35,44 @@
 	let expandedThinking = $state(false);
 	let expandedDiff = $state(false);
 
+	// Timestamp display: absolute for completed sessions, relative for active.
+	const timeStr = $derived(
+		isCompleted ? formatTime(event.timestamp) : relativeTime(event.timestamp)
+	);
+
+	// Live elapsed timer for pending tool calls.
+	let now = $state(Date.now());
+	$effect(() => {
+		if (!toolPending) return;
+		const interval = setInterval(() => { now = Date.now(); }, 1000);
+		return () => clearInterval(interval);
+	});
+	const elapsed = $derived(
+		toolPending && event.timestamp
+			? Math.floor((now - new Date(event.timestamp).getTime()) / 1000)
+			: 0
+	);
+
+	// Duration formatting with color coding.
+	const durationMs = $derived(Number(p.durationMs ?? 0));
+	const durationStr = $derived(
+		durationMs > 1000 ? `${(durationMs / 1000).toFixed(1)}s` : durationMs > 0 ? `${durationMs}ms` : ''
+	);
+	const durationClass = $derived(
+		durationMs > 5000 ? 'duration-slow' : durationMs > 1000 ? 'duration-normal' : 'duration-fast'
+	);
+
 	function toolInputSummary(toolName: unknown, input: unknown): string {
 		if (!input || typeof input !== 'object') return '';
 		const inp = input as Record<string, unknown>;
 		const name = String(toolName ?? '');
-
 		if (name === 'cairn.shell' || name.endsWith('.shell')) {
 			const cmd = String(inp.command ?? '');
 			return cmd.length > 120 ? cmd.slice(0, 120) + '...' : cmd;
 		}
 		if (['cairn.readFile', 'cairn.writeFile', 'cairn.editFile'].includes(name) ||
-			name.endsWith('.readFile') || name.endsWith('.writeFile') || name.endsWith('.editFile')) {
+			name.endsWith('.readFile') || name.endsWith('.writeFile') || name.endsWith('.editFile'))
 			return String(inp.path ?? '');
-		}
 		if (name === 'cairn.gitRun' || name.endsWith('.gitRun')) {
 			const args = inp.args ?? inp.command ?? '';
 			return 'git ' + (Array.isArray(args) ? args.join(' ') : String(args));
@@ -63,7 +104,9 @@
 				<Badge variant="outline" class="text-xs">{p.toolName}</Badge>
 				{#if toolPending}
 					<Loader2 size={12} class="animate-spin text-muted-foreground" />
+					{#if elapsed > 0}<span class="event-meta">{elapsed}s</span>{/if}
 				{/if}
+				{#if timeStr}<span class="event-time">{timeStr}</span>{/if}
 			</div>
 			{#if summary}
 				<p class="tool-summary">{summary}</p>
@@ -83,18 +126,16 @@
 {:else if event.eventType === 'tool_result'}
 	<div class="event-card event-card--tool-result" class:event-card--error={isError}>
 		<div class="event-icon">
-			{#if isError}
-				<XCircle size={14} class="text-destructive" />
-			{:else}
-				<CheckCircle size={14} class="text-green-500" />
-			{/if}
+			{#if isError}<XCircle size={14} class="text-destructive" />
+			{:else}<CheckCircle size={14} class="text-green-500" />{/if}
 		</div>
 		<div class="event-body">
 			<div class="event-header">
 				<Badge variant={isError ? 'destructive' : 'secondary'} class="text-xs">{p.toolName}</Badge>
-				{#if p.durationMs}
-					<span class="event-meta">{p.durationMs}ms</span>
+				{#if durationStr}
+					<span class="event-meta {durationClass}">{durationStr}</span>
 				{/if}
+				{#if timeStr}<span class="event-time">{timeStr}</span>{/if}
 			</div>
 			{#if outputText}
 				{#if outputText.length <= 200}
@@ -130,12 +171,18 @@
 		<div class="event-icon"><MessageSquare size={14} class={isUser ? 'text-blue-400' : 'text-[var(--text-tertiary)]'} /></div>
 		<div class="event-body">
 			<span class="text-xs font-medium" class:text-blue-400={isUser}>{isUser ? 'You' : 'Agent'}</span>
-			<p class="message-text">{p.text}</p>
+			{#if isUser}
+				<p class="message-text">{p.text}</p>
+			{:else}
+				<div class="cairn-prose message-text">{@html renderMarkdown(String(p.text))}</div>
+			{/if}
 		</div>
 	</div>
 
 {:else if event.eventType === 'file_change'}
-	<div class="event-card event-card--file">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="event-card event-card--file" onclick={() => onFileClick?.(String(p.path))}
+		role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && onFileClick?.(String(p.path))}>
 		<div class="event-icon"><Code size={14} class="text-green-400" /></div>
 		<div class="event-body">
 			<div class="event-header">
@@ -143,7 +190,7 @@
 				<Badge variant="outline" class="text-xs">{p.operation}</Badge>
 			</div>
 			{#if p.diff}
-				<button class="expand-btn" onclick={() => (expandedDiff = !expandedDiff)}>
+				<button class="expand-btn" onclick={(e) => { e.stopPropagation(); expandedDiff = !expandedDiff; }}>
 					{#if expandedDiff}<ChevronUp size={10} />{:else}<ChevronDown size={10} />{/if}
 					<span>{expandedDiff ? 'hide diff' : 'show diff'}</span>
 				</button>
@@ -158,12 +205,13 @@
 	<div class="event-card event-card--state">
 		<div class="event-icon"><Play size={14} /></div>
 		<div class="event-body">
-			<Badge variant={p.state === 'completed' ? 'default' : p.state === 'failed' ? 'destructive' : 'secondary'} class="text-xs">
-				{p.state}
-			</Badge>
-			{#if p.reason}
-				<span class="event-meta">{p.reason}</span>
-			{/if}
+			<div class="event-header">
+				<Badge variant={p.state === 'completed' ? 'default' : p.state === 'failed' ? 'destructive' : 'secondary'} class="text-xs">
+					{p.state}
+				</Badge>
+				{#if p.reason}<span class="event-meta">{p.reason}</span>{/if}
+				{#if timeStr}<span class="event-time">{timeStr}</span>{/if}
+			</div>
 		</div>
 	</div>
 
@@ -176,14 +224,7 @@
 	</div>
 
 {:else if event.eventType === 'round_complete'}
-	<div class="event-card event-card--round">
-		<div class="event-icon"><CheckCircle size={14} class="text-muted-foreground" /></div>
-		<div class="event-body">
-			<span class="text-xs text-muted-foreground">
-				Round {(p.round as number) + 1} - {p.toolCalls} tool calls
-			</span>
-		</div>
-	</div>
+	<!-- round_complete events are replaced by RoundSeparator in ActivityStream -->
 
 {:else if event.eventType === 'approval_request'}
 	<div class="event-card event-card--approval">
@@ -195,18 +236,6 @@
 	</div>
 {/if}
 
-<script lang="ts" module>
-	function formatDiff(diff: string): string {
-		return diff.split('\n').map(line => {
-			const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-			if (line.startsWith('+') && !line.startsWith('+++')) return `<span class="diff-add">${escaped}</span>`;
-			if (line.startsWith('-') && !line.startsWith('---')) return `<span class="diff-del">${escaped}</span>`;
-			if (line.startsWith('@@')) return `<span class="diff-hunk">${escaped}</span>`;
-			return escaped;
-		}).join('\n');
-	}
-</script>
-
 <style>
 	.event-card {
 		display: flex;
@@ -215,90 +244,96 @@
 		border-radius: 0.375rem;
 		align-items: flex-start;
 	}
-	.event-card:hover {
-		background: var(--color-surface-hover, hsl(var(--muted) / 0.5));
-	}
+	.event-card:hover { background: var(--color-surface-hover, hsl(var(--muted) / 0.5)); }
 	.event-icon { flex-shrink: 0; margin-top: 0.125rem; }
 	.event-body { flex: 1; min-width: 0; }
 	.event-header { display: flex; align-items: center; gap: 0.375rem; flex-wrap: wrap; }
 	.event-meta { font-size: 0.6875rem; color: var(--text-tertiary, hsl(var(--muted-foreground))); }
+	.event-time { font-size: 0.625rem; color: var(--text-tertiary, hsl(var(--muted-foreground))); margin-left: auto; }
 
 	.tool-summary {
-		font-size: 0.75rem;
-		font-family: var(--font-mono, monospace);
+		font-size: 0.75rem; font-family: var(--font-mono, monospace);
 		color: var(--text-secondary, hsl(var(--muted-foreground)));
-		margin-top: 0.25rem;
-		word-break: break-all;
-		white-space: pre-wrap;
-		line-height: 1.4;
+		margin-top: 0.25rem; word-break: break-all; white-space: pre-wrap; line-height: 1.4;
 	}
 	.expand-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		font-size: 0.625rem;
-		color: var(--text-tertiary, hsl(var(--muted-foreground)));
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: 0.125rem 0;
-		margin-top: 0.125rem;
+		display: inline-flex; align-items: center; gap: 0.25rem;
+		font-size: 0.625rem; color: var(--text-tertiary, hsl(var(--muted-foreground)));
+		background: none; border: none; cursor: pointer; padding: 0.125rem 0; margin-top: 0.125rem;
 	}
 	.expand-btn:hover { color: var(--cairn-accent, #60a5fa); }
 	.thinking-toggle { font-size: 0.6875rem; }
 
 	.code-block, .diff-block {
-		font-size: 0.6875rem;
-		font-family: var(--font-mono, monospace);
-		background: hsl(var(--muted) / 0.5);
-		border-radius: 0.25rem;
-		padding: 0.375rem 0.5rem;
-		margin-top: 0.25rem;
-		overflow-x: auto;
-		max-height: 16rem;
-		overflow-y: auto;
-		white-space: pre-wrap;
-		word-break: break-all;
-		line-height: 1.3;
+		font-size: 0.6875rem; font-family: var(--font-mono, monospace);
+		background: hsl(var(--muted) / 0.5); border-radius: 0.25rem;
+		padding: 0.375rem 0.5rem; margin-top: 0.25rem;
+		overflow-x: auto; max-height: 16rem; overflow-y: auto;
+		white-space: pre-wrap; word-break: break-all; line-height: 1.3;
 	}
 	.output-preview {
-		font-size: 0.6875rem;
-		font-family: var(--font-mono, monospace);
+		font-size: 0.6875rem; font-family: var(--font-mono, monospace);
 		color: var(--text-secondary, hsl(var(--muted-foreground)));
-		margin-top: 0.25rem;
-		white-space: pre-wrap;
-		word-break: break-all;
-		line-height: 1.3;
-		max-height: 16rem;
-		overflow-y: auto;
+		margin-top: 0.25rem; white-space: pre-wrap; word-break: break-all;
+		line-height: 1.3; max-height: 16rem; overflow-y: auto;
 	}
 	.output-error { color: hsl(var(--destructive)); }
 	.thinking-text {
-		font-size: 0.75rem;
-		color: var(--text-tertiary, hsl(var(--muted-foreground)));
-		font-style: italic;
-		white-space: pre-wrap;
-		word-break: break-word;
-		line-height: 1.4;
-		margin-top: 0.25rem;
-		max-height: 20rem;
-		overflow-y: auto;
+		font-size: 0.75rem; color: var(--text-tertiary, hsl(var(--muted-foreground)));
+		font-style: italic; white-space: pre-wrap; word-break: break-word;
+		line-height: 1.4; margin-top: 0.25rem; max-height: 20rem; overflow-y: auto;
 	}
 	.message-text {
-		font-size: 0.8125rem;
-		line-height: 1.5;
-		white-space: pre-wrap;
-		word-break: break-word;
-		margin-top: 0.125rem;
+		font-size: 0.8125rem; line-height: 1.5;
+		white-space: pre-wrap; word-break: break-word; margin-top: 0.125rem;
 	}
 
+	/* Duration color coding */
+	.duration-fast { color: #22c55e; }
+	.duration-normal { color: var(--text-tertiary, hsl(var(--muted-foreground))); }
+	.duration-slow { color: #f59e0b; }
+
+	/* Card variants */
 	.event-card--user { border-left: 2px solid var(--cairn-accent, #60a5fa); background: hsl(var(--muted) / 0.2); }
 	.event-card--approval { border-left: 2px solid var(--color-warning, #f59e0b); background: hsl(var(--muted) / 0.3); }
 	.event-card--steer { border-left: 2px solid var(--cairn-accent, #60a5fa); }
 	.event-card--error { border-left: 2px solid var(--color-error, hsl(var(--destructive))); }
-	.event-card--file { border-left: 2px solid #22c55e; }
+	.event-card--file { border-left: 2px solid #22c55e; cursor: pointer; }
 
 	.diff-block :global(.diff-add) { color: #22c55e; }
 	.diff-block :global(.diff-del) { color: #ef4444; }
 	.diff-block :global(.diff-hunk) { color: #818cf8; }
+
+	/* Markdown prose for agent messages */
+	.cairn-prose :global(p) { margin: 0.25rem 0; }
+	.cairn-prose :global(code) {
+		font-size: 0.75rem; background: hsl(var(--muted) / 0.5);
+		padding: 0.125rem 0.25rem; border-radius: 0.25rem;
+	}
+	.cairn-prose :global(pre) {
+		background: hsl(var(--muted) / 0.5); border-radius: 0.375rem;
+		padding: 0.5rem; margin: 0.375rem 0; overflow-x: auto;
+		font-size: 0.75rem; line-height: 1.4;
+	}
+	.cairn-prose :global(pre code) { background: none; padding: 0; }
+	.cairn-prose :global(ul), .cairn-prose :global(ol) { padding-left: 1.25rem; margin: 0.25rem 0; }
+	.cairn-prose :global(li) { margin: 0.125rem 0; }
+	.cairn-prose :global(a) { color: var(--cairn-accent, #60a5fa); text-decoration: underline; }
+	.cairn-prose :global(blockquote) {
+		border-left: 2px solid var(--cairn-accent, #60a5fa);
+		padding-left: 0.75rem; margin: 0.25rem 0;
+		color: var(--text-secondary, hsl(var(--muted-foreground)));
+	}
+	.cairn-prose :global(h1), .cairn-prose :global(h2), .cairn-prose :global(h3) {
+		font-weight: 600; margin: 0.5rem 0 0.25rem;
+	}
+	.cairn-prose :global(h1) { font-size: 1rem; }
+	.cairn-prose :global(h2) { font-size: 0.9375rem; }
+	.cairn-prose :global(h3) { font-size: 0.875rem; }
+	.cairn-prose :global(table) { border-collapse: collapse; margin: 0.375rem 0; font-size: 0.75rem; }
+	.cairn-prose :global(th), .cairn-prose :global(td) {
+		border: 1px solid hsl(var(--border)); padding: 0.25rem 0.5rem;
+	}
+	.cairn-prose :global(th) { background: hsl(var(--muted) / 0.3); font-weight: 600; }
+	.cairn-prose :global(strong) { font-weight: 600; }
 </style>

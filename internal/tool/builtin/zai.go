@@ -530,11 +530,13 @@ var zaiReadRepoFile = tool.Define("cairn.readRepoFile",
 	},
 )
 
-// isZaiEmptySearch returns true if the Z.ai MCP response indicates no results.
-// When quota is exhausted, Z.ai returns "[]" as a JSON string (not an actual empty array).
+// isZaiEmptySearch detects the broken Z.ai MCP response where quota exhaustion
+// returns a literal string "[]" (quoted) instead of a proper error. A bare []
+// (valid empty JSON array) is a legitimate no-results response and should NOT
+// trigger the fallback chain.
 func isZaiEmptySearch(text string) bool {
 	trimmed := strings.TrimSpace(text)
-	return trimmed == "" || trimmed == `"[]"` || trimmed == "[]"
+	return trimmed == "" || trimmed == `"[]"`
 }
 
 // tryZaiWebSearchFallback tries the Z.ai web_search MCP service (webSearchPro/webSearchStd)

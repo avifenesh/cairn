@@ -140,9 +140,9 @@ func TestIsZaiEmptySearch(t *testing.T) {
 	}{
 		{"", true},
 		{"  ", true},
-		{"[]", true},
-		{`"[]"`, true},
-		{` "[]" `, true},
+		{"[]", false},    // legitimate empty array, not a failure
+		{`"[]"`, true},   // broken Z.ai quota-exhausted response
+		{` "[]" `, true}, // same, with whitespace
 		{"some results here", false},
 		{`[{"title":"test"}]`, false},
 		{`"results"`, false},

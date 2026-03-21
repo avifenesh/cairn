@@ -111,40 +111,69 @@ export class SessionStore {
 
 	private async hydrate() {
 		try {
-			const res = await fetch(`/v1/sessions/${this.sessionId}/events?limit=200`, {
+			const res = await fetch(`/v1/sessions/${this.sessionId}/events?limit=500`, {
 				headers: getAuthHeaders(),
 				credentials: 'include',
 			});
 			if (!res.ok) return;
 			const data = await res.json();
-			// Convert session history events to SessionEvent format for display.
-			// The events endpoint returns the raw agent Event format with parts.
-			// We reconstruct SessionEvent-compatible entries from them.
-			if (Array.isArray(data.events)) {
-				for (const ev of data.events) {
-					if (!Array.isArray(ev.parts)) continue;
-					for (const part of ev.parts) {
-						const partType = part.text !== undefined ? 'text' :
-							part.toolName !== undefined ? 'tool' :
-							part.text !== undefined ? 'reasoning' : null;
-						if (partType === 'tool') {
-							const eventType = part.status === 'running' || part.status === 'pending' ? 'tool_call' : 'tool_result';
-							this.addEvent({
-								sessionId: this.sessionId,
-								eventType,
-								payload: {
-									toolId: part.callId, toolName: part.toolName,
-									isError: part.status === 'failed', durationMs: part.duration,
-								},
-								timestamp: ev.timestamp,
-							});
-							if (part.status === 'completed' || part.status === 'failed') {
-								this.totalToolCalls++;
-							}
+			if (!Array.isArray(data.events) || data.events.length === 0) return;
+
+			// Aggregate raw token-level events into displayable SessionEvents.
+			// Raw events have parts: [{text:"word"}, {toolName:"...", status:"..."}]
+			// We need to: group consecutive text tokens by author into messages,
+			// and emit tool events individually.
+			let currentText = '';
+			let currentAuthor = '';
+			let currentTimestamp = '';
+
+			const flush = () => {
+				if (currentText.trim()) {
+					this.addEvent({
+						sessionId: this.sessionId,
+						eventType: 'text_delta',
+						payload: { text: currentText.trim(), author: currentAuthor },
+						timestamp: currentTimestamp,
+					});
+				}
+				currentText = '';
+				currentTimestamp = '';
+			};
+
+			for (const ev of data.events) {
+				if (!Array.isArray(ev.parts)) continue;
+				const author = ev.author ?? '';
+				const ts = ev.timestamp ?? '';
+
+				for (const part of ev.parts) {
+					if (part.toolName !== undefined) {
+						// Flush any pending text before tool events.
+						flush();
+						const isResult = part.status === 'completed' || part.status === 'failed';
+						this.addEvent({
+							sessionId: this.sessionId,
+							eventType: isResult ? 'tool_result' : 'tool_call',
+							payload: {
+								toolId: part.callId, toolName: part.toolName,
+								input: part.input,
+								isError: part.status === 'failed',
+								durationMs: part.duration ? Math.round(part.duration / 1000000) : undefined,
+							},
+							timestamp: ts,
+						});
+						if (isResult) this.totalToolCalls++;
+					} else if (part.text !== undefined) {
+						// Aggregate text tokens. Flush on author change.
+						if (author !== currentAuthor && currentText) {
+							flush();
 						}
+						currentAuthor = author;
+						if (!currentTimestamp) currentTimestamp = ts;
+						currentText += part.text;
 					}
 				}
 			}
+			flush();
 		} catch {
 			// Hydration is best-effort; the live stream will provide new events.
 		}

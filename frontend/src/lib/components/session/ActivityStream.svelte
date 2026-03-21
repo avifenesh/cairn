@@ -13,9 +13,15 @@
 	let autoScroll = $state(true);
 	let userScrolled = $state(false);
 
-	// Filter out text_delta events (they're shown as aggregated streaming text).
+	// Filter out live streaming deltas (shown as aggregated streaming text below).
+	// Hydrated text_delta events (from history) have payload.author set and are
+	// full messages, so they should be displayed as event cards.
 	const displayEvents = $derived(
-		events.filter((e) => e.eventType !== 'text_delta' && e.eventType !== 'thinking')
+		events.filter((e) => {
+			if (e.eventType === 'thinking') return false;
+			if (e.eventType === 'text_delta' && !e.payload.author) return false;
+			return true;
+		})
 	);
 
 	// Track which tool calls have completed (have a matching tool_result).

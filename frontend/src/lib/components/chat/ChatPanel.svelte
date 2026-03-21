@@ -13,7 +13,7 @@
 	import SubagentCard from './SubagentCard.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import ReasoningBlock from './ReasoningBlock.svelte';
-	import { Bot, Send, Loader2, X, Plus, Square } from '@lucide/svelte';
+	import { Bot, Send, Loader2, X, Plus, Square, MonitorPlay } from '@lucide/svelte';
 	import type { Attachment } from '$lib/types';
 	import { uploadFile, cancelSubagent } from '$lib/api/client';
 	import { subagentStore } from '$lib/stores/subagents.svelte';
@@ -299,6 +299,16 @@
 					<Plus class="h-3 w-3" /> <span class="hidden sm:inline">New</span>
 				</Button>
 				<ActiveSkillChip />
+				{#if chatStore.currentSessionId}
+					<a
+						href="/session/{chatStore.currentSessionId}"
+						class="inline-flex items-center gap-1 h-7 px-2 text-xs rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+						title="View session details"
+					>
+						<MonitorPlay class="h-3 w-3" />
+						<span class="hidden sm:inline">Session</span>
+					</a>
+				{/if}
 			</div>
 
 			<div class="flex items-end gap-2">

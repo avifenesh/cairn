@@ -104,6 +104,14 @@ func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// offset >= 0: forward pagination from index. Default (-1): last N events.
+	offset := -1
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
 	// Convert session events to a serializable format.
 	type eventDTO struct {
 		ID        string `json:"id"`
@@ -114,7 +122,17 @@ func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	events := session.Events
-	if len(events) > limit {
+	if offset >= 0 {
+		if offset < len(events) {
+			end := offset + limit
+			if end > len(events) {
+				end = len(events)
+			}
+			events = events[offset:end]
+		} else {
+			events = nil
+		}
+	} else if len(events) > limit {
 		events = events[len(events)-limit:]
 	}
 

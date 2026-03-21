@@ -6,7 +6,7 @@
 	import ActivityStream from '$lib/components/session/ActivityStream.svelte';
 	import DiffViewer from '$lib/components/session/DiffViewer.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Send, Square, PanelRightClose, PanelRight, X } from '@lucide/svelte';
+	import { Send, Square, PanelRightClose, PanelRight, X, Search } from '@lucide/svelte';
 
 	const sessionId = $page.params.id ?? '';
 	const store = new SessionStore(sessionId);
@@ -15,6 +15,8 @@
 	let sending = $state(false);
 	let selectedFile = $state<string | null>(null);
 	let showDiffs = $state(false);
+	let activeFilter = $state<'all' | 'tools' | 'errors' | 'messages'>('all');
+	let searchQuery = $state('');
 
 	const isActive = $derived(
 		store.status === 'running' || store.status === 'paused' || store.status === 'waiting_approval'
@@ -51,12 +53,13 @@
 </script>
 
 <svelte:head>
-	<title>Session {sessionId.slice(0, 8)} - Cairn</title>
+	<title>{store.title || `Session ${sessionId.slice(0, 8)}`} - Cairn</title>
 </svelte:head>
 
 <div class="session-page">
 	<SessionHeader
 		{sessionId}
+		title={store.title}
 		status={store.status}
 		currentRound={store.currentRound}
 		totalToolCalls={store.totalToolCalls}
@@ -65,6 +68,20 @@
 		totalTokensOut={store.totalTokensOut}
 	/>
 
+	<!-- Filter bar -->
+	<div class="filter-bar">
+		<div class="filter-buttons">
+			{#each (['all', 'tools', 'errors', 'messages'] as const) as f}
+				<button class="filter-btn" class:active={activeFilter === f}
+					onclick={() => (activeFilter = f)}>{f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}</button>
+			{/each}
+		</div>
+		<div class="search-box">
+			<Search size={12} class="text-muted-foreground" />
+			<input type="text" bind:value={searchQuery} placeholder="Search..." class="search-input" />
+		</div>
+	</div>
+
 	<div class="main-area">
 		<!-- Activity stream with inline steering -->
 		<div class="stream-panel">
@@ -72,6 +89,10 @@
 				events={store.events}
 				streamingText={store.streamingText}
 				thinkingText={store.thinkingText}
+				isCompleted={!isActive}
+				onFileClick={(path) => { showDiffs = true; selectedFile = path; }}
+				filter={activeFilter}
+				{searchQuery}
 			/>
 
 			<!-- Inline steering input at bottom of stream -->
@@ -130,6 +151,31 @@
 </div>
 
 <style>
+	.filter-bar {
+		display: flex; align-items: center; gap: 0.5rem;
+		padding: 0.375rem 0.75rem; border-bottom: 1px solid hsl(var(--border));
+		flex-wrap: wrap;
+	}
+	.filter-buttons { display: flex; gap: 0.25rem; }
+	.filter-btn {
+		font-size: 0.6875rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem;
+		border: 1px solid hsl(var(--border)); background: none; color: var(--text-tertiary);
+		cursor: pointer; transition: all 0.15s;
+	}
+	.filter-btn:hover { color: var(--text-primary); background: hsl(var(--muted) / 0.3); }
+	.filter-btn.active {
+		background: var(--cairn-accent, #60a5fa); color: white; border-color: var(--cairn-accent, #60a5fa);
+	}
+	.search-box {
+		display: flex; align-items: center; gap: 0.25rem;
+		padding: 0.25rem 0.5rem; border-radius: 0.25rem;
+		border: 1px solid hsl(var(--border)); flex: 1; min-width: 120px; max-width: 250px;
+	}
+	.search-input {
+		flex: 1; border: none; background: none; color: inherit;
+		font-size: 0.6875rem; outline: none; min-width: 0;
+	}
+
 	.session-page {
 		display: flex;
 		flex-direction: column;

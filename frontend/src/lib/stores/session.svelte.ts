@@ -20,8 +20,9 @@ function getStreamUrl(path: string): string {
 // Session store state — created per session panel instance.
 export class SessionStore {
 	events = $state<SessionEvent[]>([]);
-	// Default to 'completed'. Flipped to 'running' when live events arrive
-	// (handles mid-flight sessions). Pre-existing sessions without events stay 'completed'.
+	title = $state('');
+	mode = $state('');
+	// Default to 'completed'. Flipped to 'running' when live events arrive.
 	status = $state<SessionStatus>('completed');
 	private receivedLiveEvent = false;
 	currentRound = $state(0);
@@ -112,6 +113,16 @@ export class SessionStore {
 
 	private async hydrate() {
 		try {
+			// Fetch session metadata (title, mode).
+			const metaRes = await fetch(`/v1/assistant/sessions/${this.sessionId}`, {
+				headers: getAuthHeaders(), credentials: 'include',
+			});
+			if (metaRes.ok) {
+				const meta = await metaRes.json();
+				this.title = meta.title ?? '';
+				this.mode = meta.mode ?? '';
+			}
+
 			const res = await fetch(`/v1/sessions/${this.sessionId}/events?limit=500`, {
 				headers: getAuthHeaders(),
 				credentials: 'include',

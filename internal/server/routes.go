@@ -1837,6 +1837,7 @@ func marshalSessions(sessions []*agent.Session) []map[string]any {
 			"title":        s.Title,
 			"mode":         string(s.Mode),
 			"messageCount": s.MessageCount,
+			"metadata":     s.State,
 			"createdAt":    s.CreatedAt.UTC().Format(time.RFC3339),
 			"updatedAt":    s.UpdatedAt.UTC().Format(time.RFC3339),
 		}

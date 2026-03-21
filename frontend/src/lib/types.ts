@@ -103,6 +103,8 @@ export interface ReasoningStep {
 export interface ChatSession {
 	id: string;
 	title?: string;
+	mode?: string;
+	metadata?: Record<string, unknown>;
 	messageCount: number;
 	updatedAt: string;
 	createdAt: string;

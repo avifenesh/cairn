@@ -3,8 +3,9 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Activity, Cpu, Hash, AlertCircle } from '@lucide/svelte';
 
-	let { sessionId, status, currentRound, totalToolCalls, totalErrors, totalTokensIn, totalTokensOut }: {
+	let { sessionId, title = '', status, currentRound, totalToolCalls, totalErrors, totalTokensIn, totalTokensOut }: {
 		sessionId: string;
+		title?: string;
 		status: SessionStatus;
 		currentRound: number;
 		totalToolCalls: number;
@@ -31,7 +32,7 @@
 <header class="session-header">
 	<div class="header-left">
 		<div class="status-dot {statusColor[status] ?? 'bg-gray-500'}"></div>
-		<span class="session-title">Session</span>
+		<span class="session-title">{title || 'Session'}</span>
 		<Badge variant="outline" class="text-xs font-mono">{sessionId.slice(0, 8)}</Badge>
 		<Badge variant={status === 'running' ? 'default' : status === 'failed' ? 'destructive' : 'secondary'} class="text-xs">
 			{status}

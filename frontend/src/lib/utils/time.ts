@@ -17,3 +17,10 @@ export function relativeTime(date: string | Date | undefined | null): string {
 	if (days < 30) return `${days}d ago`;
 	return d.toLocaleDateString();
 }
+
+export function formatTime(date: string | Date | undefined | null): string {
+	if (!date) return '';
+	const d = typeof date === 'string' ? new Date(date) : date;
+	if (isNaN(d.getTime())) return '';
+	return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}

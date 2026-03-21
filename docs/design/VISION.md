@@ -11,7 +11,7 @@ Cairn is a **personal agent operating system** — not a chatbot, not a coding a
 2. **Acts on your behalf** — writes code, triages email, plans trips, creates documents, manages tasks — with appropriate autonomy boundaries
 3. **Learns and improves** — accumulates knowledge about you, your projects, your preferences, and uses that knowledge to get better over time
 4. **Stays on** — runs 24/7 on your machine, proactively working when you're away, surfacing what matters when you're back
-5. **Talks to other agents** — speaks A2A, MCP, and ACP protocols so it can delegate to and receive work from external agents
+5. **Talks to other agents** — speaks MCP protocol so it can delegate to and receive work from external agents
 
 The differentiator from everything that exists today:
 
@@ -84,8 +84,8 @@ The v1 prototype proved the concept. v2 should be open because:
 │  │  Server │  │  System  │  │  Layer   │  │  Store  │ │
 │  │         │  │          │  │          │  │         │ │
 │  │ REST    │  │ Hooks    │  │ MCP      │  │ Events  │ │
-│  │ SSE     │  │ Skills   │  │ A2A      │  │ Tasks   │ │
-│  │ WebAuth │  │ Ext Tools│  │ ACP      │  │ Memory  │ │
+│  │ SSE     │  │ Skills   │  │ server   │  │ Tasks   │ │
+│  │ WebAuth │  │ Ext Tools│  │ client   │  │ Memory  │ │
 │  └─────────┘  └──────────┘  └──────────┘  └─────────┘ │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
@@ -97,7 +97,7 @@ The v1 prototype proved the concept. v2 should be open because:
     ┌────┘                              └────┐
     ▼                                        ▼
   Web UI (SvelteKit 5, embed.FS)         External Agents
-  Static files served by Go              via A2A/MCP/ACP
+  Static files served by Go              via MCP
 ```
 
 ## The Modules
@@ -114,7 +114,7 @@ Each piece is a self-contained module with clear interfaces. See individual desi
 | 6 | **Memory System** | Semantic + episodic + procedural memory, RAG | [06-memory-system.md](pieces/06-memory-system.md) |
 | 7 | **Signal Plane** | Source polling, webhooks, event ingestion, dedup | [07-signal-plane.md](pieces/07-signal-plane.md) |
 | 8 | **Plugin & Skill System** | Lifecycle hooks, skill discovery, ClawHub-compatible | [08-plugin-skills.md](pieces/08-plugin-skills.md) |
-| 9 | **Server & Protocols** | HTTP, SSE, MCP, A2A, ACP, auth, permissions | [09-server-protocols.md](pieces/09-server-protocols.md) |
+| 9 | **Server & Protocols** | HTTP, SSE, MCP server + client, auth, permissions | [09-server-protocols.md](pieces/09-server-protocols.md) |
 | 10 | **Frontend** | Svelte 5 dashboard, embedded in Go binary | [10-frontend.md](pieces/10-frontend.md) |
 | 11 | **Channel Adapters** | Multi-channel I/O: web, Telegram, Slack, CLI, API, voice | [11-channel-adapters.md](pieces/11-channel-adapters.md) |
 
@@ -132,13 +132,16 @@ OpenClaw calls this "always-on personal agent." We go further: the agent has a S
 ### 4. Skill Ecosystem Compatibility (vs walled gardens)
 Skills follow the OpenClaw SKILL.md format. Existing ClawHub skills work. We add: typed tool integration (not just prompt injection), sandboxed execution, and skill-level permissions. The skill marketplace isn't ours alone — it's the shared ecosystem.
 
-### 5. Multi-Protocol Agent Communication (vs HTTP-only)
-A2A for agent-to-agent delegation. MCP for tool discovery and execution. ACP for headless agent client sessions. All three protocols, first-class, not afterthoughts.
+### 5. MCP-Native Tool Interop (vs HTTP-only)
+MCP for tool discovery and execution — first-class, not an afterthought. Cairn exposes its tools as an MCP server and consumes external MCP servers as tools.
 
 ### 6. Event-Sourced Sessions (vs mutable state)
 Every interaction is an append-only event stream. Sessions can be branched ("what if I tried this instead?"), compacted (summarize old turns), and replayed (debug what happened). No mutable state means no state corruption.
 
-### 7. Single Binary Deployment (vs npm install hell)
+### 7. Industry-Grade File Edit Safety (vs naive overwrite)
+File editing tools include: read-before-write enforcement, ambiguous match detection, fuzzy matching with context, automatic checkpointing (undo via `cairn.undoEdit`), offset/line-range support, line count validation, and structured diagnostics. File change events are surfaced at the agent layer for full observability, not buried in tool internals.
+
+### 8. Single Binary Deployment (vs npm install hell)
 `curl -L https://github.com/avifenesh/cairn/releases | sh` → one binary, runs on Linux/macOS/WSL. No Node, no Python, no Docker required. SQLite is embedded. Whisper.cpp sidecar optional.
 
 ## Edge Cases & Challenges

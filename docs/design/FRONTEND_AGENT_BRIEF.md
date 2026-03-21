@@ -23,8 +23,6 @@ A **Svelte 5 + SvelteKit** dashboard for Cairn — a personal agent operating sy
 
 ## Design Tokens
 
-Source of truth: `/home/ubuntu/pub/design-tokens.json` (copy into the frontend project).
-
 The token file defines:
 - **Backgrounds**: `bg-0` through `bg-4` (depth layers, dark-first)
 - **Text**: `primary`, `secondary`, `tertiary`
@@ -276,11 +274,11 @@ The Go backend embeds `frontend/dist/` via `embed.FS` and serves it at `/`.
 3. Unit tests for utilities: markdown (rendering, XSS sanitization), time (relative formatting), touch (pull-to-refresh, swipe-to-dismiss)
 4. API client tests: ApiError, fetch behavior, credentials
 5. Test script: `pnpm test` (vitest run), `pnpm test:watch` (vitest)
-6. 221 tests across 27 test files (stores, utils, API, components)
+6. 242 tests across 29 test files (stores, utils, API, components)
 
 ## Completion Status
 
-All frontend phases (1-5), subphases (10.1-10.12), Phase 6 hardening, full redesign, and Phase 6 frontend near complete (13/15 items). 221 tests across 27 files. 14 shadcn-svelte components. Cairn design system (emerald accent, zinc backgrounds, Geist font). 10 reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav, skills, status). Shared constants in `$lib/constants.ts`.
+All frontend phases (1-5), subphases (10.1-10.12), Phase 6 hardening, full redesign, and Phase 6 frontend near complete (13/15 items). 242 tests across 29 files. 14 shadcn-svelte components. Cairn design system (emerald accent, zinc backgrounds, Geist font). 10 reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav, skills, status). Shared constants in `$lib/constants.ts`.
 
 ### Full Redesign (merged)
 
@@ -328,10 +326,6 @@ Design system rewrite: `--pub-*` → `--cairn-*`, emerald `#10B981` accent, zinc
 | `docs/design/pieces/10-frontend.md` | Full frontend design spec |
 | `docs/design/pieces/11-channel-adapters.md` | Multi-channel architecture |
 | `docs/design/PHASES.md` | Phase dependency graph |
-| `/home/ubuntu/pub/design-tokens.json` | Design token source of truth (v1 repo) |
-| `/home/ubuntu/pub/backend/FRONTEND_API_CONTRACT.md` | Full API spec, 66KB (v1 repo) |
-| `/home/ubuntu/pub/docs/rag/frontend.md` | Current frontend architecture (v1 repo) |
-| `/home/ubuntu/pub/app.js` | Current vanilla JS, study for behavior reference (v1 repo) |
 
 ## Non-Goals (Backend Agent Handles These)
 

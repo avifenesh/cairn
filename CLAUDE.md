@@ -23,13 +23,13 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Done | `internal/signal/` |
 | 8 | Skill System - SKILL.md parser, discovery, hot-reload, injection | Done | `internal/skill/` |
 | 9 | Server & Protocols - HTTP, SSE, REST API, auth, static files | Done | `internal/server/` |
-| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (Phase 6-8, 242 tests, 38 PRs) | `frontend/` |
+| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (Phase 6-9, 242 tests, 38 PRs) | `frontend/` |
 | 11 | Channel Adapters - Telegram, Discord, Slack | Done | `internal/channel/` |
 | 12 | Z.ai Integration - web search, reader, zread, vision (13 tools) | Done | `internal/tool/builtin/zai.go`, `vision.go` |
 | 13 | Intelligence - embeddings, session compaction | Done | `internal/memory/`, `internal/agent/compaction.go` |
 | 14 | Voice - Whisper STT + edge-tts TTS | Done | `internal/voice/` |
 
-770+ tests (528 Go + 242 frontend), 51 built-in tools + MCP client tools, 11 pollers, 39 skills (17 bundled + 22 user). 162+ PRs merged. Orchestrator: thin management layer replacing idle tick - scans system state, spawns subagents, approves/rejects memories, verifies coding sessions. Subagent system: cairn.spawnSubagent tool with 4 types (researcher, coder, reviewer, executor), context isolation, worktree isolation, SSE streaming. Memory auto-accept: facts/preferences auto-accepted after dedup + contradiction checks; hard_rules/decisions stay proposed for orchestrator review. Auto-deploy on merge via self-hosted runner. MCP server (expose tools) + MCP client (consume external servers). Home: command center (agent status pill, approvals inline, activity stream, unread highlights, system pulse, quick chat input). Chat: text, voice, file upload, vision, stop button, new chat, ?msg= from home. Feed: API wired, archive/delete, source filters, bulk archive/delete, GitHub signal, Gmail/Calendar (auto-archive GH emails), RSS/SO/DevTo. Skills: CRUD + ClawHub marketplace (search/browse/install with LLM security review, stats enrichment, client-side sort) + auto-discovery suggestions. Soul: markdown render, patch review flow (approve/deny). Settings: 11 sections, all editable via UI and agent tools, dynamic MCP connections. Approval system with channel commands. Cron manager with inline edit. Notification prefs (priority, quiet hours, muted sources, channel routing). Agent config tools (patchConfig/getConfig). Activity observability tab (live stream, tool stats, error tracking). GLM fallback chain (glm-5-turbo -> glm-5 -> glm-4.7).
+839+ tests (597 Go + 242 frontend), 52+ built-in tools (40 base + conditional by config) + MCP client tools, 11 pollers, 39 skills (17 bundled + 22 user). 171+ PRs merged. Orchestrator: thin management layer replacing idle tick - scans system state, spawns subagents, approves/rejects memories, verifies coding sessions. Subagent system: cairn.spawnSubagent tool with 4 types (researcher, coder, reviewer, executor), context isolation, worktree isolation, SSE streaming. Memory auto-accept: facts/preferences auto-accepted after dedup + contradiction checks; hard_rules/decisions stay proposed for orchestrator review. Auto-deploy on merge via self-hosted runner. MCP server (expose tools) + MCP client (consume external servers). Home: command center (agent status pill, approvals inline, activity stream, unread highlights, system pulse, quick chat input). Chat: text, voice, file upload, vision, stop button, new chat, ?msg= from home. Feed: API wired, archive/delete, source filters, bulk archive/delete, GitHub signal, Gmail/Calendar (auto-archive GH emails), RSS/SO/DevTo. Skills: CRUD + ClawHub marketplace (search/browse/install with LLM security review, stats enrichment, client-side sort) + auto-discovery suggestions. Soul: markdown render, patch review flow (approve/deny). Settings: 11 sections, all editable via UI and agent tools, dynamic MCP connections. Approval system with channel commands. Cron manager with inline edit. Notification prefs (priority, quiet hours, muted sources, channel routing). Agent config tools (patchConfig/getConfig). Activity observability tab (live stream, tool stats, error tracking). GLM fallback chain (glm-5-turbo -> glm-5 -> glm-4.7).
 
 ## Phases
 
@@ -166,7 +166,7 @@ go test -race ./...             # Tests with race detector
 go build -o cairn ./cmd/cairn                    # Build binary (dev, filesystem frontend)
 go build -tags embed_frontend -o cairn ./cmd/cairn  # Build with embedded frontend (production)
 ./cairn chat "hello"            # CLI chat (ReAct agent)
-./cairn serve                   # HTTP server on :8788
+./cairn serve                   # HTTP server on :8787 (default; production uses PORT=8788)
 
 # Frontend (from frontend/)
 pnpm dev                        # Dev server
@@ -193,54 +193,139 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 
 ## Env Vars
 
-**Required (one of):**
-- `LLM_API_KEY` / `GLM_API_KEY` / `OPENAI_API_KEY`
+Full list from `internal/config/config.go`. 108 distinct var names (including aliases).
 
-**LLM config:**
-- `LLM_PROVIDER` - "glm" or "openai" (auto-detected from key var name)
-- `LLM_MODEL` - model ID (default: glm-5-turbo or gpt-4o depending on provider)
-- `LLM_BASE_URL` - API endpoint (default: provider-specific)
-- `LLM_FALLBACK_MODEL` - fallback on persistent failure
+**Required (one of):**
+- `LLM_API_KEY` — primary LLM API key
+- `GLM_API_KEY` / `ZHIPU_API_KEY` — aliases (auto-sets provider=glm)
+- `OPENAI_API_KEY` — alias (auto-sets provider=openai)
+
+**LLM:**
+- `LLM_PROVIDER` ("glm"|"openai"; auto-detected when using `GLM_API_KEY` or `OPENAI_API_KEY`; defaults to "glm" when only `LLM_API_KEY` is set)
+- `LLM_MODEL` (default: glm-5-turbo for GLM, gpt-4o for OpenAI)
+- `LLM_BASE_URL` (default: https://api.z.ai/api/coding/paas/v4 for GLM, https://api.openai.com/v1 for OpenAI)
+- `LLM_FALLBACK_MODEL` — fallback model on persistent failure
+- `GLM_MODEL`, `GLM_BASE_URL`, `GLM_FALLBACK_MODEL` — legacy GLM-specific aliases
+- `OPENAI_BASE_URL`, `ZHIPU_BASE_URL` — provider-specific base URL aliases
 
 **Server:**
-- `PORT` (8788), `HOST` (0.0.0.0)
+- `PORT` (8787)
+- `HOST` (0.0.0.0)
 - `DATABASE_PATH` (./data/cairn.db)
-- `WRITE_API_TOKEN`, `READ_API_TOKEN` - API auth tokens
-- `FRONTEND_ORIGIN` - CORS origin
+- `WRITE_API_TOKEN` — required for write endpoints
+- `READ_API_TOKEN` — optional, if unset read endpoints are open
+- `FRONTEND_ORIGIN` — CORS allowed origin
 
-**Signal plane:**
-- `GH_TOKEN` / `GITHUB_TOKEN` - GitHub API token for polling
-- `GH_ORGS` - comma-separated org names to track
-- `HN_KEYWORDS` - comma-separated HN keyword filter
-- `HN_MIN_SCORE` (0) - minimum HN story score
-- `POLL_INTERVAL` (300) - poll interval in seconds
-- `REDDIT_SUBS` - comma-separated subreddit names
-- `NPM_PACKAGES` - comma-separated npm packages to track
-- `CRATES_PACKAGES` - comma-separated crates to track
-- `WEBHOOK_SECRETS` - JSON map of name->secret (e.g. '{"github":"abc"}')
+**Signal Plane:**
+- `GH_TOKEN` / `GITHUB_TOKEN` — GitHub personal access token
+- `GH_ORGS` — comma-separated GitHub org names to track
+- `GH_OWNER` — your GitHub login (for self-filter on activity)
+- `GH_TRACKED_REPOS` — comma-separated explicit repos (empty = auto-detect)
+- `GH_BOT_FILTER` — comma-separated additional bot logins to filter
+- `GH_METRICS_INTERVAL` (14400) — seconds between GitHub metrics polls (4h)
+- `GMAIL_ENABLED` (false) — enable Gmail poller
+- `GMAIL_FILTER_QUERY` (-category:promotions -category:social -category:forums) — Gmail search filter
+- `CALENDAR_ENABLED` (false) — enable Calendar poller
+- `CALENDAR_LOOKAHEAD_H` (48) — calendar lookahead in hours
+- `RSS_ENABLED` (false) — enable RSS/Atom poller
+- `RSS_FEEDS` — comma-separated RSS/Atom feed URLs
+- `SO_ENABLED` (false) — enable Stack Overflow poller
+- `SO_TAGS` — comma-separated SO tags to monitor
+- `SO_API_KEY` — SO API key (optional, higher rate limit)
+- `SO_POLL_INTERVAL` (60) — SO poll interval in minutes
+- `DEVTO_ENABLED` (false) — enable Dev.to poller
+- `DEVTO_TAGS` — comma-separated Dev.to tags to monitor
+- `DEVTO_USERNAME` — Dev.to username to follow
+- `DEVTO_POLL_INTERVAL` (30) — Dev.to poll interval in minutes
+- `HN_KEYWORDS` — comma-separated Hacker News keyword filter
+- `HN_MIN_SCORE` (0) — minimum HN story score
+- `POLL_INTERVAL` (300) — default poll interval in seconds (also accepts `POLL_INTERVAL_MS` in ms)
+- `REDDIT_SUBS` — comma-separated subreddit names
+- `NPM_PACKAGES` — comma-separated npm packages to track
+- `CRATES_PACKAGES` / `CRATES` — comma-separated crates.io packages to track
+- `WEBHOOK_SECRETS` — JSON map of name->HMAC secret (e.g. `{"github":"abc123"}`)
 
-**Memory context:**
-- `MEMORY_CONTEXT_BUDGET` (4000) - total token budget for context builder
-- `MEMORY_HARD_RULE_RESERVE` (500) - reserved tokens for hard rules
-- `MEMORY_DECAY_HALF_LIFE` (30) - days, memory relevance half-life
-- `MEMORY_STALE_THRESHOLD` (14) - days, penalty for unused memories
+**Memory:**
+- `MEMORY_CONTEXT_BUDGET` (4000) — total token budget for context builder
+- `MEMORY_HARD_RULE_RESERVE` (500) — tokens reserved for hard rules
+- `MEMORY_DECAY_HALF_LIFE` (30) — days, relevance decay half-life
+- `MEMORY_STALE_THRESHOLD` (14) — days, penalty for unused memories
+- `MEMORY_AUTO_EXTRACT` (true) — auto-extract memories from sessions
+
+**Agent:**
+- `AGENT_TICK_INTERVAL` (60) — orchestrator tick interval in seconds
+- `REFLECTION_INTERVAL` (1800) — reflection cycle interval in seconds
+- `TALK_MAX_ROUNDS` (40) — max tool rounds in talk mode
+- `WORK_MAX_ROUNDS` (80) — max tool rounds in work mode
+- `CODING_MAX_ROUNDS` (400) — max tool rounds in coding mode
+- `CODING_ALLOWED_REPOS` — comma-separated absolute repo paths where coding is allowed (empty = cwd only)
+
+**Channels:**
+- `TELEGRAM_BOT_TOKEN` — Telegram bot token
+- `TELEGRAM_CHAT_ID` — Telegram chat ID (int64)
+- `DISCORD_BOT_TOKEN` — Discord bot token
+- `DISCORD_CHANNEL_ID` — Discord channel ID
+- `SLACK_BOT_TOKEN` — Slack bot token
+- `SLACK_APP_TOKEN` — Slack app token (Socket Mode)
+- `SLACK_CHANNEL_ID` — Slack channel ID
+- `CHANNEL_SESSION_TIMEOUT` (240) — channel session idle timeout in minutes
+- `PREFERRED_CHANNEL` — default outbound notification channel (e.g. "telegram")
+- `QUIET_HOURS_START` (-1) — quiet hours start 0-23 (-1 = disabled)
+- `QUIET_HOURS_END` (-1) — quiet hours end 0-23 (-1 = disabled)
+- `QUIET_HOURS_TZ` (UTC) — IANA timezone for quiet hours
+- `MUTED_SOURCES` — comma-separated source names that skip notifications
+- `NOTIF_MIN_PRIORITY` (low) — minimum priority for notifications ("low"|"medium"|"high")
+- `CHANNEL_ROUTING` — JSON map of source -> channel (e.g. `{"github_signal":"telegram"}`)
+
+**MCP:**
+- `MCP_SERVER_ENABLED` (false) — expose Cairn tools as MCP server
+- `MCP_PORT` (3001) — MCP server port
+- `MCP_TRANSPORT` (http) — MCP transport ("stdio"|"http"|"both")
+- `MCP_WRITE_RATE_LIMIT` (100) — write requests per minute on MCP server
+- `MCP_SERVERS` — JSON array of MCP client server configs to connect to
+
+**Embeddings:**
+- `EMBEDDING_ENABLED` (true when API key present) — enable semantic embeddings
+- `EMBEDDING_MODEL` (embedding-3 for GLM, text-embedding-3-small for OpenAI) — embedding model
+- `EMBEDDING_DIMENSIONS` (2048) — embedding vector dimensions
+- `EMBEDDING_BASE_URL` (defaults to LLM base URL) — embedding API endpoint
+- `EMBEDDING_API_KEY` (defaults to LLM API key) — embedding API key
+
+**Session Compaction:**
+- `COMPACTION_TRIGGER_TOKENS` (150000) — context length that triggers compaction
+- `COMPACTION_KEEP_RECENT` (10) — number of recent turns to keep verbatim
+- `COMPACTION_MAX_TOOL_OUTPUT` (32000) — max chars of tool output preserved per turn
+
+**Voice:**
+- `VOICE_ENABLED` (false) — enable voice input/output
+- `WHISPER_URL` (http://127.0.0.1:8178) — Whisper STT server URL
+- `TTS_VOICE` (en-US-BrianNeural) — edge-tts voice name
+
+**Web Tools (fallback when Z.ai disabled):**
+- `SEARXNG_URL` — SearXNG instance URL for web search
+- `WEB_FETCH_TIMEOUT` (30) — HTTP fetch timeout in seconds
+- `WEB_FETCH_MAX_SIZE` (5MB) — max response size in bytes
+
+**Z.ai (GLM-specific):**
+- `ZAI_WEB_ENABLED` (true when provider=glm) — enable Z.ai web/search tools
+- `ZAI_BASE_URL` (https://api.z.ai/api/mcp) — Z.ai MCP endpoint
+- `ZAI_API_KEY` — Z.ai MCP key (falls back to LLM_API_KEY)
+- `ZAI_VISION_ENABLED` (true when provider=glm) — enable Z.ai vision tools
 
 **Budget:**
-- `BUDGET_DAILY_CAP` (0) - daily LLM spend cap USD (0 = unlimited)
-- `BUDGET_WEEKLY_CAP` (0) - weekly LLM spend cap USD (0 = unlimited)
-- Aliases: `BEDROCK_DAILY_BUDGET_USD`, `IDLE_BUDGET_CAP_USD`
-
-**Agent loop:**
-- `AGENT_TICK_INTERVAL` (60) - tick interval in seconds
-- `REFLECTION_INTERVAL` (1800) - reflection cycle interval in seconds
-
-**Feature flags:**
-- `CODING_ENABLED` (false), `IDLE_MODE_ENABLED` (false)
+- `BUDGET_DAILY_CAP` (0) — daily LLM spend cap USD (0 = unlimited)
+- `BUDGET_WEEKLY_CAP` (0) — weekly LLM spend cap USD (0 = unlimited)
+- Aliases: `BEDROCK_DAILY_BUDGET_USD`, `IDLE_BUDGET_CAP_USD` (daily), `BEDROCK_WEEKLY_BUDGET_USD` (weekly)
 
 **Paths:**
-- `SOUL_PATH` (~/.cairn/SOUL.md), `SKILL_DIRS` (~/.cairn/skills), `DATA_DIR` (~/.cairn/data)
-- Skills: bundled core in repo `./skills/` (read-only defaults), user/marketplace installs in `~/.cairn/skills/` (via SKILL_DIRS, last-wins on name conflict)
-- Note: `skillDirs()` in config.go also scans `~/.cairn/skills`, `.cairn/skills`, `.agents/skills` by default. SKILL_DIRS entries append last → `InstallDir()` returns them.
+- `SOUL_PATH` (./SOUL.md — production: ~/.cairn/SOUL.md)
+- `DATA_DIR` (./data — production: ~/.cairn/data)
+- `SKILL_DIRS` — extra skill directories appended to default search path
+- Default skill scan order: `./skills` → `~/.cairn/skills` → `.cairn/skills` → `.agents/skills` → SKILL_DIRS. Last-wins on name conflict. `InstallDir()` returns last entry.
+
+**Feature Flags:**
+- `CODING_ENABLED` (false) — enable coding mode and worktree isolation
+- `IDLE_MODE_ENABLED` (false) — enable always-on idle/proactive agent loop
 
 ## Design Docs
 

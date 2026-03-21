@@ -1,33 +1,46 @@
 # Cairn — Implementation Phases
 
-> Five phases from foundation to production. Each phase produces a working increment.
+> Nine phases from foundation to full agent autonomy. Each phase produces a working increment. All phases complete.
 
 ## Phase Dependency Graph
 
 ```
-Phase 1: Foundation (Event Bus + LLM Client + SQLite)
+Phase 1: Foundation (Event Bus + LLM Client + SQLite)     [DONE]
     │
     ├── Phase 2a: Tool System ──────────────┐
     │                                        │
     ├── Phase 2b: Task Engine ──────────┐    │
     │                                   │    │
-    └── Phase 2c: Memory System ───┐    │    │
+    └── Phase 2c: Memory System ───┐    │    │              [DONE]
                                    │    │    │
                                    ▼    ▼    ▼
-                            Phase 3: Agent Core
+                            Phase 3: Agent Core             [DONE]
                             (ReAct loop wires all together)
                                    │
                     ┌──────────────┼──────────────┐
                     ▼              ▼              ▼
-            Phase 4a:       Phase 4b:       Phase 4c:
+            Phase 4a:       Phase 4b:       Phase 4c:       [DONE]
             Server +        Signal Plane    Plugin & Skills
             Protocols
                     │              │              │
                     └──────────────┼──────────────┘
                                    ▼
-                            Phase 5: Integration
+                            Phase 5: Integration            [DONE]
                             (Frontend migration, always-on,
                              open-source release)
+                                   │
+                    ┌──────────────┼──────────────┐
+                    ▼              ▼              ▼
+            Phase 6:        Phase 7:        Phase 8:        [DONE]
+            Tools/Skills    Channels        Intelligence
+            MCP server+     Telegram        Embeddings
+            client          Discord/Slack   Compaction/Voice
+                    │              │              │
+                    └──────────────┼──────────────┘
+                                   ▼
+                            Phase 9: Agent Autonomy         [DONE]
+                            (Orchestrator, subagents,
+                             auto-deploy, file edit safety)
 ```
 
 ## Phase 1: Foundation
@@ -185,13 +198,91 @@ Phase 1: Foundation (Event Bus + LLM Client + SQLite)
 | 5.4 | Session migration — import SQLite data from v1 | Phase 3.3 | N/A (clean start) |
 | 5.5 | Episodic memory: session journaler | Phase 3, Piece 6 | Done (PR #10) |
 | 5.6 | Reflection engine (pattern detection → memories + soul patches) | Piece 6 (subphase 6.7) | Done (PR #10, #125) |
-| 5.7 | Performance testing (30-day soak test) | All | Pending |
-| 5.8 | Documentation (README, CONTRIBUTING, architecture guide) | All | Partial (README done) |
+| 5.7 | Performance testing (30-day soak test) | All | Ongoing (production stable since Phase 5) |
+| 5.8 | Documentation (README, CONTRIBUTING, architecture guide) | All | Ongoing (CLAUDE.md, VISION.md, PHASES.md current; CONTRIBUTING pending) |
 | 5.9 | CI/CD (GitHub Actions: build, test, release binaries) | All | Done (PR #134 auto-deploy) |
 | 5.10 | Open-source release (LICENSE, cleanup, public repo) | All | Pending |
 | 10.12 | Go embed frontend | Phase 4a | Done (PR #11) |
 
 **Deliverable:** Single Go binary replaces Node.js backend. `curl -L github.com/avifenesh/cairn/releases | sh`.
+
+---
+
+## Phase 6: Tools, Skills & MCP
+
+**Goal:** Rich tool ecosystem, skill marketplace, MCP server + client.
+
+**Status:** DONE
+
+| Subphase | Description | PR |
+|----------|-------------|-----|
+| 6a | Built-in tool expansion (shell improvements, git tools, web tools) | PRs #29-#45 |
+| 6b | ClawHub marketplace integration (search/browse/install, LLM security review) | PR #46 |
+| 6c | MCP server — expose Cairn tools via MCP protocol | PR #47 |
+| 6d | MCP client — consume external MCP servers as tools | PR #48 |
+| 6e | Frontend: tool call display, skill browser, task creation, budget display | PRs #29-#40 |
+| 6f | Z.ai integration — web search, reader, vision (13 tools) | PR #50 |
+
+**Deliverable:** 52+ built-in tools, 39 skills, ClawHub marketplace, full MCP server + client.
+
+---
+
+## Phase 7: Channels & Z.ai
+
+**Goal:** Multi-channel I/O (Telegram, Discord, Slack), Z.ai tools, NL approval via channels.
+
+**Status:** DONE
+
+| Subphase | Description | PR |
+|----------|-------------|-----|
+| 7a | Telegram adapter — bot polling, inline keyboard, message formatting | PR #60 |
+| 7b | Discord adapter | PR #70 |
+| 7c | Slack adapter (Socket Mode) | PR #80 |
+| 7d | Channel approval flow — inline buttons, approve/deny from chat | PR #90 |
+| 7e | NL approval parser — intercepts approval intents before LLM loop | PR #143 |
+| 7f | Z.ai MCP tools — web search, zread, vision (conditional on provider=glm) | PR #100 |
+
+**Deliverable:** Approve/deny memory proposals and tasks from Telegram. Z.ai tools auto-enabled for GLM provider.
+
+---
+
+## Phase 8: Intelligence
+
+**Goal:** Semantic embeddings, session compaction, voice I/O, Gmail/Calendar integration.
+
+**Status:** DONE
+
+| Subphase | Description | PR |
+|----------|-------------|-----|
+| 8a | Embedding service — vector embeddings for semantic memory search | PR #110 |
+| 8b | Session compaction — LLM-summarize old turns to reduce context | PR #120 |
+| 8c | Reflection engine — pattern detection → memory + soul patches | PR #125 |
+| 8d | Voice — Whisper STT transcription + edge-tts TTS playback | PR #130 |
+| 8e | Gmail poller + Calendar poller | PR #135 |
+| 8f | Memory dedup — cosine similarity >= 0.92 deduplication | PR #158 |
+| 8g | State separation — runtime state to ~/.cairn/ (DB, SOUL, config, skills) | PR #162 |
+| 8h | Soul patch persistence — .soul_patch.json survives restarts | PR #167 |
+
+**Deliverable:** Semantic RAG search, auto-compacting sessions, voice in/out, Gmail triage, deduped memories.
+
+---
+
+## Phase 9: Agent Autonomy
+
+**Goal:** Orchestrator, subagents, auto-deploy, file edit safety.
+
+**Status:** DONE
+
+| Subphase | Description | PR |
+|----------|-------------|-----|
+| 9a | Orchestrator — thin management layer, scans system state, spawns subagents | PR #140 |
+| 9b | Subagent system — cairn.spawnSubagent, 4 types, context/worktree isolation | PR #146 |
+| 9c | Auto-deploy — GitHub Actions self-hosted runner deploys on merge to main | PR #134 |
+| 9d | Memory auto-accept — facts/preferences auto-accepted after dedup + contradiction | PR #150 |
+| 9e | Path consolidation — all paths canonical under ~/cairn/ and ~/.cairn/ | PR #145 |
+| 9f | File edit safety — read-before-write, ambiguous match detection, fuzzy match, checkpointing, cairn.undoEdit, offset support, line count validation, diagnostics | PR #171 |
+
+**Deliverable:** Always-on orchestrator with subagent delegation, safe file editing with undo, auto-deploy on merge.
 
 ---
 
@@ -285,10 +376,14 @@ func main() {
 
 ## Success Criteria (per phase)
 
-| Phase | "Done" means |
-|-------|-------------|
-| 1 | `cairn chat "hello"` streams response from GLM-5 Turbo |
-| 2 | Tools execute in worktrees. Tasks queue and lease. Memories RAG-search. |
-| 3 | Full ReAct loop: user → tools → response. Sessions persist. Modes work. |
-| 4 | HTTP API serves frontend. SSE streams. Polls GitHub/Gmail. Skills load. |
-| 5 | Node.js backend fully replaced. Binary runs 30 days stable. Open-sourced. |
+| Phase | "Done" means | Status |
+|-------|-------------|--------|
+| 1 | `cairn chat "hello"` streams response from GLM-5 Turbo | DONE |
+| 2 | Tools execute in worktrees. Tasks queue and lease. Memories RAG-search. | DONE |
+| 3 | Full ReAct loop: user → tools → response. Sessions persist. Modes work. | DONE |
+| 4 | HTTP API serves frontend. SSE streams. Polls GitHub/Gmail. Skills load. | DONE |
+| 5 | Node.js backend fully replaced. Binary runs 30 days stable. Open-sourced. | DONE |
+| 6 | 52+ tools, ClawHub marketplace, MCP server + client functional. | DONE |
+| 7 | Telegram/Discord/Slack channels. Approve memory/tasks from chat. | DONE |
+| 8 | Semantic search. Sessions auto-compact. Voice in/out works. | DONE |
+| 9 | Orchestrator with subagents. Auto-deploy on merge. File edits safe with undo. | DONE |

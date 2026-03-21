@@ -165,7 +165,7 @@ If `--verbose` was passed, include all rows. Otherwise, omit rows that are purel
   - DB WAL size: > 100MB = WARN, > 500MB = CRIT
   - TLS cert: < 14 days = WARN, < 3 days = CRIT
   - Budget: > 80% daily cap = WARN, > 95% = CRIT
-- **DB path:** uses `/home/ubuntu/.cairn/data/cairn.db` (matches production `DATABASE_PATH` default)
+- **DB path:** uses `/home/ubuntu/.cairn/data/cairn.db` (production deployment path, configured via `DATABASE_PATH` in `.env.cairn`)
 - **Metrics/status endpoints:** require `READ_API_TOKEN` when token auth is configured. If curl returns 401, report as "auth required" rather than "unavailable"
 - **This skill executes read-only shell commands** — no system modifications are made. Some commands may require shell approval depending on policy
 - **Overlap with /provider-status:** This skill does NOT check external provider reachability or feed source circuits. Always refer the user to `/provider-status` for those checks

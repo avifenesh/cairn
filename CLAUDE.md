@@ -114,7 +114,7 @@ Cloudflare (DNS + proxy) → Caddy (:443, TLS) → Cairn (:8788)
 ```
 
 **Services:**
-- `cairn.service` — systemd unit, port 8788, env from `~/.cairn/.env.cairn`
+- `cairn.service` — systemd unit, port 8788, env from `/home/ubuntu/.cairn/.env.cairn`
 - `caddy.service` — TLS reverse proxy, config at `/etc/caddy/Caddyfile`
 - `pub-backend.service` — DISABLED (replaced by Cairn)
 
@@ -247,7 +247,8 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 
 **Paths:**
 - `SOUL_PATH` (~/.cairn/SOUL.md), `SKILL_DIRS` (~/.cairn/skills), `DATA_DIR` (~/.cairn/data)
-- Skills: bundled core in repo `./skills/`, user/marketplace installs in `~/.cairn/skills/` (last-wins on name conflict)
+- Skills: bundled core in repo `./skills/` (read-only defaults), user/marketplace installs in `~/.cairn/skills/` (via SKILL_DIRS, last-wins on name conflict)
+- Note: `skillDirs()` in config.go also scans `~/.cairn/skills`, `.cairn/skills`, `.agents/skills` by default. SKILL_DIRS entries append last → `InstallDir()` returns them.
 
 ## Design Docs
 

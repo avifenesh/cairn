@@ -99,8 +99,16 @@
 	}
 
 	// Listen for real-time soul patch proposals via SSE.
+	// Refetch both SOUL content and patch so the diff is accurate.
 	function onSoulPatch() {
-		getSoulPatch().then(res => { patch = res.patch ?? null; }).catch(() => {});
+		if (loading) return; // avoid clobbering mount-time fetch
+		Promise.all([
+			getSoul().catch(() => null),
+			getSoulPatch().catch(() => ({ patch: null })),
+		]).then(([soulRes, patchRes]) => {
+			if (soulRes) { content = soulRes.content; sha = soulRes.sha ?? null; }
+			patch = patchRes?.patch ?? null;
+		});
 	}
 	onMount(() => window.addEventListener('cairn:soul-patch', onSoulPatch));
 	onDestroy(() => window.removeEventListener('cairn:soul-patch', onSoulPatch));

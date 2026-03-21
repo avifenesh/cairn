@@ -531,3 +531,10 @@ export const authSession = () => get<{ authenticated: boolean; method: string; e
 export interface AuthCredential { id: string; name: string; createdAt: string; lastUsedAt?: string }
 export const listAuthCredentials = () => get<{ credentials: AuthCredential[] }>('/v1/auth/credentials');
 export const deleteAuthCredential = (id: string) => del<{ ok: boolean }>(`/v1/auth/credentials/${encodeURIComponent(id)}`);
+
+// Subagents
+export const getSubagents = (parentTaskId?: string) => {
+	const params = parentTaskId ? `?parentTaskId=${encodeURIComponent(parentTaskId)}` : '';
+	return get<{ subagents: import('$lib/types').SubagentInfo[] }>(`/v1/subagents${params}`);
+};
+export const cancelSubagent = (id: string) => post<{ ok: boolean }>(`/v1/subagents/${encodeURIComponent(id)}/cancel`);

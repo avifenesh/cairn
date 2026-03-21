@@ -71,9 +71,9 @@ cairn.notify: message="Draft PR ready: [cairn] <title> — CI green. Review at <
 ### 9. Create PR review monitor
 After creating the draft PR, set up a cron job to automatically address review comments:
 ```
-cairn.createCron: name="pr-watch-<PR_NUMBER>", schedule="0 * * * *", instruction="PR #<PR_NUMBER> review monitor:
+cairn.createCron: name="pr-watch-{owner}-{repo}-<PR_NUMBER>", schedule="0 * * * *", instruction="PR #<PR_NUMBER> review monitor:
   1. Check if PR is still open: gh pr view <PR_NUMBER> --json state --jq '.state'
-  2. If merged or closed → delete this cron job: cairn.deleteCron: name=\"pr-watch-<PR_NUMBER>\" and stop.
+  2. If merged or closed → delete this cron job: cairn.deleteCron: name="pr-watch-{owner}-{repo}-<PR_NUMBER>" and stop.
   3. If open, check for unresolved review comments: gh api repos/{owner}/{repo}/pulls/<PR_NUMBER>/comments — filter for comments where the bot hasn't replied.
   4. If unresolved review comments found → address them in coding mode. Fix the issues, push, iterate until resolved.
   5. If no comments → do nothing."

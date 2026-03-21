@@ -54,7 +54,7 @@ var (
 	}
 
 	targetMemoryPhrases    = []string{"memories", "memory", "mem_"}
-	targetSoulPatchPhrases = []string{"soul patch", "soul", "patch"}
+	targetSoulPatchPhrases = []string{"soul patch", "sp_"}
 	targetApprovalPhrases  = []string{"approval", "apr_"}
 
 	// Multi-word "all" phrases use substring matching; single-word "all"
@@ -74,8 +74,7 @@ func parseApprovalIntent(text string) *ApprovalIntent {
 		return nil
 	}
 
-	// Extract ID first — a bare ID reply (e.g. "a1b2c3d4") after a listing
-	// is a valid approval intent even without an action keyword.
+	// Extract ID if present.
 	var targetID string
 	if match := idPattern.FindString(lower); match != "" {
 		targetID = match
@@ -84,10 +83,12 @@ func parseApprovalIntent(text string) *ApprovalIntent {
 	// Detect action.
 	action, hasAction, ambiguous := detectAction(lower)
 
-	// If no action keyword but a bare ID was provided, treat as approve
-	// (the user is replying to a "which one?" listing).
+	// If no action keyword but the entire message is a bare ID, treat as
+	// an approve reply to a "which one?" listing. Only when the message
+	// is a single token matching the ID — avoids misclassifying messages
+	// that happen to contain hex strings (commit SHAs, hashes, etc.).
 	if !hasAction {
-		if targetID != "" {
+		if targetID != "" && strings.TrimSpace(lower) == targetID {
 			action = ActionApprove
 			hasAction = true
 			ambiguous = false
@@ -165,16 +166,11 @@ func detectAction(lower string) (ApprovalAction, bool, bool) {
 }
 
 func detectTarget(lower string) ApprovalTarget {
-	// Check multi-word target phrases first.
-	if containsAny(lower, targetSoulPatchPhrases[:1]) { // "soul patch"
+	if containsAny(lower, targetSoulPatchPhrases) {
 		return TargetSoulPatch
 	}
 	if containsAny(lower, targetMemoryPhrases) {
 		return TargetMemory
-	}
-	// "soul" and "patch" individually — only if "soul patch" didn't match.
-	if containsAny(lower, targetSoulPatchPhrases[1:]) {
-		return TargetSoulPatch
 	}
 	if containsAny(lower, targetApprovalPhrases) {
 		return TargetApproval
@@ -325,7 +321,7 @@ func showPending(ctx context.Context, memSvc *memory.Service, soul *memory.Soul,
 	for i, it := range items {
 		fmt.Fprintf(&b, "%d. %s\n", i+1, it.display)
 	}
-	b.WriteString("\nReply with the ID to approve/deny.")
+	b.WriteString("\nReply with 'approve <id>' or 'deny <id>'.")
 	return &cairnchannel.OutgoingMessage{Text: b.String()}, nil
 }
 
@@ -390,7 +386,7 @@ func handleMemoryIntent(ctx context.Context, intent *ApprovalIntent, memSvc *mem
 		}
 		fmt.Fprintf(&b, "`%s` [%s] %.0f%% — %s\n", shortID(m.ID), m.Category, m.Confidence*100, snippet)
 	}
-	b.WriteString("\nReply with an ID, or say 'approve all' / 'reject all'.")
+	b.WriteString("\nReply with 'approve <id>' or 'reject <id>', or say 'approve all' / 'reject all'.")
 	return &cairnchannel.OutgoingMessage{Text: b.String()}, nil
 }
 
@@ -561,7 +557,7 @@ func handleUnknownTarget(
 	for i, it := range items {
 		fmt.Fprintf(&b, "%d. %s\n", i+1, it.display)
 	}
-	b.WriteString("\nReply with an ID or be more specific (e.g. 'approve the memory', 'deny the soul patch').")
+	b.WriteString("\nReply with 'approve <id>' or 'deny <id>', or be more specific (e.g. 'approve the memory').")
 	return &cairnchannel.OutgoingMessage{Text: b.String()}, nil
 }
 

@@ -72,15 +72,22 @@ func TestParseApprovalIntent(t *testing.T) {
 		// "all" must be whole-word — "allocated" should NOT trigger All.
 		{"approve allocated memory", false, ActionApprove, TargetMemory, false, ""},
 
+		// "patch" and "soul" alone should NOT target soul patch.
+		{"approve this patch", false, ActionApprove, TargetUnknown, false, ""},
+		{"soul music is great", true, 0, 0, false, ""},
+
 		// With IDs.
 		{"approve mem_a1b2c3d4e5f6", false, ActionApprove, TargetMemory, false, "mem_a1b2c3d4e5f6"},
 		{"deny apr_deadbeef1234", false, ActionDeny, TargetApproval, false, "apr_deadbeef1234"},
 		{"approve a1b2c3d4e5f6a7b8", false, ActionApprove, TargetUnknown, false, "a1b2c3d4e5f6a7b8"},
 
-		// Bare ID reply (after listing) — should be treated as approve.
+		// Bare ID reply (single token) — should be treated as approve.
 		{"a1b2c3d4e5f6a7b8", false, ActionApprove, TargetUnknown, false, "a1b2c3d4e5f6a7b8"},
 		{"mem_abcdef12", false, ActionApprove, TargetMemory, false, "mem_abcdef12"},
 		{"apr_deadbeef", false, ActionApprove, TargetApproval, false, "apr_deadbeef"},
+
+		// Hex in context should NOT be bare-ID matched.
+		{"check commit a1b2c3d4e5f6a7b8 please", true, 0, 0, false, ""},
 
 		// Not approval intents — should return nil.
 		{"what is the weather", true, 0, 0, false, ""},

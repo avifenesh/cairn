@@ -192,6 +192,10 @@ export const sseStore = {
 
 		// Soul
 		handle('soul_updated', source, (d) => appStore.addNotification('soul', `SOUL.md updated (${d.sha?.slice(0, 7)})`));
+		handle('soul_patch_proposed', source, () => {
+			appStore.addNotification('soul', 'Soul patch proposed — review on Soul page');
+			window.dispatchEvent(new CustomEvent('cairn:soul-patch'));
+		});
 
 		// Digest
 		handle('digest_ready', source, () => appStore.addNotification('digest', 'New digest available'));

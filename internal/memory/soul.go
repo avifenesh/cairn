@@ -2,9 +2,11 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -35,7 +37,12 @@ func NewSoul(filePath string) *Soul {
 	return &Soul{filePath: filePath}
 }
 
-// Load reads the file into memory. Safe to call multiple times.
+// patchFilePath returns the path for the persisted pending patch file.
+func (s *Soul) patchFilePath() string {
+	return filepath.Join(filepath.Dir(s.filePath), ".soul_patch.json")
+}
+
+// Load reads the file into memory and restores any pending patch. Safe to call multiple times.
 func (s *Soul) Load() error {
 	data, err := os.ReadFile(s.filePath)
 	if err != nil {
@@ -50,10 +57,39 @@ func (s *Soul) Load() error {
 	s.mu.Lock()
 	s.content = string(data)
 	s.modTime = info.ModTime()
+
+	// Restore pending patch from disk.
+	if patchData, err := os.ReadFile(s.patchFilePath()); err == nil {
+		var patch PendingSoulPatch
+		if json.Unmarshal(patchData, &patch) == nil {
+			// Rebase preview against current content (may have changed since proposal).
+			patch.Preview = s.content + "\n" + patch.Content
+			s.pending = &patch
+			slog.Info("soul: restored pending patch from disk", "id", patch.ID)
+		}
+	}
 	s.mu.Unlock()
 
 	slog.Debug("soul loaded", "path", s.filePath, "bytes", len(data))
 	return nil
+}
+
+// persistPatch writes the pending patch to disk (or removes the file if nil).
+// Must be called with s.mu held.
+func (s *Soul) persistPatch() {
+	path := s.patchFilePath()
+	if s.pending == nil {
+		os.Remove(path)
+		return
+	}
+	data, err := json.Marshal(s.pending)
+	if err != nil {
+		slog.Warn("soul: failed to persist patch", "error", err)
+		return
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		slog.Warn("soul: failed to write patch file", "error", err)
+	}
 }
 
 // Content returns the current SOUL.md content (thread-safe).
@@ -124,7 +160,7 @@ func (s *Soul) FilePath() string {
 	return s.filePath
 }
 
-// ProposePatch creates a pending patch for human review.
+// ProposePatch creates a pending patch for human review and persists it to disk.
 // Only one patch can be pending at a time; new proposals replace old ones.
 func (s *Soul) ProposePatch(content, source string) *PendingSoulPatch {
 	s.mu.Lock()
@@ -139,6 +175,7 @@ func (s *Soul) ProposePatch(content, source string) *PendingSoulPatch {
 		Preview:   preview,
 	}
 	s.pending = patch
+	s.persistPatch()
 	slog.Info("soul: patch proposed", "id", patch.ID, "source", source, "bytes", len(content))
 	return patch
 }
@@ -178,6 +215,7 @@ func (s *Soul) ApprovePatch(id string) error {
 	s.content = newContent
 	source := s.pending.Source
 	s.pending = nil
+	s.persistPatch() // removes the file
 
 	slog.Info("soul: patch approved and applied", "id", id, "source", source)
 	return nil
@@ -196,6 +234,7 @@ func (s *Soul) DenyPatch(id string) error {
 	}
 
 	s.pending = nil
+	s.persistPatch() // removes the file
 	slog.Info("soul: patch denied", "id", id)
 	return nil
 }

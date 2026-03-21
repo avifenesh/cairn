@@ -142,7 +142,7 @@ var completeTask = tool.Define("cairn.completeTask",
 			taskID = ctx.TaskID
 		}
 		if taskID == "" {
-			return &tool.ToolResult{Output: "No task to complete — tasks are auto-completed when you finish responding."}, nil
+			return &tool.ToolResult{Error: "no task ID provided and no task context available — tasks are auto-completed when you finish responding, so you usually don't need to call this"}, nil
 		}
 
 		output := ""

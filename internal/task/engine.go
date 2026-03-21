@@ -189,7 +189,8 @@ func (e *Engine) MarkRunning(ctx context.Context, taskID string) {
 }
 
 // Complete marks a task as completed with the given output.
-// Idempotent: returns nil if the task is already completed.
+// Idempotent: re-completing updates the output if non-empty (loop's
+// final output wins over early tool calls with empty output).
 func (e *Engine) Complete(ctx context.Context, taskID string, output json.RawMessage) error {
 	t, err := e.store.Get(ctx, taskID)
 	if err != nil {
@@ -198,9 +199,18 @@ func (e *Engine) Complete(ctx context.Context, taskID string, output json.RawMes
 	if t == nil {
 		return fmt.Errorf("task engine: complete: task %s not found", taskID)
 	}
-	// Idempotent: already completed is not an error.
+	// Already completed: update output if caller provides non-empty content.
 	if t.Status == StatusCompleted {
+		if len(output) > 0 && string(output) != `""` {
+			t.Output = output
+			t.UpdatedAt = time.Now()
+			return e.store.Update(ctx, t)
+		}
 		return nil
+	}
+	// Don't allow completing failed/canceled tasks.
+	if t.Status == StatusFailed || t.Status == StatusCanceled {
+		return fmt.Errorf("task engine: complete: task %s already in terminal state %s", taskID, t.Status)
 	}
 
 	t.Status = StatusCompleted

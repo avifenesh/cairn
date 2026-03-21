@@ -18,6 +18,11 @@
 		events.filter((e) => e.eventType !== 'text_delta' && e.eventType !== 'thinking')
 	);
 
+	// Track which tool calls have completed (have a matching tool_result).
+	const completedToolIds = $derived(
+		new Set(events.filter((e) => e.eventType === 'tool_result').map((e) => e.payload.toolId as string))
+	);
+
 	// Auto-scroll to bottom on new events.
 	$effect(() => {
 		if (displayEvents.length && autoScroll && scrollEl) {
@@ -42,7 +47,7 @@
 
 <div class="activity-stream" bind:this={scrollEl} onscroll={handleScroll}>
 	{#each displayEvents as event (event.timestamp + event.eventType + (event.payload.toolId ?? ''))}
-		<EventCard {event} />
+		<EventCard {event} {completedToolIds} />
 	{/each}
 
 	{#if thinkingText}

@@ -17,6 +17,7 @@ func All() []tool.Tool {
 		writeFile,
 		editFile,
 		deleteFile,
+		undoEdit,
 		listFiles,
 		searchFiles,
 		shell,

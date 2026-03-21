@@ -202,12 +202,9 @@ func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, rawChunk
 			header = fmt.Sprintf("─── Part %d/%d ───\n", i+1, total)
 		}
 
-		// Try MarkdownV2 first. Truncate if escaping pushed it over the limit.
+		// Try MarkdownV2 first. The 3500-rune split limit keeps the escaped
+		// payload well under Telegram's 4096 limit in practice.
 		mdText := header + Normalize(raw, "telegram")
-		if len([]rune(mdText)) > telegramMaxPlain {
-			mdRunes := []rune(mdText)
-			mdText = string(mdRunes[:telegramMaxPlain-3]) + "..."
-		}
 		params := tu.Message(tu.ID(chatID), mdText).WithParseMode(telego.ModeMarkdownV2)
 
 		isLast := i == total-1

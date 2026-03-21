@@ -1,13 +1,14 @@
 <script lang="ts">
 	import type { SessionStatus } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Activity, Cpu, Hash } from '@lucide/svelte';
+	import { Activity, Cpu, Hash, AlertCircle } from '@lucide/svelte';
 
-	let { sessionId, status, currentRound, totalToolCalls, totalTokensIn, totalTokensOut }: {
+	let { sessionId, status, currentRound, totalToolCalls, totalErrors, totalTokensIn, totalTokensOut }: {
 		sessionId: string;
 		status: SessionStatus;
 		currentRound: number;
 		totalToolCalls: number;
+		totalErrors: number;
 		totalTokensIn: number;
 		totalTokensOut: number;
 	} = $props();
@@ -45,6 +46,12 @@
 			<Activity size={12} />
 			<span>{totalToolCalls}</span>
 		</div>
+		{#if totalErrors > 0}
+			<div class="stat stat--error" title="Errors">
+				<AlertCircle size={12} />
+				<span>{totalErrors}</span>
+			</div>
+		{/if}
 		<div class="stat" title="Tokens (in/out)">
 			<Cpu size={12} />
 			<span>{formatTokens(totalTokensIn)}/{formatTokens(totalTokensOut)}</span>
@@ -88,6 +95,9 @@
 		gap: 0.25rem;
 		font-size: 0.75rem;
 		color: var(--text-tertiary, hsl(var(--muted-foreground)));
+	}
+	.stat--error {
+		color: hsl(var(--destructive));
 	}
 
 	@media (max-width: 640px) {

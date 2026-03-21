@@ -60,6 +60,7 @@
 		status={store.status}
 		currentRound={store.currentRound}
 		totalToolCalls={store.totalToolCalls}
+		totalErrors={store.totalErrors}
 		totalTokensIn={store.totalTokensIn}
 		totalTokensOut={store.totalTokensOut}
 	/>

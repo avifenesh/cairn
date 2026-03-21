@@ -26,6 +26,7 @@ export class SessionStore {
 	private receivedLiveEvent = false;
 	currentRound = $state(0);
 	totalToolCalls = $state(0);
+	totalErrors = $state(0);
 	totalTokensIn = $state(0);
 	totalTokensOut = $state(0);
 	streamingText = $state('');
@@ -165,7 +166,10 @@ export class SessionStore {
 							payload,
 							timestamp: ts,
 						});
-						if (isResult) this.totalToolCalls++;
+						if (isResult) {
+							this.totalToolCalls++;
+							if (part.status === 'failed') this.totalErrors++;
+						}
 					} else if (part.text !== undefined) {
 						// Aggregate text tokens. Flush on author change.
 						if (author !== currentAuthor && currentText) {
@@ -202,6 +206,7 @@ export class SessionStore {
 				break;
 			case 'tool_result':
 				this.totalToolCalls++;
+				if (p.isError) this.totalErrors++;
 				break;
 			case 'round_complete':
 				this.currentRound = (p.round as number) ?? this.currentRound;

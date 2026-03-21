@@ -270,30 +270,39 @@ func buildDiscordComponents(actions []ActionGroup) []discordgo.MessageComponent 
 	return components
 }
 
-// splitMessage splits text into chunks of at most maxLen characters,
+// splitMessage splits text into chunks of at most maxLen runes,
 // preferring to split on newline boundaries, then space boundaries.
+// Uses rune counting to avoid splitting multi-byte UTF-8 characters.
 func splitMessage(text string, maxLen int) []string {
-	if len(text) <= maxLen {
+	runes := []rune(text)
+	if len(runes) <= maxLen {
 		return []string{text}
 	}
 
 	var chunks []string
-	for len(text) > 0 {
-		if len(text) <= maxLen {
-			chunks = append(chunks, text)
+	for len(runes) > 0 {
+		if len(runes) <= maxLen {
+			chunks = append(chunks, string(runes))
 			break
 		}
 
+		segment := string(runes[:maxLen])
+
 		// Find a good split point: prefer newline, then space, then hard cut.
 		cut := maxLen
-		if idx := strings.LastIndex(text[:maxLen], "\n"); idx > 0 {
-			cut = idx + 1
-		} else if idx := strings.LastIndex(text[:maxLen], " "); idx > 0 {
-			cut = idx + 1
+		if idx := strings.LastIndex(segment, "\n"); idx > 0 {
+			cut = runeCount(segment[:idx+1])
+		} else if idx := strings.LastIndex(segment, " "); idx > 0 {
+			cut = runeCount(segment[:idx+1])
 		}
 
-		chunks = append(chunks, text[:cut])
-		text = text[cut:]
+		chunks = append(chunks, string(runes[:cut]))
+		runes = runes[cut:]
 	}
 	return chunks
+}
+
+// runeCount returns the number of runes in s.
+func runeCount(s string) int {
+	return len([]rune(s))
 }

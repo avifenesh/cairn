@@ -161,7 +161,8 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 		}
 	}
 
-	text := Normalize(msg.Text, "telegram")
+	rawText := msg.Text
+	text := Normalize(rawText, "telegram")
 	if text == "" {
 		return nil
 	}
@@ -183,17 +184,20 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 		replyMarkup = &telego.InlineKeyboardMarkup{InlineKeyboard: rows}
 	}
 
-	// Split into chunks and send sequentially.
-	chunks := splitMessage(text, telegramMaxMarkdown)
-	return t.sendChunks(ctx, chatID, chunks, telego.ModeMarkdownV2, replyMarkup)
+	// Split formatted text into chunks. Also split the raw (unescaped) text
+	// for the plain-text fallback so we don't pass MarkdownV2 escapes through
+	// stripMarkdown (which would leave stray backslashes).
+	mdChunks := splitMessage(text, telegramMaxMarkdown)
+	plainChunks := splitMessage(rawText, telegramMaxPlain)
+	return t.sendChunks(ctx, chatID, mdChunks, plainChunks, telego.ModeMarkdownV2, replyMarkup)
 }
 
 // sendChunks sends message chunks sequentially. Part headers are added when
 // there are multiple chunks. The inline keyboard is attached only to the last
-// chunk. If markdown send fails, retries the chunk as plain text.
-func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, chunks []string, parseMode string, keyboard *telego.InlineKeyboardMarkup) error {
-	total := len(chunks)
-	for i, chunk := range chunks {
+// chunk. If markdown send fails, retries the corresponding plain text chunk.
+func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, mdChunks, plainChunks []string, parseMode string, keyboard *telego.InlineKeyboardMarkup) error {
+	total := len(mdChunks)
+	for i, chunk := range mdChunks {
 		if total > 1 {
 			chunk = fmt.Sprintf("─── Part %d/%d ───\n%s", i+1, total, chunk)
 		}
@@ -204,15 +208,23 @@ func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, chunks [
 		}
 
 		// Attach keyboard only to the last chunk.
-		if i == total-1 && keyboard != nil {
+		isLast := i == total-1
+		if isLast && keyboard != nil {
 			params = params.WithReplyMarkup(keyboard)
 		}
 
 		if _, err := t.bot.SendMessage(ctx, params); err != nil {
-			// Fallback: retry without markdown.
+			// Fallback: use the original unescaped text for plain retry.
 			t.logger.Warn("telegram: markdown send failed, retrying plain", "error", err, "part", i+1)
-			plain := tu.Message(tu.ID(chatID), stripMarkdown(chunk))
-			if i == total-1 && keyboard != nil {
+			plainText := chunk
+			if i < len(plainChunks) {
+				plainText = plainChunks[i]
+				if total > 1 {
+					plainText = fmt.Sprintf("--- Part %d/%d ---\n%s", i+1, total, plainText)
+				}
+			}
+			plain := tu.Message(tu.ID(chatID), plainText)
+			if isLast && keyboard != nil {
 				plain = plain.WithReplyMarkup(keyboard)
 			}
 			if _, err2 := t.bot.SendMessage(ctx, plain); err2 != nil {

@@ -73,16 +73,13 @@ func TestSplitMessage_TelegramLimits(t *testing.T) {
 	text := strings.Repeat("Hello world. ", 800) // ~10400 chars
 	chunks := splitMessage(text, telegramMaxMarkdown)
 	for i, c := range chunks {
-		if len(c) > telegramMaxMarkdown {
-			t.Errorf("chunk %d exceeds telegram limit: len=%d", i, len(c))
+		if len([]rune(c)) > telegramMaxMarkdown {
+			t.Errorf("chunk %d exceeds telegram limit: runes=%d", i, len([]rune(c)))
 		}
 	}
-	// Verify all content is preserved.
-	total := 0
-	for _, c := range chunks {
-		total += len(c)
-	}
-	if total < len(strings.TrimSpace(text))-len(chunks) {
-		t.Errorf("content lost: original=%d, chunks total=%d", len(text), total)
+	// Verify all content is preserved by joining chunks.
+	joined := strings.Join(chunks, "")
+	if joined != text {
+		t.Errorf("content not preserved: original len=%d, joined len=%d", len(text), len(joined))
 	}
 }

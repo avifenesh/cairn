@@ -9,6 +9,7 @@
 |-------|------|---------|-------|---------|
 | LLM Session Compaction and Conversation Summarization | session-compaction.md | 7 local + 30 web | deep | 2026-03-19 |
 | Automatic Memory Extraction from LLM Conversations | auto-memory-extraction.md | 22 local + 42 web | deep | 2026-03-19 |
+| Telegram Bot API & Mini Apps Development | telegram-development.md | 6 official | deep | 2026-03-21 |
 
 ## Trigger Phrases
 

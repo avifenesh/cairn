@@ -51,6 +51,9 @@ func NewTelegram(cfg TelegramConfig, handler MessageHandler, logger *slog.Logger
 
 func (t *TelegramAdapter) Name() string { return "telegram" }
 
+// Bot returns the underlying telego.Bot for direct API access.
+func (t *TelegramAdapter) Bot() *telego.Bot { return t.bot }
+
 // Start begins long-polling for updates. Blocks until ctx is cancelled.
 func (t *TelegramAdapter) Start(ctx context.Context) error {
 	updates, err := t.bot.UpdatesViaLongPolling(ctx, nil)

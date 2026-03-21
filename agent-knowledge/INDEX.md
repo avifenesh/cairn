@@ -11,6 +11,7 @@ Each guide is RAG-optimized with structured content, code examples, and source m
 | AI Chat Thinking/Reasoning UI Patterns | ai-thinking-ui-patterns.md | 24 | 2026-03-18 |
 | LLM Session Compaction and Conversation Summarization | session-compaction.md | 7 local + 30 web | 2026-03-19 |
 | Automatic Memory Extraction from LLM Conversations | auto-memory-extraction.md | 22 | 2026-03-19 |
+| Telegram Bot API & Mini Apps Development | telegram-development.md | 6 | 2026-03-21 |
 
 ## Trigger Phrases
 
@@ -84,6 +85,22 @@ Use these to locate relevant guides:
 - "token budgeted context injection" -> auto-memory-extraction.md
 - "AddSessionToMemory" -> auto-memory-extraction.md
 - "preload memory tool" -> auto-memory-extraction.md
+- "telegram bot" -> telegram-development.md
+- "telegram api" -> telegram-development.md
+- "telegram mini app" -> telegram-development.md
+- "telegram web app" -> telegram-development.md
+- "inline keyboard" -> telegram-development.md
+- "callback query" -> telegram-development.md
+- "telegram payment" -> telegram-development.md
+- "telegram stars" -> telegram-development.md
+- "telegram webhook" -> telegram-development.md
+- "telegram deep link" -> telegram-development.md
+- "BotFather" -> telegram-development.md
+- "sendMessage telegram" -> telegram-development.md
+- "telegram group management" -> telegram-development.md
+- "telegram mini app storage" -> telegram-development.md
+- "telegram haptic feedback" -> telegram-development.md
+- "tg.MainButton" -> telegram-development.md
 
 ## Source Metadata
 

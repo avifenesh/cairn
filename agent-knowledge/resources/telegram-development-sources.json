@@ -1,0 +1,51 @@
+{
+  "topic": "Telegram Bot API and Mini Apps development",
+  "slug": "telegram-development",
+  "generated": "2026-03-21T08:00:00Z",
+  "depth": "deep",
+  "totalSources": 6,
+  "sources": [
+    {
+      "url": "https://core.telegram.org/bots/api",
+      "title": "Telegram Bot API Reference",
+      "qualityScore": 100,
+      "scores": { "authority": 10, "recency": 10, "depth": 10, "examples": 8, "uniqueness": 10 },
+      "keyInsights": ["Complete method reference", "All message types", "Keyboard types", "File handling", "Admin methods", "Payment methods"]
+    },
+    {
+      "url": "https://core.telegram.org/bots/webapps",
+      "title": "Telegram Mini Apps Documentation",
+      "qualityScore": 98,
+      "scores": { "authority": 10, "recency": 10, "depth": 10, "examples": 9, "uniqueness": 10 },
+      "keyInsights": ["WebApp JS API", "Theme integration", "Cloud/Device/Secure storage", "Biometric auth", "Haptic feedback", "Sensor access", "Safe areas"]
+    },
+    {
+      "url": "https://core.telegram.org/bots/features",
+      "title": "Telegram Bot Features Overview",
+      "qualityScore": 95,
+      "scores": { "authority": 10, "recency": 10, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": ["Inline mode", "Keyboard types", "Deep linking", "Payments", "Business features", "Monetization options"]
+    },
+    {
+      "url": "https://core.telegram.org/bots/payments",
+      "title": "Telegram Payments API",
+      "qualityScore": 95,
+      "scores": { "authority": 10, "recency": 10, "depth": 9, "examples": 7, "uniqueness": 9 },
+      "keyInsights": ["Stars vs third-party flow", "Pre-checkout validation", "Shipping queries", "Going live checklist", "160+ currencies"]
+    },
+    {
+      "url": "https://core.telegram.org/bots/tutorial",
+      "title": "Telegram Bot Creation Tutorial",
+      "qualityScore": 80,
+      "scores": { "authority": 10, "recency": 7, "depth": 7, "examples": 8, "uniqueness": 5 },
+      "keyInsights": ["BotFather setup", "Token management", "Update handling", "Command registration", "Inline keyboard implementation"]
+    },
+    {
+      "url": "https://core.telegram.org/api/links",
+      "title": "Telegram Deep Link Formats",
+      "qualityScore": 92,
+      "scores": { "authority": 10, "recency": 10, "depth": 9, "examples": 6, "uniqueness": 10 },
+      "keyInsights": ["All t.me link formats", "tg:// URI schemes", "Bot/Mini App/Group/Channel/Payment links", "Parameter constraints", "Settings links"]
+    }
+  ]
+}

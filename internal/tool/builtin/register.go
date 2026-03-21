@@ -89,6 +89,11 @@ func All() []tool.Tool {
 		)
 	}
 
+	// Telegram Bot API tool (when Telegram bot is configured).
+	if TelegramEnabled() {
+		tools = append(tools, telegramAction)
+	}
+
 	// Google Workspace tools (when gws CLI is available).
 	if GWSEnabled() {
 		tools = append(tools,

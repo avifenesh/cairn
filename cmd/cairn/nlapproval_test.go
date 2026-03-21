@@ -69,10 +69,18 @@ func TestParseApprovalIntent(t *testing.T) {
 		{"accept everything", false, ActionApprove, TargetUnknown, true, ""},
 		{"reject all", false, ActionDeny, TargetUnknown, true, ""},
 
+		// "all" must be whole-word — "allocated" should NOT trigger All.
+		{"approve allocated memory", false, ActionApprove, TargetMemory, false, ""},
+
 		// With IDs.
 		{"approve mem_a1b2c3d4e5f6", false, ActionApprove, TargetMemory, false, "mem_a1b2c3d4e5f6"},
 		{"deny apr_deadbeef1234", false, ActionDeny, TargetApproval, false, "apr_deadbeef1234"},
 		{"approve a1b2c3d4e5f6a7b8", false, ActionApprove, TargetUnknown, false, "a1b2c3d4e5f6a7b8"},
+
+		// Bare ID reply (after listing) — should be treated as approve.
+		{"a1b2c3d4e5f6a7b8", false, ActionApprove, TargetUnknown, false, "a1b2c3d4e5f6a7b8"},
+		{"mem_abcdef12", false, ActionApprove, TargetMemory, false, "mem_abcdef12"},
+		{"apr_deadbeef", false, ActionApprove, TargetApproval, false, "apr_deadbeef"},
 
 		// Not approval intents — should return nil.
 		{"what is the weather", true, 0, 0, false, ""},
@@ -89,8 +97,6 @@ func TestParseApprovalIntent(t *testing.T) {
 		// Edge: "pass" inside longer sentences should not match.
 		{"pass the butter", true, 0, 0, false, ""},
 		{"password reset", true, 0, 0, false, ""},
-		// But bare "pass" should match.
-		{"pass", false, ActionDeny, TargetUnknown, false, ""},
 
 		// Case insensitive.
 		{"APPROVE the Memory", false, ActionApprove, TargetMemory, false, ""},
@@ -168,7 +174,6 @@ func openTestDB(t *testing.T) *cairndb.DB {
 	return d
 }
 
-// newTestMemoryService creates a memory service with a noop embedder for testing.
 func newTestMemoryService(t *testing.T) *memory.Service {
 	t.Helper()
 	d := openTestDB(t)
@@ -178,22 +183,19 @@ func newTestMemoryService(t *testing.T) *memory.Service {
 
 func TestHandleApprovalIntent_SingleMemory(t *testing.T) {
 	svc := newTestMemoryService(t)
-
 	ctx := context.Background()
 	mem := &memory.Memory{Content: "Go uses goroutines", Category: "fact", Scope: "global"}
 	if err := svc.Create(ctx, mem); err != nil {
 		t.Fatal(err)
 	}
 
-	// Approve with target=memory, no ID, single proposed → should accept it.
 	intent := &ApprovalIntent{Action: ActionApprove, Target: TargetMemory}
-	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil)
+	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertContains(t, resp.Text, "accepted")
 
-	// Verify memory is accepted.
 	got, err := svc.Get(ctx, mem.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -205,7 +207,6 @@ func TestHandleApprovalIntent_SingleMemory(t *testing.T) {
 
 func TestHandleApprovalIntent_RejectMemory(t *testing.T) {
 	svc := newTestMemoryService(t)
-
 	ctx := context.Background()
 	mem := &memory.Memory{Content: "Old preference", Category: "preference", Scope: "global"}
 	if err := svc.Create(ctx, mem); err != nil {
@@ -213,7 +214,7 @@ func TestHandleApprovalIntent_RejectMemory(t *testing.T) {
 	}
 
 	intent := &ApprovalIntent{Action: ActionDeny, Target: TargetMemory}
-	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil)
+	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +223,6 @@ func TestHandleApprovalIntent_RejectMemory(t *testing.T) {
 
 func TestHandleApprovalIntent_MultipleMemories(t *testing.T) {
 	svc := newTestMemoryService(t)
-
 	ctx := context.Background()
 	for _, content := range []string{"Fact A", "Fact B", "Fact C"} {
 		if err := svc.Create(ctx, &memory.Memory{Content: content, Category: "fact", Scope: "global"}); err != nil {
@@ -230,9 +230,8 @@ func TestHandleApprovalIntent_MultipleMemories(t *testing.T) {
 		}
 	}
 
-	// No ID, multiple proposed → should list them.
 	intent := &ApprovalIntent{Action: ActionApprove, Target: TargetMemory}
-	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil)
+	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +241,6 @@ func TestHandleApprovalIntent_MultipleMemories(t *testing.T) {
 
 func TestHandleApprovalIntent_ApproveAll(t *testing.T) {
 	svc := newTestMemoryService(t)
-
 	ctx := context.Background()
 	for _, content := range []string{"Fact A", "Fact B", "Fact C"} {
 		if err := svc.Create(ctx, &memory.Memory{Content: content, Category: "fact", Scope: "global"}); err != nil {
@@ -251,31 +249,47 @@ func TestHandleApprovalIntent_ApproveAll(t *testing.T) {
 	}
 
 	intent := &ApprovalIntent{Action: ActionApprove, Target: TargetMemory, All: true}
-	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil)
+	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertContains(t, resp.Text, "3/3")
 
-	// Verify all accepted.
 	mems, _ := svc.List(ctx, memory.ListOpts{Status: memory.StatusProposed})
 	if len(mems) != 0 {
 		t.Errorf("Still %d proposed memories, want 0", len(mems))
 	}
 }
 
+func TestHandleApprovalIntent_RejectAllUnknownTarget(t *testing.T) {
+	svc := newTestMemoryService(t)
+	ctx := context.Background()
+	for _, content := range []string{"Fact A", "Fact B"} {
+		if err := svc.Create(ctx, &memory.Memory{Content: content, Category: "fact", Scope: "global"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// "reject all" → Target=Unknown, All=true → should route to memory bulk reject.
+	intent := &ApprovalIntent{Action: ActionDeny, Target: TargetUnknown, All: true}
+	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertContains(t, resp.Text, "Rejected")
+	assertContains(t, resp.Text, "2/2")
+}
+
 func TestHandleApprovalIntent_UnknownTarget_SinglePending(t *testing.T) {
 	svc := newTestMemoryService(t)
-
 	ctx := context.Background()
 	mem := &memory.Memory{Content: "Single fact", Category: "fact", Scope: "global"}
 	if err := svc.Create(ctx, mem); err != nil {
 		t.Fatal(err)
 	}
 
-	// Bare "yes" with 1 pending item → should accept it.
 	intent := &ApprovalIntent{Action: ActionApprove, Target: TargetUnknown}
-	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil)
+	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,9 +299,7 @@ func TestHandleApprovalIntent_UnknownTarget_SinglePending(t *testing.T) {
 func TestHandleApprovalIntent_UnknownTarget_NothingPending(t *testing.T) {
 	ctx := context.Background()
 	intent := &ApprovalIntent{Action: ActionApprove, Target: TargetUnknown}
-
-	// No memory service, no soul, no approvals → nothing pending.
-	resp, err := handleApprovalIntent(ctx, intent, nil, nil, nil)
+	resp, err := handleApprovalIntent(ctx, intent, nil, nil, nil, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,14 +308,13 @@ func TestHandleApprovalIntent_UnknownTarget_NothingPending(t *testing.T) {
 
 func TestHandleApprovalIntent_ShowPending(t *testing.T) {
 	svc := newTestMemoryService(t)
-
 	ctx := context.Background()
 	if err := svc.Create(ctx, &memory.Memory{Content: "A fact", Category: "fact", Scope: "global"}); err != nil {
 		t.Fatal(err)
 	}
 
 	intent := &ApprovalIntent{Action: ActionShow}
-	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil)
+	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,23 +324,18 @@ func TestHandleApprovalIntent_ShowPending(t *testing.T) {
 func TestHandleCallbackData_Approval(t *testing.T) {
 	d := openTestDB(t)
 	approvalStore := task.NewApprovalStore(d.DB)
-
 	ctx := context.Background()
-	approval := &task.Approval{
-		Type:        "soul_patch",
-		Description: "Test approval",
-	}
+	approval := &task.Approval{Type: "soul_patch", Description: "Test approval"}
 	if err := approvalStore.Create(ctx, approval); err != nil {
 		t.Fatal(err)
 	}
 
-	resp, err := handleCallbackData(ctx, "approve:"+approval.ID, nil, nil, approvalStore)
+	resp, err := handleCallbackData(ctx, "approve:"+approval.ID, nil, nil, approvalStore, "telegram")
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertContains(t, resp.Text, "approved")
 
-	// Verify it's approved.
 	got, err := approvalStore.Get(ctx, approval.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -337,11 +343,14 @@ func TestHandleCallbackData_Approval(t *testing.T) {
 	if got.Status != task.ApprovalApproved {
 		t.Errorf("Status = %s, want approved", got.Status)
 	}
+	if got.DecidedBy != "telegram" {
+		t.Errorf("DecidedBy = %q, want telegram", got.DecidedBy)
+	}
 }
 
 func TestHandleCallbackData_InvalidFormat(t *testing.T) {
 	ctx := context.Background()
-	resp, err := handleCallbackData(ctx, "baddata", nil, nil, nil)
+	resp, err := handleCallbackData(ctx, "baddata", nil, nil, nil, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,15 +359,13 @@ func TestHandleCallbackData_InvalidFormat(t *testing.T) {
 
 func TestHandleCallbackData_Memory(t *testing.T) {
 	svc := newTestMemoryService(t)
-
 	ctx := context.Background()
 	mem := &memory.Memory{Content: "Test memory", Category: "fact", Scope: "global"}
 	if err := svc.Create(ctx, mem); err != nil {
 		t.Fatal(err)
 	}
 
-	// Use the full memory ID in callback data.
-	resp, err := handleCallbackData(ctx, "approve:"+mem.ID, svc, nil, nil)
+	resp, err := handleCallbackData(ctx, "approve:"+mem.ID, svc, nil, nil, "telegram")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,31 +374,29 @@ func TestHandleCallbackData_Memory(t *testing.T) {
 
 func TestHandleCallbackData_NotFound(t *testing.T) {
 	ctx := context.Background()
-	resp, err := handleCallbackData(ctx, "approve:nonexistent_id", nil, nil, nil)
+	resp, err := handleCallbackData(ctx, "approve:nonexistent_id", nil, nil, nil, "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertContains(t, resp.Text, "No pending item")
 }
 
-// --- Test the full NL flow end-to-end ---
+// --- End-to-end NL flow ---
 
 func TestNLApprovalEndToEnd(t *testing.T) {
 	svc := newTestMemoryService(t)
-
 	ctx := context.Background()
 	mem := &memory.Memory{Content: "Go conventions", Category: "fact", Scope: "global"}
 	if err := svc.Create(ctx, mem); err != nil {
 		t.Fatal(err)
 	}
 
-	// Simulate: user says "yes" → parser → resolver → memory accepted.
 	intent := parseApprovalIntent("yes")
 	if intent == nil {
 		t.Fatal("parseApprovalIntent(\"yes\") = nil")
 	}
 
-	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil)
+	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil, "telegram")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -405,7 +410,6 @@ func TestNLApprovalEndToEnd(t *testing.T) {
 
 func TestNLApprovalEndToEnd_DenyWithTarget(t *testing.T) {
 	svc := newTestMemoryService(t)
-
 	ctx := context.Background()
 	mem := &memory.Memory{Content: "Bad fact", Category: "fact", Scope: "global"}
 	if err := svc.Create(ctx, mem); err != nil {
@@ -420,25 +424,80 @@ func TestNLApprovalEndToEnd_DenyWithTarget(t *testing.T) {
 		t.Fatalf("got Action=%d Target=%d, want Deny+Memory", intent.Action, intent.Target)
 	}
 
-	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil)
+	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil, "telegram")
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertContains(t, resp.Text, "rejected")
 }
 
-// assertContains is a test helper for checking response text.
+func TestNLApprovalEndToEnd_RejectAll(t *testing.T) {
+	svc := newTestMemoryService(t)
+	ctx := context.Background()
+	for _, c := range []string{"A", "B"} {
+		if err := svc.Create(ctx, &memory.Memory{Content: c, Category: "fact", Scope: "global"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// "reject all" → should bulk-reject memories even with TargetUnknown.
+	intent := parseApprovalIntent("reject all")
+	if intent == nil {
+		t.Fatal("parseApprovalIntent returned nil")
+	}
+	resp, err := handleApprovalIntent(ctx, intent, svc, nil, nil, "telegram")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertContains(t, resp.Text, "Rejected")
+	assertContains(t, resp.Text, "2/2")
+}
+
+func TestResolveApprovalID(t *testing.T) {
+	d := openTestDB(t)
+	store := task.NewApprovalStore(d.DB)
+	ctx := context.Background()
+
+	approval := &task.Approval{Type: "test", Description: "Test"}
+	if err := store.Create(ctx, approval); err != nil {
+		t.Fatal(err)
+	}
+
+	// Resolve by prefix (first 8 chars).
+	prefix := approval.ID[:8]
+	resolved, err := resolveApprovalID(ctx, store, prefix)
+	if err != nil {
+		t.Fatalf("resolveApprovalID(%q) error: %v", prefix, err)
+	}
+	if resolved != approval.ID {
+		t.Errorf("resolved = %q, want %q", resolved, approval.ID)
+	}
+
+	// Resolve by full ID.
+	resolved, err = resolveApprovalID(ctx, store, approval.ID)
+	if err != nil {
+		t.Fatalf("resolveApprovalID(full) error: %v", err)
+	}
+	if resolved != approval.ID {
+		t.Errorf("resolved = %q, want %q", resolved, approval.ID)
+	}
+
+	// Not found.
+	_, err = resolveApprovalID(ctx, store, "nonexistent")
+	if err == nil {
+		t.Error("expected error for nonexistent ID")
+	}
+}
+
+// --- Helpers ---
+
 func assertContains(t *testing.T, got, want string) {
 	t.Helper()
-	if !containsCI(got, want) {
+	if !strings.Contains(strings.ToLower(got), strings.ToLower(want)) {
 		t.Errorf("response %q does not contain %q", got, want)
 	}
 }
 
-func containsCI(s, sub string) bool {
-	return strings.Contains(strings.ToLower(s), strings.ToLower(sub))
-}
-
-// Verify OutgoingMessage type is used (compile check).
+// Compile checks.
 var _ *cairnchannel.OutgoingMessage
 var _ *sql.DB

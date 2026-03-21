@@ -661,22 +661,20 @@ func runServe(logger *slog.Logger) {
 				return handlePatchCommand(ctx, msg.Args, soul)
 			}
 
-			// Handle button callbacks (approve:<id>, deny:<id>).
-			if msg.IsCommand && msg.Command == "callback" {
+			// Handle button callbacks and natural language approval intents.
+			isCallback := msg.IsCommand && msg.Command == "callback"
+			var nlIntent *ApprovalIntent
+			if !msg.IsCommand {
+				nlIntent = parseApprovalIntent(msg.Text)
+			}
+			if isCallback || nlIntent != nil {
 				if !isOwnerMessage(msg, cfg) {
 					return &cairnchannel.OutgoingMessage{Text: "Not authorized."}, nil
 				}
-				return handleCallbackData(ctx, msg.Args, memService, soul, approvalStore)
-			}
-
-			// Natural language approval intercept — fast path before expensive LLM call.
-			if !msg.IsCommand {
-				if intent := parseApprovalIntent(msg.Text); intent != nil {
-					if !isOwnerMessage(msg, cfg) {
-						return &cairnchannel.OutgoingMessage{Text: "Not authorized."}, nil
-					}
-					return handleApprovalIntent(ctx, intent, memService, soul, approvalStore)
+				if isCallback {
+					return handleCallbackData(ctx, msg.Args, memService, soul, approvalStore, msg.ChannelID)
 				}
+				return handleApprovalIntent(ctx, nlIntent, memService, soul, approvalStore, msg.ChannelID)
 			}
 
 			// Determine mode from /mode command state (default: talk).

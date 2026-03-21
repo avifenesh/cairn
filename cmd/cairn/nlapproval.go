@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -55,7 +57,10 @@ var (
 	targetSoulPatchPhrases = []string{"soul patch", "soul", "patch"}
 	targetApprovalPhrases  = []string{"approval", "apr_"}
 
-	allPhrases = []string{"all of them", "all proposed", "everything", "all"}
+	// Multi-word "all" phrases use substring matching; single-word "all"
+	// uses whole-word matching to avoid false positives like "allocated".
+	allPhrasesMulti  = []string{"all of them", "all proposed"}
+	allPhrasesSingle = []string{"everything", "all"}
 
 	// idPattern matches memory/soul/approval IDs or bare hex prefixes.
 	idPattern = regexp.MustCompile(`\b(?:mem_|sp_|apr_)[a-f0-9]+\b|\b[a-f0-9]{8,24}\b`)
@@ -69,29 +74,41 @@ func parseApprovalIntent(text string) *ApprovalIntent {
 		return nil
 	}
 
+	// Extract ID first — a bare ID reply (e.g. "a1b2c3d4") after a listing
+	// is a valid approval intent even without an action keyword.
+	var targetID string
+	if match := idPattern.FindString(lower); match != "" {
+		targetID = match
+	}
+
 	// Detect action.
 	action, hasAction, ambiguous := detectAction(lower)
+
+	// If no action keyword but a bare ID was provided, treat as approve
+	// (the user is replying to a "which one?" listing).
 	if !hasAction {
-		return nil
+		if targetID != "" {
+			action = ActionApprove
+			hasAction = true
+			ambiguous = false
+		} else {
+			return nil
+		}
 	}
 
 	// Detect target.
 	target := detectTarget(lower)
-	hasAll := containsAny(lower, allPhrases)
+	hasAll := containsAny(lower, allPhrasesMulti) || containsAnyWord(lower, allPhrasesSingle)
 
-	// Extract ID if present.
-	var targetID string
-	if match := idPattern.FindString(lower); match != "" {
-		targetID = match
-		if target == TargetUnknown {
-			switch {
-			case strings.HasPrefix(match, "mem_"):
-				target = TargetMemory
-			case strings.HasPrefix(match, "sp_"):
-				target = TargetSoulPatch
-			case strings.HasPrefix(match, "apr_"):
-				target = TargetApproval
-			}
+	// Infer target from ID prefix.
+	if targetID != "" && target == TargetUnknown {
+		switch {
+		case strings.HasPrefix(targetID, "mem_"):
+			target = TargetMemory
+		case strings.HasPrefix(targetID, "sp_"):
+			target = TargetSoulPatch
+		case strings.HasPrefix(targetID, "apr_"):
+			target = TargetApproval
 		}
 	}
 
@@ -199,23 +216,25 @@ type pendingItem struct {
 }
 
 // gatherPending collects all pending items across memories, soul, and approvals.
-func gatherPending(ctx context.Context, memSvc *memory.Service, soul *memory.Soul, approvals *task.ApprovalStore) []pendingItem {
+// Returns an error if any service call fails, to avoid acting on partial data.
+func gatherPending(ctx context.Context, memSvc *memory.Service, soul *memory.Soul, approvals *task.ApprovalStore) ([]pendingItem, error) {
 	var items []pendingItem
 
 	if memSvc != nil {
 		mems, err := memSvc.List(ctx, memory.ListOpts{Status: memory.StatusProposed, Limit: 50})
-		if err == nil {
-			for _, m := range mems {
-				snippet := m.Content
-				if len(snippet) > 60 {
-					snippet = snippet[:57] + "..."
-				}
-				items = append(items, pendingItem{
-					kind:    "memory",
-					id:      m.ID,
-					display: fmt.Sprintf("`%s` [%s] %s", shortID(m.ID), m.Category, snippet),
-				})
+		if err != nil {
+			return nil, fmt.Errorf("list proposed memories: %w", err)
+		}
+		for _, m := range mems {
+			snippet := m.Content
+			if len(snippet) > 60 {
+				snippet = snippet[:57] + "..."
 			}
+			items = append(items, pendingItem{
+				kind:    "memory",
+				id:      m.ID,
+				display: fmt.Sprintf("`%s` [%s] %s", shortID(m.ID), m.Category, snippet),
+			})
 		}
 	}
 
@@ -235,22 +254,23 @@ func gatherPending(ctx context.Context, memSvc *memory.Service, soul *memory.Sou
 
 	if approvals != nil {
 		pending, err := approvals.ListPending(ctx)
-		if err == nil {
-			for _, a := range pending {
-				snippet := a.Description
-				if len(snippet) > 60 {
-					snippet = snippet[:57] + "..."
-				}
-				items = append(items, pendingItem{
-					kind:    "approval",
-					id:      a.ID,
-					display: fmt.Sprintf("`%s` [%s] %s", shortID(a.ID), a.Type, snippet),
-				})
+		if err != nil {
+			return nil, fmt.Errorf("list pending approvals: %w", err)
+		}
+		for _, a := range pending {
+			snippet := a.Description
+			if len(snippet) > 60 {
+				snippet = snippet[:57] + "..."
 			}
+			items = append(items, pendingItem{
+				kind:    "approval",
+				id:      a.ID,
+				display: fmt.Sprintf("`%s` [%s] %s", shortID(a.ID), a.Type, snippet),
+			})
 		}
 	}
 
-	return items
+	return items, nil
 }
 
 func shortID(id string) string {
@@ -261,15 +281,23 @@ func shortID(id string) string {
 }
 
 // handleApprovalIntent resolves and executes a parsed approval intent.
+// channelName identifies where the decision came from (e.g. "telegram", "discord").
 func handleApprovalIntent(
 	ctx context.Context,
 	intent *ApprovalIntent,
 	memSvc *memory.Service,
 	soul *memory.Soul,
 	approvals *task.ApprovalStore,
+	channelName string,
 ) (*cairnchannel.OutgoingMessage, error) {
 	if intent.Action == ActionShow {
 		return showPending(ctx, memSvc, soul, approvals)
+	}
+
+	// "approve all" / "reject all" with unknown target defaults to memories
+	// (soul patches and approvals are higher-stakes, one-at-a-time).
+	if intent.All && intent.Target == TargetUnknown {
+		intent.Target = TargetMemory
 	}
 
 	switch intent.Target {
@@ -278,15 +306,17 @@ func handleApprovalIntent(
 	case TargetSoulPatch:
 		return handleSoulPatchIntent(ctx, intent, soul)
 	case TargetApproval:
-		return handleGenericApprovalIntent(ctx, intent, approvals)
+		return handleGenericApprovalIntent(ctx, intent, approvals, channelName)
 	default:
-		// Unknown target — resolve from pending context.
-		return handleUnknownTarget(ctx, intent, memSvc, soul, approvals)
+		return handleUnknownTarget(ctx, intent, memSvc, soul, approvals, channelName)
 	}
 }
 
 func showPending(ctx context.Context, memSvc *memory.Service, soul *memory.Soul, approvals *task.ApprovalStore) (*cairnchannel.OutgoingMessage, error) {
-	items := gatherPending(ctx, memSvc, soul, approvals)
+	items, err := gatherPending(ctx, memSvc, soul, approvals)
+	if err != nil {
+		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error gathering pending items: %s", err)}, nil
+	}
 	if len(items) == 0 {
 		return &cairnchannel.OutgoingMessage{Text: "Nothing pending."}, nil
 	}
@@ -304,8 +334,8 @@ func handleMemoryIntent(ctx context.Context, intent *ApprovalIntent, memSvc *mem
 		return &cairnchannel.OutgoingMessage{Text: "Memory service not available."}, nil
 	}
 
-	// Bulk approve all proposed memories.
-	if intent.All && intent.Action == ActionApprove {
+	// Bulk approve or deny all proposed memories.
+	if intent.All {
 		mems, err := memSvc.List(ctx, memory.ListOpts{Status: memory.StatusProposed, Limit: 200})
 		if err != nil {
 			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error: %s", err)}, nil
@@ -313,31 +343,21 @@ func handleMemoryIntent(ctx context.Context, intent *ApprovalIntent, memSvc *mem
 		if len(mems) == 0 {
 			return &cairnchannel.OutgoingMessage{Text: "No proposed memories."}, nil
 		}
-		accepted := 0
+		acted := 0
+		verb := "Accepted"
 		for _, m := range mems {
-			if err := memSvc.Accept(ctx, m.ID); err == nil {
-				accepted++
+			var opErr error
+			if intent.Action == ActionApprove {
+				opErr = memSvc.Accept(ctx, m.ID)
+			} else {
+				opErr = memSvc.Reject(ctx, m.ID)
+				verb = "Rejected"
+			}
+			if opErr == nil {
+				acted++
 			}
 		}
-		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Accepted %d/%d proposed memories.", accepted, len(mems))}, nil
-	}
-
-	// Bulk deny all proposed memories.
-	if intent.All && intent.Action == ActionDeny {
-		mems, err := memSvc.List(ctx, memory.ListOpts{Status: memory.StatusProposed, Limit: 200})
-		if err != nil {
-			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error: %s", err)}, nil
-		}
-		if len(mems) == 0 {
-			return &cairnchannel.OutgoingMessage{Text: "No proposed memories."}, nil
-		}
-		rejected := 0
-		for _, m := range mems {
-			if err := memSvc.Reject(ctx, m.ID); err == nil {
-				rejected++
-			}
-		}
-		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Rejected %d/%d proposed memories.", rejected, len(mems))}, nil
+		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("%s %d/%d proposed memories.", verb, acted, len(mems))}, nil
 	}
 
 	// Specific ID provided.
@@ -421,14 +441,18 @@ func handleSoulPatchIntent(ctx context.Context, intent *ApprovalIntent, soul *me
 	}
 }
 
-func handleGenericApprovalIntent(ctx context.Context, intent *ApprovalIntent, approvals *task.ApprovalStore) (*cairnchannel.OutgoingMessage, error) {
+func handleGenericApprovalIntent(ctx context.Context, intent *ApprovalIntent, approvals *task.ApprovalStore, channelName string) (*cairnchannel.OutgoingMessage, error) {
 	if approvals == nil {
 		return &cairnchannel.OutgoingMessage{Text: "Approval store not configured."}, nil
 	}
 
-	// Specific ID provided.
+	// Specific ID provided — resolve prefix first.
 	if intent.TargetID != "" {
-		return applyApprovalAction(ctx, approvals, intent.TargetID, intent.Action)
+		id, err := resolveApprovalID(ctx, approvals, intent.TargetID)
+		if err != nil {
+			return &cairnchannel.OutgoingMessage{Text: err.Error()}, nil
+		}
+		return applyApprovalAction(ctx, approvals, id, intent.Action, channelName)
 	}
 
 	// No ID — check pending.
@@ -440,7 +464,7 @@ func handleGenericApprovalIntent(ctx context.Context, intent *ApprovalIntent, ap
 		return &cairnchannel.OutgoingMessage{Text: "No pending approvals."}, nil
 	}
 	if len(pending) == 1 {
-		return applyApprovalAction(ctx, approvals, pending[0].ID, intent.Action)
+		return applyApprovalAction(ctx, approvals, pending[0].ID, intent.Action, channelName)
 	}
 	// Multiple — list.
 	var b strings.Builder
@@ -456,17 +480,43 @@ func handleGenericApprovalIntent(ctx context.Context, intent *ApprovalIntent, ap
 	return &cairnchannel.OutgoingMessage{Text: b.String()}, nil
 }
 
-func applyApprovalAction(ctx context.Context, approvals *task.ApprovalStore, id string, action ApprovalAction) (*cairnchannel.OutgoingMessage, error) {
+// resolveApprovalID resolves a short prefix to a full approval ID.
+func resolveApprovalID(ctx context.Context, store *task.ApprovalStore, prefix string) (string, error) {
+	// Try exact match first.
+	if _, err := store.Get(ctx, prefix); err == nil {
+		return prefix, nil
+	}
+	// Prefix search across pending approvals.
+	pending, err := store.ListPending(ctx)
+	if err != nil {
+		return "", fmt.Errorf("error listing approvals: %w", err)
+	}
+	var matches []string
+	for _, a := range pending {
+		if strings.HasPrefix(a.ID, prefix) {
+			matches = append(matches, a.ID)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("no approval found with ID or prefix `%s`", prefix)
+	case 1:
+		return matches[0], nil
+	default:
+		return "", fmt.Errorf("ambiguous prefix `%s` — matches %d approvals", prefix, len(matches))
+	}
+}
+
+func applyApprovalAction(ctx context.Context, approvals *task.ApprovalStore, id string, action ApprovalAction, channelName string) (*cairnchannel.OutgoingMessage, error) {
 	sid := shortID(id)
-	decidedBy := "telegram"
 	switch action {
 	case ActionApprove:
-		if err := approvals.Approve(ctx, id, decidedBy); err != nil {
+		if err := approvals.Approve(ctx, id, channelName); err != nil {
 			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error approving `%s`: %s", sid, err)}, nil
 		}
 		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Approval `%s` approved.", sid)}, nil
 	case ActionDeny:
-		if err := approvals.Deny(ctx, id, decidedBy); err != nil {
+		if err := approvals.Deny(ctx, id, channelName); err != nil {
 			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error denying `%s`: %s", sid, err)}, nil
 		}
 		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Approval `%s` denied.", sid)}, nil
@@ -482,8 +532,12 @@ func handleUnknownTarget(
 	memSvc *memory.Service,
 	soul *memory.Soul,
 	approvals *task.ApprovalStore,
+	channelName string,
 ) (*cairnchannel.OutgoingMessage, error) {
-	items := gatherPending(ctx, memSvc, soul, approvals)
+	items, err := gatherPending(ctx, memSvc, soul, approvals)
+	if err != nil {
+		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error: %s", err)}, nil
+	}
 
 	if len(items) == 0 {
 		return &cairnchannel.OutgoingMessage{Text: "Nothing pending to approve."}, nil
@@ -497,7 +551,7 @@ func handleUnknownTarget(
 		case "soul_patch":
 			return handleSoulPatchIntent(ctx, intent, soul)
 		case "approval":
-			return applyApprovalAction(ctx, approvals, it.id, intent.Action)
+			return applyApprovalAction(ctx, approvals, it.id, intent.Action, channelName)
 		}
 	}
 
@@ -512,12 +566,14 @@ func handleUnknownTarget(
 }
 
 // handleCallbackData processes button callback data like "approve:apr_abc123".
+// channelName identifies where the callback came from.
 func handleCallbackData(
 	ctx context.Context,
 	data string,
 	memSvc *memory.Service,
 	soul *memory.Soul,
 	approvals *task.ApprovalStore,
+	channelName string,
 ) (*cairnchannel.OutgoingMessage, error) {
 	parts := strings.SplitN(data, ":", 2)
 	if len(parts) != 2 || parts[1] == "" {
@@ -535,17 +591,25 @@ func handleCallbackData(
 		return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Unknown action: %s", actionStr)}, nil
 	}
 
-	// Try approval store first.
+	// Try approval store first — distinguish not-found from real errors.
 	if approvals != nil {
 		if _, err := approvals.Get(ctx, id); err == nil {
-			return applyApprovalAction(ctx, approvals, id, action)
+			return applyApprovalAction(ctx, approvals, id, action, channelName)
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return &cairnchannel.OutgoingMessage{Text: fmt.Sprintf("Error checking approval `%s`: %s", shortID(id), err)}, nil
 		}
 	}
 
-	// Try memory by prefix.
+	// Try memory by prefix — surface disambiguation errors.
 	if memSvc != nil {
-		if resolved, err := resolveMemoryID(ctx, memSvc, id); err == nil {
+		resolved, err := resolveMemoryID(ctx, memSvc, id)
+		if err == nil {
 			return applyMemoryAction(ctx, memSvc, resolved, action)
+		}
+		// resolveMemoryID returns a descriptive error for "not found" and "ambiguous";
+		// only fall through on "not found", surface other errors.
+		if !strings.Contains(err.Error(), "no memory found") {
+			return &cairnchannel.OutgoingMessage{Text: err.Error()}, nil
 		}
 	}
 

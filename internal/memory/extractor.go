@@ -31,9 +31,12 @@ Example output:
 [{"content": "User prefers dark mode in all editors", "category": "preference"}, {"content": "Always create feature branches, never commit to main", "category": "hard_rule"}]`
 
 // Similarity thresholds for dedup classification.
+// These are compared against blended hybrid search scores (0.3*keyword + 0.7*cosine),
+// NOT raw cosine similarity. With nomic-embed-text, near-identical paraphrases
+// produce blended scores ~0.35-0.57 depending on keyword overlap.
 const (
-	thresholdDuplicate = 0.9 // Above this = already known, skip
-	thresholdUpdate    = 0.8 // Between update and duplicate = refine existing
+	thresholdDuplicate = 0.40 // Above this = already known, skip
+	thresholdUpdate    = 0.30 // Between update and duplicate = refine existing
 )
 
 // Extractor automatically extracts memories from completed conversations.

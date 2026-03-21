@@ -83,9 +83,9 @@ type LoopConfig struct {
 	ReflectionInterval time.Duration // Default: 30min
 	Model              string
 	IdleEnabled        bool
-	TalkMaxRounds      int      // Default: 20
-	WorkMaxRounds      int      // Default: 40
-	CodingMaxRounds    int      // Default: 200
+	TalkMaxRounds      int      // Default: 40
+	WorkMaxRounds      int      // Default: 80
+	CodingMaxRounds    int      // Default: 400
 	CodingEnabled      bool     // Whether coding tasks can be submitted from idle loop
 	CodingAllowedRepos []string // Repo paths where coding is allowed (empty = cwd only)
 	BriefingModel      string   // Cheap model for context summarization (default: fallback model)

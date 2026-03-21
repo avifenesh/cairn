@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/task"
 )
 
@@ -25,7 +24,6 @@ type RecoveryDeps struct {
 	DB            *sql.DB
 	TaskEngine    *task.Engine
 	ActivityStore *ActivityStore
-	Bus           *eventbus.Bus
 	Logger        *slog.Logger
 }
 
@@ -79,13 +77,9 @@ func RecoverOnStartup(ctx context.Context, deps RecoveryDeps) RecoveryStats {
 				}
 				if err := deps.ActivityStore.Record(ctx, entry); err != nil {
 					logger.Warn("recovery: failed to record activity", "error", err)
-				} else if deps.Bus != nil {
-					// Only publish SSE event if activity was persisted.
-					eventbus.Publish(deps.Bus, AgentActivityEvent{
-						EventMeta: eventbus.NewMeta("recovery"),
-						Entry:     entry,
-					})
 				}
+				// Note: no bus event here — SSE broadcaster isn't attached yet
+				// at startup. Frontend loads activity from REST on connect.
 			}
 		}
 	}

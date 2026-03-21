@@ -142,13 +142,12 @@ func TestRecoverLoopState_NilDB(t *testing.T) {
 // --- Task recovery tests (RecoverOnStartup) ---
 
 func TestRecoverOnStartup_NoTasks(t *testing.T) {
-	engine, d, bus := testRecoveryWithEngine(t)
+	engine, d, _ := testRecoveryWithEngine(t)
 
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Bus:        bus,
-		Logger:     slog.Default(),
+		Logger: slog.Default(),
 	})
 	if stats.Total != 0 {
 		t.Errorf("expected 0 recovered, got %d", stats.Total)
@@ -165,7 +164,7 @@ func TestRecoverOnStartup_NilEngine(t *testing.T) {
 }
 
 func TestRecoverOnStartup_RequeuesRetryable(t *testing.T) {
-	engine, d, bus := testRecoveryWithEngine(t)
+	engine, d, _ := testRecoveryWithEngine(t)
 
 	// Task with retries=0, max_retries=2: should be re-queued (0+1 < 2).
 	insertStuckTask(t, d.DB, "retry1", "running", 0, 2, "2099-01-01T00:00:00.000Z")
@@ -173,8 +172,7 @@ func TestRecoverOnStartup_RequeuesRetryable(t *testing.T) {
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Bus:        bus,
-		Logger:     slog.Default(),
+		Logger: slog.Default(),
 	})
 
 	status := getTaskStatus(t, d.DB, "retry1")
@@ -187,7 +185,7 @@ func TestRecoverOnStartup_RequeuesRetryable(t *testing.T) {
 }
 
 func TestRecoverOnStartup_FailsExhaustedRetries(t *testing.T) {
-	engine, d, bus := testRecoveryWithEngine(t)
+	engine, d, _ := testRecoveryWithEngine(t)
 
 	// Task with retries=1, max_retries=2: should be failed (1+1 >= 2).
 	insertStuckTask(t, d.DB, "exhausted1", "running", 1, 2, "2099-01-01T00:00:00.000Z")
@@ -195,8 +193,7 @@ func TestRecoverOnStartup_FailsExhaustedRetries(t *testing.T) {
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Bus:        bus,
-		Logger:     slog.Default(),
+		Logger: slog.Default(),
 	})
 
 	status := getTaskStatus(t, d.DB, "exhausted1")
@@ -209,7 +206,7 @@ func TestRecoverOnStartup_FailsExhaustedRetries(t *testing.T) {
 }
 
 func TestRecoverOnStartup_ActiveLeaseRecovered(t *testing.T) {
-	engine, d, bus := testRecoveryWithEngine(t)
+	engine, d, _ := testRecoveryWithEngine(t)
 
 	// Task with active (future) lease - the zombie case. Should still be recovered.
 	future := time.Now().UTC().Add(5 * time.Minute).Format("2006-01-02T15:04:05.000Z")
@@ -218,8 +215,7 @@ func TestRecoverOnStartup_ActiveLeaseRecovered(t *testing.T) {
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Bus:        bus,
-		Logger:     slog.Default(),
+		Logger: slog.Default(),
 	})
 
 	status := getTaskStatus(t, d.DB, "zombie1")
@@ -232,7 +228,7 @@ func TestRecoverOnStartup_ActiveLeaseRecovered(t *testing.T) {
 }
 
 func TestRecoverOnStartup_RecoveryStats(t *testing.T) {
-	engine, d, bus := testRecoveryWithEngine(t)
+	engine, d, _ := testRecoveryWithEngine(t)
 
 	// Mix of retryable and exhausted tasks.
 	insertStuckTask(t, d.DB, "r1", "running", 0, 2, "2099-01-01T00:00:00.000Z")
@@ -243,8 +239,7 @@ func TestRecoverOnStartup_RecoveryStats(t *testing.T) {
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Bus:        bus,
-		Logger:     slog.Default(),
+		Logger: slog.Default(),
 	})
 
 	if stats.Total != 4 {
@@ -259,7 +254,7 @@ func TestRecoverOnStartup_RecoveryStats(t *testing.T) {
 }
 
 func TestRecoverOnStartup_RecordsActivity(t *testing.T) {
-	engine, d, bus := testRecoveryWithEngine(t)
+	engine, d, _ := testRecoveryWithEngine(t)
 	activityStore := NewActivityStore(d.DB)
 
 	insertStuckTask(t, d.DB, "act1", "running", 0, 2, "2099-01-01T00:00:00.000Z")
@@ -268,7 +263,6 @@ func TestRecoverOnStartup_RecordsActivity(t *testing.T) {
 		DB:            d.DB,
 		TaskEngine:    engine,
 		ActivityStore: activityStore,
-		Bus:           bus,
 		Logger:        slog.Default(),
 	})
 
@@ -297,8 +291,7 @@ func TestRecoverOnStartup_PublishesTaskFailedEvent(t *testing.T) {
 	RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Bus:        bus,
-		Logger:     slog.Default(),
+		Logger: slog.Default(),
 	})
 
 	select {
@@ -312,7 +305,7 @@ func TestRecoverOnStartup_PublishesTaskFailedEvent(t *testing.T) {
 }
 
 func TestRecoverOnStartup_ChatTaskNeverRetried(t *testing.T) {
-	engine, d, bus := testRecoveryWithEngine(t)
+	engine, d, _ := testRecoveryWithEngine(t)
 
 	// Chat task with retries remaining: should still be failed (not re-queued).
 	insertStuckTaskTyped(t, d.DB, "chat1", "chat", "running", 0, 3, "2099-01-01T00:00:00.000Z")
@@ -322,8 +315,7 @@ func TestRecoverOnStartup_ChatTaskNeverRetried(t *testing.T) {
 	stats := RecoverOnStartup(context.Background(), RecoveryDeps{
 		DB:         d.DB,
 		TaskEngine: engine,
-		Bus:        bus,
-		Logger:     slog.Default(),
+		Logger: slog.Default(),
 	})
 
 	chatStatus := getTaskStatus(t, d.DB, "chat1")

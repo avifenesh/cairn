@@ -232,7 +232,7 @@
     },
     {
       "repo": "cairn",
-      "path": "/home/ubuntu/cairn-backend/internal/memory/memory.go",
+      "path": "internal/memory/memory.go",
       "title": "Cairn: Memory type system — three-tier design",
       "qualityScore": 95,
       "scores": {
@@ -253,7 +253,7 @@
     },
     {
       "repo": "cairn",
-      "path": "/home/ubuntu/cairn-backend/internal/memory/service.go",
+      "path": "internal/memory/service.go",
       "title": "Cairn: Memory service — lifecycle, embedding, decay",
       "qualityScore": 96,
       "scores": {
@@ -274,7 +274,7 @@
     },
     {
       "repo": "cairn",
-      "path": "/home/ubuntu/cairn-backend/internal/memory/search.go",
+      "path": "internal/memory/search.go",
       "title": "Cairn: Hybrid search with MMR re-ranking",
       "qualityScore": 94,
       "scores": {
@@ -294,7 +294,7 @@
     },
     {
       "repo": "cairn",
-      "path": "/home/ubuntu/cairn-backend/internal/memory/context.go",
+      "path": "internal/memory/context.go",
       "title": "Cairn: Token-budgeted context builder",
       "qualityScore": 97,
       "scores": {
@@ -316,7 +316,7 @@
     },
     {
       "repo": "cairn",
-      "path": "/home/ubuntu/cairn-backend/internal/agent/journaler.go",
+      "path": "internal/agent/journaler.go",
       "title": "Cairn: Session journaler — LLM-driven episodic memory",
       "qualityScore": 96,
       "scores": {
@@ -338,7 +338,7 @@
     },
     {
       "repo": "cairn",
-      "path": "/home/ubuntu/cairn-backend/internal/agent/reflection.go",
+      "path": "internal/agent/reflection.go",
       "title": "Cairn: Reflection engine — pattern detection across sessions",
       "qualityScore": 97,
       "scores": {
@@ -362,7 +362,7 @@
     },
     {
       "repo": "cairn",
-      "path": "/home/ubuntu/cairn-backend/internal/tool/builtin/memory.go",
+      "path": "internal/tool/builtin/memory.go",
       "title": "Cairn: Memory tools exposed to agent — agent-driven extraction",
       "qualityScore": 90,
       "scores": {
@@ -382,7 +382,7 @@
     },
     {
       "repo": "cairn",
-      "path": "/home/ubuntu/cairn-backend/internal/memory/soul.go",
+      "path": "internal/memory/soul.go",
       "title": "Cairn: Soul loader — procedural memory hot-reload",
       "qualityScore": 88,
       "scores": {
@@ -402,7 +402,7 @@
     },
     {
       "repo": "cairn",
-      "path": "/home/ubuntu/cairn-backend/internal/agent/types.go",
+      "path": "internal/agent/types.go",
       "title": "Cairn: InvocationContext and Session types",
       "qualityScore": 85,
       "scores": {
@@ -422,7 +422,7 @@
     },
     {
       "repo": "cairn",
-      "path": "/home/ubuntu/cairn-backend/internal/agent/modes.go",
+      "path": "internal/agent/modes.go",
       "title": "Cairn: BuildSystemPrompt — memory injection into system prompt",
       "qualityScore": 88,
       "scores": {
@@ -442,7 +442,7 @@
     },
     {
       "repo": "cairn",
-      "path": "/home/ubuntu/cairn-backend/internal/memory/store.go",
+      "path": "internal/memory/store.go",
       "title": "Cairn: Memory store — SQLite persistence and decay queries",
       "qualityScore": 88,
       "scores": {

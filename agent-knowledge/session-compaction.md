@@ -397,8 +397,8 @@ func truncateToolOutput(content string, maxTokens int) string {
 | `/home/ubuntu/research/go-agents/gollem/core/truncate.go` | Framework source | Head/tail truncation with line-boundary snapping and UTF-8 safety. |
 | `/home/ubuntu/research/go-agents/plandex/app/server/model/plan/tell_summary.go` | Production agent | Append-only incremental summary pattern with DB storage and timestamp-based lookup. |
 | `/home/ubuntu/research/go-agents/eino/adk/middlewares/summarization/prompt.go` | Framework source | Reference summarization prompts. The `userSummaryInstruction` constant shows what sections to ask the model to produce. |
-| `/home/ubuntu/cairn-backend/internal/agent/react.go` | Cairn source | Current insertion point for compaction (after line 72, before line 75). |
-| `/home/ubuntu/cairn-backend/internal/agent/types.go` | Cairn source | `Session.History()` — the method that returns unfiltered history. Compaction applies here or immediately after. |
+| `/home/ubuntu/internal/agent/react.go` | Cairn source | Current insertion point for compaction (after line 72, before line 75). |
+| `/home/ubuntu/internal/agent/types.go` | Cairn source | `Session.History()` — the method that returns unfiltered history. Compaction applies here or immediately after. |
 
 ---
 

@@ -93,7 +93,7 @@ gh api repos/{owner}/{repo}/issues/{pull_number}/comments \
 
 When a reviewer submits `CHANGES_REQUESTED` with a summary body but no inline comments, there's no thread to reply to. Post an issue comment acknowledging the review and referencing the commit that addresses the feedback:
 ```bash
-gh pr comment {pr_number} --body "Addressed review feedback from @{reviewer_login} in COMMIT_HASH"
+gh pr comment <number> --body "Addressed review feedback from @{reviewer_login} in COMMIT_HASH"
 ```
 
 ### Fallback for position mapping failures

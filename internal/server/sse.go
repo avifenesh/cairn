@@ -155,6 +155,13 @@ func (b *SSEBroadcaster) Start() {
 				"error":      e.Error,
 			})
 		}),
+		eventbus.Subscribe(b.bus, func(e eventbus.SessionEvent) {
+			b.broadcast("session_event", e.ID, map[string]any{
+				"sessionId": e.SessionID,
+				"eventType": e.EventType,
+				"payload":   e.Payload,
+			})
+		}),
 	)
 
 	b.logger.Info("sse broadcaster started")

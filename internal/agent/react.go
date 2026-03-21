@@ -125,6 +125,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			Model:     model,
 		})
 	}
+	publishSessionEvent(invCtx, "state_change", map[string]any{"state": "running", "model": model})
 
 	// Plugin: BeforeAgentRun.
 	agentStart := time.Now()
@@ -150,6 +151,30 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 		if invCtx.Context.Err() != nil {
 			emit(invCtx.Context, ch, RunEvent{Err: invCtx.Context.Err()})
 			return
+		}
+
+		// Check for steering messages between rounds.
+		if invCtx.SteeringCh != nil {
+			select {
+			case msg := <-invCtx.SteeringCh:
+				if msg.Priority == "stop" {
+					publishSessionEvent(invCtx, "state_change", map[string]any{"state": "stopped", "reason": "user_stop"})
+					emit(invCtx.Context, ch, RunEvent{Event: &Event{
+						ID: newID(), SessionID: invCtx.SessionID, Timestamp: time.Now(),
+						Author: a.name, Parts: []Part{TextPart{Text: "[session stopped by user]"}},
+					}})
+					return
+				}
+				// Inject steering message as user turn.
+				publishSessionEvent(invCtx, "user_steer", map[string]any{"content": msg.Content})
+				messages = append(messages, llm.Message{
+					Role:    llm.RoleUser,
+					Content: []llm.ContentBlock{llm.TextBlock{Text: "[User steering]: " + msg.Content}},
+				})
+				a.logger.Info("steering message injected", "content", msg.Content)
+			default:
+				// No steering message, continue normally.
+			}
 		}
 
 		a.logger.Debug("agent round", "round", round, "mode", mode, "messages", len(messages))
@@ -206,9 +231,11 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 					Round:     round,
 					Parts:     []Part{TextPart{Text: e.Text}},
 				}})
+				publishSessionEvent(invCtx, "text_delta", map[string]any{"text": e.Text, "round": round})
 
 			case llm.ReasoningDelta:
 				roundReasoning.WriteString(e.Text)
+				publishSessionEvent(invCtx, "thinking", map[string]any{"text": e.Text, "round": round})
 
 			case llm.ToolCallDelta:
 				toolCalls = append(toolCalls, e)
@@ -254,6 +281,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 
 		// 3. If no tool calls, we're done.
 		if len(toolCalls) == 0 {
+			publishSessionEvent(invCtx, "state_change", map[string]any{"state": "completed"})
 			if invCtx.Bus != nil {
 				eventbus.Publish(invCtx.Bus, eventbus.StreamEnded{
 					EventMeta:    eventbus.NewMeta("agent"),
@@ -320,8 +348,12 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			},
 		}
 
+		roundToolCalls := 0
 		for _, tc := range toolCalls {
 			// Emit tool pending.
+			publishSessionEvent(invCtx, "tool_call", map[string]any{
+				"toolId": tc.ID, "toolName": tc.Name, "input": tc.Input, "round": round,
+			})
 			emit(invCtx.Context, ch, RunEvent{Event: &Event{
 				ID:        newID(),
 				SessionID: invCtx.SessionID,
@@ -398,6 +430,11 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			}
 
 			// Emit tool result.
+			publishSessionEvent(invCtx, "tool_result", map[string]any{
+				"toolId": tc.ID, "toolName": tc.Name, "isError": status == ToolFailed,
+				"durationMs": duration.Milliseconds(), "round": round,
+			})
+			roundToolCalls++
 			emit(invCtx.Context, ch, RunEvent{Event: &Event{
 				ID:        newID(),
 				SessionID: invCtx.SessionID,
@@ -440,6 +477,12 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			)
 		}
 
+		// 5b. Emit round_complete session event.
+		publishSessionEvent(invCtx, "round_complete", map[string]any{
+			"round": round, "toolCalls": roundToolCalls,
+			"inputTokens": inputTokens, "outputTokens": outputTokens,
+		})
+
 		// 6. If a skill was activated, rebuild prompt and tool defs for next round.
 		if skillActivated {
 			systemPrompt = BuildSystemPrompt(invCtx, modeConfig, invCtx.ContextBuilder, invCtx.JournalEntries)
@@ -453,6 +496,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 	}
 
 	// Max rounds exhausted — treat as abnormal termination.
+	publishSessionEvent(invCtx, "state_change", map[string]any{"state": "failed", "reason": "max_rounds"})
 	if invCtx.Plugins != nil {
 		invCtx.Plugins.RunOnAgentError(invCtx.Context, inv, fmt.Errorf("max rounds exhausted (%d)", maxRounds))
 	}
@@ -495,6 +539,19 @@ func emit(ctx context.Context, ch chan<- RunEvent, ev RunEvent) {
 	case ch <- ev:
 	case <-ctx.Done():
 	}
+}
+
+// publishSessionEvent emits a SessionEvent on the bus for real-time observability.
+func publishSessionEvent(invCtx *InvocationContext, eventType string, payload any) {
+	if invCtx.Bus == nil {
+		return
+	}
+	eventbus.Publish(invCtx.Bus, eventbus.SessionEvent{
+		EventMeta: eventbus.NewMeta("agent"),
+		SessionID: invCtx.SessionID,
+		EventType: eventType,
+		Payload:   payload,
+	})
 }
 
 // hasWebSearchTool returns true if cairn.webSearch is among the tool definitions.

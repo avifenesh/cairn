@@ -71,6 +71,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /v1/assistant/sessions", s.handleListSessions)
 	s.mux.HandleFunc("GET /v1/assistant/sessions/{id}", s.handleGetSession)
 	s.mux.HandleFunc("POST /v1/assistant/message", s.rateLimitMiddleware(10, time.Minute, s.handleAssistantMessage))
+
+	// Session observability (coding session panel).
+	s.mux.HandleFunc("GET /v1/sessions/{id}/stream", s.handleSessionStream)
+	s.mux.HandleFunc("GET /v1/sessions/{id}/events", s.handleSessionEvents)
+	s.mux.HandleFunc("POST /v1/sessions/{id}/steer", s.handleSessionSteer)
 	s.mux.HandleFunc("POST /v1/upload", s.handleUpload)
 	s.mux.HandleFunc("GET /v1/config", s.handleGetConfig)
 	s.mux.HandleFunc("PATCH /v1/config", s.handlePatchConfig)

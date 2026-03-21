@@ -447,6 +447,9 @@ func runServe(logger *slog.Logger) {
 	cfgAdapt := &configAdapter{cfg: cfg}
 	activityStore := agent.NewActivityStore(database.DB)
 
+	// Approval store — human-in-the-loop gates (needed by both orchestrator and server).
+	approvalStore := task.NewApprovalStore(database.DB)
+
 	// Create subagent runner (available to both Loop and Server).
 	var subagentRunner *agent.SubagentRunner
 	if provider != nil && toolRegistry != nil {
@@ -533,6 +536,7 @@ func runServe(logger *slog.Logger) {
 			SubagentRunner:  subagentRunner,
 			WorktreeManager: worktreeMgr,
 			Marketplace:     marketplace,
+			Approvals:       approvalStore,
 		})
 		agentLoop.SetInitialState(loopState)
 		agentLoop.Start()
@@ -576,9 +580,6 @@ func runServe(logger *slog.Logger) {
 
 	// Initialize MCP client manager for external server connections.
 	mcpClientMgr := cairnmcp.NewClientManager(toolRegistry, bus, logger)
-
-	// Approval store — human-in-the-loop gates.
-	approvalStore := task.NewApprovalStore(database.DB)
 
 	// Create and start the server.
 	srv := server.New(server.ServerConfig{

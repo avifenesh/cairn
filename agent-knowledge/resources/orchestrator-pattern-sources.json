@@ -1,0 +1,25 @@
+{
+  "topic": "orchestrator agent pattern for autonomous systems",
+  "slug": "orchestrator-pattern",
+  "generated": "2026-03-21T15:00:00.000Z",
+  "depth": "deep",
+  "totalSources": 16,
+  "sources": [
+    {"url": "https://blog.bytebytego.com/p/how-anthropic-built-a-multi-agent", "title": "How Anthropic Built Multi-Agent Research System - ByteByteGo", "qualityScore": 95},
+    {"url": "https://www.anthropic.com/engineering/multi-agent-research-system", "title": "Multi-Agent Research System - Anthropic Engineering", "qualityScore": 98},
+    {"url": "https://dev.to/sreeni5018/building-multi-agent-systems-with-langgraph-supervisor-138i", "title": "Building Multi-Agent Systems with LangGraph-Supervisor", "qualityScore": 85},
+    {"url": "https://blog.langchain.com/how-and-when-to-build-multi-agent-systems/", "title": "How and When to Build Multi-Agent Systems - LangChain", "qualityScore": 92},
+    {"url": "https://www.labellerr.com/blog/aios-explained/", "title": "AIOS Explained: AI Agent Operating System Kernel", "qualityScore": 88},
+    {"url": "https://blog.n8n.io/ai-agent-orchestration-frameworks/", "title": "AI Agent Orchestration Frameworks - n8n", "qualityScore": 84},
+    {"url": "https://towardsdatascience.com/the-multi-agent-trap/", "title": "The Multi-Agent Trap - Towards Data Science", "qualityScore": 86},
+    {"url": "https://www.preprints.org/manuscript/202509.0077/v1", "title": "Blueprint Architecture for Real-Time AI Agents", "qualityScore": 82},
+    {"url": "https://medium.com/@yusufbaykaloglu/multi-agent-systems-orchestrating-ai-agents-with-a2a-protocol-19a27077aed8", "title": "Multi-Agent Systems with A2A Protocol", "qualityScore": 78},
+    {"url": "https://medium.com/@creativeaininja/langgraph-why-the-future-of-ai-agents-looks-like-a-state-machine-not-a-chatbot-c4562fa148cb", "title": "LangGraph: State Machine Not Chatbot", "qualityScore": 80},
+    {"url": "https://www.centific.com/blog/anthropic-s-multi-agent-research-system-raises-the-bar-for-open-ended-ai-reasoning", "title": "Anthropic Multi-Agent Raises the Bar - Centific", "qualityScore": 78},
+    {"url": "https://liargkovas.com/assets/pdf/Liargkovas_ML4Sys_NeurIPS25.pdf", "title": "LLM Agents for Always-On OS Tuning - NeurIPS", "qualityScore": 90},
+    {"url": "https://www.linuxjournal.com/content/self-tuning-linux-kernels-how-llm-driven-agents-are-reinventing-scheduler-policies", "title": "Self-Tuning Linux Kernels with LLM Agents", "qualityScore": 85},
+    {"url": "https://www.epam.com/insights/ai/blogs/single-responsibility-agents-and-multi-agent-workflows", "title": "Single-Responsibility Agents - EPAM", "qualityScore": 82},
+    {"url": "https://medium.com/@rogt.x1997/16-ai-agents-one-compiler-the-architecture-shift-that-signals-the-end-of-solo-coding-55ee8dc3e10e", "title": "16 AI Agents, One Compiler", "qualityScore": 76},
+    {"url": "https://github.com/langchain-ai/langgraph", "title": "LangGraph GitHub - Agent Orchestration Framework", "qualityScore": 90}
+  ]
+}

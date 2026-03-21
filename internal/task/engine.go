@@ -199,12 +199,22 @@ func (e *Engine) Complete(ctx context.Context, taskID string, output json.RawMes
 	if t == nil {
 		return fmt.Errorf("task engine: complete: task %s not found", taskID)
 	}
-	// Already completed: update output if caller provides non-empty content.
+	// Already completed: update output if caller provides non-empty content and notify subscribers.
 	if t.Status == StatusCompleted {
 		if len(output) > 0 && string(output) != `""` {
 			t.Output = output
 			t.UpdatedAt = time.Now()
-			return e.store.Update(ctx, t)
+			if err := e.store.Update(ctx, t); err != nil {
+				return fmt.Errorf("task engine: complete update: %w", err)
+			}
+
+			eventbus.Publish(e.bus, eventbus.TaskCompleted{
+				EventMeta: eventbus.NewMeta("task-engine"),
+				TaskID:    taskID,
+				Result:    string(output),
+			})
+
+			slog.Info("task output updated for completed task", "id", taskID)
 		}
 		return nil
 	}

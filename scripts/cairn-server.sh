@@ -16,7 +16,7 @@
 set -euo pipefail
 
 CAIRN_DIR="/home/ubuntu/cairn"
-BINARY="/home/ubuntu/cairn/cairn-prod"
+BINARY="$CAIRN_DIR/cairn-prod"
 LOCK="/tmp/cairn-build.lock"
 
 # Prevent concurrent builds.

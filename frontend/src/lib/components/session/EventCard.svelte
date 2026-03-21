@@ -113,7 +113,14 @@
 		</div>
 	</div>
 {:else if event.eventType === 'text_delta'}
-	<!-- Text deltas are aggregated by the activity stream, not rendered individually -->
+	{@const isUser = (p.author as string) === 'user'}
+	<div class="event-card" class:event-card--user={isUser}>
+		<div class="event-icon"><MessageSquare size={14} class={isUser ? 'text-blue-400' : 'text-[var(--text-tertiary)]'} /></div>
+		<div class="event-body">
+			<span class="text-xs font-medium" class:text-blue-400={isUser}>{isUser ? 'You' : 'Agent'}</span>
+			<p class="message-text">{p.text}</p>
+		</div>
+	</div>
 {:else if event.eventType === 'file_change'}
 	<div class="event-card event-card--file">
 		<div class="event-icon"><FileText size={14} class="text-blue-400" /></div>
@@ -228,6 +235,18 @@
 		white-space: pre-wrap;
 		word-break: break-all;
 		line-height: 1.3;
+	}
+	.message-text {
+		font-size: 0.8125rem;
+		line-height: 1.5;
+		white-space: pre-wrap;
+		word-break: break-word;
+		margin-top: 0.125rem;
+		color: var(--text-primary, hsl(var(--foreground)));
+	}
+	.event-card--user {
+		border-left: 2px solid var(--cairn-accent, #60a5fa);
+		background: hsl(var(--muted) / 0.2);
 	}
 	.event-card--approval {
 		border-left: 2px solid var(--color-warning, #f59e0b);

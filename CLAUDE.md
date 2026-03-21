@@ -29,7 +29,7 @@ Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend
 | 13 | Intelligence - embeddings, session compaction | Done | `internal/memory/`, `internal/agent/compaction.go` |
 | 14 | Voice - Whisper STT + edge-tts TTS | Done | `internal/voice/` |
 
-770 tests (528 Go + 242 frontend), 50 built-in tools + MCP client tools, 11 pollers, 41 skills. 55+ PRs merged. Orchestrator: thin management layer replacing idle tick - scans system state, spawns subagents, approves/rejects memories, verifies coding sessions. Subagent system: cairn.spawnSubagent tool with 4 types (researcher, coder, reviewer, executor), context isolation, worktree isolation, SSE streaming. Memory auto-accept: facts/preferences auto-accepted after dedup + contradiction checks; hard_rules/decisions stay proposed for orchestrator review. Auto-deploy on merge via self-hosted runner. MCP server (expose tools) + MCP client (consume external servers). Home: command center (agent status pill, approvals inline, activity stream, unread highlights, system pulse, quick chat input). Chat: text, voice, file upload, vision, stop button, new chat, ?msg= from home. Feed: API wired, archive/delete, source filters, bulk archive/delete, GitHub signal, Gmail/Calendar (auto-archive GH emails), RSS/SO/DevTo. Skills: CRUD + ClawHub marketplace (search/browse/install with LLM security review, stats enrichment, client-side sort) + auto-discovery suggestions. Soul: markdown render, patch review flow (approve/deny). Settings: 11 sections, all editable via UI and agent tools, dynamic MCP connections. Approval system with channel commands. Cron manager with inline edit. Notification prefs (priority, quiet hours, muted sources, channel routing). Agent config tools (patchConfig/getConfig). Activity observability tab (live stream, tool stats, error tracking). GLM fallback chain (glm-5-turbo -> glm-5 -> glm-4.7).
+770+ tests (528 Go + 242 frontend), 51 built-in tools + MCP client tools, 11 pollers, 39 skills (17 bundled + 22 user). 162+ PRs merged. Orchestrator: thin management layer replacing idle tick - scans system state, spawns subagents, approves/rejects memories, verifies coding sessions. Subagent system: cairn.spawnSubagent tool with 4 types (researcher, coder, reviewer, executor), context isolation, worktree isolation, SSE streaming. Memory auto-accept: facts/preferences auto-accepted after dedup + contradiction checks; hard_rules/decisions stay proposed for orchestrator review. Auto-deploy on merge via self-hosted runner. MCP server (expose tools) + MCP client (consume external servers). Home: command center (agent status pill, approvals inline, activity stream, unread highlights, system pulse, quick chat input). Chat: text, voice, file upload, vision, stop button, new chat, ?msg= from home. Feed: API wired, archive/delete, source filters, bulk archive/delete, GitHub signal, Gmail/Calendar (auto-archive GH emails), RSS/SO/DevTo. Skills: CRUD + ClawHub marketplace (search/browse/install with LLM security review, stats enrichment, client-side sort) + auto-discovery suggestions. Soul: markdown render, patch review flow (approve/deny). Settings: 11 sections, all editable via UI and agent tools, dynamic MCP connections. Approval system with channel commands. Cron manager with inline edit. Notification prefs (priority, quiet hours, muted sources, channel routing). Agent config tools (patchConfig/getConfig). Activity observability tab (live stream, tool stats, error tracking). GLM fallback chain (glm-5-turbo -> glm-5 -> glm-4.7).
 
 ## Phases
 
@@ -100,7 +100,7 @@ frontend/                     SvelteKit 5 app + embed.FS package for production 
   src/routes/                 today, chat, ops, memory, agents, skills, soul, settings
   src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav)
   src/lib/components/         chat/, feed/, layout/, memory/, tasks/, shared/
-  src/lib/api/client.ts       Typed REST client (mock fallback via pub_use_mocks localStorage)
+  src/lib/api/client.ts       Typed REST client with normalization layer
   src/lib/utils/              markdown (marked+DOMPurify), time (relative), tts (playback)
 docs/design/                  Architecture specs (VISION, PHASES, pieces/01-11)
 ```
@@ -116,7 +116,6 @@ Cloudflare (DNS + proxy) → Caddy (:443, TLS) → Cairn (:8788)
 **Services:**
 - `cairn.service` — systemd unit, port 8788, env from `/home/ubuntu/.cairn/.env.cairn`
 - `caddy.service` — TLS reverse proxy, config at `/etc/caddy/Caddyfile`
-- `pub-backend.service` — DISABLED (replaced by Cairn)
 
 **Key paths:**
 - Binary: `/home/ubuntu/cairn/cairn-prod`
@@ -237,13 +236,6 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 
 **Feature flags:**
 - `CODING_ENABLED` (false), `IDLE_MODE_ENABLED` (false)
-
-**Pub v1 compatibility aliases:**
-- `ZHIPU_API_KEY` / `ZHIPU_BASE_URL` → `GLM_API_KEY` / `GLM_BASE_URL`
-- `GLM_PROVIDER=zhipu` → normalized to `glm`
-- `POLL_INTERVAL_MS` (ms) → `POLL_INTERVAL` (seconds)
-- `CRATES` → `CRATES_PACKAGES`
-- `BEDROCK_DAILY_BUDGET_USD` → `BUDGET_DAILY_CAP`
 
 **Paths:**
 - `SOUL_PATH` (~/.cairn/SOUL.md), `SKILL_DIRS` (~/.cairn/skills), `DATA_DIR` (~/.cairn/data)

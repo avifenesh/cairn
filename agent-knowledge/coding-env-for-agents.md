@@ -989,18 +989,6 @@ Commit convention: `feat(<scope>): <description>`
 - Voice mode → cheap fast model; coding sessions → balanced/capable model
 - Session journal entries (already in spec) map directly to the episodic memory pattern
 
-### Pub (TypeScript/Node.js backend)
-
-**Already implemented:**
-- Session journaling via `SessionJournaler` (PR #679)
-- Tool round limits per mode (10 for talk/work, 100 for coding)
-- git-based isolation for coding sessions
-
-**Gaps to address:**
-- Worktree isolation for concurrent coding agents (currently shares working tree)
-- Structured per-round logging (currently logs at session level)
-- Model routing for subagents (all use GLM-5 today)
-
 ---
 
 *This guide was synthesized from 42 sources. See `resources/coding-env-for-agents-sources.json` for full source list.*

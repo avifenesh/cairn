@@ -198,8 +198,8 @@ Phase 1: Foundation (Event Bus + LLM Client + SQLite)     [DONE]
 | 5.4 | Session migration — import SQLite data from v1 | Phase 3.3 | N/A (clean start) |
 | 5.5 | Episodic memory: session journaler | Phase 3, Piece 6 | Done (PR #10) |
 | 5.6 | Reflection engine (pattern detection → memories + soul patches) | Piece 6 (subphase 6.7) | Done (PR #10, #125) |
-| 5.7 | Performance testing (30-day soak test) | All | Pending |
-| 5.8 | Documentation (README, CONTRIBUTING, architecture guide) | All | Partial (README done) |
+| 5.7 | Performance testing (30-day soak test) | All | Ongoing (production stable since Phase 5) |
+| 5.8 | Documentation (README, CONTRIBUTING, architecture guide) | All | Ongoing (CLAUDE.md, VISION.md, PHASES.md current; CONTRIBUTING pending) |
 | 5.9 | CI/CD (GitHub Actions: build, test, release binaries) | All | Done (PR #134 auto-deploy) |
 | 5.10 | Open-source release (LICENSE, cleanup, public repo) | All | Pending |
 | 10.12 | Go embed frontend | Phase 4a | Done (PR #11) |
@@ -259,7 +259,7 @@ Phase 1: Foundation (Event Bus + LLM Client + SQLite)     [DONE]
 | 8c | Reflection engine — pattern detection → memory + soul patches | PR #125 |
 | 8d | Voice — Whisper STT transcription + edge-tts TTS playback | PR #130 |
 | 8e | Gmail poller + Calendar poller | PR #135 |
-| 8f | Memory dedup — cosine similarity >= 0.92 deduplification | PR #158 |
+| 8f | Memory dedup — cosine similarity >= 0.92 deduplication | PR #158 |
 | 8g | State separation — runtime state to ~/.cairn/ (DB, SOUL, config, skills) | PR #162 |
 | 8h | Soul patch persistence — .soul_patch.json survives restarts | PR #167 |
 

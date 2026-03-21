@@ -1,6 +1,8 @@
 # Piece 9: Server & Protocols
 
-> HTTP server, SSE streaming, MCP server, A2A server, ACP support, auth, permissions.
+> HTTP server, SSE streaming, MCP server (+ MCP client), auth, permissions.
+>
+> Note: A2A and ACP were removed from scope — MCP covers agent communication needs.
 
 ## HTTP Server
 

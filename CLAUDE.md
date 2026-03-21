@@ -201,11 +201,12 @@ Full list from `internal/config/config.go`. 108 distinct var names (including al
 - `OPENAI_API_KEY` — alias (auto-sets provider=openai)
 
 **LLM:**
-- `LLM_PROVIDER` ("glm"|"openai", auto-detected from key name; "zhipu" normalized to "glm")
+- `LLM_PROVIDER` ("glm"|"openai"; auto-detected when using `GLM_API_KEY` or `OPENAI_API_KEY`; defaults to "glm" when only `LLM_API_KEY` is set)
 - `LLM_MODEL` (default: glm-5-turbo for GLM, gpt-4o for OpenAI)
 - `LLM_BASE_URL` (default: https://api.z.ai/api/coding/paas/v4 for GLM, https://api.openai.com/v1 for OpenAI)
 - `LLM_FALLBACK_MODEL` — fallback model on persistent failure
-- `GLM_MODEL`, `GLM_BASE_URL`, `GLM_FALLBACK_MODEL` — legacy GLM aliases
+- `GLM_MODEL`, `GLM_BASE_URL`, `GLM_FALLBACK_MODEL` — legacy GLM-specific aliases
+- `OPENAI_BASE_URL`, `ZHIPU_BASE_URL` — provider-specific base URL aliases
 
 **Server:**
 - `PORT` (8787)

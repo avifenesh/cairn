@@ -132,7 +132,7 @@ OpenClaw calls this "always-on personal agent." We go further: the agent has a S
 ### 4. Skill Ecosystem Compatibility (vs walled gardens)
 Skills follow the OpenClaw SKILL.md format. Existing ClawHub skills work. We add: typed tool integration (not just prompt injection), sandboxed execution, and skill-level permissions. The skill marketplace isn't ours alone — it's the shared ecosystem.
 
-### 5. Multi-Protocol Agent Communication (vs HTTP-only)
+### 5. MCP-Native Tool Interop (vs HTTP-only)
 MCP for tool discovery and execution — first-class, not an afterthought. Cairn exposes its tools as an MCP server and consumes external MCP servers as tools.
 
 ### 6. Event-Sourced Sessions (vs mutable state)
@@ -141,7 +141,7 @@ Every interaction is an append-only event stream. Sessions can be branched ("wha
 ### 7. Industry-Grade File Edit Safety (vs naive overwrite)
 File editing tools include: read-before-write enforcement, ambiguous match detection, fuzzy matching with context, automatic checkpointing (undo via `cairn.undoEdit`), offset/line-range support, line count validation, and structured diagnostics. File change events are surfaced at the agent layer for full observability, not buried in tool internals.
 
-### 9. Single Binary Deployment (vs npm install hell)
+### 8. Single Binary Deployment (vs npm install hell)
 `curl -L https://github.com/avifenesh/cairn/releases | sh` → one binary, runs on Linux/macOS/WSL. No Node, no Python, no Docker required. SQLite is embedded. Whisper.cpp sidecar optional.
 
 ## Edge Cases & Challenges

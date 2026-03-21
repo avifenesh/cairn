@@ -990,6 +990,11 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 		}
 	}
 
+	// Create steering channel for this session (enables POST /v1/sessions/{id}/steer).
+	steerCh := make(chan agent.SteeringMessage, 4)
+	s.RegisterSteeringChannel(session.ID, steerCh)
+	defer s.UnregisterSteeringChannel(session.ID)
+
 	invCtx := &agent.InvocationContext{
 		Context:        ctx,
 		SessionID:      session.ID,
@@ -1005,6 +1010,7 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 		JournalEntries: journalEntries,
 		Plugins:        s.plugins,
 		ActivityStore:  s.activityStore,
+		SteeringCh:     steerCh,
 		ToolMemories:   s.toolMemories,
 		ToolEvents:     s.toolEvents,
 		ToolDigest:     s.toolDigest,

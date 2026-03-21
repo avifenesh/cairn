@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { SessionStatus } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Activity, Clock, Cpu, Hash } from '@lucide/svelte';
+	import { Activity, Cpu, Hash } from '@lucide/svelte';
 
 	let { sessionId, status, currentRound, totalToolCalls, totalTokensIn, totalTokensOut }: {
 		sessionId: string;

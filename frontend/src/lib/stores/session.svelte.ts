@@ -1,5 +1,22 @@
 import type { SessionEvent, SessionStatus, FileChange } from '$lib/types';
 
+const MAX_EVENTS = 2000;
+
+function getAuthHeaders(): Record<string, string> {
+	const h: Record<string, string> = { 'Content-Type': 'application/json' };
+	const token = localStorage.getItem('cairn_api_token');
+	if (token) h['X-Api-Token'] = token;
+	return h;
+}
+
+function getStreamUrl(path: string): string {
+	const token = localStorage.getItem('cairn_api_token');
+	const params = new URLSearchParams();
+	if (token) params.set('token', token);
+	const qs = params.toString();
+	return qs ? `${path}?${qs}` : path;
+}
+
 // Session store state — created per session panel instance.
 export class SessionStore {
 	events = $state<SessionEvent[]>([]);
@@ -45,14 +62,17 @@ export class SessionStore {
 		return this.events.filter((e) => e.eventType === 'user_steer');
 	}
 
-	connect() {
-		const base = '';
-		this.source = new EventSource(`${base}/v1/sessions/${this.sessionId}/stream`);
+	async connect() {
+		// Hydrate prior events before opening the live stream.
+		await this.hydrate();
+
+		const url = getStreamUrl(`/v1/sessions/${this.sessionId}/stream`);
+		this.source = new EventSource(url);
 
 		this.source.addEventListener('session_event', (e: MessageEvent) => {
 			try {
 				const event: SessionEvent = JSON.parse(e.data);
-				this.events = [...this.events, event];
+				this.addEvent(event);
 				this.processEvent(event);
 			} catch {
 				// Ignore parse errors.
@@ -70,6 +90,55 @@ export class SessionStore {
 	disconnect() {
 		this.source?.close();
 		this.source = null;
+	}
+
+	private addEvent(event: SessionEvent) {
+		this.events = [...this.events, event];
+		// Cap stored events to prevent unbounded memory growth.
+		if (this.events.length > MAX_EVENTS) {
+			this.events = this.events.slice(-MAX_EVENTS);
+		}
+	}
+
+	private async hydrate() {
+		try {
+			const res = await fetch(`/v1/sessions/${this.sessionId}/events?limit=200`, {
+				headers: getAuthHeaders(),
+				credentials: 'include',
+			});
+			if (!res.ok) return;
+			const data = await res.json();
+			// Convert session history events to SessionEvent format for display.
+			// The events endpoint returns the raw agent Event format with parts.
+			// We reconstruct SessionEvent-compatible entries from them.
+			if (Array.isArray(data.events)) {
+				for (const ev of data.events) {
+					if (!Array.isArray(ev.parts)) continue;
+					for (const part of ev.parts) {
+						const partType = part.text !== undefined ? 'text' :
+							part.toolName !== undefined ? 'tool' :
+							part.text !== undefined ? 'reasoning' : null;
+						if (partType === 'tool') {
+							const eventType = part.status === 'running' || part.status === 'pending' ? 'tool_call' : 'tool_result';
+							this.addEvent({
+								sessionId: this.sessionId,
+								eventType,
+								payload: {
+									toolId: part.callId, toolName: part.toolName,
+									isError: part.status === 'failed', durationMs: part.duration,
+								},
+								timestamp: ev.timestamp,
+							});
+							if (part.status === 'completed' || part.status === 'failed') {
+								this.totalToolCalls++;
+							}
+						}
+					}
+				}
+			}
+		} catch {
+			// Hydration is best-effort; the live stream will provide new events.
+		}
 	}
 
 	private processEvent(event: SessionEvent) {
@@ -102,11 +171,10 @@ export class SessionStore {
 		}
 	}
 
-	async steer(content: string, priority: 'normal' | 'urgent' | 'stop' = 'normal') {
-		const base = '';
-		const res = await fetch(`${base}/v1/sessions/${this.sessionId}/steer`, {
+	async steer(content: string, priority: 'normal' | 'stop' = 'normal') {
+		const res = await fetch(`/v1/sessions/${this.sessionId}/steer`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: getAuthHeaders(),
 			credentials: 'include',
 			body: JSON.stringify({ content, priority }),
 		});

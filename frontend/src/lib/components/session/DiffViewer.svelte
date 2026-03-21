@@ -23,6 +23,10 @@
 		}
 	});
 
+	function escapeHtml(s: string): string {
+		return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+	}
+
 	async function renderDiff(diff: string) {
 		try {
 			const { html } = await import('diff2html');
@@ -32,7 +36,8 @@
 				matching: 'lines',
 			});
 		} catch {
-			diffHtml = `<pre class="text-xs">${diff}</pre>`;
+			// Escape HTML to prevent XSS in fallback rendering.
+			diffHtml = `<pre class="text-xs">${escapeHtml(diff)}</pre>`;
 		}
 	}
 

@@ -13,7 +13,9 @@ import (
 
 // handleSessionStream serves a session-scoped SSE event stream.
 // Only events matching the session ID are sent to the client.
-// Supports Last-Event-ID for reconnection replay.
+// Does not support Last-Event-ID replay; clients will miss events
+// that occur while disconnected. Use GET /v1/sessions/{id}/events
+// to hydrate prior events on page load.
 func (s *Server) handleSessionStream(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
 	if sessionID == "" {
@@ -57,20 +59,20 @@ func (s *Server) handleSessionStream(w http.ResponseWriter, r *http.Request) {
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
-	eventSeq := 0
 	for {
 		select {
 		case <-r.Context().Done():
 			return
 		case ev := <-events:
-			eventSeq++
 			data, _ := json.Marshal(map[string]any{
+				"id":        ev.ID,
 				"sessionId": ev.SessionID,
 				"eventType": ev.EventType,
 				"payload":   ev.Payload,
 				"timestamp": ev.Timestamp,
 			})
-			fmt.Fprintf(w, "id: %d\nevent: session_event\ndata: %s\n\n", eventSeq, data)
+			// Use stable event ID from EventMeta for SSE id field.
+			fmt.Fprintf(w, "id: %s\nevent: session_event\ndata: %s\n\n", ev.ID, data)
 			flusher.Flush()
 		case <-ticker.C:
 			fmt.Fprintf(w, ": keepalive\n\n")
@@ -80,7 +82,7 @@ func (s *Server) handleSessionStream(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleSessionEvents returns paginated session events from history.
-// Query params: limit (default 100), after (event sequence number).
+// Query params: limit (default 100).
 func (s *Server) handleSessionEvents(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
 	if sessionID == "" {
@@ -146,11 +148,15 @@ func (s *Server) handleSessionSteer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Limit body size to 64KB to prevent DoS.
+	body := http.MaxBytesReader(w, r.Body, 64<<10)
+	defer body.Close()
+
 	var req struct {
 		Content  string `json:"content"`
-		Priority string `json:"priority"` // normal, urgent, stop
+		Priority string `json:"priority"` // normal, stop
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -158,8 +164,15 @@ func (s *Server) handleSessionSteer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "content is required")
 		return
 	}
-	if req.Priority == "" {
+	// Validate priority - only "normal" and "stop" are implemented.
+	switch req.Priority {
+	case "", "normal":
 		req.Priority = "normal"
+	case "stop":
+		// ok
+	default:
+		writeError(w, http.StatusBadRequest, "priority must be 'normal' or 'stop'")
+		return
 	}
 
 	// Find the steering channel for this session.
@@ -198,3 +211,4 @@ func (s *Server) RegisterSteeringChannel(sessionID string, ch chan agent.Steerin
 func (s *Server) UnregisterSteeringChannel(sessionID string) {
 	s.steeringChannels.Delete(sessionID)
 }
+

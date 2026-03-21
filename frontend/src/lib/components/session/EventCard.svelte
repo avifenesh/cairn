@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { SessionEvent } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
-	import { relativeTime } from '$lib/utils/time';
 	import { Wrench, Brain, FileText, AlertTriangle, MessageSquare, CheckCircle, XCircle, Loader2, Play } from '@lucide/svelte';
 
 	let { event }: { event: SessionEvent } = $props();

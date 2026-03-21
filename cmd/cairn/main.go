@@ -810,14 +810,15 @@ func runServe(logger *slog.Logger) {
 
 		if cfg.TelegramBotToken != "" {
 			tg, err := cairnchannel.NewTelegram(cairnchannel.TelegramConfig{
-				BotToken: cfg.TelegramBotToken,
-				ChatID:   cfg.TelegramChatID,
+				BotToken:          cfg.TelegramBotToken,
+				ChatID:            cfg.TelegramChatID,
+				NotificationChatID: cfg.TelegramNotificationChatID,
 			}, channelHandler, logger)
 			if err != nil {
 				logger.Error("telegram adapter failed", "error", err)
 			} else {
 				channelRouter.Register(tg)
-				logger.Info("telegram channel registered", "chatID", cfg.TelegramChatID)
+				logger.Info("telegram channel registered", "chatID", cfg.TelegramChatID, "notificationChatID", cfg.TelegramNotificationChatID)
 			}
 		}
 

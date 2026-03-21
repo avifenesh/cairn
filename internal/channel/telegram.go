@@ -15,16 +15,18 @@ import (
 
 // TelegramConfig holds Telegram bot configuration.
 type TelegramConfig struct {
-	BotToken string // from BotFather
-	ChatID   int64  // single-user chat ID
+	BotToken          string // from BotFather
+	ChatID            int64  // single-user chat ID (commands)
+	NotificationChatID int64 // separate chat for notifications (0 = use ChatID)
 }
 
 // TelegramAdapter implements Channel for Telegram.
 type TelegramAdapter struct {
-	bot     *telego.Bot
-	chatID  int64
-	handler MessageHandler
-	logger  *slog.Logger
+	bot               *telego.Bot
+	chatID            int64 // command chat (inbound messages)
+	notificationChatID int64 // notification chat (outbound only, 0 = fallback to chatID)
+	handler           MessageHandler
+	logger            *slog.Logger
 }
 
 // NewTelegram creates a Telegram channel adapter.
@@ -42,10 +44,11 @@ func NewTelegram(cfg TelegramConfig, handler MessageHandler, logger *slog.Logger
 	}
 
 	return &TelegramAdapter{
-		bot:     bot,
-		chatID:  cfg.ChatID,
-		handler: handler,
-		logger:  logger,
+		bot:               bot,
+		chatID:            cfg.ChatID,
+		notificationChatID: cfg.NotificationChatID,
+		handler:           handler,
+		logger:            logger,
 	}, nil
 }
 
@@ -124,12 +127,17 @@ func (t *TelegramAdapter) Start(ctx context.Context) error {
 	return nil
 }
 
-// Send delivers a message to the configured chat.
+// Send delivers a message to the configured notification chat.
+// If NotificationChatID is set, notifications go there instead of ChatID.
 func (t *TelegramAdapter) Send(ctx context.Context, msg *OutgoingMessage) error {
-	if t.chatID == 0 {
+	targetChat := t.chatID
+	if t.notificationChatID != 0 {
+		targetChat = t.notificationChatID
+	}
+	if targetChat == 0 {
 		return fmt.Errorf("telegram: no chat ID configured")
 	}
-	return t.sendResponse(ctx, t.chatID, msg)
+	return t.sendResponse(ctx, targetChat, msg)
 }
 
 func (t *TelegramAdapter) Close() error {

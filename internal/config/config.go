@@ -132,8 +132,9 @@ type Config struct {
 	WebFetchMaxSize int64  // Bytes (default: 5MB)
 
 	// Channels — Telegram
-	TelegramBotToken      string // TELEGRAM_BOT_TOKEN
-	TelegramChatID        int64  // TELEGRAM_CHAT_ID
+	TelegramBotToken         string // TELEGRAM_BOT_TOKEN
+	TelegramChatID           int64  // TELEGRAM_CHAT_ID
+	TelegramNotificationChatID int64 // TELEGRAM_NOTIFICATION_CHAT_ID (separate destination for notifications)
 	ChannelSessionTimeout int    // CHANNEL_SESSION_TIMEOUT (minutes, default 240)
 
 	// Channels — Discord
@@ -281,8 +282,9 @@ func Load() (*Config, error) {
 		ZaiBaseURL:              envStr("ZAI_BASE_URL", "https://api.z.ai/api/mcp"),
 		ZaiAPIKey:               envStr("ZAI_API_KEY", ""),
 		ZaiVisionEnabled:        envBool("ZAI_VISION_ENABLED", provider == "glm"),
-		TelegramBotToken:        envStr("TELEGRAM_BOT_TOKEN", ""),
-		TelegramChatID:          envInt64("TELEGRAM_CHAT_ID", 0),
+		TelegramBotToken:            envStr("TELEGRAM_BOT_TOKEN", ""),
+		TelegramChatID:              envInt64("TELEGRAM_CHAT_ID", 0),
+		TelegramNotificationChatID:  envInt64("TELEGRAM_NOTIFICATION_CHAT_ID", 0),
 		ChannelSessionTimeout:   envInt("CHANNEL_SESSION_TIMEOUT", 240),
 		DiscordBotToken:         envStr("DISCORD_BOT_TOKEN", ""),
 		DiscordChannelID:        envStr("DISCORD_CHANNEL_ID", ""),

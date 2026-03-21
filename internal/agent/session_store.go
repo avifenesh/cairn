@@ -89,7 +89,7 @@ func (s *SessionStore) List(ctx context.Context, limit int) ([]*Session, error) 
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT s.id, s.title, s.mode, s.created_at, s.updated_at,
+		SELECT s.id, s.title, s.mode, s.created_at, s.updated_at, s.metadata,
 			(SELECT COUNT(*) FROM messages WHERE session_id = s.id) as msg_count
 		FROM sessions s ORDER BY s.updated_at DESC LIMIT ?`, limit)
 	if err != nil {
@@ -100,18 +100,26 @@ func (s *SessionStore) List(ctx context.Context, limit int) ([]*Session, error) 
 	var sessions []*Session
 	for rows.Next() {
 		var id, title, mode, createdAt, updatedAt string
+		var metadata sql.NullString
 		var msgCount int
-		if err := rows.Scan(&id, &title, &mode, &createdAt, &updatedAt, &msgCount); err != nil {
+		if err := rows.Scan(&id, &title, &mode, &createdAt, &updatedAt, &metadata, &msgCount); err != nil {
 			return nil, fmt.Errorf("session store: scan list: %w", err)
 		}
-		sessions = append(sessions, &Session{
+		sess := &Session{
 			ID:           id,
 			Title:        title,
 			Mode:         tool.Mode(mode),
 			MessageCount: msgCount,
 			CreatedAt:    parseTime(createdAt),
 			UpdatedAt:    parseTime(updatedAt),
-		})
+		}
+		if metadata.Valid && metadata.String != "" {
+			var state map[string]any
+			if json.Unmarshal([]byte(metadata.String), &state) == nil {
+				sess.State = state
+			}
+		}
+		sessions = append(sessions, sess)
 	}
 	return sessions, rows.Err()
 }

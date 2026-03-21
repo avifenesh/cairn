@@ -48,17 +48,17 @@ bash -c 'set -o pipefail; df -h /home/ubuntu/cairn | tail -1 | awk "{printf \"si
 
 **Database files:**
 ```
-du -sb /home/ubuntu/cairn/data/cairn.db /home/ubuntu/cairn/data/cairn.db-wal /home/ubuntu/cairn/data/cairn.db-shm 2>/dev/null | awk 'BEGIN { db=0; wal=0; shm=0; sum=0 } { if ($2 ~ /\.db$/) {db=$1} else if ($2 ~ /\.db-wal$/) {wal=$1} else if ($2 ~ /\.db-shm$/) {shm=$1}; sum+=$1 } END { printf "db_bytes: %d\nwal_bytes: %d\nshm_bytes: %d\ntotal_bytes: %d\n", db, wal, shm, sum }'
+du -sb /home/ubuntu/.cairn/data/cairn.db /home/ubuntu/.cairn/data/cairn.db-wal /home/ubuntu/.cairn/data/cairn.db-shm 2>/dev/null | awk 'BEGIN { db=0; wal=0; shm=0; sum=0 } { if ($2 ~ /\.db$/) {db=$1} else if ($2 ~ /\.db-wal$/) {wal=$1} else if ($2 ~ /\.db-shm$/) {shm=$1}; sum+=$1 } END { printf "db_bytes: %d\nwal_bytes: %d\nshm_bytes: %d\ntotal_bytes: %d\n", db, wal, shm, sum }'
 ```
 
 **Database integrity:**
 ```
-bash -c 'set -o pipefail; timeout 10 sqlite3 /home/ubuntu/cairn/data/cairn.db "PRAGMA integrity_check;" | head -1' || echo "integrity check timed out or failed"
+bash -c 'set -o pipefail; timeout 10 sqlite3 /home/ubuntu/.cairn/data/cairn.db "PRAGMA integrity_check;" | head -1' || echo "integrity check timed out or failed"
 ```
 
 **Database table count and row stats:**
 ```
-timeout 5 sqlite3 /home/ubuntu/cairn/data/cairn.db "SELECT 'tables: ' || COUNT(*) FROM sqlite_master WHERE type='table' UNION ALL SELECT 'events: ' || COUNT(*) FROM events UNION ALL SELECT 'memories: ' || COUNT(*) FROM memories UNION ALL SELECT 'tasks: ' || COUNT(*) FROM tasks;" 2>&1 || echo "database query timed out or failed"
+timeout 5 sqlite3 /home/ubuntu/.cairn/data/cairn.db "SELECT 'tables: ' || COUNT(*) FROM sqlite_master WHERE type='table' UNION ALL SELECT 'events: ' || COUNT(*) FROM events UNION ALL SELECT 'memories: ' || COUNT(*) FROM memories UNION ALL SELECT 'tasks: ' || COUNT(*) FROM tasks;" 2>&1 || echo "database query timed out or failed"
 ```
 
 **Runtime metrics (SSE clients, poller, request stats):**
@@ -86,12 +86,12 @@ If `$ARGUMENTS` contains `--verbose`, also run:
 
 **Artifact storage size:**
 ```
-du -sh /home/ubuntu/cairn/data/artifacts/ 2>/dev/null || echo "no artifacts dir"
+du -sh /home/ubuntu/.cairn/data/artifacts/ 2>/dev/null || echo "no artifacts dir"
 ```
 
 **WAL journal mode and auto-checkpoint interval:**
 ```
-timeout 5 sqlite3 /home/ubuntu/cairn/data/cairn.db 'PRAGMA journal_mode; PRAGMA wal_autocheckpoint;' 2>&1 || echo "wal query failed"
+timeout 5 sqlite3 /home/ubuntu/.cairn/data/cairn.db 'PRAGMA journal_mode; PRAGMA wal_autocheckpoint;' 2>&1 || echo "wal query failed"
 ```
 
 **Per-source poller stats** (from metrics response): report `poller.bySource` object with per-source `inserted`, `failures`, and `retries` counts.
@@ -165,7 +165,7 @@ If `--verbose` was passed, include all rows. Otherwise, omit rows that are purel
   - DB WAL size: > 100MB = WARN, > 500MB = CRIT
   - TLS cert: < 14 days = WARN, < 3 days = CRIT
   - Budget: > 80% daily cap = WARN, > 95% = CRIT
-- **DB path:** uses `/home/ubuntu/cairn/data/cairn.db` (matches production `DATABASE_PATH` default)
+- **DB path:** uses `/home/ubuntu/.cairn/data/cairn.db` (production deployment path, configured via `DATABASE_PATH` in `.env.cairn`)
 - **Metrics/status endpoints:** require `READ_API_TOKEN` when token auth is configured. If curl returns 401, report as "auth required" rather than "unavailable"
 - **This skill executes read-only shell commands** — no system modifications are made. Some commands may require shell approval depending on policy
 - **Overlap with /provider-status:** This skill does NOT check external provider reachability or feed source circuits. Always refer the user to `/provider-status` for those checks

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { SessionEvent } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Wrench, Brain, FileText, AlertTriangle, MessageSquare, CheckCircle, XCircle, Loader2, Play, ChevronDown, ChevronUp } from '@lucide/svelte';
+	import { Wrench, Brain, FileText, AlertTriangle, MessageSquare, CheckCircle, XCircle, Loader2, Play, ChevronDown, ChevronUp, Code } from '@lucide/svelte';
 
 	let { event, completedToolIds = new Set<string>() }: {
 		event: SessionEvent;
@@ -14,9 +14,11 @@
 		event.eventType === 'tool_call' && !completedToolIds.has(String(p.toolId ?? ''))
 	);
 
-	let expanded = $state(false);
+	let expandedInput = $state(false);
+	let expandedOutput = $state(false);
+	let expandedThinking = $state(false);
+	let expandedDiff = $state(false);
 
-	// Extract a human-readable summary from tool input.
 	function toolInputSummary(toolName: unknown, input: unknown): string {
 		if (!input || typeof input !== 'object') return '';
 		const inp = input as Record<string, unknown>;
@@ -32,35 +34,25 @@
 		}
 		if (name === 'cairn.gitRun' || name.endsWith('.gitRun')) {
 			const args = inp.args ?? inp.command ?? '';
-			const argsStr = Array.isArray(args) ? args.join(' ') : String(args);
-			return 'git ' + argsStr;
+			return 'git ' + (Array.isArray(args) ? args.join(' ') : String(args));
 		}
-		if (name === 'cairn.webSearch' || name.endsWith('.webSearch')) {
-			return String(inp.query ?? '');
-		}
-		if (name === 'cairn.readURL' || name.endsWith('.readURL')) {
-			return String(inp.url ?? '');
-		}
-		// Generic: show first string value
+		if (name === 'cairn.webSearch' || name.endsWith('.webSearch')) return String(inp.query ?? '');
+		if (name === 'cairn.readURL' || name.endsWith('.readURL')) return String(inp.url ?? '');
 		for (const v of Object.values(inp)) {
-			if (typeof v === 'string' && v.length > 0) {
-				return v.length > 100 ? v.slice(0, 100) + '...' : v;
-			}
+			if (typeof v === 'string' && v.length > 0) return v.length > 100 ? v.slice(0, 100) + '...' : v;
 		}
 		return '';
 	}
 
-	function formatInput(input: unknown): string {
-		if (!input) return '';
-		try {
-			return JSON.stringify(input, null, 2);
-		} catch {
-			return String(input);
-		}
+	function formatJSON(val: unknown): string {
+		if (!val) return '';
+		try { return JSON.stringify(val, null, 2); } catch { return String(val); }
 	}
 
 	const summary = $derived(toolInputSummary(p.toolName, p.input));
-	const fullInput = $derived(formatInput(p.input));
+	const fullInput = $derived(formatJSON(p.input));
+	const outputText = $derived(String(p.output ?? p.error ?? ''));
+	const outputPreview = $derived(outputText.length > 200 ? outputText.slice(0, 200) + '...' : outputText);
 </script>
 
 {#if event.eventType === 'tool_call'}
@@ -77,16 +69,17 @@
 				<p class="tool-summary">{summary}</p>
 			{/if}
 			{#if fullInput}
-				<button class="expand-btn" onclick={() => (expanded = !expanded)}>
-					{#if expanded}<ChevronUp size={10} />{:else}<ChevronDown size={10} />{/if}
-					<span>{expanded ? 'hide' : 'input'}</span>
+				<button class="expand-btn" onclick={() => (expandedInput = !expandedInput)}>
+					{#if expandedInput}<ChevronUp size={10} />{:else}<ChevronDown size={10} />{/if}
+					<span>{expandedInput ? 'hide' : 'input'}</span>
 				</button>
-				{#if expanded}
-					<pre class="tool-input">{fullInput}</pre>
+				{#if expandedInput}
+					<pre class="code-block">{fullInput}</pre>
 				{/if}
 			{/if}
 		</div>
 	</div>
+
 {:else if event.eventType === 'tool_result'}
 	<div class="event-card event-card--tool-result" class:event-card--error={isError}>
 		<div class="event-icon">
@@ -103,15 +96,34 @@
 					<span class="event-meta">{p.durationMs}ms</span>
 				{/if}
 			</div>
+			{#if outputText}
+				{#if outputText.length <= 200}
+					<pre class="output-preview" class:output-error={isError}>{outputText}</pre>
+				{:else}
+					<pre class="output-preview" class:output-error={isError}>{expandedOutput ? outputText : outputPreview}</pre>
+					<button class="expand-btn" onclick={() => (expandedOutput = !expandedOutput)}>
+						{#if expandedOutput}<ChevronUp size={10} />{:else}<ChevronDown size={10} />{/if}
+						<span>{expandedOutput ? 'less' : 'more'}</span>
+					</button>
+				{/if}
+			{/if}
 		</div>
 	</div>
+
 {:else if event.eventType === 'thinking'}
 	<div class="event-card event-card--thinking">
 		<div class="event-icon"><Brain size={14} class="text-muted-foreground" /></div>
 		<div class="event-body">
-			<p class="text-xs text-muted-foreground italic line-clamp-2">{p.text}</p>
+			<button class="expand-btn thinking-toggle" onclick={() => (expandedThinking = !expandedThinking)}>
+				{#if expandedThinking}<ChevronUp size={10} />{:else}<ChevronDown size={10} />{/if}
+				<span class="italic">Thinking...</span>
+			</button>
+			{#if expandedThinking}
+				<p class="thinking-text">{p.text}</p>
+			{/if}
 		</div>
 	</div>
+
 {:else if event.eventType === 'text_delta'}
 	{@const isUser = (p.author as string) === 'user'}
 	<div class="event-card" class:event-card--user={isUser}>
@@ -121,16 +133,27 @@
 			<p class="message-text">{p.text}</p>
 		</div>
 	</div>
+
 {:else if event.eventType === 'file_change'}
 	<div class="event-card event-card--file">
-		<div class="event-icon"><FileText size={14} class="text-blue-400" /></div>
+		<div class="event-icon"><Code size={14} class="text-green-400" /></div>
 		<div class="event-body">
 			<div class="event-header">
-				<span class="text-xs font-mono">{p.path}</span>
+				<span class="text-xs font-mono font-medium">{p.path}</span>
 				<Badge variant="outline" class="text-xs">{p.operation}</Badge>
 			</div>
+			{#if p.diff}
+				<button class="expand-btn" onclick={() => (expandedDiff = !expandedDiff)}>
+					{#if expandedDiff}<ChevronUp size={10} />{:else}<ChevronDown size={10} />{/if}
+					<span>{expandedDiff ? 'hide diff' : 'show diff'}</span>
+				</button>
+				{#if expandedDiff}
+					<pre class="diff-block">{@html formatDiff(String(p.diff))}</pre>
+				{/if}
+			{/if}
 		</div>
 	</div>
+
 {:else if event.eventType === 'state_change'}
 	<div class="event-card event-card--state">
 		<div class="event-icon"><Play size={14} /></div>
@@ -143,6 +166,7 @@
 			{/if}
 		</div>
 	</div>
+
 {:else if event.eventType === 'user_steer'}
 	<div class="event-card event-card--steer">
 		<div class="event-icon"><MessageSquare size={14} class="text-blue-400" /></div>
@@ -150,15 +174,17 @@
 			<p class="text-sm text-blue-400 italic">{p.content}</p>
 		</div>
 	</div>
+
 {:else if event.eventType === 'round_complete'}
 	<div class="event-card event-card--round">
 		<div class="event-icon"><CheckCircle size={14} class="text-muted-foreground" /></div>
 		<div class="event-body">
 			<span class="text-xs text-muted-foreground">
-				Round {(p.round as number) + 1} complete - {p.toolCalls} tool calls
+				Round {(p.round as number) + 1} - {p.toolCalls} tool calls
 			</span>
 		</div>
 	</div>
+
 {:else if event.eventType === 'approval_request'}
 	<div class="event-card event-card--approval">
 		<div class="event-icon"><AlertTriangle size={14} class="text-amber-500" /></div>
@@ -168,6 +194,18 @@
 		</div>
 	</div>
 {/if}
+
+<script lang="ts" module>
+	function formatDiff(diff: string): string {
+		return diff.split('\n').map(line => {
+			const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+			if (line.startsWith('+') && !line.startsWith('+++')) return `<span class="diff-add">${escaped}</span>`;
+			if (line.startsWith('-') && !line.startsWith('---')) return `<span class="diff-del">${escaped}</span>`;
+			if (line.startsWith('@@')) return `<span class="diff-hunk">${escaped}</span>`;
+			return escaped;
+		}).join('\n');
+	}
+</script>
 
 <style>
 	.event-card {
@@ -180,24 +218,11 @@
 	.event-card:hover {
 		background: var(--color-surface-hover, hsl(var(--muted) / 0.5));
 	}
-	.event-icon {
-		flex-shrink: 0;
-		margin-top: 0.125rem;
-	}
-	.event-body {
-		flex: 1;
-		min-width: 0;
-	}
-	.event-header {
-		display: flex;
-		align-items: center;
-		gap: 0.375rem;
-		flex-wrap: wrap;
-	}
-	.event-meta {
-		font-size: 0.6875rem;
-		color: var(--text-tertiary, hsl(var(--muted-foreground)));
-	}
+	.event-icon { flex-shrink: 0; margin-top: 0.125rem; }
+	.event-body { flex: 1; min-width: 0; }
+	.event-header { display: flex; align-items: center; gap: 0.375rem; flex-wrap: wrap; }
+	.event-meta { font-size: 0.6875rem; color: var(--text-tertiary, hsl(var(--muted-foreground))); }
+
 	.tool-summary {
 		font-size: 0.75rem;
 		font-family: var(--font-mono, monospace);
@@ -219,10 +244,10 @@
 		padding: 0.125rem 0;
 		margin-top: 0.125rem;
 	}
-	.expand-btn:hover {
-		color: var(--cairn-accent, #60a5fa);
-	}
-	.tool-input {
+	.expand-btn:hover { color: var(--cairn-accent, #60a5fa); }
+	.thinking-toggle { font-size: 0.6875rem; }
+
+	.code-block, .diff-block {
 		font-size: 0.6875rem;
 		font-family: var(--font-mono, monospace);
 		background: hsl(var(--muted) / 0.5);
@@ -230,11 +255,34 @@
 		padding: 0.375rem 0.5rem;
 		margin-top: 0.25rem;
 		overflow-x: auto;
-		max-height: 12rem;
+		max-height: 16rem;
 		overflow-y: auto;
 		white-space: pre-wrap;
 		word-break: break-all;
 		line-height: 1.3;
+	}
+	.output-preview {
+		font-size: 0.6875rem;
+		font-family: var(--font-mono, monospace);
+		color: var(--text-secondary, hsl(var(--muted-foreground)));
+		margin-top: 0.25rem;
+		white-space: pre-wrap;
+		word-break: break-all;
+		line-height: 1.3;
+		max-height: 16rem;
+		overflow-y: auto;
+	}
+	.output-error { color: hsl(var(--destructive)); }
+	.thinking-text {
+		font-size: 0.75rem;
+		color: var(--text-tertiary, hsl(var(--muted-foreground)));
+		font-style: italic;
+		white-space: pre-wrap;
+		word-break: break-word;
+		line-height: 1.4;
+		margin-top: 0.25rem;
+		max-height: 20rem;
+		overflow-y: auto;
 	}
 	.message-text {
 		font-size: 0.8125rem;
@@ -242,20 +290,15 @@
 		white-space: pre-wrap;
 		word-break: break-word;
 		margin-top: 0.125rem;
-		color: var(--text-primary, hsl(var(--foreground)));
 	}
-	.event-card--user {
-		border-left: 2px solid var(--cairn-accent, #60a5fa);
-		background: hsl(var(--muted) / 0.2);
-	}
-	.event-card--approval {
-		border-left: 2px solid var(--color-warning, #f59e0b);
-		background: hsl(var(--muted) / 0.3);
-	}
-	.event-card--steer {
-		border-left: 2px solid var(--cairn-accent, #60a5fa);
-	}
-	.event-card--error {
-		border-left: 2px solid var(--color-error, hsl(var(--destructive)));
-	}
+
+	.event-card--user { border-left: 2px solid var(--cairn-accent, #60a5fa); background: hsl(var(--muted) / 0.2); }
+	.event-card--approval { border-left: 2px solid var(--color-warning, #f59e0b); background: hsl(var(--muted) / 0.3); }
+	.event-card--steer { border-left: 2px solid var(--cairn-accent, #60a5fa); }
+	.event-card--error { border-left: 2px solid var(--color-error, hsl(var(--destructive))); }
+	.event-card--file { border-left: 2px solid #22c55e; }
+
+	.diff-block :global(.diff-add) { color: #22c55e; }
+	.diff-block :global(.diff-del) { color: #ef4444; }
+	.diff-block :global(.diff-hunk) { color: #818cf8; }
 </style>

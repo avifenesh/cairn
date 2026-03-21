@@ -79,28 +79,42 @@ while iteration < 10:
         #   3. Commit + push
         #   4. Continue loop (CI will re-run)
 
-    # Step B: First iteration only — wait 180s for auto-reviewers
-    if iteration == 1:
-        cairn.shell: "sleep 180"
+    # Step B: Wait 180s for auto-reviewers after every push (not just first).
+    # Auto-reviewers re-analyze after EVERY push. They need time.
+    cairn.shell: "sleep 180"
 
     # Step C: Check for unresolved review threads
     cairn.shell: "gh api graphql -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved}}}}}' -f owner=OWNER -f repo=REPO -F pr=<number> --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'"
 
-    # Step D: If 0 unresolved → DONE
+    # Step D: If 0 unresolved → quiet period check
     if unresolved == 0:
-        break
+        # MANDATORY: wait 3 minutes for late comments from auto-reviewers.
+        cairn.shell: "sleep 180"
 
-    # Step E: Address ALL comments (read comments, fix code, commit, push)
-    cairn.shell: "gh api repos/{owner}/{repo}/pulls/<number>/comments --jq '.[] | {id, path, line, body}'"
-    # Fix every comment — high, medium, AND low priority
-    # Commit: cairn.gitRun: ["commit", "-m", "fix: address review feedback (iteration N)"]
-    # Push: cairn.shell: "git push"
+        # Re-check: run the SAME GraphQL query from Step C again
+        unresolved_after_wait = <result of same query>
+        if unresolved_after_wait == 0:
+            break  # truly clean — exit loop
+        # else: new comments arrived — fall through to Step E
 
-    # Step F: Brief pause before next iteration
+    # Step E: Address ALL comments
+    # E1. Fetch unresolved thread IDs + comment bodies:
+    cairn.shell: "gh api graphql -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:100){nodes{id,isResolved,comments(last:1){nodes{body,path,line}}}}}}}' -f owner=OWNER -f repo=REPO -F pr=<number> --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | {threadId: .id, comment: .comments.nodes[0]}'"
+    # E2. Fix every comment — high, medium, AND low priority. No skipping.
+    # E3. Resolve each thread after fixing:
+    cairn.shell: "gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<threadId from E1>"
+    # E4. Commit + push:
+    cairn.gitRun: ["commit", "-m", "fix: address review feedback (iteration N)"]
+    cairn.shell: "git push"
+
+    # Step F: Brief pause before next iteration (CI re-triggers on push)
     cairn.shell: "sleep 30"
 ```
 
-When the loop exits with 0 unresolved:
+EXPECT 5+ ITERATIONS. This is normal. Auto-reviewers post new comments after every push.
+The loop only exits when: CI green AND 0 unresolved AND 3-minute quiet period passed with no new comments.
+
+When the loop exits clean:
 ```
 cairn.shell: "gh pr ready <number>"  # Remove draft status
 ```
@@ -108,17 +122,18 @@ cairn.shell: "gh pr ready <number>"  # Remove draft status
 ### 8. Notify
 When PR is ready and all reviews addressed:
 ```
-cairn.notify: message="PR ready: [cairn] <title> — CI green, all reviews addressed. Review at <url>", priority=medium
+cairn.notify: message="PR ready: [cairn] <title> — CI green, all reviews addressed, quiet period clean. Review at <url>", priority=medium
 ```
 
 ### 9. Completion
 The session is COMPLETE only after:
 - [x] CI checks all pass
 - [x] 0 unresolved review threads
+- [x] 3-minute quiet period passed with no new comments
 - [x] PR marked as ready (not draft)
 - [x] Notification sent
 
-Output: `[SESSION_COMPLETE] PR #<number> — CI green, 0 unresolved, ready for merge.`
+Output: `[SESSION_COMPLETE] PR #<number> — CI green, 0 unresolved, quiet period clean, ready for merge.`
 
 ### 10. Running out of rounds?
 If you're approaching the round limit (check current round vs 400 max) and the CI/review loop is not done:

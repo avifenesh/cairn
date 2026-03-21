@@ -222,7 +222,7 @@ Week 7-8:              [5. Integration & Release]
 func main() {
     // 1. Foundation
     bus := eventbus.New()
-    db := sqlite.Open("pub.db")
+    db := sqlite.Open("./data/cairn.db")
     llmClient := llm.NewRegistry(config.Providers).Default()
 
     // 2. Core systems

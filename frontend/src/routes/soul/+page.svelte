@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { getSoul, updateSoul, getSoulHistory, getSoulPatch, approveSoulPatch, denySoulPatch } from '$lib/api/client';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import { relativeTime } from '$lib/utils/time';
@@ -8,7 +8,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Save, History, Eye, Edit3, GitCommit, Check, X, AlertTriangle, Plus, Loader2 } from '@lucide/svelte';
+	import { Save, History, Eye, Edit3, GitCommit, Check, X, AlertTriangle, Loader2 } from '@lucide/svelte';
 
 	let content = $state('');
 	let sha = $state<string | null>(null);
@@ -98,6 +98,52 @@
 		}
 	}
 
+	// Listen for real-time soul patch proposals via SSE.
+	// Refetch both SOUL content and patch so the diff is accurate.
+	function onSoulPatch() {
+		if (loading) return; // avoid clobbering mount-time fetch
+		Promise.all([
+			getSoul().catch(() => null),
+			getSoulPatch().catch(() => ({ patch: null })),
+		]).then(([soulRes, patchRes]) => {
+			if (soulRes) { content = soulRes.content; sha = soulRes.sha ?? null; }
+			patch = patchRes?.patch ?? null;
+		});
+	}
+	onMount(() => window.addEventListener('cairn:soul-patch', onSoulPatch));
+	onDestroy(() => window.removeEventListener('cairn:soul-patch', onSoulPatch));
+
+	// Compute a line-based diff between current content and patch preview.
+	const diffLines = $derived(() => {
+		if (!patch) return [];
+		const oldLines = content.split('\n');
+		const newLines = patch.preview.split('\n');
+		const result: { type: 'same' | 'add' | 'remove'; text: string; lineNo: number }[] = [];
+		const maxOld = oldLines.length;
+		const maxNew = newLines.length;
+		// Simple diff: show matching prefix, then additions at the end.
+		let i = 0;
+		while (i < maxOld && i < maxNew && oldLines[i] === newLines[i]) {
+			i++;
+		}
+		// Context: show last 3 matching lines before the change.
+		const contextStart = Math.max(0, i - 3);
+		for (let j = contextStart; j < i; j++) {
+			result.push({ type: 'same', text: oldLines[j], lineNo: j + 1 });
+		}
+		// Lines removed from old (if any changed in the middle).
+		for (let j = i; j < maxOld; j++) {
+			if (j < maxNew && oldLines[j] !== newLines[j]) {
+				result.push({ type: 'remove', text: oldLines[j], lineNo: j + 1 });
+			}
+		}
+		// Lines added in new.
+		for (let j = i; j < maxNew; j++) {
+			result.push({ type: 'add', text: newLines[j], lineNo: j + 1 });
+		}
+		return result;
+	});
+
 	// Extract h2 headings for table of contents
 	const toc = $derived(() => {
 		const headings: { text: string; id: string }[] = [];
@@ -156,15 +202,24 @@
 				<Badge variant="outline" class="text-[10px] text-[var(--color-warning)]">pending review</Badge>
 			</div>
 
-			<!-- Diff: proposed addition -->
+			<!-- Diff view -->
 			<div class="px-4 py-3">
 				<p class="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] mb-2 flex items-center gap-1">
-					<Plus class="h-3 w-3" /> Proposed addition
+					Changes to SOUL.md
 				</p>
-				<div class="rounded-md border border-[var(--color-success)]/30 bg-[var(--color-success)]/5 p-3">
-					<div class="cairn-prose text-sm text-[var(--text-primary)] leading-relaxed">
-						{@html renderMarkdown(patch.content)}
-					</div>
+				<div class="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-0)] overflow-hidden font-mono text-xs leading-5">
+					{#each diffLines() as line}
+						<div class="flex {line.type === 'add' ? 'bg-[var(--color-success)]/10' : line.type === 'remove' ? 'bg-[var(--color-error)]/10' : ''}">
+							<span class="w-10 flex-shrink-0 text-right pr-2 text-[var(--text-tertiary)]/50 select-none border-r border-[var(--border-subtle)]/50 py-px">{line.lineNo}</span>
+							<span class="w-5 flex-shrink-0 text-center select-none py-px {line.type === 'add' ? 'text-[var(--color-success)]' : line.type === 'remove' ? 'text-[var(--color-error)]' : 'text-[var(--text-tertiary)]/30'}">
+								{line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' '}
+							</span>
+							<span class="flex-1 px-2 py-px whitespace-pre-wrap break-all {line.type === 'add' ? 'text-[var(--color-success)]' : line.type === 'remove' ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}">{line.text}</span>
+						</div>
+					{/each}
+					{#if diffLines().length === 0}
+						<div class="p-3 text-[var(--text-tertiary)] text-center">No changes detected</div>
+					{/if}
 				</div>
 			</div>
 

@@ -622,7 +622,13 @@ func (l *Loop) runReflection(ctx context.Context) {
 
 	// Propose soul patch for human review (surfaced on /soul page).
 	if result.SoulPatch != "" && l.soul != nil {
-		l.soul.ProposePatch(result.SoulPatch, "reflection")
+		patch := l.soul.ProposePatch(result.SoulPatch, "reflection")
+		if l.bus != nil {
+			eventbus.Publish(l.bus, eventbus.SoulPatchProposed{
+				EventMeta: eventbus.NewMeta("reflection"),
+				PatchID:   patch.ID,
+			})
+		}
 		if l.notifier != nil {
 			l.notifier.Notify(ctx, "SOUL.md patch proposed - review it on the Soul page", 1)
 		}

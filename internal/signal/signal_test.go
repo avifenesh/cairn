@@ -102,6 +102,88 @@ func TestEventStore_Dedup(t *testing.T) {
 	}
 }
 
+// TestEventStore_Ingest_CrossSourceURLDedup verifies that the same article URL
+// arriving from two different sources (e.g. devto + rss poller) is deduplicated.
+func TestEventStore_Ingest_CrossSourceURLDedup(t *testing.T) {
+	sqlDB := setupTestDB(t)
+	store := NewEventStore(sqlDB)
+	ctx := t.Context()
+
+	events := []*RawEvent{
+		{
+			Source:     "devto",
+			SourceID:   "devto:12345",
+			Kind:       "post",
+			Title:      "AI Agents Fail 97.5%",
+			URL:        "https://dev.to/maxquimby/ai-agents-fail",
+			OccurredAt: time.Now().UTC(),
+		},
+	}
+
+	inserted, err := store.Ingest(ctx, events)
+	if err != nil {
+		t.Fatalf("first ingest: %v", err)
+	}
+	if len(inserted) != 1 {
+		t.Fatalf("first ingest: count = %d, want 1", len(inserted))
+	}
+
+	// Same URL, different source and source_item_id — should be deduped.
+	events2 := []*RawEvent{
+		{
+			Source:     "rss",
+			SourceID:   "rss:f7d668fd:https://dev.to/maxquimby/ai-agents-fail",
+			Kind:       "post",
+			Title:      "AI Agents Fail 97.5%",
+			URL:        "https://dev.to/maxquimby/ai-agents-fail",
+			OccurredAt: time.Now().UTC(),
+		},
+	}
+
+	inserted2, err := store.Ingest(ctx, events2)
+	if err != nil {
+		t.Fatalf("second ingest: %v", err)
+	}
+	if len(inserted2) != 0 {
+		t.Fatalf("second ingest: count = %d, want 0 (cross-source dedup)", len(inserted2))
+	}
+}
+
+// TestEventStore_Ingest_IntraBatchURLDedup verifies that duplicate URLs
+// within a single batch (e.g. same dev.to article from multiple RSS feeds)
+// are deduplicated.
+func TestEventStore_Ingest_IntraBatchURLDedup(t *testing.T) {
+	sqlDB := setupTestDB(t)
+	store := NewEventStore(sqlDB)
+	ctx := t.Context()
+
+	events := []*RawEvent{
+		{
+			Source:     "rss",
+			SourceID:   "rss:feed1:https://dev.to/article",
+			Kind:       "post",
+			Title:      "Article",
+			URL:        "https://dev.to/article",
+			OccurredAt: time.Now().UTC(),
+		},
+		{
+			Source:     "rss",
+			SourceID:   "rss:feed2:https://dev.to/article",
+			Kind:       "post",
+			Title:      "Article",
+			URL:        "https://dev.to/article",
+			OccurredAt: time.Now().UTC(),
+		},
+	}
+
+	inserted, err := store.Ingest(ctx, events)
+	if err != nil {
+		t.Fatalf("ingest: %v", err)
+	}
+	if len(inserted) != 1 {
+		t.Fatalf("ingest: count = %d, want 1 (intra-batch dedup)", len(inserted))
+	}
+}
 func TestEventStore_MarkRead(t *testing.T) {
 	sqlDB := setupTestDB(t)
 	store := NewEventStore(sqlDB)

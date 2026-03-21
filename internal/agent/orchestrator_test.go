@@ -124,23 +124,40 @@ func TestOrchestratorDecisionToIdle_Nil(t *testing.T) {
 }
 
 func TestOrchestratorState_HasActionableItems(t *testing.T) {
-	// Empty state.
-	s := &OrchestratorState{}
+	// Empty state with recent non-wait actions = nothing to do.
+	s := &OrchestratorState{
+		RecentActions: []ActivityEntry{
+			{Summary: "Spawned researcher: check test coverage"},
+			{Summary: "Approved memory mem_abc"},
+		},
+	}
 	if s.hasActionableItems() {
-		t.Error("empty state should not have actionable items")
+		t.Error("recently active state with no pending items should not be actionable")
 	}
 
-	// With proposed memories.
-	s.ProposedMemories = []proposedMemoryInfo{{ID: "m1"}}
-	if !s.hasActionableItems() {
-		t.Error("state with proposed memories should have actionable items")
-	}
-
-	// With pending approvals.
+	// With proposed memories = actionable.
 	s2 := &OrchestratorState{}
-	s2.PendingApprovals = []approvalInfo{{ID: "a1"}}
+	s2.ProposedMemories = []proposedMemoryInfo{{ID: "m1"}}
 	if !s2.hasActionableItems() {
-		t.Error("state with pending approvals should have actionable items")
+		t.Error("state with proposed memories should be actionable")
+	}
+
+	// No recent actions = proactive mode kicks in.
+	s3 := &OrchestratorState{}
+	if !s3.hasActionableItems() {
+		t.Error("empty state with no recent actions should be actionable (proactive)")
+	}
+
+	// Recent actions are mostly waits = proactive mode.
+	s4 := &OrchestratorState{
+		RecentActions: []ActivityEntry{
+			{Summary: "Waiting"},
+			{Summary: "Waiting"},
+			{Summary: "Spawned coder: fix CI"},
+		},
+	}
+	if !s4.hasActionableItems() {
+		t.Error("state with 2+ waits should trigger proactive mode")
 	}
 }
 

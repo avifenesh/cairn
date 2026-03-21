@@ -139,6 +139,13 @@ func (t *TelegramAdapter) Close() error {
 	return nil // long polling stops when context is cancelled
 }
 
+// Telegram limits: 4096 chars for sendMessage. MarkdownV2 escaping inflates
+// text, so we use a conservative limit for formatted messages.
+const (
+	telegramMaxPlain    = 4096
+	telegramMaxMarkdown = 3500 // conservative to account for escaping inflation
+)
+
 func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *OutgoingMessage) error {
 	// Send voice note if audio is present.
 	if len(msg.Audio) > 0 {
@@ -159,9 +166,6 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 		return nil
 	}
 
-	params := tu.Message(tu.ID(chatID), text).
-		WithParseMode(telego.ModeMarkdownV2)
-
 	// Build inline keyboard if there are actions.
 	var replyMarkup *telego.InlineKeyboardMarkup
 	if len(msg.Actions) > 0 {
@@ -177,28 +181,56 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 			rows = append(rows, row)
 		}
 		replyMarkup = &telego.InlineKeyboardMarkup{InlineKeyboard: rows}
-		params = params.WithReplyMarkup(replyMarkup)
 	}
 
-	if _, err := t.bot.SendMessage(ctx, params); err != nil {
-		// Fallback: try without markdown if parse fails, keep buttons.
-		t.logger.Warn("telegram: markdown send failed, retrying plain", "error", err)
-		plain := tu.Message(tu.ID(chatID), stripMarkdown(msg.Text))
-		if replyMarkup != nil {
-			plain = plain.WithReplyMarkup(replyMarkup)
+	// Split into chunks and send sequentially.
+	chunks := splitMessage(text, telegramMaxMarkdown)
+	return t.sendChunks(ctx, chatID, chunks, telego.ModeMarkdownV2, replyMarkup)
+}
+
+// sendChunks sends message chunks sequentially. Part headers are added when
+// there are multiple chunks. The inline keyboard is attached only to the last
+// chunk. If markdown send fails, retries the chunk as plain text.
+func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, chunks []string, parseMode string, keyboard *telego.InlineKeyboardMarkup) error {
+	total := len(chunks)
+	for i, chunk := range chunks {
+		if total > 1 {
+			chunk = fmt.Sprintf("─── Part %d/%d ───\n%s", i+1, total, chunk)
 		}
-		if _, err2 := t.bot.SendMessage(ctx, plain); err2 != nil {
-			t.logger.Error("telegram: send failed", "error", err2)
-			return err2
+
+		params := tu.Message(tu.ID(chatID), chunk)
+		if parseMode != "" {
+			params = params.WithParseMode(parseMode)
+		}
+
+		// Attach keyboard only to the last chunk.
+		if i == total-1 && keyboard != nil {
+			params = params.WithReplyMarkup(keyboard)
+		}
+
+		if _, err := t.bot.SendMessage(ctx, params); err != nil {
+			// Fallback: retry without markdown.
+			t.logger.Warn("telegram: markdown send failed, retrying plain", "error", err, "part", i+1)
+			plain := tu.Message(tu.ID(chatID), stripMarkdown(chunk))
+			if i == total-1 && keyboard != nil {
+				plain = plain.WithReplyMarkup(keyboard)
+			}
+			if _, err2 := t.bot.SendMessage(ctx, plain); err2 != nil {
+				t.logger.Error("telegram: send failed", "error", err2, "part", i+1)
+				return err2
+			}
 		}
 	}
 	return nil
 }
 
 func (t *TelegramAdapter) sendText(ctx context.Context, chatID int64, text string) {
-	params := tu.Message(tu.ID(chatID), text)
-	if _, err := t.bot.SendMessage(ctx, params); err != nil {
-		t.logger.Error("telegram: send text failed", "error", err)
+	chunks := splitMessage(text, telegramMaxPlain)
+	for _, chunk := range chunks {
+		params := tu.Message(tu.ID(chatID), chunk)
+		if _, err := t.bot.SendMessage(ctx, params); err != nil {
+			t.logger.Error("telegram: send text failed", "error", err)
+		}
 	}
 }
 

@@ -271,7 +271,7 @@ func buildDiscordComponents(actions []ActionGroup) []discordgo.MessageComponent 
 }
 
 // splitMessage splits text into chunks of at most maxLen characters,
-// preferring to split on newline boundaries.
+// preferring to split on newline boundaries, then space boundaries.
 func splitMessage(text string, maxLen int) []string {
 	if len(text) <= maxLen {
 		return []string{text}
@@ -284,9 +284,11 @@ func splitMessage(text string, maxLen int) []string {
 			break
 		}
 
-		// Find a good split point (last newline within limit).
+		// Find a good split point: prefer newline, then space, then hard cut.
 		cut := maxLen
 		if idx := strings.LastIndex(text[:maxLen], "\n"); idx > 0 {
+			cut = idx + 1
+		} else if idx := strings.LastIndex(text[:maxLen], " "); idx > 0 {
 			cut = idx + 1
 		}
 

@@ -149,6 +149,17 @@ type MCPConnectionChanged struct {
 	Error      string `json:"error,omitempty"`
 }
 
+// --- Session observability events ---
+
+// SessionEvent is emitted for every observable action in a coding session.
+// The frontend session panel subscribes to these to show real-time activity.
+type SessionEvent struct {
+	EventMeta
+	SessionID string `json:"sessionId"`
+	EventType string `json:"eventType"` // tool_call, tool_result, file_change, text_delta, thinking, state_change, round_complete, user_steer
+	Payload   any    `json:"payload"`
+}
+
 // --- System events ---
 
 // ShutdownInitiated is emitted when the system begins shutting down.

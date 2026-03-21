@@ -53,6 +53,10 @@ type InvocationContext struct {
 	// ActivityStore records tool execution stats (nil = no recording).
 	ActivityStore *ActivityStore
 
+	// SteeringCh receives steering messages from the user during execution.
+	// Checked between ReAct rounds. Nil = no steering support.
+	SteeringCh <-chan SteeringMessage
+
 	// Tool service adapters — passed through to ToolContext during execution.
 	ToolMemories tool.MemoryService
 	ToolEvents   tool.EventService
@@ -64,6 +68,12 @@ type InvocationContext struct {
 	ToolNotifier tool.NotifyService
 	ToolCrons    tool.CronService
 	ToolConfig   tool.ConfigService
+}
+
+// SteeringMessage represents a user intervention injected into an active session.
+type SteeringMessage struct {
+	Content  string `json:"content"`
+	Priority string `json:"priority"` // "normal", "urgent", "stop"
 }
 
 // AgentConfig holds per-invocation agent configuration.

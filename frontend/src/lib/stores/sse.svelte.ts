@@ -195,8 +195,9 @@ export const sseStore = {
 		// Digest
 		handle('digest_ready', source, () => appStore.addNotification('digest', 'New digest available'));
 
-		// Coding sessions
-		handle('coding_session_event', source, () => {});
+		// Coding sessions — session_event is broadcast by the main SSE for global visibility.
+		// The session panel uses its own dedicated SSE stream per session.
+		handle('session_event', source, () => {});
 
 		// Agent
 		handle('agent_progress', source, (d) => appStore.setAgentProgress(d.agentId, d.message));

@@ -301,3 +301,41 @@ export interface CronExecution {
 	error?: string;
 	createdAt: string;
 }
+
+// --- Coding Session Panel ---
+
+export type SessionEventType =
+	| 'text_delta'
+	| 'thinking'
+	| 'tool_call'
+	| 'tool_result'
+	| 'file_change'
+	| 'state_change'
+	| 'round_complete'
+	| 'approval_request'
+	| 'approval_response'
+	| 'user_steer'
+	| 'session_start'
+	| 'session_end';
+
+export interface SessionEvent {
+	sessionId: string;
+	eventType: SessionEventType;
+	payload: Record<string, unknown>;
+	timestamp: string;
+}
+
+export type SessionStatus = 'running' | 'paused' | 'waiting_approval' | 'completed' | 'failed' | 'stopped';
+
+export interface FileChange {
+	path: string;
+	operation: 'write' | 'delete' | 'rename';
+	diff?: string;
+}
+
+export interface SessionRoundInfo {
+	round: number;
+	toolCalls: number;
+	inputTokens: number;
+	outputTokens: number;
+}

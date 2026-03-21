@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
@@ -77,6 +78,9 @@ type Server struct {
 
 	// MCP client manager (optional: external MCP server connections).
 	mcpClients *cairnmcp.ClientManager
+
+	// steeringChannels tracks active session steering channels for the coding session panel.
+	steeringChannels sync.Map // sessionID -> chan agent.SteeringMessage
 
 	// Approval store (optional).
 	approvals *task.ApprovalStore

@@ -155,6 +155,19 @@ func (b *SSEBroadcaster) Start() {
 				"error":      e.Error,
 			})
 		}),
+		eventbus.Subscribe(b.bus, func(e eventbus.SessionEvent) {
+			// Only broadcast low-frequency session events globally to avoid
+			// flooding the main SSE stream. High-frequency text_delta/thinking
+			// events are available via /v1/sessions/{id}/stream.
+			switch e.EventType {
+			case "state_change", "tool_call", "tool_result", "file_change", "round_complete", "user_steer":
+				b.broadcast("session_event", e.ID, map[string]any{
+					"sessionId": e.SessionID,
+					"eventType": e.EventType,
+					"payload":   e.Payload,
+				})
+			}
+		}),
 	)
 
 	b.logger.Info("sse broadcaster started")

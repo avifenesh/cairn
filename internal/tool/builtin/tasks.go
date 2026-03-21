@@ -122,32 +122,40 @@ var listTasks = tool.Define("cairn.listTasks",
 
 // completeTaskParams are the parameters for cairn.completeTask.
 type completeTaskParams struct {
-	ID     string  `json:"id" desc:"Task ID to complete"`
+	ID     *string `json:"id" desc:"Task ID to complete (optional — auto-detected from current task context)"`
 	Output *string `json:"output,omitempty" desc:"Optional output or result message"`
 }
 
 var completeTask = tool.Define("cairn.completeTask",
-	"Mark a task as completed with an optional output message.",
+	"Mark a task as completed. In most cases you don't need to call this — the system auto-completes tasks when you finish responding. Only use for manually created tasks.",
 	[]tool.Mode{tool.ModeTalk, tool.ModeWork},
 	func(ctx *tool.ToolContext, p completeTaskParams) (*tool.ToolResult, error) {
 		if ctx.Tasks == nil {
 			return &tool.ToolResult{Error: "task service not available"}, nil
 		}
-		if p.ID == "" {
-			return &tool.ToolResult{Error: "id is required"}, nil
+
+		// Resolve task ID: explicit param > context task ID.
+		taskID := ""
+		if p.ID != nil && *p.ID != "" {
+			taskID = *p.ID
+		} else if ctx.TaskID != "" {
+			taskID = ctx.TaskID
+		}
+		if taskID == "" {
+			return &tool.ToolResult{Output: "No task to complete — tasks are auto-completed when you finish responding."}, nil
 		}
 
 		output := ""
 		if p.Output != nil {
 			output = *p.Output
 		}
-		if err := ctx.Tasks.Complete(ctx.Cancel, p.ID, output); err != nil {
+		if err := ctx.Tasks.Complete(ctx.Cancel, taskID, output); err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to complete task: %v", err)}, nil
 		}
 
 		return &tool.ToolResult{
-			Output:   fmt.Sprintf("Task %s marked as completed.", p.ID),
-			Metadata: map[string]any{"id": p.ID},
+			Output:   fmt.Sprintf("Task %s marked as completed.", taskID),
+			Metadata: map[string]any{"id": taskID},
 		}, nil
 	},
 )

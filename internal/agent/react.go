@@ -293,6 +293,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 		// 5. Execute tools.
 		toolCtx := &tool.ToolContext{
 			SessionID: invCtx.SessionID,
+			TaskID:    taskIDFromSession(invCtx),
 			AgentMode: mode,
 			WorkDir:   workDir(invCtx),
 			Bus:       invCtx.Bus,
@@ -463,6 +464,16 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 		Author:    a.name,
 		Parts:     []Part{TextPart{Text: "[max tool rounds reached]"}},
 	}})
+}
+
+// taskIDFromSession extracts the task ID from session state (set by the agent loop).
+func taskIDFromSession(ctx *InvocationContext) string {
+	if ctx.Session != nil && ctx.Session.State != nil {
+		if id, ok := ctx.Session.State["taskId"].(string); ok {
+			return id
+		}
+	}
+	return ""
 }
 
 // workDir returns the working directory for tool execution.

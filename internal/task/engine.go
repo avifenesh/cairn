@@ -189,6 +189,7 @@ func (e *Engine) MarkRunning(ctx context.Context, taskID string) {
 }
 
 // Complete marks a task as completed with the given output.
+// Idempotent: returns nil if the task is already completed.
 func (e *Engine) Complete(ctx context.Context, taskID string, output json.RawMessage) error {
 	t, err := e.store.Get(ctx, taskID)
 	if err != nil {
@@ -196,6 +197,10 @@ func (e *Engine) Complete(ctx context.Context, taskID string, output json.RawMes
 	}
 	if t == nil {
 		return fmt.Errorf("task engine: complete: task %s not found", taskID)
+	}
+	// Idempotent: already completed is not an error.
+	if t.Status == StatusCompleted {
+		return nil
 	}
 
 	t.Status = StatusCompleted

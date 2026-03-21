@@ -1538,12 +1538,12 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleCosts(w http.ResponseWriter, r *http.Request) {
 	// Match frontend CostData interface: todayUsd, weekUsd, budgetDailyUsd, budgetWeeklyUsd.
 	result := map[string]any{
-		"todayUsd":       0.0,
-		"weekUsd":        0.0,
-		"budgetDailyUsd": 0.0,
+		"todayUsd":        0.0,
+		"weekUsd":         0.0,
+		"budgetDailyUsd":  0.0,
 		"budgetWeeklyUsd": 0.0,
-		"totalCalls":     int64(0),
-		"blocked":        int64(0),
+		"totalCalls":      int64(0),
+		"blocked":         int64(0),
 	}
 	if s.plugins != nil {
 		for _, p := range s.plugins.Plugins() {

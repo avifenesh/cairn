@@ -267,4 +267,23 @@ func TestStore_Update(t *testing.T) {
 	if got.Enabled {
 		t.Error("expected disabled")
 	}
+
+	// Update cooldownMs.
+	newCooldown := int64(60000)
+	if err := store.Update(ctx, job.ID, nil, nil, nil, nil, nil, &newCooldown); err != nil {
+		t.Fatalf("update cooldown: %v", err)
+	}
+	got, _ = store.Get(ctx, job.ID)
+	if got.CooldownMs != 60000 {
+		t.Errorf("cooldownMs: got %d, want 60000", got.CooldownMs)
+	}
+
+	// Nil cooldownMs should leave it unchanged.
+	if err := store.Update(ctx, job.ID, nil, nil, nil, nil, nil, nil); err != nil {
+		t.Fatalf("update nil cooldown: %v", err)
+	}
+	got, _ = store.Get(ctx, job.ID)
+	if got.CooldownMs != 60000 {
+		t.Errorf("cooldownMs after nil update: got %d, want 60000", got.CooldownMs)
+	}
 }

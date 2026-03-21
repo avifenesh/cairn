@@ -242,7 +242,7 @@
 				return;
 			}
 			// Browse returned empty — seed with featured search results across diverse categories.
-			const picks = FEATURED_QUERIES.sort(() => Math.random() - 0.5).slice(0, 6);
+			const picks = [...FEATURED_QUERIES].sort(() => Math.random() - 0.5).slice(0, 6);
 			const batched = await Promise.allSettled(picks.map(q => searchMarketplace(q, 5)));
 			const seeded: MarketplaceSkill[] = [];
 			const seen = new Set<string>();

@@ -2,8 +2,10 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -430,11 +432,28 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 				recordCancel()
 			}
 
-			// Emit tool result.
-			publishSessionEvent(invCtx, "tool_result", map[string]any{
+			// Emit tool result with truncated output for observability.
+			resultPayload := map[string]any{
 				"toolId": tc.ID, "toolName": tc.Name, "isError": status == ToolFailed,
 				"durationMs": duration.Milliseconds(), "round": round,
-			})
+			}
+			if errStr != "" {
+				resultPayload["error"] = errStr
+			}
+			if output != "" {
+				// Rune-safe truncation for the SSE stream.
+				out := output
+				if len(out) > 2000 {
+					out = string([]rune(out)[:500]) + "\n... (truncated)"
+				}
+				resultPayload["output"] = out
+			}
+			publishSessionEvent(invCtx, "tool_result", resultPayload)
+
+			// Emit file_change for file-modifying tools.
+			if status != ToolFailed {
+				emitFileChangeIfNeeded(invCtx, tc.Name, tc.Input, output)
+			}
 			roundToolCalls++
 			emit(invCtx.Context, ch, RunEvent{Event: &Event{
 				ID:        newID(),
@@ -540,6 +559,54 @@ func emit(ctx context.Context, ch chan<- RunEvent, ev RunEvent) {
 	case ch <- ev:
 	case <-ctx.Done():
 	}
+}
+
+// fileModifyingTools maps tool names to how we extract the file path from their input.
+var fileModifyingTools = map[string]string{
+	"cairn.writeFile": "path",
+	"cairn.editFile":  "path",
+}
+
+// emitFileChangeIfNeeded checks if the tool modifies files and emits a file_change SessionEvent.
+func emitFileChangeIfNeeded(invCtx *InvocationContext, toolName string, input json.RawMessage, output string) {
+	pathKey, ok := fileModifyingTools[toolName]
+	if !ok {
+		return
+	}
+	var inp map[string]any
+	if err := json.Unmarshal(input, &inp); err != nil {
+		return
+	}
+	filePath, _ := inp[pathKey].(string)
+	if filePath == "" {
+		return
+	}
+
+	op := "write"
+	diff := ""
+	wd := workDir(invCtx)
+	ctx := invCtx.Context
+
+	// Try tracked file diff first, then untracked (new files).
+	if out, err := exec.CommandContext(ctx, "git", "-C", wd, "diff", "--", filePath).Output(); err == nil && len(out) > 0 {
+		diff = string(out)
+	} else if out, err := exec.CommandContext(ctx, "git", "-C", wd, "diff", "--no-index", "/dev/null", filePath).CombinedOutput(); err != nil && len(out) > 0 {
+		// --no-index exits non-zero when files differ, but still produces diff output.
+		diff = string(out)
+	}
+
+	// Rune-safe truncation.
+	if len(diff) > 10000 {
+		runes := []rune(diff)
+		if len(runes) > 3000 {
+			runes = runes[:3000]
+		}
+		diff = string(runes) + "\n... (truncated)"
+	}
+
+	publishSessionEvent(invCtx, "file_change", map[string]any{
+		"path": filePath, "operation": op, "diff": diff,
+	})
 }
 
 // publishSessionEvent emits a SessionEvent on the bus for real-time observability.

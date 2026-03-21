@@ -13,16 +13,40 @@
 	let autoScroll = $state(true);
 	let userScrolled = $state(false);
 
-	// Filter out live streaming deltas (shown as aggregated streaming text below).
-	// Hydrated text_delta events (from history) have payload.author set and are
-	// full messages, so they should be displayed as event cards.
-	const displayEvents = $derived(
-		events.filter((e) => {
-			if (e.eventType === 'thinking') return false;
-			if (e.eventType === 'text_delta' && !e.payload.author) return false;
-			return true;
-		})
-	);
+	// Filter and aggregate events for display.
+	// - Live text_delta (no author): filtered out (shown as streaming text below)
+	// - Hydrated text_delta (has author): shown as message cards
+	// - Consecutive thinking events: merged into single thinking blocks
+	const displayEvents = $derived.by(() => {
+		const result: SessionEvent[] = [];
+		let pendingThinking = '';
+		let thinkingTimestamp = '';
+
+		const flushThinking = () => {
+			if (pendingThinking) {
+				result.push({
+					sessionId: events[0]?.sessionId ?? '', eventType: 'thinking',
+					payload: { text: pendingThinking },
+					timestamp: thinkingTimestamp,
+				});
+				pendingThinking = '';
+				thinkingTimestamp = '';
+			}
+		};
+
+		for (const e of events) {
+			if (e.eventType === 'text_delta' && !e.payload.author) continue;
+			if (e.eventType === 'thinking') {
+				if (!thinkingTimestamp) thinkingTimestamp = e.timestamp;
+				pendingThinking += (e.payload.text as string) ?? '';
+				continue;
+			}
+			flushThinking();
+			result.push(e);
+		}
+		flushThinking();
+		return result;
+	});
 
 	// Track which tool calls have completed (have a matching tool_result).
 	const completedToolIds = $derived(

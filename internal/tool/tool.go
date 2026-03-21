@@ -173,7 +173,7 @@ type NotifyService interface {
 
 // CronService manages scheduled recurring tasks.
 type CronService interface {
-	Create(ctx context.Context, name, schedule, instruction string, priority int, cooldownMs int64) (string, error)
+	Create(ctx context.Context, name, schedule, instruction string, priority int, cooldownMs *int64) (string, error)
 	List(ctx context.Context) ([]CronJobInfo, error)
 	Delete(ctx context.Context, idOrName string) error
 }

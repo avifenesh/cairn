@@ -662,7 +662,10 @@ func runServe(logger *slog.Logger) {
 			}
 
 			// Transcribe voice message before NL parsing so spoken "yes"/"approve" works.
-			if len(msg.Audio) > 0 && voiceSvc != nil {
+			if len(msg.Audio) > 0 {
+				if voiceSvc == nil {
+					return &cairnchannel.OutgoingMessage{Text: "Voice messages are not enabled. Please type your message."}, nil
+				}
 				transcribed, tErr := voiceSvc.Transcribe(ctx, msg.Audio, msg.AudioFilename)
 				if tErr != nil {
 					logger.Warn("channel: voice transcription failed", "error", tErr)
@@ -672,9 +675,6 @@ func runServe(logger *slog.Logger) {
 					msg.Text = transcribed
 					logger.Info("channel: voice transcribed", "text", transcribed[:min(len(transcribed), 80)])
 				}
-			}
-			if len(msg.Audio) > 0 && voiceSvc == nil {
-				return &cairnchannel.OutgoingMessage{Text: "Voice messages are not enabled. Please type your message."}, nil
 			}
 
 			// Handle button callbacks and natural language approval intents.

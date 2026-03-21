@@ -2036,9 +2036,9 @@ func (s *Server) handleCreateCron(w http.ResponseWriter, r *http.Request) {
 	if tz == "" {
 		tz = "UTC"
 	}
-	var cooldown int64 = 3600000
+	var cooldown int64 = 300000 // 5 minutes default
 	if req.CooldownMs != nil {
-		cooldown = *req.CooldownMs
+		cooldown = *req.CooldownMs // 0 = no cooldown
 	}
 
 	job := &cron.CronJob{

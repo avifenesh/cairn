@@ -43,12 +43,7 @@ var createCron = tool.Define("cairn.createCron",
 			priority = *p.Priority
 		}
 
-		var cooldownMs int64
-		if p.CooldownMs != nil {
-			cooldownMs = *p.CooldownMs
-		}
-
-		id, err := ctx.Crons.Create(ctx.Cancel, p.Name, p.Schedule, p.Instruction, priority, cooldownMs)
+		id, err := ctx.Crons.Create(ctx.Cancel, p.Name, p.Schedule, p.Instruction, priority, p.CooldownMs)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to create cron job: %v", err)}, nil
 		}

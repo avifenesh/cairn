@@ -1,5 +1,7 @@
 # Agent Hardening -- Cairn Defense Inventory & Gap Analysis
 
+> **Note:** This analysis was written against the original TypeScript/Node.js codebase. Cairn has since been rewritten in Go. File paths, validation frameworks (Zod → Go struct tags), and specific function names may be outdated. The security patterns and gap categories remain relevant.
+
 Companion reference for the `agent-hardening` skill. Documents Cairn's existing security layers, identifies gaps, and recommends remediations.
 
 ## Cairn's Current Defense Inventory

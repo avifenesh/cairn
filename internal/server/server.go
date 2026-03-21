@@ -61,6 +61,9 @@ type Server struct {
 	toolCrons    tool.CronService
 	toolConfig   tool.ConfigService
 
+	// Subagent runner (optional: enables cairn.spawnSubagent tool).
+	subagentRunner tool.SubagentService
+
 	// Voice service (optional).
 	voice *voice.Service
 
@@ -131,6 +134,9 @@ type ServerConfig struct {
 	ToolCrons    tool.CronService
 	ToolConfig   tool.ConfigService
 
+	// Subagent runner (optional: enables cairn.spawnSubagent tool).
+	SubagentRunner tool.SubagentService
+
 	// Voice service (optional: STT/TTS).
 	Voice *voice.Service
 
@@ -195,6 +201,7 @@ func New(cfg ServerConfig) *Server {
 		toolNotifier:   cfg.ToolNotifier,
 		toolCrons:      cfg.ToolCrons,
 		toolConfig:     cfg.ToolConfig,
+		subagentRunner: cfg.SubagentRunner,
 		voice:          cfg.Voice,
 		cronStore:      cfg.CronStore,
 		activityStore:  cfg.ActivityStore,

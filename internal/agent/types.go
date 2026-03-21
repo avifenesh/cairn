@@ -57,6 +57,9 @@ type InvocationContext struct {
 	// Checked between ReAct rounds. Nil = no steering support.
 	SteeringCh <-chan SteeringMessage
 
+	// Subagents spawns child agents. Nil = spawning not available (e.g., inside a child agent).
+	Subagents tool.SubagentService
+
 	// Tool service adapters — passed through to ToolContext during execution.
 	ToolMemories tool.MemoryService
 	ToolEvents   tool.EventService

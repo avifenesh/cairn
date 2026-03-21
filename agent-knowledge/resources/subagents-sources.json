@@ -1,0 +1,214 @@
+{
+  "topic": "subagents",
+  "slug": "subagents",
+  "generated": "2026-03-21T09:45:00.000Z",
+  "depth": "deep",
+  "totalSources": 22,
+  "sources": [
+    {
+      "url": "https://docs.langchain.com/oss/python/langchain/multi-agent/subagents",
+      "title": "LangChain Subagents Documentation",
+      "qualityScore": 95,
+      "scores": {"authority": 10, "recency": 9, "depth": 10, "examples": 9, "uniqueness": 8},
+      "keyInsights": [
+        "Supervisor pattern maintains conversation context across turns; router is stateless dispatch",
+        "Subagents are stateless - all memory maintained by main agent",
+        "Three-tool async pattern: start job, check status, get result",
+        "Context engineering levers: subagent specs, inputs, and outputs"
+      ]
+    },
+    {
+      "url": "https://www.anthropic.com/engineering/multi-agent-research-system",
+      "title": "How we built our multi-agent research system - Anthropic",
+      "qualityScore": 98,
+      "scores": {"authority": 10, "recency": 9, "depth": 10, "examples": 8, "uniqueness": 10},
+      "keyInsights": [
+        "Lead agent decomposes queries and spawns 10+ subagents for complex research",
+        "15x more tokens than chat, but 90.2% improvement on research tasks",
+        "Save research plans to external memory before context limits",
+        "3-5 subagents spawn simultaneously, each using 3+ parallel tool calls"
+      ]
+    },
+    {
+      "url": "https://code.claude.com/docs/en/sub-agents",
+      "title": "Create custom subagents - Claude Code Docs",
+      "qualityScore": 97,
+      "scores": {"authority": 10, "recency": 10, "depth": 10, "examples": 10, "uniqueness": 9},
+      "keyInsights": [
+        "Subagents defined as Markdown files with YAML frontmatter",
+        "Three scopes: project (.claude/agents/), user (~/.claude/agents/), plugin",
+        "Subagents cannot spawn other subagents",
+        "Background subagents auto-deny unpre-approved permissions",
+        "Persistent memory with user/project/local scope",
+        "Worktree isolation option for code-modifying subagents"
+      ]
+    },
+    {
+      "url": "https://ai-sdk.dev/docs/agents/subagents",
+      "title": "Vercel AI SDK Subagents",
+      "qualityScore": 92,
+      "scores": {"authority": 9, "recency": 9, "depth": 9, "examples": 10, "uniqueness": 9},
+      "keyInsights": [
+        "Async generator pattern for streaming subagent progress to UI",
+        "toModelOutput decouples user-visible output from model context",
+        "Tool part states: input-streaming, input-available, output-available, output-error",
+        "Subagent tools cannot use needsApproval"
+      ]
+    },
+    {
+      "url": "https://openai.github.io/openai-agents-python/handoffs/",
+      "title": "Handoffs - OpenAI Agents SDK",
+      "qualityScore": 90,
+      "scores": {"authority": 10, "recency": 8, "depth": 9, "examples": 9, "uniqueness": 8},
+      "keyInsights": [
+        "Handoffs represented as tools (transfer_to_agent_name)",
+        "Input types allow structured delegation metadata (reason, priority)",
+        "Input filters transform conversation history before receiving agent sees it",
+        "Bidirectional handoffs enable circular agent flows"
+      ]
+    },
+    {
+      "url": "https://dev.to/openwalrus/how-agents-call-agents-1f48",
+      "title": "How agents call agents - DEV Community",
+      "qualityScore": 88,
+      "scores": {"authority": 7, "recency": 10, "depth": 9, "examples": 7, "uniqueness": 10},
+      "keyInsights": [
+        "Three communication directions: downward (universal), upward (divergent), lateral (rare)",
+        "Two-level hierarchies outperform flat and deeper architectures",
+        "41-87% production failure rates in multi-agent systems",
+        "Dynamic team formation outperforms static crew definitions"
+      ]
+    },
+    {
+      "url": "https://www.ibm.com/think/topics/agent2agent-protocol",
+      "title": "What is A2A protocol - IBM",
+      "qualityScore": 87,
+      "scores": {"authority": 9, "recency": 8, "depth": 8, "examples": 6, "uniqueness": 9},
+      "keyInsights": [
+        "A2A uses Agent Cards for discovery, HTTPS + JSON-RPC 2.0 for transport",
+        "Tasks have lifecycle states: submitted, working, input-required, completed, failed",
+        "SSE streaming for real-time progress updates",
+        "A2A complements MCP: MCP for tools, A2A for agent-to-agent"
+      ]
+    },
+    {
+      "url": "https://o-mega.ai/articles/langgraph-vs-crewai-vs-autogen-top-10-agent-frameworks-2026",
+      "title": "Top 10 Agent Frameworks 2026",
+      "qualityScore": 85,
+      "scores": {"authority": 7, "recency": 10, "depth": 8, "examples": 6, "uniqueness": 8},
+      "keyInsights": [
+        "LangGraph uses DAGs, CrewAI uses role-based delegation, AutoGen uses conversational loops",
+        "CrewAI introduced Agent Operations Platform for visual workflow design",
+        "AutoGen supports recursive group chats with unlimited nesting",
+        "Hybrid approaches combining frameworks outperform pure approaches"
+      ]
+    },
+    {
+      "url": "https://www.mavennet.com/blog/understanding-multi-ai-agent-patterns",
+      "title": "Understanding Multi-AI Agent Patterns",
+      "qualityScore": 82,
+      "scores": {"authority": 7, "recency": 8, "depth": 8, "examples": 6, "uniqueness": 7},
+      "keyInsights": [
+        "ReAct pattern for adaptive workflows, SPA pattern for safety-critical ops",
+        "State synchronization failures when agent handoffs misalign",
+        "Explicit task contracts and typed interfaces essential for reliability"
+      ]
+    },
+    {
+      "url": "https://claudefa.st/blog/guide/agents/sub-agent-best-practices",
+      "title": "Claude Code Sub-Agent Parallel vs Sequential Patterns",
+      "qualityScore": 84,
+      "scores": {"authority": 6, "recency": 9, "depth": 8, "examples": 8, "uniqueness": 7},
+      "keyInsights": [
+        "Three execution patterns: parallel (3+ independent), sequential (dependent), background (non-blocking)",
+        "CLAUDE_CODE_SUBAGENT_MODEL env var controls sub-agent model",
+        "Most sub-agent failures stem from poor invocation, not execution",
+        "Include specific scope, file references, and success criteria in spawn"
+      ]
+    },
+    {
+      "url": "https://medium.com/@akankshasinha247/agent-orchestration-when-to-use-langchain-langgraph-autogen",
+      "title": "Agent Orchestration: When to Use Which Framework",
+      "qualityScore": 78,
+      "scores": {"authority": 6, "recency": 8, "depth": 7, "examples": 6, "uniqueness": 7},
+      "keyInsights": ["Evolution from chains (2023) to agentic RAG (2024) to multi-agent orchestration (2025)"]
+    },
+    {
+      "url": "https://medium.com/@adnanmasood/the-agentic-imperative-series-part-2-crew-dd4b016a0254",
+      "title": "Agentic Imperative: Crew AI & Semantic Kernel",
+      "qualityScore": 76,
+      "scores": {"authority": 7, "recency": 8, "depth": 7, "examples": 6, "uniqueness": 6},
+      "keyInsights": ["CrewAI hierarchical mode spawns a special manager agent"]
+    },
+    {
+      "url": "https://www.tribe.ai/applied-ai/microsoft-autogen-orchestrating-multi-agent-llm-systems",
+      "title": "Microsoft AutoGen: Orchestrating Multi-Agent LLM Systems",
+      "qualityScore": 80,
+      "scores": {"authority": 8, "recency": 7, "depth": 8, "examples": 7, "uniqueness": 6},
+      "keyInsights": ["AutoGen uses assistant-user agent pairs for collaborative task completion"]
+    },
+    {
+      "url": "https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/",
+      "title": "Announcing the Agent2Agent Protocol - Google",
+      "qualityScore": 90,
+      "scores": {"authority": 10, "recency": 8, "depth": 7, "examples": 6, "uniqueness": 9},
+      "keyInsights": ["A2A enables any-to-any agent communication across frameworks"]
+    },
+    {
+      "url": "https://github.com/a2aproject/A2A",
+      "title": "A2A Protocol GitHub Repository",
+      "qualityScore": 85,
+      "scores": {"authority": 9, "recency": 8, "depth": 7, "examples": 8, "uniqueness": 7},
+      "keyInsights": ["Open protocol spec with reference implementations"]
+    },
+    {
+      "url": "https://www.reddit.com/r/LangChain/comments/1onoufx/building_a_langchainlanggraph_multiagent/",
+      "title": "Building a LangGraph multi-agent orchestrator - Reddit",
+      "qualityScore": 72,
+      "scores": {"authority": 5, "recency": 8, "depth": 7, "examples": 5, "uniqueness": 8},
+      "keyInsights": ["User never talks directly to sub-agents; only through orchestrator"]
+    },
+    {
+      "url": "https://www.facebook.com/groups/openclawusers/posts/691588757336734/",
+      "title": "OpenClaw: Difference between agents and sub-agents",
+      "qualityScore": 70,
+      "scores": {"authority": 5, "recency": 8, "depth": 6, "examples": 5, "uniqueness": 8},
+      "keyInsights": ["Sub-agents get agents.md and tools.md, not full context; go away when session ends"]
+    },
+    {
+      "url": "https://anthropic.skilljar.com/introduction-to-subagents",
+      "title": "Introduction to subagents - Anthropic Skilljar",
+      "qualityScore": 82,
+      "scores": {"authority": 9, "recency": 8, "depth": 7, "examples": 7, "uniqueness": 6},
+      "keyInsights": ["Structured output formats, obstacle reporting, and limiting tool access for reliability"]
+    },
+    {
+      "url": "https://github.com/anthropics/claude-code/issues/5528",
+      "title": "Sub-agent delegation pattern issues - Claude Code GitHub",
+      "qualityScore": 75,
+      "scores": {"authority": 8, "recency": 7, "depth": 7, "examples": 6, "uniqueness": 8},
+      "keyInsights": ["Sub-agents cannot call other sub-agents despite config claims - known limitation"]
+    },
+    {
+      "url": "https://www.infoworld.com/article/4110010/generative-ui-the-ai-agent-is-the-front-end.html",
+      "title": "Generative UI: The AI agent is the front end",
+      "qualityScore": 78,
+      "scores": {"authority": 7, "recency": 9, "depth": 7, "examples": 6, "uniqueness": 9},
+      "keyInsights": ["Agents paint interactive UI components on demand instead of pre-built interfaces"]
+    },
+    {
+      "url": "https://medium.com/@mcraddock/building-claudeclaw-an-openclaw-style-autonomous-agent-system-on-claude-code-fe0d7814ac2e",
+      "title": "Building ClaudeClaw: OpenClaw-Style Agent System",
+      "qualityScore": 76,
+      "scores": {"authority": 6, "recency": 8, "depth": 7, "examples": 7, "uniqueness": 7},
+      "keyInsights": ["Each subagent gets its own context window, tool set, spawned via Agent/Task tool"]
+    },
+    {
+      "url": "https://codesignal.com/learn/courses/coordinating-openai-agents-workflows-in-python/lessons/delegating-tasks-between-agents-using-handoffs-and-prompting-strategies",
+      "title": "Delegating Tasks Between Agents Using Handoffs - CodeSignal",
+      "qualityScore": 74,
+      "scores": {"authority": 6, "recency": 8, "depth": 7, "examples": 8, "uniqueness": 5},
+      "keyInsights": ["Handoff is a transfer of responsibility from one agent to another"]
+    }
+  ]
+}

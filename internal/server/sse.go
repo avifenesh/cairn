@@ -168,6 +168,35 @@ func (b *SSEBroadcaster) Start() {
 				})
 			}
 		}),
+		// Subagent lifecycle events.
+		eventbus.Subscribe(b.bus, func(e eventbus.SubagentStarted) {
+			b.broadcast("subagent_started", e.ID, map[string]any{
+				"parentTaskId": e.ParentTaskID,
+				"subagentId":   e.SubagentID,
+				"agentType":    e.AgentType,
+				"execMode":     e.ExecMode,
+				"instruction":  e.Instruction,
+			})
+		}),
+		eventbus.Subscribe(b.bus, func(e eventbus.SubagentProgress) {
+			b.broadcast("subagent_progress", e.ID, map[string]any{
+				"subagentId": e.SubagentID,
+				"round":      e.Round,
+				"maxRounds":  e.MaxRounds,
+				"toolName":   e.ToolName,
+			})
+		}),
+		eventbus.Subscribe(b.bus, func(e eventbus.SubagentCompleted) {
+			b.broadcast("subagent_completed", e.ID, map[string]any{
+				"subagentId": e.SubagentID,
+				"status":     e.Status,
+				"summary":    e.Summary,
+				"error":      e.Error,
+				"durationMs": e.DurationMs,
+				"toolCalls":  e.ToolCalls,
+				"rounds":     e.Rounds,
+			})
+		}),
 	)
 
 	b.logger.Info("sse broadcaster started")

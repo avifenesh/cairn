@@ -59,6 +59,8 @@ func All() []tool.Tool {
 		searchSkillsMarketplace,
 		skillInfoMarketplace,
 		installSkillMarketplace,
+		// Subagent tool.
+		spawnSubagent,
 	}
 
 	// Web tools: Z.ai (GLM) or SearXNG/direct.

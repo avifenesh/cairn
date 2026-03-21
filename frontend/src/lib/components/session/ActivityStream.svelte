@@ -25,11 +25,12 @@
 		const flushThinking = () => {
 			if (pendingThinking) {
 				result.push({
-					sessionId: '', eventType: 'thinking',
+					sessionId: events[0]?.sessionId ?? '', eventType: 'thinking',
 					payload: { text: pendingThinking },
 					timestamp: thinkingTimestamp,
 				});
 				pendingThinking = '';
+				thinkingTimestamp = '';
 			}
 		};
 

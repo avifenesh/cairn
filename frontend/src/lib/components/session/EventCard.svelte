@@ -49,10 +49,6 @@
 		try { return JSON.stringify(val, null, 2); } catch { return String(val); }
 	}
 
-	function escapeHtml(s: string): string {
-		return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-	}
-
 	const summary = $derived(toolInputSummary(p.toolName, p.input));
 	const fullInput = $derived(formatJSON(p.input));
 	const outputText = $derived(String(p.output ?? p.error ?? ''));

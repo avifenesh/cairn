@@ -441,12 +441,12 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 				resultPayload["error"] = errStr
 			}
 			if output != "" {
-				// Truncate output for the SSE stream (full output stays in session events).
-				if len(output) > 2000 {
-					resultPayload["output"] = output[:2000] + "\n... (truncated)"
-				} else {
-					resultPayload["output"] = output
+				// Rune-safe truncation for the SSE stream.
+				out := output
+				if len(out) > 2000 {
+					out = string([]rune(out)[:500]) + "\n... (truncated)"
 				}
+				resultPayload["output"] = out
 			}
 			publishSessionEvent(invCtx, "tool_result", resultPayload)
 
@@ -583,17 +583,25 @@ func emitFileChangeIfNeeded(invCtx *InvocationContext, toolName string, input js
 	}
 
 	op := "write"
-	// Try to get a diff from git in the workDir.
 	diff := ""
 	wd := workDir(invCtx)
-	if wd != "" && wd != "." {
-		out, err := exec.CommandContext(invCtx.Context, "git", "-C", wd, "diff", "--", filePath).Output()
-		if err == nil && len(out) > 0 {
-			diff = string(out)
-			if len(diff) > 10000 {
-				diff = diff[:10000] + "\n... (truncated)"
-			}
+	ctx := invCtx.Context
+
+	// Try tracked file diff first, then untracked (new files).
+	if out, err := exec.CommandContext(ctx, "git", "-C", wd, "diff", "--", filePath).Output(); err == nil && len(out) > 0 {
+		diff = string(out)
+	} else if out, err := exec.CommandContext(ctx, "git", "-C", wd, "diff", "--no-index", "/dev/null", filePath).CombinedOutput(); err != nil && len(out) > 0 {
+		// --no-index exits non-zero when files differ, but still produces diff output.
+		diff = string(out)
+	}
+
+	// Rune-safe truncation.
+	if len(diff) > 10000 {
+		runes := []rune(diff)
+		if len(runes) > 3000 {
+			runes = runes[:3000]
 		}
+		diff = string(runes) + "\n... (truncated)"
 	}
 
 	publishSessionEvent(invCtx, "file_change", map[string]any{

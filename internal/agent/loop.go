@@ -97,19 +97,19 @@ func (c LoopConfig) maxRoundsForMode(mode tool.Mode) int {
 		if c.TalkMaxRounds > 0 {
 			return c.TalkMaxRounds
 		}
-		return 20
+		return 40
 	case tool.ModeWork:
 		if c.WorkMaxRounds > 0 {
 			return c.WorkMaxRounds
 		}
-		return 40
+		return 80
 	case tool.ModeCoding:
 		if c.CodingMaxRounds > 0 {
 			return c.CodingMaxRounds
 		}
-		return 200
+		return 400
 	default:
-		return 20
+		return 40
 	}
 }
 

@@ -236,19 +236,22 @@ func (r *ReflectionEngine) gatherRecentChanges() string {
 		return ""
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	var b strings.Builder
 
 	// Recent commits on main (last 48h).
-	cmd := exec.Command("git", "log", "--oneline", "--since=48 hours ago", "--no-merges", "-20")
+	cmd := exec.CommandContext(ctx, "git", "log", "main", "--oneline", "--since=48 hours ago", "--no-merges", "-20")
 	cmd.Dir = r.repoDir
 	if out, err := cmd.Output(); err == nil && len(out) > 0 {
-		b.WriteString("Recent commits (last 48h):\n")
+		b.WriteString("Recent commits on main (last 48h):\n")
 		b.Write(out)
 		b.WriteString("\n")
 	}
 
-	// Recently merged PRs (last 48h) — these are the key ground truth.
-	cmd = exec.Command("git", "log", "--oneline", "--merges", "--since=48 hours ago", "-20",
+	// Recently merged PRs on main (last 48h) — key ground truth.
+	cmd = exec.CommandContext(ctx, "git", "log", "main", "--merges", "--since=48 hours ago", "-20",
 		"--format=%s") // subject line only (includes PR title)
 	cmd.Dir = r.repoDir
 	if out, err := cmd.Output(); err == nil && len(out) > 0 {

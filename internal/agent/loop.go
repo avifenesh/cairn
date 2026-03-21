@@ -627,7 +627,6 @@ func (l *Loop) runReflection(ctx context.Context) {
 			eventbus.Publish(l.bus, eventbus.SoulPatchProposed{
 				EventMeta: eventbus.NewMeta("reflection"),
 				PatchID:   patch.ID,
-				Content:   patch.Content,
 			})
 		}
 		if l.notifier != nil {

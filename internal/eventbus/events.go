@@ -132,7 +132,6 @@ type MemoryProposed struct {
 type SoulPatchProposed struct {
 	EventMeta
 	PatchID string `json:"patchId"`
-	Content string `json:"content"`
 }
 
 // MemoryAccepted is emitted when a proposed memory is accepted.

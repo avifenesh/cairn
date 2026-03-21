@@ -8,7 +8,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Save, History, Eye, Edit3, GitCommit, Check, X, AlertTriangle, Plus, Minus, Loader2 } from '@lucide/svelte';
+	import { Save, History, Eye, Edit3, GitCommit, Check, X, AlertTriangle, Loader2 } from '@lucide/svelte';
 
 	let content = $state('');
 	let sha = $state<string | null>(null);
@@ -113,7 +113,6 @@
 		const result: { type: 'same' | 'add' | 'remove'; text: string; lineNo: number }[] = [];
 		const maxOld = oldLines.length;
 		const maxNew = newLines.length;
-		const maxLen = Math.max(maxOld, maxNew);
 		// Simple diff: show matching prefix, then additions at the end.
 		let i = 0;
 		while (i < maxOld && i < maxNew && oldLines[i] === newLines[i]) {

@@ -60,12 +60,16 @@ func (s *Soul) Load() error {
 
 	// Restore pending patch from disk.
 	if patchData, err := os.ReadFile(s.patchFilePath()); err == nil {
-		var patch PendingSoulPatch
-		if json.Unmarshal(patchData, &patch) == nil {
-			// Rebase preview against current content (may have changed since proposal).
-			patch.Preview = s.content + "\n" + patch.Content
-			s.pending = &patch
-			slog.Info("soul: restored pending patch from disk", "id", patch.ID)
+		var pp persistablePatch
+		if json.Unmarshal(patchData, &pp) == nil && pp.ID != "" {
+			s.pending = &PendingSoulPatch{
+				ID:        pp.ID,
+				Content:   pp.Content,
+				Source:    pp.Source,
+				CreatedAt: pp.CreatedAt,
+				Preview:   s.content + "\n" + pp.Content,
+			}
+			slog.Info("soul: restored pending patch from disk", "id", pp.ID)
 		}
 	}
 	s.mu.Unlock()
@@ -74,21 +78,41 @@ func (s *Soul) Load() error {
 	return nil
 }
 
+// persistablePatch is the on-disk representation (excludes Preview to save space).
+type persistablePatch struct {
+	ID        string    `json:"id"`
+	Content   string    `json:"content"`
+	Source    string    `json:"source"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
 // persistPatch writes the pending patch to disk (or removes the file if nil).
-// Must be called with s.mu held.
+// Uses write-rename for atomic writes. Must be called with s.mu held.
 func (s *Soul) persistPatch() {
 	path := s.patchFilePath()
 	if s.pending == nil {
 		os.Remove(path)
 		return
 	}
-	data, err := json.Marshal(s.pending)
+	p := persistablePatch{
+		ID:        s.pending.ID,
+		Content:   s.pending.Content,
+		Source:    s.pending.Source,
+		CreatedAt: s.pending.CreatedAt,
+	}
+	data, err := json.Marshal(p)
 	if err != nil {
 		slog.Warn("soul: failed to persist patch", "error", err)
 		return
 	}
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
 		slog.Warn("soul: failed to write patch file", "error", err)
+		return
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		slog.Warn("soul: failed to rename patch file", "error", err)
+		os.Remove(tmp)
 	}
 }
 

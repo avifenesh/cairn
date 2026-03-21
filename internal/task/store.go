@@ -291,6 +291,30 @@ func (s *Store) FindExpiredLeases(ctx context.Context) ([]*Task, error) {
 	return tasks, rows.Err()
 }
 
+// FindInFlight returns all tasks in running or claimed status, regardless of
+// lease expiry. Used by startup recovery to catch tasks whose goroutines died.
+func (s *Store) FindInFlight(ctx context.Context) ([]*Task, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, type, status, description, input, output, error, priority,
+			created_at, started_at, completed_at, lease_owner, lease_expires_at, metadata
+		FROM tasks
+		WHERE status IN ('claimed', 'running')`)
+	if err != nil {
+		return nil, fmt.Errorf("task store: find in-flight: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []*Task
+	for rows.Next() {
+		t, err := scanTaskRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, t)
+	}
+	return tasks, rows.Err()
+}
+
 // scannable is an interface satisfied by both *sql.Row and *sql.Rows.
 type scannable interface {
 	Scan(dest ...any) error

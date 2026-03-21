@@ -347,6 +347,74 @@ func (e *Engine) reap() {
 	}
 }
 
+// RecoverStuck finds all in-flight tasks (running/claimed) and processes them
+// through Fail(). Tasks with retries remaining are re-queued; exhausted tasks
+// are marked failed with events published. Chat tasks are always failed (no
+// retry) because the user's HTTP connection is gone after restart. Coding
+// tasks get their orphaned worktrees cleaned up before re-queue.
+// Called once at startup.
+func (e *Engine) RecoverStuck(ctx context.Context, reason string) (requeued, failed []string) {
+	inflight, err := e.store.FindInFlight(ctx)
+	if err != nil {
+		slog.Error("recovery: find in-flight tasks", "err", err)
+		return nil, nil
+	}
+
+	for _, t := range inflight {
+		// Chat tasks are tied to HTTP connections - never retry after restart.
+		// Set retries to MaxRetries-1 so Fail() increments to exactly MaxRetries
+		// (avoids retries > MaxRetries in persisted metadata).
+		if t.Type == TypeChat {
+			target := t.MaxRetries
+			if target > 0 {
+				target--
+			}
+			t.Retries = target
+			if err := e.store.Update(ctx, t); err != nil {
+				// Update failed - can't guarantee Fail() will see exhausted retries.
+				// Directly mark failed to prevent accidental re-queue.
+				slog.Error("recovery: exhaust chat retries failed, force-failing", "id", t.ID, "err", err)
+				t.Status = StatusFailed
+				t.Error = reason
+				t.UpdatedAt = time.Now()
+				if updateErr := e.store.Update(ctx, t); updateErr != nil {
+					slog.Error("recovery: force-fail update also failed", "id", t.ID, "err", updateErr)
+				}
+				eventbus.Publish(e.bus, eventbus.TaskFailed{
+					EventMeta: eventbus.NewMeta("task-recovery"),
+					TaskID:    t.ID,
+					Error:     reason,
+				})
+				failed = append(failed, t.ID)
+				continue
+			}
+		}
+
+		// Clean up orphaned worktrees for coding tasks before re-queue.
+		// If the worktree still exists from the crashed session, Remove it
+		// so the retry can create a fresh one.
+		if t.Type == TypeCoding && e.worktree != nil {
+			if rmErr := e.worktree.Remove(t.ID); rmErr != nil {
+				slog.Debug("recovery: worktree cleanup (may not exist)", "id", t.ID, "err", rmErr)
+			}
+		}
+
+		willRetry := (t.Retries + 1) < t.MaxRetries
+		if err := e.Fail(ctx, t.ID, fmt.Errorf("%s", reason)); err != nil {
+			slog.Error("recovery: fail task", "id", t.ID, "err", err)
+			continue
+		}
+		if willRetry {
+			requeued = append(requeued, t.ID)
+			slog.Info("recovery: task re-queued", "id", t.ID, "type", t.Type)
+		} else {
+			failed = append(failed, t.ID)
+			slog.Info("recovery: task failed", "id", t.ID, "type", t.Type)
+		}
+	}
+	return requeued, failed
+}
+
 // checkDuplicate looks for queued/claimed/running tasks with the same Type and Input.
 func (e *Engine) checkDuplicate(ctx context.Context, req *SubmitRequest) error {
 	for _, status := range []TaskStatus{StatusQueued, StatusClaimed, StatusRunning} {

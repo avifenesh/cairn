@@ -230,16 +230,8 @@ func runServe(logger *slog.Logger) {
 	sessionStore := agent.NewSessionStore(database)
 	journalStore := agent.NewJournalStore(database.DB)
 
-	// Initialize task engine.
-	taskStore := task.NewStore(database)
-	taskEngine := task.NewEngine(taskStore, bus, nil)
-	taskEngine.StartReaper(1 * time.Minute)
-	defer taskEngine.Close()
-
-	// Initialize cron store.
-	cronStore := cairncron.NewStore(database.DB)
-
-	// Initialize worktree manager for coding task isolation.
+	// Initialize worktree manager for coding task isolation (before engine,
+	// so engine.RecoverStuck can clean up orphaned worktrees on restart).
 	var worktreeMgr *task.WorktreeManager
 	if cfg.CodingEnabled {
 		repoDir, err := os.Getwd()
@@ -252,6 +244,15 @@ func runServe(logger *slog.Logger) {
 				"allowedRepos", len(cfg.CodingAllowedRepos))
 		}
 	}
+
+	// Initialize task engine (receives worktree manager for recovery cleanup).
+	taskStore := task.NewStore(database)
+	taskEngine := task.NewEngine(taskStore, bus, worktreeMgr)
+	taskEngine.StartReaper(1 * time.Minute)
+	defer taskEngine.Close()
+
+	// Initialize cron store.
+	cronStore := cairncron.NewStore(database.DB)
 
 	// Create the ReAct agent.
 	var reactAgent agent.Agent
@@ -480,6 +481,20 @@ func runServe(logger *slog.Logger) {
 		logger.Info("subagent runner initialized")
 	}
 
+	// Recover stuck tasks unconditionally — tasks die on restart regardless
+	// of whether idle mode is enabled.
+	recoveryStats := agent.RecoverOnStartup(context.Background(), agent.RecoveryDeps{
+		TaskEngine:    taskEngine,
+		ActivityStore: activityStore,
+		Logger:        logger,
+	})
+	if recoveryStats.Total > 0 {
+		logger.Info("startup recovery complete",
+			"recoveredTasks", recoveryStats.Total,
+			"requeued", len(recoveryStats.Requeued),
+			"failed", len(recoveryStats.Failed))
+	}
+
 	// Start always-on agent loop (if idle mode enabled and agent available).
 	var agentLoop *agent.Loop
 	if cfg.IdleModeEnabled && reactAgent != nil && provider != nil {
@@ -492,8 +507,8 @@ func runServe(logger *slog.Logger) {
 			RepoDir:  reflectRepoDir,
 		})
 
-		// Recover agent state from previous run.
-		loopState := agent.RecoverOnStartup(context.Background(), database.DB, logger)
+		// Restore loop state from previous run.
+		loopState, _ := agent.RecoverLoopState(context.Background(), database.DB, logger)
 
 		agentLoop = agent.NewLoop(agent.LoopConfig{
 			TickInterval:       time.Duration(cfg.AgentTickInterval) * time.Second,

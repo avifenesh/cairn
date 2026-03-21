@@ -3,8 +3,12 @@ package agent
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
+	"strings"
 	"time"
+
+	"github.com/avifenesh/cairn/internal/task"
 )
 
 const loopStateID = "agent"
@@ -15,16 +19,85 @@ type LoopState struct {
 	LastReflection time.Time
 }
 
-// RecoverOnStartup restores agent loop state from the database and fails
-// any tasks stuck in running/claimed state with expired leases.
-// Returns the restored state (zero values if no prior state exists).
-func RecoverOnStartup(ctx context.Context, db *sql.DB, logger *slog.Logger) LoopState {
-	state := LoopState{}
-	if db == nil {
-		return state
+// RecoveryDeps carries dependencies for startup recovery.
+type RecoveryDeps struct {
+	TaskEngine    *task.Engine
+	ActivityStore *ActivityStore
+	Logger        *slog.Logger
+}
+
+// RecoveryStats reports what happened during startup recovery.
+type RecoveryStats struct {
+	Requeued []string // task IDs re-queued for retry
+	Failed   []string // task IDs terminally failed
+	Total    int
+}
+
+// RecoverOnStartup recovers any tasks stuck in running/claimed state.
+// Tasks with retries remaining are re-queued; exhausted tasks are marked
+// failed with events published. Runs unconditionally on startup (not gated
+// by idle mode). Loop state is restored separately via RecoverLoopState.
+func RecoverOnStartup(ctx context.Context, deps RecoveryDeps) RecoveryStats {
+	stats := RecoveryStats{}
+
+	logger := deps.Logger
+	if logger == nil {
+		logger = slog.Default()
 	}
 
-	// 1. Restore loop state.
+	// Recover stuck tasks via engine (re-queues retryable, fails exhausted).
+	if deps.TaskEngine != nil {
+		requeued, failed := deps.TaskEngine.RecoverStuck(ctx, "stuck_task_recovery: server restarted")
+		stats.Requeued = requeued
+		stats.Failed = failed
+		stats.Total = len(requeued) + len(failed)
+
+		if stats.Total > 0 {
+			logger.Info("stuck tasks recovered",
+				"total", stats.Total,
+				"requeued", len(requeued),
+				"failed", len(failed))
+
+			// Record activity for UI visibility.
+			if deps.ActivityStore != nil {
+				summary := fmt.Sprintf("Restart recovery: %d tasks (%d requeued, %d failed)",
+					stats.Total, len(requeued), len(failed))
+				var details strings.Builder
+				if len(requeued) > 0 {
+					fmt.Fprintf(&details, "Re-queued for retry: %s\n", strings.Join(requeued, ", "))
+				}
+				if len(failed) > 0 {
+					fmt.Fprintf(&details, "Failed (retries exhausted): %s\n", strings.Join(failed, ", "))
+				}
+				entry := ActivityEntry{
+					Type:    "recovery",
+					Summary: summary,
+					Details: details.String(),
+				}
+				if err := deps.ActivityStore.Record(ctx, entry); err != nil {
+					logger.Warn("recovery: failed to record activity", "error", err)
+				}
+				// Note: no bus event here — SSE broadcaster isn't attached yet
+				// at startup. Frontend loads activity from REST on connect.
+			}
+		}
+	}
+
+	return stats
+}
+
+// RecoverLoopState restores only the agent loop state (tick count, reflection time)
+// from the database. Separated from RecoverOnStartup so loop state can be restored
+// inside the idle-mode block while task recovery runs unconditionally.
+func RecoverLoopState(ctx context.Context, db *sql.DB, logger *slog.Logger) (LoopState, error) {
+	state := LoopState{}
+	if db == nil {
+		return state, nil
+	}
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	var tickCount int64
 	var lastReflectStr sql.NullString
 	err := db.QueryRowContext(ctx,
@@ -43,22 +116,7 @@ func RecoverOnStartup(ctx context.Context, db *sql.DB, logger *slog.Logger) Loop
 		logger.Warn("agent state restore failed", "error", err)
 	}
 
-	// 2. Fail stuck tasks (running or claimed with expired lease).
-	now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
-	result, err := db.ExecContext(ctx,
-		`UPDATE tasks SET status = 'failed', error = 'stuck_task_recovery: server restarted',
-		 completed_at = ?
-		 WHERE status IN ('running', 'claimed')
-		   AND lease_expires_at IS NOT NULL
-		   AND lease_expires_at < ?`,
-		now, now)
-	if err != nil {
-		logger.Warn("stuck task recovery failed", "error", err)
-	} else if n, _ := result.RowsAffected(); n > 0 {
-		logger.Info("stuck tasks recovered", "count", n)
-	}
-
-	return state
+	return state, nil
 }
 
 // CheckpointState persists the current loop state to the database.

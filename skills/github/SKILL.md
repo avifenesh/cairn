@@ -122,6 +122,6 @@ gh search issues "is:open label:bug" --repo owner/repo
 - All commands accept `-R owner/repo` to target a repo (or set `GH_REPO` env var)
 - `--json field1,field2` outputs structured JSON on any list/view command
 - `--jq '.[].name'` filters JSON output
-- `--paginate` on `gh api` auto-follows next pages
+- `--paginate` on `gh api` auto-follows next pages. Always use `--paginate` with `--slurp` when the `--jq` expression uses aggregations like `group_by()` or `unique_by()` that must operate on the full result set.
 - Space `gh api` calls at least 2s apart. Never poll CI in tight loops — use `sleep 30`.
 

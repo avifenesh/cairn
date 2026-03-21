@@ -214,9 +214,9 @@ export const approve = (id: string) => post<{ ok: boolean }>(`/v1/approvals/${id
 export const deny = (id: string) => post<{ ok: boolean }>(`/v1/approvals/${id}/deny`);
 
 // Assistant / Chat
-export const getSessions = async () => {
+export const getSessions = async (limit = 200) => {
 	if (useMocks()) return { items: mockSessions };
-	const raw = await get<Record<string, unknown>>('/v1/assistant/sessions');
+	const raw = await get<Record<string, unknown>>(`/v1/assistant/sessions?limit=${limit}`);
 	return { items: (raw.sessions ?? raw.items ?? []) as ChatSession[] };
 };
 

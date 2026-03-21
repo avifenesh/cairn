@@ -661,6 +661,22 @@ func runServe(logger *slog.Logger) {
 				return handlePatchCommand(ctx, msg.Args, soul)
 			}
 
+			// Transcribe voice message before NL parsing so spoken "yes"/"approve" works.
+			if len(msg.Audio) > 0 && voiceSvc != nil {
+				transcribed, tErr := voiceSvc.Transcribe(ctx, msg.Audio, msg.AudioFilename)
+				if tErr != nil {
+					logger.Warn("channel: voice transcription failed", "error", tErr)
+					return &cairnchannel.OutgoingMessage{Text: "Sorry, I couldn't understand the voice message. Please try again or type your message."}, nil
+				}
+				if transcribed != "" {
+					msg.Text = transcribed
+					logger.Info("channel: voice transcribed", "text", transcribed[:min(len(transcribed), 80)])
+				}
+			}
+			if len(msg.Audio) > 0 && voiceSvc == nil {
+				return &cairnchannel.OutgoingMessage{Text: "Voice messages are not enabled. Please type your message."}, nil
+			}
+
 			// Handle button callbacks and natural language approval intents.
 			isCallback := msg.IsCommand && msg.Command == "callback"
 			var nlIntent *ApprovalIntent
@@ -709,22 +725,6 @@ func runServe(logger *slog.Logger) {
 				if err := sessionStore.Create(ctx, session); err != nil {
 					return nil, fmt.Errorf("channel: create session: %w", err)
 				}
-			}
-
-			// Transcribe voice message if present.
-			if len(msg.Audio) > 0 && voiceSvc != nil {
-				transcribed, tErr := voiceSvc.Transcribe(ctx, msg.Audio, msg.AudioFilename)
-				if tErr != nil {
-					logger.Warn("channel: voice transcription failed", "error", tErr)
-					return &cairnchannel.OutgoingMessage{Text: "Sorry, I couldn't understand the voice message. Please try again or type your message."}, nil
-				}
-				if transcribed != "" {
-					msg.Text = transcribed
-					logger.Info("channel: voice transcribed", "text", transcribed[:min(len(transcribed), 80)])
-				}
-			}
-			if len(msg.Audio) > 0 && voiceSvc == nil {
-				return &cairnchannel.OutgoingMessage{Text: "Voice messages are not enabled. Please type your message."}, nil
 			}
 
 			// Determine message text.

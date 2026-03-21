@@ -77,7 +77,7 @@ Examples:
 Track repeated requests via `cairn.searchMemories`. When the same type of request appears 3+ times:
 
 1. Search memories for similar patterns: `cairn.searchMemories` with the pattern description
-2. If confirmed, propose automation: use `/natural-cron` to create an automation rule
+2. If confirmed, propose automation: use `cairn.createCron` to create a scheduled job
 3. Store the pattern as a `preference` memory for future reference
 
 Example: "You've asked for a project status 3 Mondays in a row. Want me to create a weekly Monday morning brief?"
@@ -102,7 +102,7 @@ The agent loop ticks at adaptive intervals (baseline 5min, 2min when active). Us
 **API rate limit awareness**: During rapid 30s ticks, only check the specific event you're following up on (e.g., CI status). Don't run calendar, email, and feed checks on rapid ticks -- save those for normal 5min+ intervals. Respect GitHub secondary rate limits (2s between API calls) and Google Workspace quotas.
 
 **For recurring patterns, create automation rules:**
-Use `/natural-cron` to convert patterns into scheduled rules. Examples:
+Use `cairn.createCron` to convert patterns into scheduled jobs. Examples:
 - "Every workday at 8:30 AM Israel time, run morning-brief" -> automation rule
 - "Every Monday at 9 AM, check open PRs older than 5 days" -> automation rule
 - "After every deploy, wait 5 minutes then check system health" -> event_match rule

@@ -144,7 +144,7 @@ func (t *TelegramAdapter) Close() error {
 // so we use a conservative limit for MarkdownV2 and the full 4096 for plain text.
 const (
 	tgMaxMessageChars   = 4096
-	tgChunkHeaderMaxLen = 40   // "─── Part X/Y ───\n" (max chars for part header)
+	tgChunkHeaderMaxLen = 40 // "─── Part X/Y ───\n" (max chars for part header)
 )
 
 // tgRawChunkLimit estimates a raw-text rune limit that, after MarkdownV2 escaping,

@@ -3,8 +3,11 @@
 package builtin
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
+
+	"github.com/avifenesh/cairn/internal/tool"
 )
 
 func TestCheckDenyPatterns(t *testing.T) {
@@ -159,6 +162,46 @@ func searchSubstring(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+func TestShellWorkDirValidation(t *testing.T) {
+	ctx := &tool.ToolContext{WorkDir: "/nonexistent/path/that/does/not/exist"}
+	args := json.RawMessage(`{"command":"echo hello"}`)
+
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should succeed because the shell falls back to $HOME.
+	if result.Error != "" {
+		t.Fatalf("expected no error after fallback, got: %s", result.Error)
+	}
+	if !containsSubstring(result.Output, "hello") {
+		t.Errorf("expected output to contain 'hello', got: %s", result.Output)
+	}
+}
+
+func TestShellWorkDirNotADirectory(t *testing.T) {
+	// Create a temp file (not a directory).
+	f, err := os.CreateTemp("", "shell-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+	f.Close()
+
+	ctx := &tool.ToolContext{WorkDir: f.Name()}
+	args := json.RawMessage(`{"command":"echo hello"}`)
+	result, execErr := shell.Execute(ctx, args)
+	if execErr != nil {
+		t.Fatalf("unexpected error: %v", execErr)
+	}
+	if result.Error == "" {
+		t.Fatal("expected error for file-as-workDir")
+	}
+	if !containsSubstring(result.Error, "not a directory") {
+		t.Errorf("expected 'not a directory' in error, got: %s", result.Error)
+	}
 }
 
 func TestDetectPipeOrRedirect(t *testing.T) {

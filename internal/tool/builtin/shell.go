@@ -74,19 +74,23 @@ var shell = tool.Define("cairn.shell",
 
 		// Validate workDir exists before attempting exec. A missing directory
 		// causes exec to fail with a cryptic exit -1 (process didn't start).
+		// Only fall back for "not found" errors; permission/IO errors are real problems.
 		if workDir != "." {
-			if _, statErr := os.Stat(workDir); statErr != nil {
+			if info, statErr := os.Stat(workDir); statErr != nil {
+				if !os.IsNotExist(statErr) {
+					return &tool.ToolResult{
+						Error: fmt.Sprintf("workDir %q: %s", workDir, statErr),
+					}, nil
+				}
 				home, _ := os.UserHomeDir()
 				if home == "" {
 					home = "."
 				}
+				slog.Warn("shell workDir not found, falling back", "requested", workDir, "fallback", home)
+				workDir = home
+			} else if !info.IsDir() {
 				return &tool.ToolResult{
-					Output: fmt.Sprintf("workDir %q does not exist, falling back to %s. The directory may have been removed.", workDir, home),
-					Error:  fmt.Sprintf("workDir not found: %s", workDir),
-					Metadata: map[string]any{
-						"requestedWorkDir": workDir,
-						"fallbackWorkDir":  home,
-					},
+					Error: fmt.Sprintf("workDir %q is not a directory", workDir),
 				}, nil
 			}
 		}

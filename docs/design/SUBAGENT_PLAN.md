@@ -2,7 +2,7 @@
 
 > Agent-as-tool delegation: the parent agent spawns isolated child agents for tasks, streams progress via SSE, and collects results. Two-level max. No grandchildren.
 
-Implements deferred subphase 4.6 from `pieces/04-agent-core.md`.
+Implemented as subphase 4.6 (Done, PR #146). See `pieces/04-agent-core.md` for current status.
 
 ## Research Summary
 

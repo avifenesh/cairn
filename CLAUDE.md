@@ -71,7 +71,7 @@ Key design decisions:
 2. **Permission engine** - wildcard rules scoped per agent mode, per tool, per file pattern. ✅ Done
 3. **Always-on with proactive behavior** - Soul, episodic + semantic + procedural memory. ✅ Done
 4. **Skill ecosystem compatibility** - OpenClaw SKILL.md format + ClawHub marketplace. ✅ Done
-5. **Multi-protocol** - MCP server + client done. A2A deferred.
+5. **Multi-protocol** - MCP server (expose tools) + MCP client (consume external servers). ✅ Done
 6. **Event-sourced sessions** - append-only, compactable. ✅ Done
 7. **Single binary** - `scp cairn server:/usr/local/bin/`. ✅ Done
 8. **Auto-deploy** - CI deploys on merge to main via self-hosted runner. ✅ Done
@@ -114,15 +114,15 @@ Cloudflare (DNS + proxy) → Caddy (:443, TLS) → Cairn (:8788)
 ```
 
 **Services:**
-- `cairn.service` — systemd unit, port 8788, env from `/home/ubuntu/cairn/.env.cairn`
+- `cairn.service` — systemd unit, port 8788, env from `~/.cairn/.env.cairn`
 - `caddy.service` — TLS reverse proxy, config at `/etc/caddy/Caddyfile`
 - `pub-backend.service` — DISABLED (replaced by Cairn)
 
 **Key paths:**
 - Binary: `/home/ubuntu/cairn/cairn-prod`
-- Env: `/home/ubuntu/cairn/.env.cairn`
-- DB: `/home/ubuntu/cairn/data/cairn.db`
-- SOUL: `/home/ubuntu/cairn/SOUL.md`
+- Env: `/home/ubuntu/.cairn/.env.cairn`
+- DB: `/home/ubuntu/.cairn/data/cairn.db`
+- SOUL: `/home/ubuntu/.cairn/SOUL.md`
 - Caddyfile: `/etc/caddy/Caddyfile` (proxies all to 8788, CouchDB on /obsidian-vault)
 - Certs: `/etc/caddy/certs/origin-cert.pem` + `origin-key.pem` (Cloudflare Origin CA)
 
@@ -153,9 +153,9 @@ Unsafe builds caused data loss (split databases, lost settings, broken auth).
    The script enforces this — start/stop/restart all delegate to `sudo systemctl`.
 4. **All paths are absolute** in `.env.cairn`. Never use relative paths — different worktrees
    resolve `./data` to different directories, causing split databases.
-5. **One database**: `/home/ubuntu/cairn/data/cairn.db` — all worktrees,
+5. **One database**: `/home/ubuntu/.cairn/data/cairn.db` — all worktrees,
    all agents, all processes must use this same file. Config overrides saved to
-   `/home/ubuntu/cairn/data/config.json`.
+   `/home/ubuntu/.cairn/data/config.json`.
 6. **Build lock**: `/tmp/cairn-build.lock` prevents concurrent builds.
 
 ## Commands
@@ -246,7 +246,8 @@ Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend
 - `BEDROCK_DAILY_BUDGET_USD` → `BUDGET_DAILY_CAP`
 
 **Paths:**
-- `SOUL_PATH` (./SOUL.md), `SKILL_DIRS` (./.pub/skills), `DATA_DIR` (./data)
+- `SOUL_PATH` (~/.cairn/SOUL.md), `SKILL_DIRS` (~/.cairn/skills), `DATA_DIR` (~/.cairn/data)
+- Skills: bundled core in repo `./skills/`, user/marketplace installs in `~/.cairn/skills/` (last-wins on name conflict)
 
 ## Design Docs
 

@@ -208,7 +208,7 @@ Admin permissions configurable: `change_info`, `post_messages`, `edit_messages`,
 | Pre-checkout timeout | Processing takes >10s | Validate quickly, process async |
 | Mini App data trust | Using `initDataUnsafe` without validation | Always validate `initData` server-side |
 | Webhook certificate issues | Self-signed cert not uploaded | Use `certificate` param in `setWebhook` or Let's Encrypt |
-| Rate limits | Too many requests | Respect 30 msg/sec to same chat, 20 msg/min to same group |
+| Rate limits | Too many requests | 30 msg/sec globally, ~1 msg/sec per chat, 20 msg/min per group |
 | File size limits | Photos >10MB, files >50MB | Compress or use `url` upload for files up to 2GB |
 
 ## Best Practices
@@ -217,7 +217,7 @@ Admin permissions configurable: `change_info`, `post_messages`, `edit_messages`,
 2. **Validate Mini App data server-side** - never trust `initDataUnsafe` alone
 3. **Use inline keyboards over reply keyboards** - better UX, persists with message
 4. **Implement `/start` with deep link params** - enables referrals and contextual onboarding
-5. **Respect rate limits** - 30 messages/second globally, 20/minute per group
+5. **Respect rate limits** - 30 messages/second globally, ~1/second per chat, 20/minute per group
 6. **Use `parse_mode: "HTML"` or `"MarkdownV2"`** - rich text formatting
 7. **Handle errors gracefully** - Telegram returns descriptive error messages
 8. **Use `chat_id` from updates** - never assume chat IDs

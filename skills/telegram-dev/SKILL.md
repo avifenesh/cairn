@@ -1,14 +1,8 @@
 ---
 name: telegram-dev
 description: Expert guidance for Telegram bot and Mini App development — API methods, keyboards, payments, webhooks, deep links, group management, and Mini App JS APIs
-inclusion: agent-requested
-allowed-tools:
-  - cairn.webSearch
-  - cairn.webFetch
-  - cairn.readFile
-  - cairn.writeFile
-  - cairn.editFile
-  - cairn.shell
+inclusion: on-demand
+allowed-tools: cairn.webSearch, cairn.webFetch, cairn.readFile, cairn.writeFile, cairn.editFile, cairn.shell, cairn.telegram
 ---
 
 # Telegram Bot & Mini App Development
@@ -31,9 +25,9 @@ You are a Telegram development specialist. When this skill is active, apply the 
 ```json
 {
   "inline_keyboard": [
+    [{"text": "Pay $5", "pay": true}],
     [{"text": "Option A", "callback_data": "opt_a"}, {"text": "Option B", "callback_data": "opt_b"}],
-    [{"text": "Open App", "web_app": {"url": "https://app.example.com"}}],
-    [{"text": "Pay $5", "pay": true}]
+    [{"text": "Open App", "web_app": {"url": "https://app.example.com"}}]
   ]
 }
 ```
@@ -151,16 +145,16 @@ tg.HapticFeedback.selectionChanged(); // picker change
 
 ### Webhook Best Practices
 
-```
-POST setWebhook
+```json
 {
   "url": "https://example.com/webhook/BOT_TOKEN_HASH",
   "secret_token": "random_string_256_chars",
   "allowed_updates": ["message", "callback_query", "inline_query", "pre_checkout_query"],
   "max_connections": 40,
-  "drop_pending_updates": true  // on first deploy only
+  "drop_pending_updates": true
 }
 ```
+Send via `POST https://api.telegram.org/bot<TOKEN>/setWebhook`. Set `drop_pending_updates` only on first deploy.
 
 Verify incoming requests: check `X-Telegram-Bot-Api-Secret-Token` header matches your `secret_token`.
 

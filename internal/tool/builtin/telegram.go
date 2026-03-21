@@ -142,8 +142,11 @@ func getInt64(m map[string]any, key string) int64 {
 func getBool(m map[string]any, key string) bool { v, _ := m[key].(bool); return v }
 func boolPtr(b bool) *bool                      { return &b }
 
-func okResult(msg string) *tool.ToolResult      { return &tool.ToolResult{Output: msg} }
-func jsonResult(v any) *tool.ToolResult          { b, _ := json.Marshal(v); return &tool.ToolResult{Output: string(b)} }
+func okResult(msg string) *tool.ToolResult { return &tool.ToolResult{Output: msg} }
+func jsonResult(v any) *tool.ToolResult {
+	b, _ := json.Marshal(v)
+	return &tool.ToolResult{Output: string(b)}
+}
 
 // --- Actions ---
 
@@ -195,15 +198,17 @@ func tgSendPoll(ctx context.Context, chatID int64, p map[string]any) (*tool.Tool
 		}
 	}
 	params := &telego.SendPollParams{
-		ChatID:      tu.ID(chatID),
-		Question:    question,
-		Options:     options,
-		IsAnonymous: getBool(p, "isAnonymous"),
+		ChatID:   tu.ID(chatID),
+		Question: question,
+		Options:  options,
+	}
+	if getBool(p, "isAnonymous") {
+		params.IsAnonymous = boolPtr(true)
 	}
 	if getStr(p, "type") == "quiz" {
 		params.Type = "quiz"
 		cid := getInt(p, "correctOptionID")
-		params.CorrectOptionID = cid
+		params.CorrectOptionID = &cid
 	}
 	msg, err := telegramBot.SendPoll(ctx, params)
 	if err != nil {
@@ -340,7 +345,7 @@ func tgCreateInviteLink(ctx context.Context, chatID int64, p map[string]any) (*t
 		params.MemberLimit = limit
 	}
 	if exp := getInt64(p, "expireDate"); exp > 0 {
-		params.ExpireDate = int(exp)
+		params.ExpireDate = exp
 	}
 	link, err := telegramBot.CreateChatInviteLink(ctx, params)
 	if err != nil {
@@ -420,25 +425,51 @@ func tgRestrictMember(ctx context.Context, chatID int64, p map[string]any) (*too
 		return &tool.ToolResult{Error: "userID required"}, nil
 	}
 	perms, _ := p["permissions"].(map[string]any)
-	params := &telego.RestrictChatMemberParams{
-		ChatID: tu.ID(chatID),
-		UserID: userID,
-		Permissions: telego.ChatPermissions{
-			CanSendMessages:       getBool(perms, "canSendMessages"),
-			CanSendPhotos:         getBool(perms, "canSendPhotos"),
-			CanSendVideos:         getBool(perms, "canSendVideos"),
-			CanSendDocuments:      getBool(perms, "canSendDocuments"),
-			CanSendAudios:         getBool(perms, "canSendAudios"),
-			CanSendPolls:          getBool(perms, "canSendPolls"),
-			CanSendOtherMessages:  getBool(perms, "canSendOtherMessages"),
-			CanAddWebPagePreviews: getBool(perms, "canAddWebPagePreviews"),
-			CanChangeInfo:         getBool(perms, "canChangeInfo"),
-			CanInviteUsers:        getBool(perms, "canInviteUsers"),
-			CanPinMessages:        getBool(perms, "canPinMessages"),
-			CanManageTopics:       getBool(perms, "canManageTopics"),
-		},
+	cp := telego.ChatPermissions{}
+	if perms != nil {
+		if getBool(perms, "canSendMessages") {
+			cp.CanSendMessages = boolPtr(true)
+		}
+		if getBool(perms, "canSendPhotos") {
+			cp.CanSendPhotos = boolPtr(true)
+		}
+		if getBool(perms, "canSendVideos") {
+			cp.CanSendVideos = boolPtr(true)
+		}
+		if getBool(perms, "canSendDocuments") {
+			cp.CanSendDocuments = boolPtr(true)
+		}
+		if getBool(perms, "canSendAudios") {
+			cp.CanSendAudios = boolPtr(true)
+		}
+		if getBool(perms, "canSendPolls") {
+			cp.CanSendPolls = boolPtr(true)
+		}
+		if getBool(perms, "canSendOtherMessages") {
+			cp.CanSendOtherMessages = boolPtr(true)
+		}
+		if getBool(perms, "canAddWebPagePreviews") {
+			cp.CanAddWebPagePreviews = boolPtr(true)
+		}
+		if getBool(perms, "canChangeInfo") {
+			cp.CanChangeInfo = boolPtr(true)
+		}
+		if getBool(perms, "canInviteUsers") {
+			cp.CanInviteUsers = boolPtr(true)
+		}
+		if getBool(perms, "canPinMessages") {
+			cp.CanPinMessages = boolPtr(true)
+		}
+		if getBool(perms, "canManageTopics") {
+			cp.CanManageTopics = boolPtr(true)
+		}
 	}
-	if until := getInt(p, "untilDate"); until > 0 {
+	params := &telego.RestrictChatMemberParams{
+		ChatID:      tu.ID(chatID),
+		UserID:      userID,
+		Permissions: cp,
+	}
+	if until := getInt64(p, "untilDate"); until > 0 {
 		params.UntilDate = until
 	}
 	err := telegramBot.RestrictChatMember(ctx, params)
@@ -454,7 +485,7 @@ func tgBanMember(ctx context.Context, chatID int64, p map[string]any) (*tool.Too
 		return &tool.ToolResult{Error: "userID required"}, nil
 	}
 	params := &telego.BanChatMemberParams{ChatID: tu.ID(chatID), UserID: userID}
-	if until := getInt(p, "untilDate"); until > 0 {
+	if until := getInt64(p, "untilDate"); until > 0 {
 		params.UntilDate = until
 	}
 	err := telegramBot.BanChatMember(ctx, params)

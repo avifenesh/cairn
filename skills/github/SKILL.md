@@ -23,9 +23,10 @@ allowed-tools: "cairn.shell,cairn.gitRun,cairn.readFile,cairn.webFetch"
 - `gh pr create` — drafting PRs with `[cairn]` prefix
 - `gh pr edit` — on my own `[cairn]` PRs only (title, body)
 - `gh pr ready` — marking my own PRs as ready for review
-- `gh pr comment` — on my own `[cairn]` PRs (e.g. responding to review feedback)
+- `gh pr comment` — on my own `[cairn]` PRs (creates issue-level comments, NOT inline review comment replies)
 - `gh pr revert` — reverting my own `[cairn]` merges
 - `gh run view --log` — reading CI logs
+- `gh api` with `--method POST` on `/comments/{id}/replies` — replying to review comments on own PRs
 
 ### Require explicit approval from Avi
 - `gh pr merge` — **never merge without Avi's explicit approval**, regardless of CI status
@@ -33,7 +34,7 @@ allowed-tools: "cairn.shell,cairn.gitRun,cairn.readFile,cairn.webFetch"
 - `gh issue create` / `gh issue edit` / `gh issue close` / `gh issue comment` — affects external project tracking
 - `gh workflow run` — dispatching workflows can have side effects
 - `gh run rerun` — re-triggering CI jobs
-- Any `gh api` call with `--method POST|PUT|PATCH|DELETE` that modifies external state
+- Any `gh api` call with `--method POST|PUT|PATCH|DELETE` that modifies external state (except review comment replies above)
 - Any operation on repos/PRs that don't have the `[cairn]` prefix
 
 ### Never
@@ -51,7 +52,7 @@ gh api <endpoint> [--method METHOD] [--paginate] [--jq '...'] [--field key=value
 # GraphQL
 gh api graphql -f query='...' -F owner=... -F name=...
 ```
-Flags: `--method`, `--input`, `--jq`, `--paginate`, `--slurp`, `--field`/`-F` (typed), `--raw-field`/`-f` (string), `--header`/`-H`, `--preview`
+Flags: `--method`, `--input`, `--jq`, `--paginate`, `--slurp`, `--field`/`-F` (typed), `--raw-field`/`-f` (string), `--header`/`-H`
 
 ## Built-in commands
 
@@ -65,16 +66,44 @@ gh pr merge <number> --squash|--merge|--rebase [--delete-branch] [-R owner/repo]
 gh pr review <number> --approve|--request-changes|--comment -b "..." [-R owner/repo]
 gh pr diff <number> [-R owner/repo]
 gh pr close <number> [-R owner/repo]
-gh pr comment <number> -b "..." [-R owner/repo]
+gh pr comment <number> -b "..." [-R owner/repo]  # Creates issue-level comment, NOT inline review reply
 gh pr edit <number> --title "..." --body "..." [-R owner/repo]
 gh pr ready <number> [-R owner/repo]
 gh pr revert <number> [-R owner/repo]
 ```
 
+### Review Comment Replies
+
+`gh pr comment` creates **issue comments** (timeline-level), NOT inline review comment replies. For replying to inline review comments:
+
+```bash
+# Reply to a review comment (inline diff comment) — preferred
+gh api repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies \
+  --method POST --field body="Reply text"
+
+# Alternative: create with in_reply_to field
+gh api repos/{owner}/{repo}/pulls/{pull_number}/comments \
+  --method POST --field body="Reply text" --field in_reply_to=COMMENT_ID
+
+# List review comments (check in_reply_to_id to distinguish top-level vs replies)
+gh api repos/{owner}/{repo}/pulls/{pull_number}/comments \
+  --jq '.[] | {id, path, line, body, in_reply_to_id}'
+
+# List issue comments (no threading)
+gh api repos/{owner}/{repo}/issues/{issue_number}/comments \
+  --jq '.[] | {id, body}'
+```
+
+Key distinction:
+- **Review comments** (`pulls/{n}/comments`): inline diff comments, have `in_reply_to_id` field for threading, replied via `/{comment_id}/replies`
+- **Issue comments** (`issues/{n}/comments`): timeline-level comments, no threading, replied via `gh pr comment`
+- `in_reply_to_id` is null on top-level review comments (these can be replied to)
+- `in_reply_to_id` is non-null on replies (replies-to-replies not supported — reply to the parent)
+
 ### Issues
 ```
 gh issue list [-R owner/repo] [--limit N] [--state open|closed|all] [--author LOGIN] [--assignee LOGIN] [--label LBL] [--milestone NAME] [--search QRY]
-gh issue view <number|url> [-R owner/repo]
+gh issue view <number|url|branch> [-R owner/repo]
 gh issue create --title "..." --body "..." [-R owner/repo]
 gh issue close <number> [-R owner/repo]
 gh issue comment <number> -b "..." [-R owner/repo]
@@ -124,4 +153,3 @@ gh search issues "is:open label:bug" --repo owner/repo
 - `--jq '.[].name'` filters JSON output
 - `--paginate` on `gh api` auto-follows next pages
 - Space `gh api` calls at least 2s apart. Never poll CI in tight loops — use `sleep 30`.
-

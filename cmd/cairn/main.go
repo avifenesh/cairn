@@ -546,6 +546,9 @@ func runServe(logger *slog.Logger) {
 	// Initialize MCP client manager for external server connections.
 	mcpClientMgr := cairnmcp.NewClientManager(toolRegistry, bus, logger)
 
+	// Approval store — human-in-the-loop gates.
+	approvalStore := task.NewApprovalStore(database.DB)
+
 	// Create and start the server.
 	srv := server.New(server.ServerConfig{
 		Agent:          reactAgent,
@@ -582,6 +585,7 @@ func runServe(logger *slog.Logger) {
 			return nil
 		}(),
 		MCPClients:  mcpClientMgr,
+		Approvals:   approvalStore,
 		AuthStore:   authStore,
 		WebAuthn:    webauthnHandler,
 		PollTrigger: scheduler,
@@ -655,6 +659,22 @@ func runServe(logger *slog.Logger) {
 					return &cairnchannel.OutgoingMessage{Text: "Not authorized."}, nil
 				}
 				return handlePatchCommand(ctx, msg.Args, soul)
+			}
+
+			// Handle button callbacks and natural language approval intents.
+			isCallback := msg.IsCommand && msg.Command == "callback"
+			var nlIntent *ApprovalIntent
+			if !msg.IsCommand {
+				nlIntent = parseApprovalIntent(msg.Text)
+			}
+			if isCallback || nlIntent != nil {
+				if !isOwnerMessage(msg, cfg) {
+					return &cairnchannel.OutgoingMessage{Text: "Not authorized."}, nil
+				}
+				if isCallback {
+					return handleCallbackData(ctx, msg.Args, memService, soul, approvalStore, msg.ChannelID)
+				}
+				return handleApprovalIntent(ctx, nlIntent, memService, soul, approvalStore, msg.ChannelID)
 			}
 
 			// Determine mode from /mode command state (default: talk).

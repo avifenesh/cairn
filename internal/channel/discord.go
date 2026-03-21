@@ -272,7 +272,10 @@ func buildDiscordComponents(actions []ActionGroup) []discordgo.MessageComponent 
 
 // splitMessage splits text into chunks of at most maxLen runes,
 // preferring to break on newline or space boundaries.
-// Leading whitespace on subsequent chunks is trimmed for clean output.
+// When splitting at a delimiter (newline or space), the delimiter is included
+// in the current chunk so that strings.Join(chunks, "") exactly preserves
+// the original text. Hard splits (no suitable delimiter) also preserve text
+// — no leading whitespace is trimmed from subsequent chunks.
 func splitMessage(text string, maxLen int) []string {
 	runes := []rune(text)
 	if len(runes) <= maxLen {
@@ -299,11 +302,6 @@ func splitMessage(text string, maxLen int) []string {
 
 		chunks = append(chunks, string(runes[:cut]))
 		runes = runes[cut:]
-		// For hard splits only, trim leading whitespace from next chunk for clean output.
-		// (When split at a delimiter, cut already consumed it above.)
-		if cut == maxLen {
-			runes = runesTrimLeft(runes, '\n', '\r', ' ')
-		}
 	}
 	return chunks
 }
@@ -316,18 +314,4 @@ func runeLastIndex(runes []rune, r rune) int {
 		}
 	}
 	return -1
-}
-
-// runesTrimLeft removes leading occurrences of cutset runes.
-func runesTrimLeft(runes []rune, cutset ...rune) []rune {
-	cut := make(map[rune]bool, len(cutset))
-	for _, r := range cutset {
-		cut[r] = true
-	}
-	for i, r := range runes {
-		if !cut[r] {
-			return runes[i:]
-		}
-	}
-	return runes[:0]
 }

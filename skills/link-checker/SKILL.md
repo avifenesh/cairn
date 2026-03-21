@@ -40,7 +40,7 @@ if ! printf '%s' "$ART_ID" | grep -qE '^[0-9A-Za-z_-]{8,}$'; then
   echo "ERROR: Invalid artifact ID format"; exit 1
 fi
 SAFE_ID=$(printf '%s' "$ART_ID" | sed "s/[^a-zA-Z0-9_-]//g")
-CONTENT=$(timeout 5 sqlite3 "file:/home/ubuntu/cairn-frontend/cairn-data/cairn.db?mode=ro" <<SQL
+CONTENT=$(timeout 5 sqlite3 "file:/home/ubuntu/cairn/data/cairn.db?mode=ro" <<SQL
 .headers off
 .mode list
 SELECT COALESCE(SUBSTR(rendered_text, 1, 50000), '') || ' ' || COALESCE(SUBSTR(content_json, 1, 50000), '') FROM artifacts WHERE id = '$SAFE_ID' AND archived_at IS NULL;
@@ -56,7 +56,7 @@ echo "$CONTENT"
 **Option B — "recent"** keyword:
 
 ```
-CONTENT=$(timeout 5 sqlite3 "file:/home/ubuntu/cairn-frontend/cairn-data/cairn.db?mode=ro" <<'SQL'
+CONTENT=$(timeout 5 sqlite3 "file:/home/ubuntu/cairn/data/cairn.db?mode=ro" <<'SQL'
 .headers off
 .mode list
 SELECT COALESCE(SUBSTR(rendered_text, 1, 50000), '') || ' ' || COALESCE(SUBSTR(content_json, 1, 50000), '') FROM artifacts WHERE archived_at IS NULL ORDER BY updated_at DESC LIMIT 20;

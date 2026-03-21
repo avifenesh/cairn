@@ -12,12 +12,12 @@ Run ad-hoc read-only SQL queries against Cairn's SQLite database. Answer questio
 
 ## Database Access Pattern
 
-**DB path:** `/home/ubuntu/cairn-frontend/cairn-data/cairn.db`
+**DB path:** `/home/ubuntu/cairn/data/cairn.db`
 
 Always open read-only with a timeout:
 
 ```
-timeout 5 sqlite3 "file:/home/ubuntu/cairn-frontend/cairn-data/cairn.db?mode=ro" <<'SQL'
+timeout 5 sqlite3 "file:/home/ubuntu/cairn/data/cairn.db?mode=ro" <<'SQL'
 .headers on
 .mode markdown
 SELECT ...;
@@ -27,7 +27,7 @@ SQL
 Always use heredoc with single-quoted delimiter (`<<'SQL'`) to prevent shell variable expansion in queries. For multiple statements:
 
 ```
-timeout 5 sqlite3 "file:/home/ubuntu/cairn-frontend/cairn-data/cairn.db?mode=ro" <<'SQL'
+timeout 5 sqlite3 "file:/home/ubuntu/cairn/data/cairn.db?mode=ro" <<'SQL'
 .headers on
 .mode markdown
 SELECT source, COUNT(*) as cnt FROM events GROUP BY source ORDER BY cnt DESC LIMIT 10;

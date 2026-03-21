@@ -3,10 +3,10 @@
 > Tools and skills first — the agent must be useful before it connects to others.
 > Based on patterns from OpenCode, Gollem, ADK-Go research repos.
 
-## Current State (updated 2026-03-20)
+## Current State (updated 2026-03-21)
 
-498 backend tests, 242 frontend tests, 20 packages, ~43K lines of Go.
-49 built-in tools (all `cairn.*` prefix, GLM+Vision). 41 bundled SKILL.md files.
+528 backend tests, 242 frontend tests, 18 packages, ~30K lines of Go.
+49 built-in tools (all `cairn.*` prefix, GLM+Vision) + MCP client tools. 41 bundled SKILL.md files.
 
 **Phase 6 COMPLETE** — backend PRs #21, #24, #26. Frontend PRs #28-50 (15/15 done).
 **Phase 6.5 COMPLETE** — PR A (#37), PR B (#39).
@@ -284,9 +284,9 @@ Phase 6.5 (DONE):
   PR A (Skill activation)       ─── merged #37
   PR B (Skill install)          ─── merged #39
 
-Phase 7 (MCP Server DONE, Client/A2A DEFERRED):
+Phase 7 (MCP Server + Client DONE, A2A DEFERRED):
   PR 5 (MCP Server)             ─── merged #42
-  PR 6 (MCP Client)             ─── deferred (Z.ai tools added directly instead)
+  PR 6 (MCP Client)             ─── merged #131 (ClientManager, tool wrapping, settings UI)
   PR 7 (A2A Server)             ─── deferred
   PR 8 (Frontend Phase 7)       ─── merged #50
 
@@ -338,6 +338,23 @@ Bug fixes (post-merge):
 
 Google Workspace:
   GWS tools                          ─── merged (cairn.gwsQuery + cairn.gwsExecute, 17 services)
+
+Agent Autonomy (PRs #118-137):
+  PR #118 (Autonomous coding)        ─── merged (coding sessions from idle ticks)
+  PR #119 (Channel /mode command)    ─── merged (Telegram, Discord, Slack)
+  PR #120 (Soul page redesign)       ─── merged (markdown render, patch review flow)
+  PR #122 (Approval system)          ─── merged (store, channel commands, interactive buttons)
+  PR #123 (Shared context)           ─── merged (one persona, one brain)
+  PR #124 (Skill auto-discovery)     ─── merged (signal detection, ClawHub suggestions)
+  PR #125 (Stale memory rejection)   ─── merged (reflection engine detects stale)
+  PR #127 (Tool stats recording)     ─── merged (RecordToolCall wired)
+  PR #128 (Web search fix)           ─── merged (fallback chain, SearXNG relevance)
+  PR #131 (MCP Client)               ─── merged (connect external MCP servers, wrap tools)
+  PR #132 (Shell reliability)        ─── merged (env, SIGPIPE, errors, workDir)
+  PR #133 (Tool round limits)        ─── merged (increase agent tool rounds)
+  PR #134 (Auto-deploy)              ─── merged (CI deploy on merge, channel memory/patch)
+  PR #136 (completeTask fix)         ─── merged (idempotent + auto task ID)
+  PR #137 (Memory dedup fix)         ─── merged (thresholds calibrated for nomic-embed-text)
 ```
 
 ## Summary
@@ -346,7 +363,7 @@ Google Workspace:
 |-------|---------|----------|-----------------|
 | 6 | 3 PRs ✅ DONE | 15/15 ✅ DONE | Web, memory, feed, tasks, skills |
 | 6.5 | 2 PRs ✅ DONE | — | Skill activation, install, validation |
-| 7 | 1 PR ✅ DONE (MCP server) | 1 PR ✅ DONE | MCP tool exposure |
+| 7 | 2 PRs ✅ DONE (MCP server + client) | 1 PR ✅ DONE | MCP tool exposure + external server connections |
 | 8 Channels | 3 PRs ✅ DONE | 1 PR ✅ DONE | Telegram + Discord + Slack, channel UI |
 | 8 Intelligence | 4/4 PRs ✅ DONE | 1 PR ✅ DONE | Embeddings + compaction + settings UI |
 | 8 Voice | 2 PRs ✅ DONE | 2 PRs ✅ DONE | Whisper STT + edge-tts TTS + playback button (C.7) |
@@ -356,4 +373,5 @@ Google Workspace:
 | Polish | — | 4 PRs ✅ DONE | Mode dropdown, DnD, memory edit/delete, editable settings |
 | Feed Signal | 4 PRs ✅ DONE | 4 PRs ✅ DONE | Feed API, GitHub signal, Gmail+Calendar, RSS+SO+DevTo, 11 pollers |
 | UX + Config | 6 PRs ✅ DONE | 6 PRs ✅ DONE | Notifs, cron UI, agent config tools, activity tab, stop button |
-| **Total** | **38 merged** | **35/35 done** | **39 tools, 11 pollers, cron, activity, agent config, notif prefs** |
+| Agent Autonomy | 15 PRs ✅ DONE | — | MCP client, auto-deploy, approval system, skill discovery, soul page, coding sessions |
+| **Total** | **53+ merged** | **35/35 done** | **49 tools + MCP, 11 pollers, 41 skills, 528 Go tests, 242 FE tests** |

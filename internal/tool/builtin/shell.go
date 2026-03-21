@@ -72,6 +72,25 @@ var shell = tool.Define("cairn.shell",
 			}
 		}
 
+		// Validate workDir exists before attempting exec. A missing directory
+		// causes exec to fail with a cryptic exit -1 (process didn't start).
+		if workDir != "." {
+			if _, statErr := os.Stat(workDir); statErr != nil {
+				home, _ := os.UserHomeDir()
+				if home == "" {
+					home = "."
+				}
+				return &tool.ToolResult{
+					Output: fmt.Sprintf("workDir %q does not exist, falling back to %s. The directory may have been removed.", workDir, home),
+					Error:  fmt.Sprintf("workDir not found: %s", workDir),
+					Metadata: map[string]any{
+						"requestedWorkDir": workDir,
+						"fallbackWorkDir":  home,
+					},
+				}, nil
+			}
+		}
+
 		// Detect shell and build command.
 		si := detectShell()
 		command := p.Command

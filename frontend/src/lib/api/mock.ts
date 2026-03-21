@@ -44,8 +44,8 @@ export const mockApprovals: Approval[] = [
 ];
 
 export const mockSessions: ChatSession[] = [
-	{ id: 'sess-001', title: 'Tool system design', messageCount: 14, lastMessageAt: new Date(Date.now() - 1_800_000).toISOString(), createdAt: new Date(Date.now() - 86_400_000).toISOString() },
-	{ id: 'sess-002', title: 'SQLite migration debugging', messageCount: 8, lastMessageAt: new Date(Date.now() - 43_200_000).toISOString(), createdAt: new Date(Date.now() - 172_800_000).toISOString() },
+	{ id: 'sess-001', title: 'Tool system design', messageCount: 14, updatedAt: new Date(Date.now() - 1_800_000).toISOString(), createdAt: new Date(Date.now() - 86_400_000).toISOString() },
+	{ id: 'sess-002', title: 'SQLite migration debugging', messageCount: 8, updatedAt: new Date(Date.now() - 43_200_000).toISOString(), createdAt: new Date(Date.now() - 172_800_000).toISOString() },
 ];
 
 export const mockMemories: Memory[] = [

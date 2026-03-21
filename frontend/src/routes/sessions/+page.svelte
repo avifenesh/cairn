@@ -12,12 +12,8 @@
 	onMount(async () => {
 		try {
 			const res = await getSessions();
-			// Backend returns updatedAt, not lastMessageAt. Use whichever is available.
-			sessions = (res.items ?? []).sort((a, b) => {
-				const timeA = (a as any).updatedAt ?? a.lastMessageAt ?? a.createdAt ?? '';
-				const timeB = (b as any).updatedAt ?? b.lastMessageAt ?? b.createdAt ?? '';
-				return new Date(timeB).getTime() - new Date(timeA).getTime();
-			});
+			// Backend already returns sessions sorted by updated_at DESC.
+			sessions = res.items ?? [];
 		} catch (e) {
 			console.error('Failed to load sessions:', e);
 		} finally {
@@ -66,7 +62,7 @@
 						</span>
 						<span class="meta-item">
 							<Clock size={12} />
-							{relativeTime((session as any).updatedAt ?? session.lastMessageAt ?? session.createdAt)}
+							{relativeTime(session.updatedAt ?? session.createdAt)}
 						</span>
 					</div>
 					<div class="session-card-footer">

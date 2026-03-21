@@ -104,7 +104,7 @@ export interface ChatSession {
 	id: string;
 	title?: string;
 	messageCount: number;
-	lastMessageAt: string;
+	updatedAt: string;
 	createdAt: string;
 }
 

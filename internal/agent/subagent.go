@@ -161,6 +161,11 @@ func (r *SubagentRunner) Spawn(ctx context.Context, parentTaskID string, req *to
 		return nil, fmt.Errorf("unknown subagent type %q (available: researcher, coder, reviewer, executor)", req.Type)
 	}
 
+	// Reject coder subagents when worktree isolation is unavailable.
+	if typeCfg.Worktree && r.worktrees == nil {
+		return nil, fmt.Errorf("coder subagent requires worktree isolation (CODING_ENABLED=true)")
+	}
+
 	maxRounds := typeCfg.MaxRounds
 	if req.MaxRounds > 0 {
 		maxRounds = req.MaxRounds
@@ -178,7 +183,7 @@ func (r *SubagentRunner) Spawn(ctx context.Context, parentTaskID string, req *to
 	case "foreground":
 		return r.runForeground(ctx, parentTaskID, req, typeCfg, maxRounds)
 	case "background":
-		return r.runBackground(ctx, parentTaskID, req, typeCfg)
+		return r.runBackground(ctx, parentTaskID, req, typeCfg, maxRounds)
 	default:
 		return nil, fmt.Errorf("unknown exec mode %q (use foreground or background)", execMode)
 	}
@@ -186,18 +191,77 @@ func (r *SubagentRunner) Spawn(ctx context.Context, parentTaskID string, req *to
 
 // runForeground creates a child session, runs the agent synchronously, and returns a condensed summary.
 func (r *SubagentRunner) runForeground(ctx context.Context, parentTaskID string, req *tool.SubagentSpawnRequest, cfg subagentTypeConfig, maxRounds int) (*tool.SubagentSpawnResult, error) {
-	start := time.Now()
+	return r.executeSubagent(ctx, parentTaskID, req, cfg, maxRounds, "foreground")
+}
+
+// runBackground spawns a goroutine that runs the subagent asynchronously and returns immediately.
+// Unlike the previous design that relied on the Loop's task engine (which doesn't handle
+// TypeSubagent specially), this runs the subagent directly in a goroutine with proper
+// tool scoping, system prompt, and two-level enforcement.
+func (r *SubagentRunner) runBackground(ctx context.Context, parentTaskID string, req *tool.SubagentSpawnRequest, cfg subagentTypeConfig, maxRounds int) (*tool.SubagentSpawnResult, error) {
 	childID := "sub-" + newID()
 
-	// Publish start event.
+	// Publish start event immediately.
 	eventbus.Publish(r.bus, eventbus.SubagentStarted{
 		EventMeta:    eventbus.NewMeta("agent"),
 		ParentTaskID: parentTaskID,
 		SubagentID:   childID,
 		AgentType:    req.Type,
-		ExecMode:     "foreground",
+		ExecMode:     "background",
 		Instruction:  truncate(req.Instruction, 200),
 	})
+
+	// Also record in task engine if available (for REST API listing).
+	if r.tasks != nil {
+		input, _ := json.Marshal(map[string]string{
+			"instruction":  req.Instruction,
+			"context":      req.Context,
+			"subagentType": req.Type,
+		})
+		r.tasks.Submit(ctx, &task.SubmitRequest{
+			Type:        task.TypeSubagent,
+			Priority:    task.PriorityNormal,
+			Mode:        string(cfg.Mode),
+			ParentID:    parentTaskID,
+			Input:       input,
+			Description: fmt.Sprintf("[subagent:%s] %s", req.Type, truncate(req.Instruction, 100)),
+		})
+	}
+
+	// Run in background goroutine with proper subagent handling.
+	go func() {
+		bgCtx := context.Background()
+		result, err := r.executeSubagent(bgCtx, parentTaskID, req, cfg, maxRounds, "background")
+		if err != nil {
+			r.logger.Error("background subagent failed", "id", childID, "error", err)
+		} else {
+			r.logger.Info("background subagent completed", "id", childID, "status", result.Status)
+		}
+	}()
+
+	return &tool.SubagentSpawnResult{
+		TaskID:    childID,
+		SessionID: "",
+		Status:    "running",
+	}, nil
+}
+
+// executeSubagent is the shared implementation for both foreground and background execution.
+func (r *SubagentRunner) executeSubagent(ctx context.Context, parentTaskID string, req *tool.SubagentSpawnRequest, cfg subagentTypeConfig, maxRounds int, execMode string) (*tool.SubagentSpawnResult, error) {
+	start := time.Now()
+	childID := "sub-" + newID()
+
+	// Publish start event (only for foreground - background already published).
+	if execMode == "foreground" {
+		eventbus.Publish(r.bus, eventbus.SubagentStarted{
+			EventMeta:    eventbus.NewMeta("agent"),
+			ParentTaskID: parentTaskID,
+			SubagentID:   childID,
+			AgentType:    req.Type,
+			ExecMode:     execMode,
+			Instruction:  truncate(req.Instruction, 200),
+		})
+	}
 
 	// Create fresh child session.
 	session := &Session{
@@ -209,8 +273,8 @@ func (r *SubagentRunner) runForeground(ctx context.Context, parentTaskID string,
 		},
 	}
 
-	// Optionally create worktree for coder.
-	if cfg.Worktree && r.worktrees != nil {
+	// Create worktree for coder type (already validated in Spawn that worktrees != nil).
+	if cfg.Worktree {
 		wtPath, _, err := r.worktrees.Create(childID, "HEAD")
 		if err != nil {
 			return nil, fmt.Errorf("worktree creation failed: %w", err)
@@ -226,7 +290,7 @@ func (r *SubagentRunner) runForeground(ctx context.Context, parentTaskID string,
 	// Build scoped tool registry - never includes spawnSubagent (two-level enforcement).
 	childTools := r.scopeTools(cfg)
 
-	// Build user message.
+	// Build user message with type-specific system prompt prefix.
 	userMessage := req.Instruction
 	if req.Context != "" {
 		userMessage = "## Context from parent\n" + req.Context + "\n\n## Task\n" + req.Instruction
@@ -234,37 +298,42 @@ func (r *SubagentRunner) runForeground(ctx context.Context, parentTaskID string,
 
 	// Build invocation context (child gets no Subagents field - cannot spawn grandchildren).
 	invCtx := &InvocationContext{
-		Context:        ctx,
-		SessionID:      childID,
-		UserMessage:    userMessage,
-		Mode:           cfg.Mode,
-		Session:        session,
-		Tools:          childTools,
-		LLM:            r.provider,
-		Memory:         r.memories,
-		Soul:           r.soul,
-		Bus:            r.bus,
-		ContextBuilder: r.contextBuilder,
-		Plugins:        r.plugins,
-		ActivityStore:  r.activityStore,
-		Subagents:      nil, // two-level enforcement: child cannot spawn
-		ToolMemories:   r.toolMemories,
-		ToolEvents:     r.toolEvents,
-		ToolDigest:     r.toolDigest,
-		ToolJournal:    r.toolJournal,
-		ToolTasks:      r.toolTasks,
-		ToolStatus:     r.toolStatus,
-		ToolSkills:     r.toolSkills,
-		ToolNotifier:   r.toolNotifier,
-		ToolCrons:      r.toolCrons,
-		ToolConfig:     r.toolConfig,
-		Config:         &AgentConfig{Model: r.model, MaxRounds: maxRounds},
+		Context:       ctx,
+		SessionID:     childID,
+		UserMessage:   userMessage,
+		Mode:          cfg.Mode,
+		Session:       session,
+		Tools:         childTools,
+		LLM:           r.provider,
+		Memory:        r.memories,
+		Soul:          r.soul,
+		Bus:           r.bus,
+		Plugins:       r.plugins,
+		ActivityStore: r.activityStore,
+		Subagents:     nil, // two-level enforcement: child cannot spawn
+		ToolMemories:  r.toolMemories,
+		ToolEvents:    r.toolEvents,
+		ToolDigest:    r.toolDigest,
+		ToolJournal:   r.toolJournal,
+		ToolTasks:     r.toolTasks,
+		ToolStatus:    r.toolStatus,
+		ToolSkills:    r.toolSkills,
+		ToolNotifier:  r.toolNotifier,
+		ToolCrons:     r.toolCrons,
+		ToolConfig:    r.toolConfig,
+		Config: &AgentConfig{
+			Model:              r.model,
+			MaxRounds:          maxRounds,
+			SubagentSystemHint: cfg.SystemPrompt,
+		},
 	}
 
 	// Run child agent.
 	childAgent := NewReActAgent("subagent:"+req.Type, r.logger)
 	var response strings.Builder
 	var totalToolCalls, rounds int
+	// Track unique tool call IDs to avoid double-counting (ReAct emits both Running and Completed).
+	seenCallIDs := make(map[string]bool)
 
 	for ev := range childAgent.Run(invCtx) {
 		if ev.Err != nil {
@@ -292,18 +361,24 @@ func (r *SubagentRunner) runForeground(ctx context.Context, parentTaskID string,
 		if ev.Event != nil {
 			session.Events = append(session.Events, ev.Event)
 
-			// Track rounds and tool calls.
+			// Track rounds and tool calls (deduplicated by CallID).
 			if ev.Event.Round > rounds {
 				rounds = ev.Event.Round
+			}
 
-				// Publish progress every round.
-				toolName := ""
-				for _, part := range ev.Event.Parts {
-					if tp, ok := part.(ToolPart); ok {
+			toolName := ""
+			for _, part := range ev.Event.Parts {
+				if tp, ok := part.(ToolPart); ok {
+					if tp.CallID != "" && !seenCallIDs[tp.CallID] {
+						seenCallIDs[tp.CallID] = true
 						totalToolCalls++
 						toolName = tp.ToolName
 					}
 				}
+			}
+
+			// Publish progress on new rounds.
+			if ev.Event.Round >= rounds && toolName != "" {
 				eventbus.Publish(r.bus, eventbus.SubagentProgress{
 					EventMeta:  eventbus.NewMeta("agent"),
 					SubagentID: childID,
@@ -311,13 +386,6 @@ func (r *SubagentRunner) runForeground(ctx context.Context, parentTaskID string,
 					MaxRounds:  maxRounds,
 					ToolName:   toolName,
 				})
-			} else {
-				// Count tool calls in same round.
-				for _, part := range ev.Event.Parts {
-					if _, ok := part.(ToolPart); ok {
-						totalToolCalls++
-					}
-				}
 			}
 
 			// Collect text output.
@@ -359,46 +427,6 @@ func (r *SubagentRunner) runForeground(ctx context.Context, parentTaskID string,
 		Rounds:     rounds,
 		ToolCalls:  totalToolCalls,
 		DurationMs: durationMs,
-	}, nil
-}
-
-// runBackground submits a task for the Loop to pick up and returns immediately.
-func (r *SubagentRunner) runBackground(ctx context.Context, parentTaskID string, req *tool.SubagentSpawnRequest, cfg subagentTypeConfig) (*tool.SubagentSpawnResult, error) {
-	if r.tasks == nil {
-		return nil, fmt.Errorf("background subagents require the task engine")
-	}
-
-	input, _ := json.Marshal(map[string]string{
-		"instruction":  req.Instruction,
-		"context":      req.Context,
-		"subagentType": req.Type,
-	})
-
-	t, err := r.tasks.Submit(ctx, &task.SubmitRequest{
-		Type:        task.TypeSubagent,
-		Priority:    task.PriorityNormal,
-		Mode:        string(cfg.Mode),
-		ParentID:    parentTaskID,
-		Input:       input,
-		Description: fmt.Sprintf("[subagent:%s] %s", req.Type, truncate(req.Instruction, 100)),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("submit background subagent: %w", err)
-	}
-
-	eventbus.Publish(r.bus, eventbus.SubagentStarted{
-		EventMeta:    eventbus.NewMeta("agent"),
-		ParentTaskID: parentTaskID,
-		SubagentID:   t.ID,
-		AgentType:    req.Type,
-		ExecMode:     "background",
-		Instruction:  truncate(req.Instruction, 200),
-	})
-
-	return &tool.SubagentSpawnResult{
-		TaskID:    t.ID,
-		SessionID: "",
-		Status:    "running",
 	}, nil
 }
 

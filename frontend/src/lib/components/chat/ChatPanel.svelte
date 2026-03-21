@@ -250,7 +250,10 @@
 						<!-- Subagent cards for this task -->
 						{#each subagentStore.forParentTask(sm.taskId) as sa (sa.id)}
 							<div class="mb-2">
-								<SubagentCard subagent={sa} onCancel={() => cancelSubagent(sa.id).catch(() => {})} />
+								<SubagentCard
+									subagent={sa}
+									onCancel={sa.execMode === 'background' ? () => cancelSubagent(sa.id).catch((e) => console.warn('cancel subagent failed:', e)) : undefined}
+								/>
 							</div>
 						{/each}
 						{#if sm.reasoning.length > 0}

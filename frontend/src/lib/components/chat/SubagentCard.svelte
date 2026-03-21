@@ -74,28 +74,30 @@
 </script>
 
 <div class="w-full rounded-lg border {borderColor} bg-[var(--bg-1)] overflow-hidden transition-colors">
-	<!-- Header -->
-	<button
-		class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--bg-2)] transition-colors min-h-[44px]"
-		onclick={() => { expanded = !expanded; }}
-		type="button"
-	>
-		<!-- Icon -->
-		<div class="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-md
-			{isRunning ? 'bg-[var(--cairn-accent)]/15 text-[var(--cairn-accent)]' :
-			 isCompleted ? 'bg-[var(--color-success)]/15 text-[var(--color-success)]' :
-			 'bg-[var(--color-error)]/15 text-[var(--color-error)]'}">
-			{#if isRunning}
-				<Loader2 class="h-3.5 w-3.5 animate-spin" />
-			{:else if isCompleted}
-				<Check class="h-3.5 w-3.5" />
-			{:else}
-				<X class="h-3.5 w-3.5" />
-			{/if}
-		</div>
+	<!-- Header row -->
+	<div class="flex items-center gap-2 px-3 py-2 min-h-[44px]">
+		<!-- Expand toggle (everything except cancel) -->
+		<button
+			class="flex-1 flex items-center gap-2 text-left hover:bg-[var(--bg-2)] rounded transition-colors min-w-0"
+			onclick={() => { expanded = !expanded; }}
+			type="button"
+		>
+			<!-- Status icon -->
+			<div class="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-md
+				{isRunning ? 'bg-[var(--cairn-accent)]/15 text-[var(--cairn-accent)]' :
+				 isCompleted ? 'bg-[var(--color-success)]/15 text-[var(--color-success)]' :
+				 'bg-[var(--color-error)]/15 text-[var(--color-error)]'}">
+				{#if isRunning}
+					<Loader2 class="h-3.5 w-3.5 animate-spin" />
+				{:else if isCompleted}
+					<Check class="h-3.5 w-3.5" />
+				{:else}
+					<X class="h-3.5 w-3.5" />
+				{/if}
+			</div>
 
-		<!-- Type + progress -->
-		<div class="flex-1 min-w-0 flex items-center gap-2">
+			<!-- Type icon + progress -->
+			<TypeIcon class="h-3 w-3 text-[var(--text-secondary)] flex-shrink-0" />
 			<span class="text-xs font-medium text-[var(--text-primary)]">{typeLabel}</span>
 			{#if subagent.round != null}
 				<span class="text-[10px] text-[var(--text-tertiary)] font-mono">
@@ -107,31 +109,29 @@
 					{subagent.toolName}
 				</span>
 			{/if}
-		</div>
 
-		<!-- Elapsed + controls -->
-		<div class="flex items-center gap-1.5 flex-shrink-0">
-			<span class="text-[10px] text-[var(--text-tertiary)] font-mono">{elapsedStr}</span>
-			{#if isRunning && onCancel}
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<span
-					class="flex h-6 w-6 items-center justify-center rounded hover:bg-[var(--color-error)]/15 text-[var(--text-tertiary)] hover:text-[var(--color-error)] cursor-pointer"
-					role="button"
-					tabindex="0"
-					onclick={(e) => { e.stopPropagation(); onCancel?.(); }}
-					onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onCancel?.(); } }}
-					title="Cancel subagent"
-				>
-					<Square class="h-3 w-3" />
-				</span>
-			{/if}
+			<!-- Elapsed + chevron -->
+			<span class="ml-auto text-[10px] text-[var(--text-tertiary)] font-mono flex-shrink-0">{elapsedStr}</span>
 			{#if expanded}
-				<ChevronUp class="h-3 w-3 text-[var(--text-tertiary)]" />
+				<ChevronUp class="h-3 w-3 text-[var(--text-tertiary)] flex-shrink-0" />
 			{:else}
-				<ChevronDown class="h-3 w-3 text-[var(--text-tertiary)]" />
+				<ChevronDown class="h-3 w-3 text-[var(--text-tertiary)] flex-shrink-0" />
 			{/if}
-		</div>
-	</button>
+		</button>
+
+		<!-- Cancel (separate from toggle to avoid nested buttons) -->
+		{#if isRunning && onCancel}
+			<button
+				type="button"
+				class="flex h-7 w-7 items-center justify-center rounded hover:bg-[var(--color-error)]/15 text-[var(--text-tertiary)] hover:text-[var(--color-error)] flex-shrink-0"
+				onclick={() => onCancel?.()}
+				title="Cancel subagent"
+				aria-label="Cancel subagent"
+			>
+				<Square class="h-3 w-3" />
+			</button>
+		{/if}
+	</div>
 
 	<!-- Body (collapsed on mobile by default, expanded on desktop if completed) -->
 	{#if expanded}

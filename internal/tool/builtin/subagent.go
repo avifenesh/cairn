@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/avifenesh/cairn/internal/tool"
@@ -29,6 +28,13 @@ var spawnSubagent = tool.Define("cairn.spawnSubagent",
 			return &tool.ToolResult{Error: "instruction is required"}, nil
 		}
 
+		// Use TaskID as parent reference; fall back to SessionID for HTTP chat path
+		// where taskIDFromSession may return empty.
+		parentID := ctx.TaskID
+		if parentID == "" {
+			parentID = ctx.SessionID
+		}
+
 		req := &tool.SubagentSpawnRequest{
 			Type:        p.Type,
 			Instruction: p.Instruction,
@@ -43,7 +49,7 @@ var spawnSubagent = tool.Define("cairn.spawnSubagent",
 			req.MaxRounds = *p.MaxRounds
 		}
 
-		result, err := ctx.Subagents.Spawn(ctx.Cancel, ctx.TaskID, req)
+		result, err := ctx.Subagents.Spawn(ctx.Cancel, parentID, req)
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("subagent spawn failed: %v", err)}, nil
 		}
@@ -60,26 +66,21 @@ var spawnSubagent = tool.Define("cairn.spawnSubagent",
 			out += fmt.Sprintf("\n\n(%d rounds, %d tool calls, %dms)", result.Rounds, result.ToolCalls, result.DurationMs)
 		}
 
+		// Metadata is already map[string]any - no need for JSON round-trip.
 		metadata := map[string]any{
-			"subagentId": result.TaskID,
-			"sessionId":  result.SessionID,
-			"status":     result.Status,
-			"type":       p.Type,
+			"subagentId":  result.TaskID,
+			"sessionId":   result.SessionID,
+			"status":      result.Status,
+			"type":        p.Type,
+			"instruction": p.Instruction,
 		}
 		if p.ExecMode != nil {
 			metadata["execMode"] = *p.ExecMode
 		}
 
-		// Include instruction in metadata for frontend SubagentCard rendering.
-		metadata["instruction"] = p.Instruction
-
-		raw, _ := json.Marshal(metadata)
-		var metadataMap map[string]any
-		json.Unmarshal(raw, &metadataMap)
-
 		return &tool.ToolResult{
 			Output:   out,
-			Metadata: metadataMap,
+			Metadata: metadata,
 		}, nil
 	},
 )

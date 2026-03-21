@@ -43,8 +43,13 @@ func DefaultModes() map[tool.Mode]*ModeConfig {
 func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilder *memory.ContextBuilder, journalEntries []memory.JournalDigestEntry) string {
 	var parts []string
 
-	// Identity.
-	parts = append(parts, "You are Cairn, a personal agent operating system.")
+	// Subagent system hint (overrides identity when running as a child agent).
+	if ctx.Config != nil && ctx.Config.SubagentSystemHint != "" {
+		parts = append(parts, ctx.Config.SubagentSystemHint)
+	} else {
+		// Identity.
+		parts = append(parts, "You are Cairn, a personal agent operating system.")
+	}
 
 	// Mode instructions.
 	parts = append(parts, fmt.Sprintf("## Mode: %s\n%s", modeConfig.Mode, modeConfig.Prompt))

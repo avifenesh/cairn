@@ -2139,6 +2139,18 @@ func (s *Server) handleListSubagents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Filter by parentTaskId if requested (ListOpts doesn't support this natively,
+	// so we filter in-memory - subagent lists are small).
+	if parentQ := r.URL.Query().Get("parentTaskId"); parentQ != "" {
+		var filtered []*task.Task
+		for _, t := range tasks {
+			if t.ParentID == parentQ {
+				filtered = append(filtered, t)
+			}
+		}
+		tasks = filtered
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{"subagents": marshalTasks(tasks)})
 }
 

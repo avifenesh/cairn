@@ -81,8 +81,9 @@ type SteeringMessage struct {
 
 // AgentConfig holds per-invocation agent configuration.
 type AgentConfig struct {
-	Model     string
-	MaxRounds int
+	Model              string
+	MaxRounds          int
+	SubagentSystemHint string // Optional system prompt hint for subagent types (prepended to main prompt)
 }
 
 // Event represents a single event in the agent's execution.

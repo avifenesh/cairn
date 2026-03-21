@@ -71,9 +71,9 @@ func TestSplitMessage_Empty(t *testing.T) {
 func TestSplitMessage_TelegramLimits(t *testing.T) {
 	// Simulate a 10000-char message split at Telegram's markdown limit.
 	text := strings.Repeat("Hello world. ", 800) // ~10400 chars
-	chunks := splitMessage(text, telegramMaxMarkdown)
+	chunks := splitMessage(text, telegramSplitLimit)
 	for i, c := range chunks {
-		if len([]rune(c)) > telegramMaxMarkdown {
+		if len([]rune(c)) > telegramSplitLimit {
 			t.Errorf("chunk %d exceeds telegram limit: runes=%d", i, len([]rune(c)))
 		}
 	}

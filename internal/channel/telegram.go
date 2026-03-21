@@ -142,8 +142,9 @@ func (t *TelegramAdapter) Close() error {
 // Telegram limits: 4096 chars for sendMessage. MarkdownV2 escaping inflates
 // text, so we use a conservative limit for formatted messages.
 const (
-	telegramMaxPlain    = 4096
-	telegramMaxMarkdown = 3500 // conservative to account for escaping inflation
+	telegramMaxPlain = 4096
+	// Split limit reserves room for part headers ("─── Part XX/XX ───\n" ≈ 30 runes).
+	telegramSplitLimit = telegramMaxPlain - 30
 )
 
 func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *OutgoingMessage) error {
@@ -161,9 +162,7 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 		}
 	}
 
-	rawText := msg.Text
-	text := Normalize(rawText, "telegram")
-	if text == "" {
+	if msg.Text == "" {
 		return nil
 	}
 
@@ -184,46 +183,41 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 		replyMarkup = &telego.InlineKeyboardMarkup{InlineKeyboard: rows}
 	}
 
-	// Split formatted text into chunks. Also split the raw (unescaped) text
-	// for the plain-text fallback so we don't pass MarkdownV2 escapes through
-	// stripMarkdown (which would leave stray backslashes).
-	mdChunks := splitMessage(text, telegramMaxMarkdown)
-	plainChunks := splitMessage(rawText, telegramMaxPlain)
-	return t.sendChunks(ctx, chatID, mdChunks, plainChunks, telego.ModeMarkdownV2, replyMarkup)
+	// Split on raw text first, then normalize each chunk to MarkdownV2.
+	// This ensures markdown and plain chunks align 1:1 (same boundaries).
+	rawChunks := splitMessage(msg.Text, telegramSplitLimit)
+	return t.sendChunks(ctx, chatID, rawChunks, replyMarkup)
 }
 
-// sendChunks sends message chunks sequentially. Part headers are added when
-// there are multiple chunks. The inline keyboard is attached only to the last
-// chunk. If markdown send fails, retries the corresponding plain text chunk.
-func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, mdChunks, plainChunks []string, parseMode string, keyboard *telego.InlineKeyboardMarkup) error {
-	total := len(mdChunks)
-	for i, chunk := range mdChunks {
+// sendChunks sends raw text chunks sequentially, normalizing each to MarkdownV2.
+// Part headers are added for multi-chunk messages. The inline keyboard is
+// attached only to the last chunk. If markdown send fails, retries with plain text.
+func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, rawChunks []string, keyboard *telego.InlineKeyboardMarkup) error {
+	total := len(rawChunks)
+	for i, raw := range rawChunks {
+		// Add part header for multi-chunk messages.
+		header := ""
 		if total > 1 {
-			chunk = fmt.Sprintf("─── Part %d/%d ───\n%s", i+1, total, chunk)
+			header = fmt.Sprintf("─── Part %d/%d ───\n", i+1, total)
 		}
 
-		params := tu.Message(tu.ID(chatID), chunk)
-		if parseMode != "" {
-			params = params.WithParseMode(parseMode)
-		}
+		// Try MarkdownV2 first.
+		mdText := header + Normalize(raw, "telegram")
+		params := tu.Message(tu.ID(chatID), mdText).WithParseMode(telego.ModeMarkdownV2)
 
-		// Attach keyboard only to the last chunk.
 		isLast := i == total-1
 		if isLast && keyboard != nil {
 			params = params.WithReplyMarkup(keyboard)
 		}
 
 		if _, err := t.bot.SendMessage(ctx, params); err != nil {
-			// Fallback: use the original unescaped text for plain retry.
+			// Fallback: plain text from raw (no MarkdownV2 escapes).
 			t.logger.Warn("telegram: markdown send failed, retrying plain", "error", err, "part", i+1)
-			plainText := chunk
-			if i < len(plainChunks) {
-				plainText = plainChunks[i]
-				if total > 1 {
-					plainText = fmt.Sprintf("--- Part %d/%d ---\n%s", i+1, total, plainText)
-				}
+			plainHeader := ""
+			if total > 1 {
+				plainHeader = fmt.Sprintf("--- Part %d/%d ---\n", i+1, total)
 			}
-			plain := tu.Message(tu.ID(chatID), plainText)
+			plain := tu.Message(tu.ID(chatID), plainHeader+raw)
 			if isLast && keyboard != nil {
 				plain = plain.WithReplyMarkup(keyboard)
 			}

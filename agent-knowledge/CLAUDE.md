@@ -2,7 +2,7 @@
 
 > Research guides for Cairn development. Read the relevant guide before answering questions on these topics.
 
-## Guides (13)
+## Guides (14)
 
 | # | Topic | File | Sources | Created |
 |---|-------|------|---------|---------|
@@ -19,6 +19,7 @@
 | 11 | Coding environments for AI agents | coding-env-for-agents.md | 42 | 2026-03-19 |
 | 12 | Self-evolving agents | self-evolving-agents.md | 42 | 2026-03-19 |
 | 13 | Cron systems, agent resilience | cron-and-resilience.md | 108 | 2026-03-19 |
+| 14 | File write/edit tools in AI coding assistants | ai-file-edit-tools.md | 42 | 2026-03-21 |
 
 ## Keyword Lookup
 
@@ -42,6 +43,12 @@
 | coding environment, sandbox, worktree, container | coding-env-for-agents.md |
 | self-evolving, skill discovery, autonomous learning | self-evolving-agents.md |
 | cron, scheduled job, resilience, crash recovery | cron-and-resilience.md |
+| file edit tool, writeFile, editFile, search-and-replace, apply model | ai-file-edit-tools.md |
+| Claude Code Edit, Codex apply_patch, Aider edit formats, Cursor instant apply | ai-file-edit-tools.md |
+| Cline replace_in_file, Roo Code apply_diff, diff format, udiff | ai-file-edit-tools.md |
+| read-before-write, checkpoint, rollback, fuzzy matching, speculative edits | ai-file-edit-tools.md |
+| JSON code wrapping, line number accuracy, lazy code generation | ai-file-edit-tools.md |
+| architect mode, editor model, two-model approach, apply role | ai-file-edit-tools.md |
 
 ## How to Use
 

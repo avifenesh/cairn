@@ -56,10 +56,15 @@ func (s *ApprovalStore) Create(ctx context.Context, a *Approval) error {
 		a.Context = json.RawMessage("{}")
 	}
 	now := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
+	// Use NULL for empty TaskID to satisfy FK constraint.
+	var taskID any
+	if a.TaskID != "" {
+		taskID = a.TaskID
+	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO approvals (id, task_id, type, status, description, context, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		a.ID, a.TaskID, a.Type, a.Status, a.Description, string(a.Context), now,
+		a.ID, taskID, a.Type, a.Status, a.Description, string(a.Context), now,
 	)
 	return err
 }
@@ -67,15 +72,19 @@ func (s *ApprovalStore) Create(ctx context.Context, a *Approval) error {
 // Get retrieves an approval by ID.
 func (s *ApprovalStore) Get(ctx context.Context, id string) (*Approval, error) {
 	var a Approval
+	var taskID sql.NullString
 	var ctxStr, createdStr string
 	var decidedStr sql.NullString
 	var decidedBy sql.NullString
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, task_id, type, status, description, context, decided_at, decided_by, created_at
 		FROM approvals WHERE id = ?`, id,
-	).Scan(&a.ID, &a.TaskID, &a.Type, &a.Status, &a.Description, &ctxStr, &decidedStr, &decidedBy, &createdStr)
+	).Scan(&a.ID, &taskID, &a.Type, &a.Status, &a.Description, &ctxStr, &decidedStr, &decidedBy, &createdStr)
 	if err != nil {
 		return nil, err
+	}
+	if taskID.Valid {
+		a.TaskID = taskID.String
 	}
 	a.Context = json.RawMessage(ctxStr)
 	a.CreatedAt, _ = time.Parse("2006-01-02T15:04:05.000Z", createdStr)
@@ -117,10 +126,14 @@ func (s *ApprovalStore) list(ctx context.Context, status string) ([]*Approval, e
 	var approvals []*Approval
 	for rows.Next() {
 		var a Approval
+		var taskID sql.NullString
 		var ctxStr, createdStr string
 		var decidedStr, decidedBy sql.NullString
-		if err := rows.Scan(&a.ID, &a.TaskID, &a.Type, &a.Status, &a.Description, &ctxStr, &decidedStr, &decidedBy, &createdStr); err != nil {
+		if err := rows.Scan(&a.ID, &taskID, &a.Type, &a.Status, &a.Description, &ctxStr, &decidedStr, &decidedBy, &createdStr); err != nil {
 			return nil, err
+		}
+		if taskID.Valid {
+			a.TaskID = taskID.String
 		}
 		a.Context = json.RawMessage(ctxStr)
 		a.CreatedAt, _ = time.Parse("2006-01-02T15:04:05.000Z", createdStr)

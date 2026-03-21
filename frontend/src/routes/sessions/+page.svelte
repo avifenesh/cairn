@@ -4,7 +4,7 @@
 	import type { ChatSession } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
 	import { relativeTime } from '$lib/utils/time';
-	import { MonitorPlay, MessageSquare, Clock, ExternalLink, Loader2 } from '@lucide/svelte';
+	import { MonitorPlay, MessageSquare, Clock, ChevronRight, Loader2 } from '@lucide/svelte';
 
 	let sessions = $state<ChatSession[]>([]);
 	let loading = $state(true);
@@ -12,9 +12,12 @@
 	onMount(async () => {
 		try {
 			const res = await getSessions();
-			sessions = (res.items ?? []).sort(
-				(a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-			);
+			// Backend returns updatedAt, not lastMessageAt. Use whichever is available.
+			sessions = (res.items ?? []).sort((a, b) => {
+				const timeA = (a as any).updatedAt ?? a.lastMessageAt ?? a.createdAt ?? '';
+				const timeB = (b as any).updatedAt ?? b.lastMessageAt ?? b.createdAt ?? '';
+				return new Date(timeB).getTime() - new Date(timeA).getTime();
+			});
 		} catch (e) {
 			console.error('Failed to load sessions:', e);
 		} finally {
@@ -54,7 +57,7 @@
 				<a href="/session/{session.id}" class="session-card">
 					<div class="session-card-header">
 						<span class="session-title">{session.title || 'Untitled session'}</span>
-						<ExternalLink size={14} class="text-[var(--text-tertiary)] shrink-0" />
+						<ChevronRight size={14} class="text-[var(--text-tertiary)] shrink-0" />
 					</div>
 					<div class="session-card-meta">
 						<span class="meta-item">
@@ -63,7 +66,7 @@
 						</span>
 						<span class="meta-item">
 							<Clock size={12} />
-							{relativeTime(session.lastMessageAt)}
+							{relativeTime((session as any).updatedAt ?? session.lastMessageAt ?? session.createdAt)}
 						</span>
 					</div>
 					<div class="session-card-footer">

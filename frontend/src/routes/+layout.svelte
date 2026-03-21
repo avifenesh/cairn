@@ -68,8 +68,9 @@
 			if ((e.target as HTMLElement)?.isContentEditable) return;
 
 			const viewKeys: Record<string, string> = {
-				'1': '/today', '2': '/ops', '3': '/chat', '4': '/memory',
-				'5': '/agents', '6': '/skills', '7': '/soul', '8': '/settings',
+				'1': '/today', '2': '/ops', '3': '/chat', '4': '/activity',
+				'5': '/sessions', '6': '/memory', '7': '/agents', '8': '/skills',
+				'9': '/soul', '0': '/settings',
 			};
 
 			if (viewKeys[e.key]) {

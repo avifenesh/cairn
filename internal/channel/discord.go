@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -291,18 +292,13 @@ func splitMessage(text string, maxLen int) []string {
 		// Find a good split point: prefer newline, then space, then hard cut.
 		cut := maxLen
 		if idx := strings.LastIndex(segment, "\n"); idx > 0 {
-			cut = runeCount(segment[:idx+1])
+			cut = utf8.RuneCountInString(segment[:idx+1])
 		} else if idx := strings.LastIndex(segment, " "); idx > 0 {
-			cut = runeCount(segment[:idx+1])
+			cut = utf8.RuneCountInString(segment[:idx+1])
 		}
 
 		chunks = append(chunks, string(runes[:cut]))
 		runes = runes[cut:]
 	}
 	return chunks
-}
-
-// runeCount returns the number of runes in s.
-func runeCount(s string) int {
-	return len([]rune(s))
 }

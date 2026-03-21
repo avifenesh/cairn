@@ -143,8 +143,9 @@ func (t *TelegramAdapter) Close() error {
 // text, so we use a conservative limit for formatted messages.
 const (
 	telegramMaxPlain = 4096
-	// Split limit reserves room for part headers ("─── Part XX/XX ───\n" ≈ 30 runes).
-	telegramSplitLimit = telegramMaxPlain - 30
+	// Split limit: 3500 accounts for MarkdownV2 escaping inflation (~15%)
+	// plus part headers (~30 runes). Conservative to stay under 4096 after Normalize.
+	telegramSplitLimit = 3500
 )
 
 func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *OutgoingMessage) error {
@@ -201,8 +202,12 @@ func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, rawChunk
 			header = fmt.Sprintf("─── Part %d/%d ───\n", i+1, total)
 		}
 
-		// Try MarkdownV2 first.
+		// Try MarkdownV2 first. Truncate if escaping pushed it over the limit.
 		mdText := header + Normalize(raw, "telegram")
+		if len([]rune(mdText)) > telegramMaxPlain {
+			mdRunes := []rune(mdText)
+			mdText = string(mdRunes[:telegramMaxPlain-3]) + "..."
+		}
 		params := tu.Message(tu.ID(chatID), mdText).WithParseMode(telego.ModeMarkdownV2)
 
 		isLast := i == total-1

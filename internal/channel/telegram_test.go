@@ -41,8 +41,8 @@ func TestSplitMessage_SplitsOnSpace(t *testing.T) {
 	}
 	// Each chunk should not exceed the limit.
 	for i, c := range chunks {
-		if len(c) > 12 {
-			t.Errorf("chunk %d exceeds limit: len=%d", i, len(c))
+		if len([]rune(c)) > 12 {
+			t.Errorf("chunk %d exceeds limit: runes=%d", i, len([]rune(c)))
 		}
 	}
 }
@@ -55,8 +55,8 @@ func TestSplitMessage_HardCut(t *testing.T) {
 		t.Fatalf("expected 3 chunks, got %d: %v", len(chunks), chunks)
 	}
 	for i, c := range chunks {
-		if len(c) > 10 {
-			t.Errorf("chunk %d exceeds limit: len=%d", i, len(c))
+		if len([]rune(c)) > 10 {
+			t.Errorf("chunk %d exceeds limit: runes=%d", i, len([]rune(c)))
 		}
 	}
 }

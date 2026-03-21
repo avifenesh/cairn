@@ -154,14 +154,12 @@ Default: `http://localhost:8788`. Production: `https://agntic.garden` (Caddy pro
 | `memory_accepted` | `{ memoryId }` | Memory accepted |
 | `soul_updated` | `{ sha }` | SOUL.md changed |
 | `digest_ready` | `{ digest }` | New digest available |
-| `coding_session_event` | `{ sessionId, type, data }` | Coding session lifecycle |
 | `agent_progress` | `{ agentId, message }` | Agent status update |
 | `skill_activated` | `{ skillName }` | Skill activated |
-| `budget_update` | `{ todayUsd, weekUsd, ... }` | Budget change |
 | `agent_heartbeat` | `{ tickNumber, taskRun, durationMs }` | Agent tick notification |
 | `agent_activity` | `{ entry }` | Agent activity logged |
 | `mcp_connection` | `{ serverName, status, toolCount }` | MCP server status |
-| `session_event` | `{ sessionId, eventType, payload }` | Coding session lifecycle |
+| `session_event` | `{ sessionId, eventType, payload }` | Coding session observability (tool_call, file_change, state_change, round_complete) |
 | `subagent_started` | `{ parentTaskId, subagentId, agentType, execMode, instruction }` | Child agent spawned |
 | `subagent_progress` | `{ subagentId, round, maxRounds, toolName }` | Child agent round update |
 | `subagent_completed` | `{ subagentId, status, summary, error, durationMs, toolCalls, rounds }` | Child agent finished |

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -51,15 +52,8 @@ func TestBuildBriefingPrompt_RichContent(t *testing.T) {
 	}
 
 	for sub, label := range checks {
-		found := false
-		for i := 0; i <= len(prompt)-len(sub); i++ {
-			if prompt[i:i+len(sub)] == sub {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected %s in briefing prompt", label)
+		if !strings.Contains(prompt, sub) {
+			t.Errorf("expected %s (%q) in briefing prompt", label, sub)
 		}
 	}
 }

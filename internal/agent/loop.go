@@ -328,10 +328,15 @@ func (l *Loop) tick(ctx context.Context) {
 	executed, taskSummary, taskDetails := l.executePendingTask(ctx)
 
 	// 3. If no task was executed and no cron submitted, run orchestrator.
+	// Observations are gathered inside Evaluate (after throttle check) to avoid
+	// unnecessary DB queries on every tick.
 	if !executed && !cronSubmitted && l.config.IdleEnabled {
-		obs := l.gatherObservations(ctx)
-		l.gatherMemories(ctx, obs)
-		if decision := l.orchestrator.Evaluate(ctx, obs, l.tickCount.Load()); decision != nil {
+		gatherFn := func(gCtx context.Context) *Observations {
+			obs := l.gatherObservations(ctx)
+			l.gatherMemories(ctx, obs)
+			return obs
+		}
+		if decision := l.orchestrator.Evaluate(ctx, gatherFn, l.tickCount.Load()); decision != nil {
 			l.lastIdleDecision = orchestratorDecisionToIdle(decision)
 		}
 	}

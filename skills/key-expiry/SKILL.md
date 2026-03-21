@@ -143,4 +143,4 @@ Priority 8 for any CRITICAL finding, priority 5 for WARN-only.
 - Gracefully skip unavailable services (report as DOWN or N/A, not as errors)
 - GitHub App and GLM checks use `[ -n ]` test only — never print env var values
 - Gotify check uses `test -f` only — never reads token file contents
-- Schedule periodic checks with the `natural-cron` skill (e.g., "check key expiry every Monday at 9 AM" → automation rule with `--notify`)
+- Schedule periodic checks with `cairn.createCron` (e.g., "check key expiry every Monday at 9 AM" → cron job with `--notify`)

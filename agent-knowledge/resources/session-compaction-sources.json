@@ -240,7 +240,7 @@
       "extractedAt": "2026-03-19T00:00:00Z"
     },
     {
-      "url": "file:///home/ubuntu/cairn-backend/internal/agent/types.go",
+      "url": "file://internal/agent/types.go",
       "title": "Cairn Agent Types — Session.History()",
       "qualityScore": 99,
       "scores": {
@@ -260,7 +260,7 @@
       "extractedAt": "2026-03-19T00:00:00Z"
     },
     {
-      "url": "file:///home/ubuntu/cairn-backend/internal/agent/react.go",
+      "url": "file://internal/agent/react.go",
       "title": "Cairn ReAct Agent Loop — Insertion Point",
       "qualityScore": 99,
       "scores": {
@@ -280,7 +280,7 @@
       "extractedAt": "2026-03-19T00:00:00Z"
     },
     {
-      "url": "file:///home/ubuntu/cairn-backend/internal/memory/context.go",
+      "url": "file://internal/memory/context.go",
       "title": "Cairn ContextBuilder — Memory Token Budget",
       "qualityScore": 99,
       "scores": {
@@ -301,7 +301,7 @@
       "extractedAt": "2026-03-19T00:00:00Z"
     },
     {
-      "url": "file:///home/ubuntu/cairn-backend/internal/memory/service.go",
+      "url": "file://internal/memory/service.go",
       "title": "Cairn Memory Service — Compact()",
       "qualityScore": 95,
       "scores": {

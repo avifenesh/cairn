@@ -173,7 +173,7 @@ type NotifyService interface {
 
 // CronService manages scheduled recurring tasks.
 type CronService interface {
-	Create(ctx context.Context, name, schedule, instruction string, priority int) (string, error)
+	Create(ctx context.Context, name, schedule, instruction string, priority int, cooldownMs *int64) (string, error)
 	List(ctx context.Context) ([]CronJobInfo, error)
 	Delete(ctx context.Context, idOrName string) error
 }
@@ -262,9 +262,38 @@ type ToolContext struct {
 
 	Config ConfigService
 
+	// Subagents spawns child agents for delegated work. Nil = spawning not supported.
+	Subagents SubagentService
+
 	// ActivateSkill is called by cairn.loadSkill to register a skill in the session.
 	// Set by the ReAct loop before tool execution. Nil = activation not supported.
 	ActivateSkill func(name, content string, allowedTools []string)
+}
+
+// SubagentService is the interface tools use to spawn child agents.
+type SubagentService interface {
+	Spawn(ctx context.Context, parentTaskID string, req *SubagentSpawnRequest) (*SubagentSpawnResult, error)
+}
+
+// SubagentSpawnRequest describes a subagent to spawn.
+type SubagentSpawnRequest struct {
+	Type        string // "researcher", "coder", "reviewer", "executor"
+	Instruction string // task description with file paths and success criteria
+	Context     string // optional parent context summary
+	ExecMode    string // "foreground" (default) or "background"
+	MaxRounds   int    // 0 = type default
+}
+
+// SubagentSpawnResult is returned after a subagent completes or is submitted.
+type SubagentSpawnResult struct {
+	TaskID     string
+	SessionID  string
+	Summary    string // condensed output for parent model
+	Status     string // "completed", "failed", "running"
+	Error      string
+	Rounds     int
+	ToolCalls  int
+	DurationMs int64
 }
 
 // ToolResult holds the output of a tool execution.

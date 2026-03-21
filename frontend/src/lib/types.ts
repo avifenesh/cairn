@@ -104,7 +104,7 @@ export interface ChatSession {
 	id: string;
 	title?: string;
 	messageCount: number;
-	lastMessageAt: string;
+	updatedAt: string;
 	createdAt: string;
 }
 
@@ -238,6 +238,24 @@ export interface Attachment {
 	mimeType: string;
 }
 
+export interface SubagentInfo {
+	id: string;
+	parentTaskId: string;
+	type: 'researcher' | 'coder' | 'reviewer' | 'executor' | string;
+	execMode: 'foreground' | 'background';
+	status: 'running' | 'completed' | 'failed' | 'canceled';
+	instruction: string;
+	summary?: string;
+	error?: string;
+	round?: number;
+	maxRounds?: number;
+	toolName?: string;
+	toolCalls?: number;
+	durationMs?: number;
+	createdAt: string;
+	completedAt?: string;
+}
+
 // SSE event types
 export type SSEEventType =
 	| 'ready'
@@ -256,7 +274,10 @@ export type SSEEventType =
 	| 'coding_session_event'
 	| 'agent_progress'
 	| 'skill_activated'
-	| 'budget_update';
+	| 'budget_update'
+	| 'subagent_started'
+	| 'subagent_progress'
+	| 'subagent_completed';
 
 export interface CronJob {
 	id: string;

@@ -53,6 +53,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /v1/tasks/{id}/cancel", s.handleCancelTask)
 	s.mux.HandleFunc("DELETE /v1/tasks/{id}", s.handleDeleteTask)
 
+	// Subagent routes.
+	s.mux.HandleFunc("GET /v1/subagents", s.handleListSubagents)
+	s.mux.HandleFunc("GET /v1/subagents/{id}", s.handleGetSubagent)
+	s.mux.HandleFunc("POST /v1/subagents/{id}/cancel", s.handleCancelSubagent)
+
 	// Approvals.
 	s.mux.HandleFunc("GET /v1/approvals", s.handleListApprovals)
 	s.mux.HandleFunc("POST /v1/approvals/{id}/approve", s.handleApproveApproval)
@@ -1011,6 +1016,7 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 		Plugins:        s.plugins,
 		ActivityStore:  s.activityStore,
 		SteeringCh:     steerCh,
+		Subagents:      s.subagentRunner,
 		ToolMemories:   s.toolMemories,
 		ToolEvents:     s.toolEvents,
 		ToolDigest:     s.toolDigest,
@@ -2036,9 +2042,9 @@ func (s *Server) handleCreateCron(w http.ResponseWriter, r *http.Request) {
 	if tz == "" {
 		tz = "UTC"
 	}
-	var cooldown int64 = 3600000
+	var cooldown int64 = 300000 // 5 minutes default
 	if req.CooldownMs != nil {
-		cooldown = *req.CooldownMs
+		cooldown = *req.CooldownMs // 0 = no cooldown
 	}
 
 	job := &cron.CronJob{
@@ -2108,5 +2114,77 @@ func (s *Server) handleDeleteCron(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// --- Subagent handlers ---
+
+func (s *Server) handleListSubagents(w http.ResponseWriter, r *http.Request) {
+	if s.tasks == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"subagents": []any{}})
+		return
+	}
+
+	opts := task.ListOpts{
+		Type:  task.TypeSubagent,
+		Limit: 50,
+	}
+	if statusQ := r.URL.Query().Get("status"); statusQ != "" {
+		opts.Status = task.TaskStatus(statusQ)
+	}
+
+	tasks, err := s.tasks.List(r.Context(), opts)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Filter by parentTaskId if requested (ListOpts doesn't support this natively,
+	// so we filter in-memory - subagent lists are small).
+	if parentQ := r.URL.Query().Get("parentTaskId"); parentQ != "" {
+		var filtered []*task.Task
+		for _, t := range tasks {
+			if t.ParentID == parentQ {
+				filtered = append(filtered, t)
+			}
+		}
+		tasks = filtered
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"subagents": marshalTasks(tasks)})
+}
+
+func (s *Server) handleGetSubagent(w http.ResponseWriter, r *http.Request) {
+	if s.tasks == nil {
+		writeError(w, http.StatusNotFound, "task engine not available")
+		return
+	}
+
+	id := r.PathValue("id")
+	t, err := s.tasks.Get(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "subagent not found")
+		return
+	}
+	if t.Type != task.TypeSubagent {
+		writeError(w, http.StatusNotFound, "not a subagent task")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, marshalTask(t))
+}
+
+func (s *Server) handleCancelSubagent(w http.ResponseWriter, r *http.Request) {
+	if s.tasks == nil {
+		writeError(w, http.StatusServiceUnavailable, "task engine not available")
+		return
+	}
+
+	id := r.PathValue("id")
+	if err := s.tasks.Cancel(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

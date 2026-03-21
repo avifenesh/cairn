@@ -447,6 +447,36 @@ func runServe(logger *slog.Logger) {
 	cfgAdapt := &configAdapter{cfg: cfg}
 	activityStore := agent.NewActivityStore(database.DB)
 
+	// Create subagent runner (available to both Loop and Server).
+	var subagentRunner *agent.SubagentRunner
+	if provider != nil && toolRegistry != nil {
+		subagentRunner = agent.NewSubagentRunner(agent.SubagentRunnerDeps{
+			Tasks:          taskEngine,
+			Tools:          toolRegistry,
+			Provider:       provider,
+			Bus:            bus,
+			Worktrees:      worktreeMgr,
+			Logger:         logger,
+			Memories:       memService,
+			Soul:           soul,
+			ContextBuilder: ctxBuilder,
+			Plugins:        pluginMgr,
+			ActivityStore:  activityStore,
+			ToolMemories:   memAdapter,
+			ToolEvents:     eventAdapter,
+			ToolDigest:     digestAdapt,
+			ToolJournal:    journalAdapt,
+			ToolTasks:      taskAdapt,
+			ToolStatus:     statusAdapt,
+			ToolSkills:     skillAdapt,
+			ToolNotifier:   nil, // set later after channels init
+			ToolCrons:      cronAdapt,
+			ToolConfig:     cfgAdapt,
+			Model:          cfg.LLMModel,
+		})
+		logger.Info("subagent runner initialized")
+	}
+
 	// Start always-on agent loop (if idle mode enabled and agent available).
 	var agentLoop *agent.Loop
 	if cfg.IdleModeEnabled && reactAgent != nil && provider != nil {
@@ -500,6 +530,7 @@ func runServe(logger *slog.Logger) {
 			CronStore:       cronStore,
 			ActivityStore:   activityStore,
 			DB:              database.DB,
+			SubagentRunner:  subagentRunner,
 			WorktreeManager: worktreeMgr,
 			Marketplace:     marketplace,
 		})
@@ -574,6 +605,7 @@ func runServe(logger *slog.Logger) {
 		ToolSkills:     skillAdapt,
 		ToolCrons:      cronAdapt,
 		ToolConfig:     cfgAdapt,
+		SubagentRunner: subagentRunner,
 		Voice:          voiceSvc,
 		CronStore:      cronStore,
 		ActivityStore:  activityStore,
@@ -661,6 +693,22 @@ func runServe(logger *slog.Logger) {
 				return handlePatchCommand(ctx, msg.Args, soul)
 			}
 
+			// Transcribe voice message before NL parsing so spoken "yes"/"approve" works.
+			if len(msg.Audio) > 0 {
+				if voiceSvc == nil {
+					return &cairnchannel.OutgoingMessage{Text: "Voice messages are not enabled. Please type your message."}, nil
+				}
+				transcribed, tErr := voiceSvc.Transcribe(ctx, msg.Audio, msg.AudioFilename)
+				if tErr != nil {
+					logger.Warn("channel: voice transcription failed", "error", tErr)
+					return &cairnchannel.OutgoingMessage{Text: "Sorry, I couldn't understand the voice message. Please try again or type your message."}, nil
+				}
+				if transcribed != "" {
+					msg.Text = transcribed
+					logger.Info("channel: voice transcribed", "text", transcribed[:min(len(transcribed), 80)])
+				}
+			}
+
 			// Handle button callbacks and natural language approval intents.
 			isCallback := msg.IsCommand && msg.Command == "callback"
 			var nlIntent *ApprovalIntent
@@ -709,22 +757,6 @@ func runServe(logger *slog.Logger) {
 				if err := sessionStore.Create(ctx, session); err != nil {
 					return nil, fmt.Errorf("channel: create session: %w", err)
 				}
-			}
-
-			// Transcribe voice message if present.
-			if len(msg.Audio) > 0 && voiceSvc != nil {
-				transcribed, tErr := voiceSvc.Transcribe(ctx, msg.Audio, msg.AudioFilename)
-				if tErr != nil {
-					logger.Warn("channel: voice transcription failed", "error", tErr)
-					return &cairnchannel.OutgoingMessage{Text: "Sorry, I couldn't understand the voice message. Please try again or type your message."}, nil
-				}
-				if transcribed != "" {
-					msg.Text = transcribed
-					logger.Info("channel: voice transcribed", "text", transcribed[:min(len(transcribed), 80)])
-				}
-			}
-			if len(msg.Audio) > 0 && voiceSvc == nil {
-				return &cairnchannel.OutgoingMessage{Text: "Voice messages are not enabled. Please type your message."}, nil
 			}
 
 			// Determine message text.

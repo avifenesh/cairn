@@ -20,7 +20,10 @@ function getStreamUrl(path: string): string {
 // Session store state — created per session panel instance.
 export class SessionStore {
 	events = $state<SessionEvent[]>([]);
-	status = $state<SessionStatus>('running');
+	// Default to 'completed'. Flipped to 'running' when live events arrive
+	// (handles mid-flight sessions). Pre-existing sessions without events stay 'completed'.
+	status = $state<SessionStatus>('completed');
+	private receivedLiveEvent = false;
 	currentRound = $state(0);
 	totalToolCalls = $state(0);
 	totalTokensIn = $state(0);
@@ -74,6 +77,12 @@ export class SessionStore {
 				const event: SessionEvent = JSON.parse(e.data);
 				this.addEvent(event);
 				this.processEvent(event);
+				// If we receive live events and status is still the default 'completed',
+				// flip to 'running' (handles opening a session mid-flight).
+				if (!this.receivedLiveEvent && this.status === 'completed') {
+					this.status = 'running';
+				}
+				this.receivedLiveEvent = true;
 			} catch {
 				// Ignore parse errors.
 			}

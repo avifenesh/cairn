@@ -214,9 +214,9 @@ export const approve = (id: string) => post<{ ok: boolean }>(`/v1/approvals/${id
 export const deny = (id: string) => post<{ ok: boolean }>(`/v1/approvals/${id}/deny`);
 
 // Assistant / Chat
-export const getSessions = async () => {
+export const getSessions = async (limit = 200) => {
 	if (useMocks()) return { items: mockSessions };
-	const raw = await get<Record<string, unknown>>('/v1/assistant/sessions');
+	const raw = await get<Record<string, unknown>>(`/v1/assistant/sessions?limit=${limit}`);
 	return { items: (raw.sessions ?? raw.items ?? []) as ChatSession[] };
 };
 
@@ -531,3 +531,10 @@ export const authSession = () => get<{ authenticated: boolean; method: string; e
 export interface AuthCredential { id: string; name: string; createdAt: string; lastUsedAt?: string }
 export const listAuthCredentials = () => get<{ credentials: AuthCredential[] }>('/v1/auth/credentials');
 export const deleteAuthCredential = (id: string) => del<{ ok: boolean }>(`/v1/auth/credentials/${encodeURIComponent(id)}`);
+
+// Subagents
+export const getSubagents = (parentTaskId?: string) => {
+	const params = parentTaskId ? `?parentTaskId=${encodeURIComponent(parentTaskId)}` : '';
+	return get<{ subagents: import('$lib/types').SubagentInfo[] }>(`/v1/subagents${params}`);
+};
+export const cancelSubagent = (id: string) => post<{ ok: boolean }>(`/v1/subagents/${encodeURIComponent(id)}/cancel`);

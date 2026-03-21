@@ -82,7 +82,7 @@ After a session ends (or when token budget is exceeded), an LLM call converts th
 **Cairn Journaler** — fires post-session, produces a structured JSON entry:
 
 ```go
-// cairn-backend/internal/agent/journaler.go
+// internal/agent/journaler.go
 prompt := `Analyze this agent session and produce JSON:
 - summary: 1-2 sentence summary
 - decisions: array of key decisions
@@ -122,7 +122,7 @@ and add the new information from the latest messages."
 An LLM periodically reviews the episodic journal and existing semantic memories to propose new discrete facts:
 
 ```go
-// cairn-backend/internal/agent/reflection.go
+// internal/agent/reflection.go
 func (r *ReflectionEngine) Reflect(ctx context.Context) (*ReflectionResult, error) {
     entries, _ := r.journal.Recent(ctx, 48*time.Hour)       // episodic input
     existingMemories, _ := r.memories.List(ctx, ...)        // current semantic state
@@ -173,7 +173,7 @@ ADK-Go and Eino have no lifecycle — stored memories are never reviewed or deca
 The event bus in Cairn emits `MemoryProposed`, `MemoryAccepted`, `MemoryRejected` events so external systems can react (e.g. send a notification to the user for review).
 
 ```go
-// cairn-backend/internal/memory/service.go
+// internal/memory/service.go
 func (s *Service) Create(ctx context.Context, m *Memory) error {
     // compute embedding
     s.store.Create(ctx, m)                          // status=proposed by default
@@ -240,7 +240,7 @@ Assembled as:
 With adversarial sanitization:
 
 ```go
-// cairn-backend/internal/memory/context.go
+// internal/memory/context.go
 var adversarialTagPattern = regexp.MustCompile(
     `(?i)</?(?:system|instructions|identity|context|...admin|root|sudo|override)\b[^>]*>`,
 )
@@ -252,7 +252,7 @@ var adversarialTagPattern = regexp.MustCompile(
 Cairn implements exponential decay for memory relevance scoring:
 
 ```go
-// cairn-backend/internal/memory/context.go
+// internal/memory/context.go
 
 // Age decay: score halves every 30 days
 func applyDecay(score float64, updatedAt time.Time, halfLifeDays float64) float64 {
@@ -273,7 +273,7 @@ func applyStaleness(score float64, lastUsedAt *time.Time, thresholdDays float64)
 Hard compaction (every N hours/days):
 
 ```go
-// cairn-backend/internal/memory/service.go
+// internal/memory/service.go
 func (s *Service) Compact(ctx context.Context) error {
     // Find: accepted, access_count=0, age > 30 days
     old, _ := s.store.OldUnusedMemories(ctx, 30*24*time.Hour)
@@ -314,7 +314,7 @@ for _, entry := range resp.Memories {
 ### Example 2: Post-session LLM summarization into episodic journal (Cairn pattern)
 
 ```go
-// cairn-backend/internal/agent/journaler.go
+// internal/agent/journaler.go
 func (j *Journaler) Record(ctx context.Context, session *Session, duration time.Duration) {
     transcript := buildTranscript(session) // compact, tool-aware truncation
     prompt := fmt.Sprintf(`Analyze this session and produce JSON:
@@ -331,7 +331,7 @@ Respond with ONLY valid JSON.`, session.Mode, transcript)
 ### Example 3: Reflection engine — periodic semantic extraction
 
 ```go
-// cairn-backend/internal/agent/reflection.go
+// internal/agent/reflection.go
 func (r *ReflectionEngine) Reflect(ctx context.Context) (*ReflectionResult, error) {
     entries, _ := r.journal.Recent(ctx, 48*time.Hour)
     if len(entries) < 2 { return &ReflectionResult{}, nil }
@@ -362,7 +362,7 @@ func (r *ReflectionEngine) Apply(ctx context.Context, result *ReflectionResult) 
 ### Example 4: Token-budgeted context injection (Cairn pattern)
 
 ```go
-// cairn-backend/internal/memory/context.go
+// internal/memory/context.go
 func (b *ContextBuilder) Build(ctx context.Context, query, soulContent string, journalEntries []JournalDigestEntry) *ContextResult {
     // Stage 1: Hard rules (reserved budget: 500 tokens)
     hardSection, hardIDs, hardTokens := b.buildHardRules(ctx, cfg.HardRuleReserve)
@@ -498,13 +498,13 @@ What is already implemented vs. what is missing:
 
 | Resource | Type | Why Relevant |
 |----------|------|-------------|
-| `/home/ubuntu/cairn-backend/internal/memory/` | Local code | Complete Cairn memory implementation |
-| `/home/ubuntu/cairn-backend/internal/agent/journaler.go` | Local code | LLM-driven episodic extraction prompts |
-| `/home/ubuntu/cairn-backend/internal/agent/reflection.go` | Local code | Periodic semantic extraction from journal |
+| `/home/ubuntu/internal/memory/` | Local code | Complete Cairn memory implementation |
+| `/home/ubuntu/internal/agent/journaler.go` | Local code | LLM-driven episodic extraction prompts |
+| `/home/ubuntu/internal/agent/reflection.go` | Local code | Periodic semantic extraction from journal |
 | `/home/ubuntu/research/go-agents/adk-go/memory/` | Local code | ADK-Go session→memory ingestion pattern |
 | `/home/ubuntu/research/go-agents/adk-go/tool/preloadmemorytool/` | Local code | Transparent auto-injection pattern |
 | `/home/ubuntu/research/go-agents/eino/adk/middlewares/summarization/` | Local code | Token-triggered compression + preservation |
-| `/home/ubuntu/cairn-backend/docs/design/pieces/06-memory-system.md` | Design doc | Cairn memory system architecture overview |
+| `docs/design/pieces/06-memory-system.md` | Design doc | Cairn memory system architecture overview |
 
 ---
 

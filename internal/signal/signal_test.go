@@ -102,7 +102,6 @@ func TestEventStore_Dedup(t *testing.T) {
 	}
 }
 
-
 // TestEventStore_Ingest_CrossSourceURLDedup verifies that the same article URL
 // arriving from two different sources (e.g. devto + rss poller) is deduplicated.
 func TestEventStore_Ingest_CrossSourceURLDedup(t *testing.T) {
@@ -112,12 +111,12 @@ func TestEventStore_Ingest_CrossSourceURLDedup(t *testing.T) {
 
 	events := []*RawEvent{
 		{
-			Source:      "devto",
-			SourceID:    "devto:12345",
-			Kind:        "post",
-			Title:       "AI Agents Fail 97.5%",
-			URL:         "https://dev.to/maxquimby/ai-agents-fail",
-			OccurredAt:  time.Now().UTC(),
+			Source:     "devto",
+			SourceID:   "devto:12345",
+			Kind:       "post",
+			Title:      "AI Agents Fail 97.5%",
+			URL:        "https://dev.to/maxquimby/ai-agents-fail",
+			OccurredAt: time.Now().UTC(),
 		},
 	}
 
@@ -132,12 +131,12 @@ func TestEventStore_Ingest_CrossSourceURLDedup(t *testing.T) {
 	// Same URL, different source and source_item_id — should be deduped.
 	events2 := []*RawEvent{
 		{
-			Source:      "rss",
-			SourceID:    "rss:f7d668fd:https://dev.to/maxquimby/ai-agents-fail",
-			Kind:        "post",
-			Title:       "AI Agents Fail 97.5%",
-			URL:         "https://dev.to/maxquimby/ai-agents-fail",
-			OccurredAt:  time.Now().UTC(),
+			Source:     "rss",
+			SourceID:   "rss:f7d668fd:https://dev.to/maxquimby/ai-agents-fail",
+			Kind:       "post",
+			Title:      "AI Agents Fail 97.5%",
+			URL:        "https://dev.to/maxquimby/ai-agents-fail",
+			OccurredAt: time.Now().UTC(),
 		},
 	}
 

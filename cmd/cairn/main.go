@@ -492,8 +492,14 @@ func runServe(logger *slog.Logger) {
 			RepoDir:  reflectRepoDir,
 		})
 
-		// Recover agent state from previous run.
-		loopState := agent.RecoverOnStartup(context.Background(), database.DB, logger)
+		// Recover agent state from previous run and re-queue/fail stuck tasks.
+		loopState, recoveryStats := agent.RecoverOnStartup(context.Background(), agent.RecoveryDeps{
+			DB:            database.DB,
+			TaskEngine:    taskEngine,
+			ActivityStore: activityStore,
+			Bus:           bus,
+			Logger:        logger,
+		})
 
 		agentLoop = agent.NewLoop(agent.LoopConfig{
 			TickInterval:       time.Duration(cfg.AgentTickInterval) * time.Second,
@@ -542,7 +548,8 @@ func runServe(logger *slog.Logger) {
 		agentLoop.Start()
 		defer agentLoop.Close()
 		logger.Info("agent loop started", "tick", cfg.AgentTickInterval, "reflection", cfg.ReflectionInterval,
-			"restoredTicks", loopState.TickCount)
+			"restoredTicks", loopState.TickCount,
+			"recoveredTasks", recoveryStats.Total, "requeued", len(recoveryStats.Requeued))
 	}
 
 	// Initialize voice service (optional).

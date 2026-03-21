@@ -1536,19 +1536,23 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCosts(w http.ResponseWriter, r *http.Request) {
+	// Match frontend CostData interface: todayUsd, weekUsd, budgetDailyUsd, budgetWeeklyUsd.
 	result := map[string]any{
-		"totalUSD":  0.0,
-		"today":     0.0,
-		"thisMonth": 0.0,
+		"todayUsd":       0.0,
+		"weekUsd":        0.0,
+		"budgetDailyUsd": 0.0,
+		"budgetWeeklyUsd": 0.0,
+		"totalCalls":     int64(0),
+		"blocked":        int64(0),
 	}
 	if s.plugins != nil {
 		for _, p := range s.plugins.Plugins() {
 			if bp, ok := p.(*plugin.BudgetPlugin); ok {
 				stats := bp.Stats()
-				result["today"] = stats.DailySpend
-				result["dailyCap"] = stats.DailyCap
-				result["weeklySpend"] = stats.WeeklySpend
-				result["weeklyCap"] = stats.WeeklyCap
+				result["todayUsd"] = stats.DailySpend
+				result["weekUsd"] = stats.WeeklySpend
+				result["budgetDailyUsd"] = stats.DailyCap
+				result["budgetWeeklyUsd"] = stats.WeeklyCap
 				result["totalCalls"] = stats.TotalCalls
 				result["blocked"] = stats.Blocked
 				break
@@ -1563,7 +1567,12 @@ func (s *Server) handlePollRun(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "no pollers configured")
 		return
 	}
-	go s.pollTrigger.PollNow(r.Context())
+	// Use background context - the poll must outlive the HTTP request.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	go func() {
+		defer cancel()
+		s.pollTrigger.PollNow(ctx)
+	}()
 	writeJSON(w, http.StatusAccepted, map[string]any{"ok": true, "message": "poll triggered"})
 }
 

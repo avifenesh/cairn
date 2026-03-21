@@ -581,7 +581,12 @@ func runServe(logger *slog.Logger) {
 		MCPClients:  mcpClientMgr,
 		AuthStore:   authStore,
 		WebAuthn:    webauthnHandler,
-		PollTrigger: scheduler,
+		PollTrigger: func() server.PollTrigger {
+			if len(pollerNames) > 0 {
+				return scheduler
+			}
+			return nil
+		}(),
 	})
 
 	// Graceful shutdown context — all subsystems observe this.

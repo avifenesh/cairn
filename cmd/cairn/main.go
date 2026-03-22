@@ -245,10 +245,22 @@ func runServe(logger *slog.Logger) {
 		Home:    home,
 		Go:      runtime.Version(),
 		GitUser: cfg.GHOwner,
+		GHRepo:  cfg.GHOwner + "/cairn",
 		DataDir: cfg.DataDir,
+	}
+	if cfg.GHOwner == "" {
+		envCtx.GHRepo = "" // don't emit partial repo name
 	}
 	if len(cfg.CodingAllowedRepos) > 0 {
 		envCtx.CodingRepos = cfg.CodingAllowedRepos
+	}
+	// Populate worktree list for orchestrator environment grounding.
+	if wtOut, err := exec.CommandContext(context.Background(), "git", "worktree", "list").Output(); err == nil {
+		for _, line := range strings.Split(strings.TrimSpace(string(wtOut)), "\n") {
+			if line != "" {
+				envCtx.Worktrees = append(envCtx.Worktrees, line)
+			}
+		}
 	}
 
 	// Initialize context builder (token-budgeted memory injection).
@@ -615,6 +627,7 @@ func runServe(logger *slog.Logger) {
 			CodingEnabled:      cfg.CodingEnabled,
 			CodingAllowedRepos: cfg.CodingAllowedRepos,
 			BriefingModel:      cfg.LLMFallbackModel,
+			EnvContext:         envCtx,
 		}, agent.LoopDeps{
 			Agent:           reactAgent,
 			Tasks:           taskEngine,

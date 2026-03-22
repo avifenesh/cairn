@@ -49,6 +49,7 @@ type Orchestrator struct {
 	logger         *slog.Logger
 	codingEnabled  bool
 
+	envContext      *EnvContext // injected environment facts (paths, repo, worktrees)
 	briefing        string
 	briefingBuiltAt time.Time
 	lastEvaluation  time.Time
@@ -76,6 +77,7 @@ type OrchestratorDeps struct {
 	AgentTypes     *agenttype.Service
 	Logger         *slog.Logger
 	CodingEnabled  bool
+	EnvContext     *EnvContext // ground truth about the runtime environment
 }
 
 // NewOrchestrator creates an Orchestrator from the given dependencies.
@@ -105,6 +107,7 @@ func NewOrchestrator(deps OrchestratorDeps) *Orchestrator {
 		agentTypes:     deps.AgentTypes,
 		logger:         logger,
 		codingEnabled:  deps.CodingEnabled,
+		envContext:     deps.EnvContext,
 	}
 }
 
@@ -363,6 +366,11 @@ func (o *Orchestrator) buildDecisionPrompt(state *OrchestratorState) string {
 
 	// System prompt.
 	parts = append(parts, orchestratorSystemPrompt)
+
+	// Environment ground truth (prevents hallucinated paths/repos).
+	if envStr := o.envContext.Format(); envStr != "" {
+		parts = append(parts, envStr)
+	}
 
 	// Dynamic agent types listing from AGENT.md definitions.
 	if o.agentTypes != nil {
@@ -801,6 +809,7 @@ If you see a gap, fill it. If you see a way to be more helpful, build it.
 - Max 3 concurrent subagents (check Active Subagents before spawning).
 - Verify coding sessions before notifying. Always.
 - Escalate only: merge PRs, deploy, send external messages.
+- Loop breaker: If the same problem has failed 2+ times in Recent Actions, STOP retrying it. Wait or escalate instead. Do not rephrase and re-spawn — the underlying issue needs a different approach or human intervention.
 
 ## Output
 JSON only. No markdown fences. No commentary.

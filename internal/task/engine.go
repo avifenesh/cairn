@@ -263,6 +263,9 @@ func (e *Engine) FailTerminal(ctx context.Context, taskID string, taskErr error)
 		return fmt.Errorf("task engine: fail terminal update: %w", err)
 	}
 
+	// Remove from in-memory queue in case it's still there.
+	e.queue.Remove(taskID)
+
 	eventbus.Publish(e.bus, eventbus.TaskFailed{
 		EventMeta: eventbus.NewMeta("task-engine"),
 		TaskID:    taskID,

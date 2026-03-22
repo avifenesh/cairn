@@ -958,6 +958,8 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 	// let the loop also claim and execute the same task.
 	if err := s.tasks.MarkRunning(ctx, t.ID); err != nil {
 		s.logger.Error("mark running failed, aborting chat task", "task", t.ID, "error", err)
+		// Cancel the submitted task so it doesn't get claimed by the loop.
+		s.tasks.Cancel(ctx, t.ID)
 		writeError(w, http.StatusInternalServerError, fmt.Sprintf("mark running: %v", err))
 		return
 	}

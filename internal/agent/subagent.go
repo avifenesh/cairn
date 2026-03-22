@@ -577,7 +577,7 @@ func (r *SubagentRunner) buildSystemHint(ctx context.Context, basePrompt string)
 			if isValidGitHubOwner(owner) {
 				systemHint += fmt.Sprintf("\n\n## Canonical Identity\n- GitHub repo owner: %s (exact spelling — never guess or fabricate this value)", owner)
 			} else if r.logger != nil {
-				r.logger.Warn("subagent: skipping identity injection — invalid ghOwner", "owner", owner)
+				r.logger.Warn("subagent: skipping identity injection — invalid ghOwner", "owner", truncate(fmt.Sprintf("%q", owner), 256))
 			}
 		}
 	}

@@ -20,6 +20,9 @@ func (m *mockConfigService) PatchConfig(_ context.Context, changes map[string]an
 	if m.err != nil {
 		return nil, m.err
 	}
+	if m.config == nil {
+		m.config = make(map[string]any)
+	}
 	for k, v := range changes {
 		m.config[k] = v
 	}

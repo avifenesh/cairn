@@ -72,7 +72,7 @@
 			const res = await createRule(rule);
 			ruleStore.addRule(res.rule);
 			showCreate = false;
-			newName = ''; newDesc = ''; newFilter = ''; newCondition = ''; newActionMessage = '';
+			newName = ''; newDesc = ''; newFilter = ''; newCondition = ''; newActionMessage = ''; newThrottle = 0;
 		} catch (e) {
 			console.error('Failed to create rule:', e);
 		} finally {
@@ -89,7 +89,8 @@
 		}
 	}
 
-	async function handleDelete(id: string) {
+	async function handleDelete(id: string, name: string) {
+		if (!confirm(`Delete rule "${name}"? This cannot be undone.`)) return;
 		try {
 			await deleteRule(id);
 			ruleStore.removeRule(id);
@@ -229,7 +230,7 @@
 								<p class="text-[10px] text-[var(--text-tertiary)]/60 mt-1">Last fired {relativeTime(rule.lastFiredAt)}</p>
 							{/if}
 						</div>
-						<button onclick={() => handleDelete(rule.id)} class="flex-shrink-0 p-1 rounded hover:bg-[var(--color-error)]/10 transition-colors" title="Delete">
+						<button onclick={() => handleDelete(rule.id, rule.name)} class="flex-shrink-0 p-1 rounded hover:bg-[var(--color-error)]/10 transition-colors" aria-label="Delete rule {rule.name}">
 							<Trash2 class="h-3.5 w-3.5 text-[var(--text-tertiary)] hover:text-[var(--color-error)]" />
 						</button>
 					</div>

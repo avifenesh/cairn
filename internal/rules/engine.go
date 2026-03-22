@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/vm"
 
 	"github.com/avifenesh/cairn/internal/eventbus"
 )
@@ -34,6 +35,12 @@ type EngineDeps struct {
 	Logger   *slog.Logger
 }
 
+// compiledRule is a rule with its pre-compiled expr condition.
+type compiledRule struct {
+	Rule
+	program *vm.Program // nil if condition is empty
+}
+
 // Engine subscribes to bus events, evaluates rules, and dispatches actions.
 type Engine struct {
 	store    *Store
@@ -42,9 +49,14 @@ type Engine struct {
 	tasks    TaskSubmitter
 	logger   *slog.Logger
 	unsubs   []func()
-	cache    []*Rule
+	cache    []compiledRule
 	cacheMu  sync.RWMutex
+
+	// Goroutine limiter: max concurrent rule executions.
+	sem chan struct{}
 }
+
+const maxConcurrentExecs = 10
 
 // NewEngine creates a rules engine.
 func NewEngine(deps EngineDeps) *Engine {
@@ -58,6 +70,7 @@ func NewEngine(deps EngineDeps) *Engine {
 		notifier: deps.Notifier,
 		tasks:    deps.Tasks,
 		logger:   logger,
+		sem:      make(chan struct{}, maxConcurrentExecs),
 	}
 }
 
@@ -113,19 +126,37 @@ func (e *Engine) Close() {
 	e.logger.Info("rules engine closed")
 }
 
-// RefreshCache reloads enabled rules from the store. Call after CRUD operations.
+// RefreshCache reloads enabled rules from the store and pre-compiles conditions.
 func (e *Engine) RefreshCache() {
 	e.refreshCache()
 }
 
 func (e *Engine) refreshCache() {
-	rules, err := e.store.ListEnabled(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	rules, err := e.store.ListEnabled(ctx)
 	if err != nil {
 		e.logger.Warn("rules: failed to refresh cache", "error", err)
 		return
 	}
+
+	compiled := make([]compiledRule, 0, len(rules))
+	for _, r := range rules {
+		cr := compiledRule{Rule: *r}
+		if r.Condition != "" {
+			program, err := expr.Compile(r.Condition, expr.AsBool())
+			if err != nil {
+				e.logger.Warn("rules: failed to compile condition", "rule", r.Name, "error", err)
+				continue // skip rules with invalid conditions
+			}
+			cr.program = program
+		}
+		compiled = append(compiled, cr)
+	}
+
 	e.cacheMu.Lock()
-	e.cache = rules
+	e.cache = compiled
 	e.cacheMu.Unlock()
 }
 
@@ -135,12 +166,15 @@ func (e *Engine) Stats() (total, enabled, recentFailures int) {
 	enabled = len(e.cache)
 	e.cacheMu.RUnlock()
 
-	all, err := e.store.List(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	all, err := e.store.List(ctx)
 	if err == nil {
 		total = len(all)
 	}
 
-	recent, err := e.store.ListRecentExecutions(context.Background(), 50)
+	recent, err := e.store.ListRecentExecutions(ctx, 50)
 	if err == nil {
 		for _, ex := range recent {
 			if ex.Status == "error" {
@@ -154,11 +188,12 @@ func (e *Engine) Stats() (total, enabled, recentFailures int) {
 // handleEvent processes a bus event against all cached rules.
 func (e *Engine) handleEvent(eventType string, data map[string]any) {
 	e.cacheMu.RLock()
-	rules := e.cache
+	rules := make([]compiledRule, len(e.cache))
+	copy(rules, e.cache) // snapshot to avoid data race on slice elements
 	e.cacheMu.RUnlock()
 
 	for _, rule := range rules {
-		if !rule.Enabled || rule.Trigger.Type != TriggerEvent {
+		if rule.Trigger.Type != TriggerEvent {
 			continue
 		}
 		if rule.Trigger.EventType != eventType {
@@ -170,20 +205,32 @@ func (e *Engine) handleEvent(eventType string, data map[string]any) {
 		// Throttle check.
 		if rule.ThrottleMs > 0 && rule.LastFiredAt != nil {
 			if time.Since(*rule.LastFiredAt).Milliseconds() < rule.ThrottleMs {
-				go e.recordExec(rule.ID, data, "throttled", nil, 0)
+				e.recordExec(rule.ID, data, "throttled", nil, 0)
 				continue
 			}
 		}
-		go e.evaluateAndExecute(rule, data)
+
+		// Rate-limited goroutine spawning.
+		r := rule // capture for goroutine
+		select {
+		case e.sem <- struct{}{}:
+			go func() {
+				defer func() { <-e.sem }()
+				e.evaluateAndExecute(r, data)
+			}()
+		default:
+			e.logger.Warn("rules: execution semaphore full, skipping", "rule", rule.Name)
+			e.recordExec(rule.ID, data, "throttled", nil, 0)
+		}
 	}
 }
 
-func (e *Engine) evaluateAndExecute(rule *Rule, data map[string]any) {
+func (e *Engine) evaluateAndExecute(rule compiledRule, data map[string]any) {
 	start := time.Now()
 
-	// Evaluate condition.
-	if rule.Condition != "" {
-		result, err := expr.Eval(rule.Condition, data)
+	// Evaluate pre-compiled condition.
+	if rule.program != nil {
+		result, err := expr.Run(rule.program, data)
 		if err != nil {
 			e.logger.Warn("rules: condition eval error", "rule", rule.Name, "error", err)
 			e.recordExec(rule.ID, data, "error", err, time.Since(start).Milliseconds())
@@ -207,7 +254,9 @@ func (e *Engine) evaluateAndExecute(rule *Rule, data map[string]any) {
 
 	// Success.
 	dur := time.Since(start).Milliseconds()
-	e.store.UpdateLastFired(context.Background(), rule.ID, time.Now())
+	if err := e.store.UpdateLastFired(context.Background(), rule.ID, time.Now()); err != nil {
+		e.logger.Warn("rules: update last_fired failed", "rule", rule.Name, "error", err)
+	}
 	e.recordExec(rule.ID, data, "success", nil, dur)
 
 	// Publish SSE event.
@@ -220,8 +269,8 @@ func (e *Engine) evaluateAndExecute(rule *Rule, data map[string]any) {
 		})
 	}
 
-	// Refresh cache (lastFiredAt changed).
-	e.refreshCache()
+	// Refresh cache asynchronously (lastFiredAt changed) — don't block hot path.
+	go e.refreshCache()
 
 	e.logger.Info("rules: fired", "rule", rule.Name, "duration_ms", dur)
 }
@@ -267,16 +316,22 @@ func (e *Engine) dispatchAction(action Action, data map[string]any) error {
 	}
 }
 
-func (e *Engine) recordExec(ruleID string, data map[string]any, status string, err error, durationMs int64) {
+func (e *Engine) recordExec(ruleID string, data map[string]any, status string, execErr error, durationMs int64) {
 	triggerJSON, _ := json.Marshal(data)
+	// Truncate trigger event to prevent large payloads in execution log.
+	triggerStr := string(triggerJSON)
+	if len(triggerStr) > 4096 {
+		triggerStr = triggerStr[:4096] + "..."
+	}
+
 	exec := &Execution{
 		RuleID:       ruleID,
-		TriggerEvent: string(triggerJSON),
+		TriggerEvent: triggerStr,
 		Status:       status,
 		DurationMs:   durationMs,
 	}
-	if err != nil {
-		exec.Error = err.Error()
+	if execErr != nil {
+		exec.Error = execErr.Error()
 	}
 	if storeErr := e.store.RecordExecution(context.Background(), exec); storeErr != nil {
 		e.logger.Warn("rules: failed to record execution", "rule", ruleID, "error", storeErr)
@@ -304,4 +359,14 @@ func expandTemplate(tmpl string, data map[string]any) string {
 		result = strings.ReplaceAll(result, "{{."+k+"}}", fmt.Sprint(v))
 	}
 	return result
+}
+
+// PruneExecutions removes old execution records. Call periodically.
+func (e *Engine) PruneExecutions(ctx context.Context, maxAge time.Duration) (int64, error) {
+	cutoff := time.Now().Add(-maxAge).Format(timeFormat)
+	res, err := e.store.db.ExecContext(ctx, `DELETE FROM rule_executions WHERE created_at < ?`, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }

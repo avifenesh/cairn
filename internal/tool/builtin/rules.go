@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -51,18 +52,26 @@ var createRule = tool.Define("cairn.createRule",
 			return &tool.ToolResult{Error: "actions is required (JSON array)"}, nil
 		}
 
-		// Build trigger JSON from individual params.
-		trigger := fmt.Sprintf(`{"type":%q`, p.TriggerType)
+		// Build trigger JSON from individual params using json.Marshal for safety.
+		triggerObj := map[string]any{"type": p.TriggerType}
 		if p.EventType != "" {
-			trigger += fmt.Sprintf(`,"eventType":%q`, p.EventType)
+			triggerObj["eventType"] = p.EventType
 		}
 		if p.Filter != "" {
-			trigger += fmt.Sprintf(`,"filter":%s`, p.Filter)
+			var filterMap map[string]string
+			if err := json.Unmarshal([]byte(p.Filter), &filterMap); err != nil {
+				return &tool.ToolResult{Error: fmt.Sprintf("invalid filter JSON: %v", err)}, nil
+			}
+			triggerObj["filter"] = filterMap
 		}
 		if p.Schedule != "" {
-			trigger += fmt.Sprintf(`,"schedule":%q`, p.Schedule)
+			triggerObj["schedule"] = p.Schedule
 		}
-		trigger += "}"
+		triggerBytes, err := json.Marshal(triggerObj)
+		if err != nil {
+			return &tool.ToolResult{Error: fmt.Sprintf("failed to build trigger: %v", err)}, nil
+		}
+		trigger := string(triggerBytes)
 
 		var throttle int64
 		if p.ThrottleMs != nil {

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -23,13 +24,17 @@ func NewStore(db *sql.DB) *Store {
 
 func generateID() string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return fmt.Sprintf("rule_%x", b)
 }
 
 func generateExecID() string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return fmt.Sprintf("rx_%x", b)
 }
 
@@ -222,7 +227,7 @@ func (s *Store) ListRecentExecutions(ctx context.Context, limit int) ([]*Executi
 func (s *Store) scanOne(ctx context.Context, query string, args ...any) (*Rule, error) {
 	row := s.db.QueryRowContext(ctx, query, args...)
 	r, err := scanRule(row)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("rules: not found")
 	}
 	return r, err
@@ -244,10 +249,6 @@ func (s *Store) scanMany(ctx context.Context, query string, args ...any) ([]*Rul
 		result = append(result, r)
 	}
 	return result, rows.Err()
-}
-
-type scanner interface {
-	Scan(dest ...any) error
 }
 
 func scanRule(row *sql.Row) (*Rule, error) {

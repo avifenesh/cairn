@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -344,6 +345,10 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		userMessage = "## Context from parent\n" + req.Context + "\n\n## Task\n" + req.Instruction
 	}
 
+	// Build the subagent system hint with canonical identity injected.
+	// Uses shared buildSystemHint so tests exercise the real logic.
+	systemHint := r.buildSystemHint(ctx, cfg.SystemPrompt)
+
 	// Build invocation context (child gets no Subagents field - cannot spawn grandchildren).
 	invCtx := &InvocationContext{
 		Context:       ctx,
@@ -373,7 +378,7 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		Config: &AgentConfig{
 			Model:              r.model,
 			MaxRounds:          maxRounds,
-			SubagentSystemHint: cfg.SystemPrompt,
+			SubagentSystemHint: systemHint,
 		},
 	}
 
@@ -556,6 +561,42 @@ func (r *SubagentRunner) llmCondense(ctx context.Context, fullOutput string) (st
 		return "", fmt.Errorf("empty LLM response")
 	}
 	return result.String(), nil
+}
+
+// buildSystemHint injects canonical identity (ghOwner) into a system prompt.
+// Shared between executeSubagent and tests via buildSystemHintForTest.
+func (r *SubagentRunner) buildSystemHint(ctx context.Context, basePrompt string) string {
+	systemHint := basePrompt
+	if r.toolConfig != nil {
+		sysCfg, err := r.toolConfig.GetConfig(ctx)
+		if err != nil {
+			if r.logger != nil {
+				r.logger.Warn("subagent: failed to get config for identity injection", "error", err)
+			}
+		} else if owner, ok := sysCfg["ghOwner"].(string); ok && owner != "" {
+			if isValidGitHubOwner(owner) {
+				systemHint += fmt.Sprintf("\n\n## Canonical Identity\n- GitHub repo owner: %s (exact spelling — never guess or fabricate this value)", owner)
+			} else if r.logger != nil {
+				r.logger.Warn("subagent: skipping identity injection — invalid ghOwner", "owner", truncate(fmt.Sprintf("%q", owner), 256))
+			}
+		}
+	}
+	return systemHint
+}
+
+// ghOwnerPattern validates GitHub usernames: alphanumeric + hyphens, 1-39 chars, no leading/trailing hyphens.
+var ghOwnerPattern = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$`)
+
+// isValidGitHubOwner checks that owner matches GitHub's username rules.
+func isValidGitHubOwner(owner string) bool {
+	if len(owner) < 1 || len(owner) > 39 {
+		return false
+	}
+	// GitHub disallows consecutive hyphens in usernames/organizations.
+	if strings.Contains(owner, "--") {
+		return false
+	}
+	return ghOwnerPattern.MatchString(owner)
 }
 
 func truncate(s string, maxLen int) string {

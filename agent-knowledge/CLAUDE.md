@@ -4,7 +4,7 @@
 >
 > **Start here:** Guides are research syntheses from 6-108 online sources each. They contain best practices, common pitfalls, implementation patterns, and further reading links. The keyword lookup table maps concepts to the right guide.
 
-## Guides (17)
+## Guides (20)
 
 | # | Topic | File | Sources | Created |
 |---|-------|------|---------|---------|
@@ -25,6 +25,9 @@
 | 15 | Diff viewer library selection, Monaco, CodeMirror, streaming diffs | coding-session-diff-ui.md | 20 | 2026-03-21 |
 | 16 | Diff view visual design, CSS, color schemes, diff2html config | diff-view-visual-design.md | 22 | 2026-03-21 |
 | 17 | Z.ai API reference (models, endpoints, MCP, quotas) | zai-api-reference.md | docs.z.ai | 2026-03-19 |
+| 18 | Coding session architecture, file tree, checkpoint/resume | coding-session-architecture.md | - | 2026-03-22 |
+| 19 | Coding session observability, progress tracking | coding-session-observability.md | - | 2026-03-22 |
+| 20 | Coding session steering, user intervention mid-session | coding-session-steering.md | - | 2026-03-22 |
 
 ## Keyword Lookup
 
@@ -63,6 +66,9 @@
 | virtual scroll diff, TanStack Virtual, large diff performance, lazy hunk rendering | diff-view-visual-design.md |
 | accessible diff, colorblind diff, WCAG diff, gutter prefix, left border accent | diff-view-visual-design.md |
 | diff color palette, GitHub diff colors, VS Code diff colors, word-level highlight | diff-view-visual-design.md |
+| coding session, file tree, checkpoint, resume, crash recovery, session events | coding-session-architecture.md |
+| coding observability, progress bar, tool stats, round count, session panel | coding-session-observability.md |
+| steering, user intervention, inject message, pause, stop, urgent message | coding-session-steering.md |
 
 ## How to Use
 

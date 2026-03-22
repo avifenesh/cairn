@@ -2,9 +2,9 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/avifenesh/cairn/internal/rules"
@@ -47,6 +47,14 @@ func (s *Server) handleCreateRule(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(req.Actions) == 0 {
 		writeError(w, http.StatusBadRequest, "at least one action is required")
+		return
+	}
+	if len(req.Condition) > 2048 {
+		writeError(w, http.StatusBadRequest, "condition too long (max 2048 chars)")
+		return
+	}
+	if len(req.Actions) > 10 {
+		writeError(w, http.StatusBadRequest, "too many actions (max 10)")
 		return
 	}
 
@@ -112,7 +120,7 @@ func (s *Server) handleUpdateRule(w http.ResponseWriter, r *http.Request) {
 		ThrottleMs:  req.ThrottleMs,
 	}
 	if err := s.rulesStore.Update(r.Context(), id, opts); err != nil {
-		if containsNotFound(err) {
+		if isRuleNotFound(err) {
 			writeError(w, http.StatusNotFound, "rule not found")
 		} else {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -136,7 +144,7 @@ func (s *Server) handleUpdateRule(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeleteRule(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := s.rulesStore.Delete(r.Context(), id); err != nil {
-		if containsNotFound(err) {
+		if isRuleNotFound(err) {
 			writeError(w, http.StatusNotFound, "rule not found")
 		} else {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -192,10 +200,7 @@ func (s *Server) handleRecentRuleExecutions(w http.ResponseWriter, r *http.Reque
 	})
 }
 
-// containsNotFound checks if an error message indicates a not-found condition.
-func containsNotFound(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(err.Error(), "not found")
+// isRuleNotFound checks if the error is a rule-not-found error.
+func isRuleNotFound(err error) bool {
+	return errors.Is(err, rules.ErrNotFound)
 }

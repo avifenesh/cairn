@@ -25,7 +25,13 @@
 	let newThrottle = $state(0);
 	let creating = $state(false);
 
+	function onRuleExecuted(e: Event) {
+		const detail = (e as CustomEvent).detail;
+		if (detail) ruleStore.addExecution(detail);
+	}
+
 	onMount(async () => {
+		window.addEventListener('cairn:rule-executed', onRuleExecuted);
 		try {
 			const [rulesRes, execsRes] = await Promise.all([
 				getRules(),
@@ -39,14 +45,6 @@
 			loading = false;
 		}
 	});
-
-	function onRuleExecuted(e: Event) {
-		const detail = (e as CustomEvent).detail;
-		if (detail) {
-			ruleStore.addExecution(detail);
-		}
-	}
-	onMount(() => window.addEventListener('cairn:rule-executed', onRuleExecuted));
 	onDestroy(() => window.removeEventListener('cairn:rule-executed', onRuleExecuted));
 
 	async function handleCreate() {
@@ -207,7 +205,7 @@
 			<div class="space-y-2">
 				{#each ruleStore.rules as rule (rule.id)}
 					<div class="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-1)] p-4 flex items-start gap-3 hover:border-[var(--cairn-accent)]/30 transition-colors">
-						<button onclick={() => handleToggle(rule)} class="mt-0.5 flex-shrink-0" title={rule.enabled ? 'Disable' : 'Enable'}>
+						<button onclick={() => handleToggle(rule)} class="mt-0.5 flex-shrink-0" aria-label={rule.enabled ? `Disable rule ${rule.name}` : `Enable rule ${rule.name}`}>
 							{#if rule.enabled}
 								<ToggleRight class="h-5 w-5 text-[var(--cairn-accent)]" />
 							{:else}
@@ -250,7 +248,7 @@
 					{@const Icon = statusIcon(exec.status)}
 					<div class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-[var(--bg-1)] transition-colors">
 						<Icon class="h-3.5 w-3.5 flex-shrink-0 {statusColor(exec.status)}" />
-						<code class="text-[11px] font-mono text-[var(--text-tertiary)]">{exec.ruleId.slice(0, 12)}</code>
+						<code class="text-[11px] font-mono text-[var(--text-tertiary)]">{ruleStore.rules.find(r => r.id === exec.ruleId)?.name ?? exec.ruleId.slice(0, 12)}</code>
 						<Badge variant="outline" class="text-[10px] {statusColor(exec.status)}">{exec.status}</Badge>
 						{#if exec.error}
 							<span class="text-xs text-[var(--color-error)] truncate flex-1">{exec.error}</span>

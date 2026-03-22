@@ -114,7 +114,7 @@ func TestEngine_EventTrigger(t *testing.T) {
 	if len(execs) != 1 {
 		t.Fatalf("expected 1 execution, got %d", len(execs))
 	}
-	if execs[0].Status != "success" {
+	if execs[0].Status != ExecSuccess {
 		t.Errorf("expected status 'success', got %q", execs[0].Status)
 	}
 }

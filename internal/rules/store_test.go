@@ -145,12 +145,12 @@ func TestStore_Executions(t *testing.T) {
 	store.Create(ctx, rule)
 
 	// Record executions.
-	for _, status := range []string{"success", "error", "throttled"} {
+	for _, status := range []ExecutionStatus{ExecSuccess, ExecError, ExecThrottled} {
 		exec := &Execution{
 			RuleID: rule.ID,
 			Status: status,
 		}
-		if status == "error" {
+		if status == ExecError {
 			exec.Error = "something went wrong"
 		}
 		if err := store.RecordExecution(ctx, exec); err != nil {

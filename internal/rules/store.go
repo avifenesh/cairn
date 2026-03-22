@@ -149,7 +149,7 @@ func (s *Store) Update(ctx context.Context, id string, opts UpdateOpts) error {
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("rules: not found: %s", id)
+		return ErrNotFound
 	}
 	return nil
 }
@@ -162,7 +162,7 @@ func (s *Store) Delete(ctx context.Context, id string) error {
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("rules: not found: %s", id)
+		return ErrNotFound
 	}
 	return nil
 }
@@ -228,7 +228,7 @@ func (s *Store) scanOne(ctx context.Context, query string, args ...any) (*Rule, 
 	row := s.db.QueryRowContext(ctx, query, args...)
 	r, err := scanRule(row)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("rules: not found")
+		return nil, ErrNotFound
 	}
 	return r, err
 }

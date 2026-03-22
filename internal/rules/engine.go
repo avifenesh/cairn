@@ -177,7 +177,7 @@ func (e *Engine) Stats() (total, enabled, recentFailures int) {
 	recent, err := e.store.ListRecentExecutions(ctx, 50)
 	if err == nil {
 		for _, ex := range recent {
-			if ex.Status == "error" {
+			if ex.Status == ExecError {
 				recentFailures++
 			}
 		}
@@ -205,7 +205,7 @@ func (e *Engine) handleEvent(eventType string, data map[string]any) {
 		// Throttle check.
 		if rule.ThrottleMs > 0 && rule.LastFiredAt != nil {
 			if time.Since(*rule.LastFiredAt).Milliseconds() < rule.ThrottleMs {
-				e.recordExec(rule.ID, data, "throttled", nil, 0)
+				e.recordExec(rule.ID, data, ExecThrottled, nil, 0)
 				continue
 			}
 		}
@@ -220,7 +220,7 @@ func (e *Engine) handleEvent(eventType string, data map[string]any) {
 			}()
 		default:
 			e.logger.Warn("rules: execution semaphore full, skipping", "rule", rule.Name)
-			e.recordExec(rule.ID, data, "throttled", nil, 0)
+			e.recordExec(rule.ID, data, ExecThrottled, nil, 0)
 		}
 	}
 }
@@ -233,12 +233,12 @@ func (e *Engine) evaluateAndExecute(rule compiledRule, data map[string]any) {
 		result, err := expr.Run(rule.program, data)
 		if err != nil {
 			e.logger.Warn("rules: condition eval error", "rule", rule.Name, "error", err)
-			e.recordExec(rule.ID, data, "error", err, time.Since(start).Milliseconds())
+			e.recordExec(rule.ID, data, ExecError, err, time.Since(start).Milliseconds())
 			return
 		}
 		b, ok := result.(bool)
 		if !ok || !b {
-			e.recordExec(rule.ID, data, "condition_false", nil, time.Since(start).Milliseconds())
+			e.recordExec(rule.ID, data, ExecConditionFalse, nil, time.Since(start).Milliseconds())
 			return
 		}
 	}
@@ -247,7 +247,7 @@ func (e *Engine) evaluateAndExecute(rule compiledRule, data map[string]any) {
 	for _, action := range rule.Actions {
 		if err := e.dispatchAction(action, data); err != nil {
 			e.logger.Warn("rules: action failed", "rule", rule.Name, "action", action.Type, "error", err)
-			e.recordExec(rule.ID, data, "error", err, time.Since(start).Milliseconds())
+			e.recordExec(rule.ID, data, ExecError, err, time.Since(start).Milliseconds())
 			return
 		}
 	}
@@ -257,7 +257,7 @@ func (e *Engine) evaluateAndExecute(rule compiledRule, data map[string]any) {
 	if err := e.store.UpdateLastFired(context.Background(), rule.ID, time.Now()); err != nil {
 		e.logger.Warn("rules: update last_fired failed", "rule", rule.Name, "error", err)
 	}
-	e.recordExec(rule.ID, data, "success", nil, dur)
+	e.recordExec(rule.ID, data, ExecSuccess, nil, dur)
 
 	// Publish SSE event.
 	if e.bus != nil {
@@ -265,7 +265,7 @@ func (e *Engine) evaluateAndExecute(rule compiledRule, data map[string]any) {
 			EventMeta: eventbus.NewMeta("rules"),
 			RuleID:    rule.ID,
 			RuleName:  rule.Name,
-			Status:    "success",
+			Status:    string(ExecSuccess),
 		})
 	}
 
@@ -316,7 +316,7 @@ func (e *Engine) dispatchAction(action Action, data map[string]any) error {
 	}
 }
 
-func (e *Engine) recordExec(ruleID string, data map[string]any, status string, execErr error, durationMs int64) {
+func (e *Engine) recordExec(ruleID string, data map[string]any, status ExecutionStatus, execErr error, durationMs int64) {
 	triggerJSON, _ := json.Marshal(data)
 	// Truncate trigger event to prevent large payloads in execution log.
 	triggerStr := string(triggerJSON)

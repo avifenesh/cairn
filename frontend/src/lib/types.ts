@@ -395,7 +395,7 @@ export interface RuleExecution {
 	id: string;
 	ruleId: string;
 	triggerEvent?: string;
-	status: string;
+	status: 'success' | 'error' | 'throttled' | 'condition_false';
 	error?: string;
 	durationMs: number;
 	createdAt: string;

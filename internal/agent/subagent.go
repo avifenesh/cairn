@@ -197,8 +197,8 @@ func (r *SubagentRunner) Spawn(ctx context.Context, parentTaskID string, req *to
 	if req.MaxRounds > 0 {
 		maxRounds = req.MaxRounds
 	}
-	if maxRounds > 100 {
-		maxRounds = 100 // hard cap
+	if maxRounds > 400 {
+		maxRounds = 400 // hard cap — same as main coding mode
 	}
 
 	execMode := req.ExecMode

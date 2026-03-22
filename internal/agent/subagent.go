@@ -33,7 +33,7 @@ var builtinTypes = map[string]subagentTypeConfig{
 		AllowedTools: []string{
 			"cairn.readFile", "cairn.listFiles", "cairn.searchFiles",
 			"cairn.searchMemory", "cairn.webSearch", "cairn.webFetch",
-			"cairn.readFeed",
+			"cairn.readFeed", "cairn.getConfig",
 		},
 		MaxRounds:    15,
 		SystemPrompt: "You are a research agent. Gather information thoroughly, cite sources, and return a comprehensive summary. You have read-only access - you cannot modify files or run commands.",
@@ -48,7 +48,7 @@ var builtinTypes = map[string]subagentTypeConfig{
 		Mode: tool.ModeWork,
 		AllowedTools: []string{
 			"cairn.readFile", "cairn.listFiles", "cairn.searchFiles",
-			"cairn.shell", "cairn.gitRun",
+			"cairn.shell", "cairn.gitRun", "cairn.getConfig",
 		},
 		MaxRounds:    10,
 		SystemPrompt: "You are a code review agent. Analyze the code for quality, security, and correctness. Provide structured feedback organized by priority: critical, warning, suggestion.",
@@ -57,7 +57,7 @@ var builtinTypes = map[string]subagentTypeConfig{
 		Mode: tool.ModeWork,
 		AllowedTools: []string{
 			"cairn.shell", "cairn.readFile", "cairn.writeFile",
-			"cairn.editFile", "cairn.gitRun",
+			"cairn.editFile", "cairn.gitRun", "cairn.getConfig",
 		},
 		MaxRounds:    10,
 		SystemPrompt: "You are an executor agent. Run the requested commands and report results. Be cautious with destructive operations.",

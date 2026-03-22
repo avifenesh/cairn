@@ -50,9 +50,17 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 		return nil, nil
 	}
 
+	// Begin transaction first — URL dedup must run inside the tx to
+	// prevent TOCTOU races with concurrent poller goroutines.
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("signal: begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
 	// Cross-source URL dedup: collect URLs from article sources only,
-	// query for existing matches, and filter out events whose URL
-	// already exists from any article source.
+	// query for existing matches inside the transaction, and filter out
+	// events whose URL already exists from any article source.
 	urls := make([]string, 0, len(events))
 	for _, ev := range events {
 		if ev.URL != "" && articleSources[ev.Source] {
@@ -61,7 +69,7 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 	}
 	seenURLs := make(map[string]bool)
 	if len(urls) > 0 {
-		seenURLs = s.queryExistingURLs(ctx, urls)
+		seenURLs = s.queryExistingURLsTx(ctx, tx, urls)
 	}
 
 	// Filter out article-source events with already-seen URLs
@@ -81,12 +89,6 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 	if len(filtered) == 0 {
 		return nil, nil
 	}
-
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("signal: begin tx: %w", err)
-	}
-	defer tx.Rollback()
 
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO events (id, source, source_item_id, kind, title, body, url, actor, group_key, metadata, created_at)
@@ -141,11 +143,14 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 	return inserted, nil
 }
 
-// queryExistingURLs returns a set of URLs that already exist in the events
+// queryExistingURLsTx returns a set of URLs that already exist in the events
 // table for article sources only (rss, devto). This enables cross-source
 // dedup for feed items that arrive through multiple pollers (e.g. dev.to
 // articles via both the devto poller and an RSS feed subscription).
-func (s *EventStore) queryExistingURLs(ctx context.Context, urls []string) map[string]bool {
+//
+// Must be called inside a transaction to prevent TOCTOU races with
+// concurrent Ingest calls.
+func (s *EventStore) queryExistingURLsTx(ctx context.Context, tx *sql.Tx, urls []string) map[string]bool {
 	if len(urls) == 0 {
 		return map[string]bool{}
 	}
@@ -170,7 +175,7 @@ func (s *EventStore) queryExistingURLs(ctx context.Context, urls []string) map[s
 
 	allArgs := append(sourceArgs, urlArgs...)
 	query := fmt.Sprintf("SELECT DISTINCT url FROM events WHERE source IN (%s) AND url IN (%s)", strings.Join(placeholders, ", "), strings.Join(urlPlaceholders, ", "))
-	rows, err := s.db.QueryContext(ctx, query, allArgs...)
+	rows, err := tx.QueryContext(ctx, query, allArgs...)
 	if err != nil {
 		slog.Warn("signal: cross-source URL dedup query failed, skipping", "error", err)
 		return map[string]bool{}

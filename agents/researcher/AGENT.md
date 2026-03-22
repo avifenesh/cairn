@@ -3,7 +3,7 @@ name: researcher
 description: "Investigates topics, explores codebases, gathers information from web and files. Read-only — cannot modify anything."
 mode: talk
 allowed-tools: "cairn.readFile,cairn.listFiles,cairn.searchFiles,cairn.searchMemory,cairn.webSearch,cairn.webFetch,cairn.readFeed"
-max-rounds: 40
+max-rounds: 80
 ---
 
 # Research Agent

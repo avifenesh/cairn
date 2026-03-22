@@ -30,8 +30,11 @@ func NewMeta(source string) EventMeta {
 type EventIngested struct {
 	EventMeta
 	SourceType string `json:"sourceType"`
+	Kind       string `json:"kind"`  // pr, issue, story, email, etc.
 	Title      string `json:"title"`
 	URL        string `json:"url"`
+	Actor      string `json:"actor"` // who created the event
+	Repo       string `json:"repo"`  // repo name (GitHub events)
 }
 
 // EventRead is emitted when a user marks an event as read.

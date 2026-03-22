@@ -23,6 +23,7 @@ import (
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/plugin"
 	"github.com/avifenesh/cairn/internal/rules"
+	signalplane "github.com/avifenesh/cairn/internal/signal"
 	"github.com/avifenesh/cairn/internal/skill"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
@@ -113,6 +114,9 @@ type Server struct {
 	// Poll trigger (optional: manual poll via POST /v1/poll/run).
 	pollTrigger PollTrigger
 
+	// Source registry (optional: lists active signal sources).
+	sourceRegistry SourceRegistry
+
 	// OnConfigPatch is called after PATCH /v1/config is applied.
 	// Allows external subsystems to react to config changes.
 	OnConfigPatch func()
@@ -121,6 +125,11 @@ type Server struct {
 // PollTrigger allows the server to trigger a manual poll cycle.
 type PollTrigger interface {
 	PollNow(ctx context.Context)
+}
+
+// SourceRegistry exposes metadata about active signal sources.
+type SourceRegistry interface {
+	RegisteredSources() []signalplane.SourceInfo
 }
 
 // ServerConfig carries all dependencies needed to construct a Server.
@@ -191,6 +200,9 @@ type ServerConfig struct {
 	// Poll trigger (optional: manual poll via POST /v1/poll/run).
 	PollTrigger PollTrigger
 
+	// Source registry (optional: lists active signal sources).
+	SourceRegistry SourceRegistry
+
 	// Agent type service (optional: AGENT.md type definitions).
 	AgentTypes *agenttype.Service
 
@@ -250,6 +262,7 @@ func New(cfg ServerConfig) *Server {
 		authStore:       cfg.AuthStore,
 		webauthn:        cfg.WebAuthn,
 		pollTrigger:     cfg.PollTrigger,
+		sourceRegistry:  cfg.SourceRegistry,
 		agentTypes:      cfg.AgentTypes,
 		userProfile:     cfg.UserProfile,
 		agentsFile:      cfg.AgentsFile,

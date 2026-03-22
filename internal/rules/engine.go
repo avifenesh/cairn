@@ -83,8 +83,11 @@ func (e *Engine) Start() {
 			e.handleEvent("EventIngested", map[string]any{
 				"source":     ev.Source,
 				"sourceType": ev.SourceType,
+				"kind":       ev.Kind,
 				"title":      ev.Title,
 				"url":        ev.URL,
+				"actor":      ev.Actor,
+				"repo":       ev.Repo,
 			})
 		}),
 		eventbus.Subscribe(e.bus, func(ev eventbus.TaskCreated) {

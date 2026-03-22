@@ -10,6 +10,16 @@ import (
 	"github.com/avifenesh/cairn/internal/rules"
 )
 
+// --- Signal source handlers ---
+
+func (s *Server) handleListSources(w http.ResponseWriter, r *http.Request) {
+	if s.sourceRegistry == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": s.sourceRegistry.RegisteredSources()})
+}
+
 // --- Automation rule handlers ---
 
 func (s *Server) handleListRules(w http.ResponseWriter, r *http.Request) {
@@ -207,4 +217,46 @@ func (s *Server) handleRecentRuleExecutions(w http.ResponseWriter, r *http.Reque
 // isRuleNotFound checks if the error is a rule-not-found error.
 func isRuleNotFound(err error) bool {
 	return errors.Is(err, rules.ErrNotFound)
+}
+
+// --- Rule template handlers ---
+
+func (s *Server) handleListRuleTemplates(w http.ResponseWriter, r *http.Request) {
+	source := r.URL.Query().Get("source")
+	var templates []rules.Template
+	if source != "" {
+		templates = rules.ListTemplatesForSource(source)
+	} else {
+		templates = rules.ListTemplates()
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": templates})
+}
+
+func (s *Server) handleInstantiateRuleTemplate(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	var req struct {
+		Params map[string]string `json:"params"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	rule, err := rules.Instantiate(id, req.Params)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := s.rulesStore.Create(r.Context(), rule); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if s.rulesEngine != nil {
+		s.rulesEngine.RefreshCache()
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]any{"rule": rule})
 }

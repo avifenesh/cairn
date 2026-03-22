@@ -556,6 +556,15 @@ export const deleteRule = (id: string) => del<{ ok: boolean }>(`/v1/rules/${enco
 export const getRuleExecutions = (id: string) => get<{ items: import('$lib/types').RuleExecution[] }>(`/v1/rules/${encodeURIComponent(id)}/executions`);
 export const getRecentRuleExecutions = () => get<{ items: import('$lib/types').RuleExecution[] }>('/v1/rules/executions/recent');
 
+// --- Signal Sources ---
+export const getSources = () => get<{ items: import('$lib/types').SourceInfo[] }>('/v1/sources');
+
+// --- Rule Templates ---
+export const getRuleTemplates = (source?: string) =>
+	get<{ items: import('$lib/types').RuleTemplate[] }>(`/v1/rule-templates${source ? `?source=${encodeURIComponent(source)}` : ''}`);
+export const instantiateRuleTemplate = (id: string, params: Record<string, string>) =>
+	post<{ rule: import('$lib/types').Rule }>(`/v1/rule-templates/${encodeURIComponent(id)}/instantiate`, { params });
+
 // --- Agent Types ---
 export interface AgentTypeItem {
 	name: string;

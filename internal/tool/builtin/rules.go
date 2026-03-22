@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/avifenesh/cairn/internal/rules"
+	"github.com/avifenesh/cairn/internal/signal"
 	"github.com/avifenesh/cairn/internal/tool"
 )
 
@@ -169,6 +171,111 @@ var toggleRule = tool.Define("cairn.toggleRule",
 		}
 		return &tool.ToolResult{
 			Output: fmt.Sprintf("Rule %s %s.", p.ID, status),
+		}, nil
+	},
+)
+
+// --- Source and template tools ---
+
+var listSources = tool.Define("cairn.listSources",
+	"List active signal sources with their event kinds and filterable fields.",
+	[]tool.Mode{tool.ModeTalk, tool.ModeWork, tool.ModeCoding},
+	func(_ *tool.ToolContext, _ struct{}) (*tool.ToolResult, error) {
+		sources := signal.AllSourceInfo()
+		if len(sources) == 0 {
+			return &tool.ToolResult{Output: "No signal sources configured."}, nil
+		}
+
+		var sb strings.Builder
+		fmt.Fprintf(&sb, "## Signal Sources (%d)\n\n", len(sources))
+		for _, src := range sources {
+			fmt.Fprintf(&sb, "- **%s** (%s): kinds=%s\n", src.Label, src.Name, strings.Join(src.Kinds, ", "))
+		}
+		return &tool.ToolResult{Output: sb.String()}, nil
+	},
+)
+
+var listRuleTemplates = tool.Define("cairn.listRuleTemplates",
+	"List available rule templates that can be instantiated with cairn.createRuleFromTemplate.",
+	[]tool.Mode{tool.ModeTalk, tool.ModeWork, tool.ModeCoding},
+	func(_ *tool.ToolContext, _ struct{}) (*tool.ToolResult, error) {
+		templates := rules.ListTemplates()
+		if len(templates) == 0 {
+			return &tool.ToolResult{Output: "No rule templates available."}, nil
+		}
+
+		var sb strings.Builder
+		fmt.Fprintf(&sb, "## Rule Templates (%d)\n\n", len(templates))
+		for _, t := range templates {
+			fmt.Fprintf(&sb, "- **%s** (id: `%s`, category: %s)", t.Name, t.ID, t.Category)
+			if t.Source != "" {
+				fmt.Fprintf(&sb, " [%s]", t.Source)
+			}
+			sb.WriteString("\n")
+			fmt.Fprintf(&sb, "  %s\n", t.Description)
+			if len(t.Params) > 0 {
+				params := make([]string, 0, len(t.Params))
+				for _, p := range t.Params {
+					s := p.Key
+					if p.Required {
+						s += " (required)"
+					}
+					if p.Default != "" {
+						s += fmt.Sprintf(" [default: %s]", p.Default)
+					}
+					params = append(params, s)
+				}
+				fmt.Fprintf(&sb, "  Params: %s\n", strings.Join(params, ", "))
+			}
+		}
+		return &tool.ToolResult{Output: sb.String()}, nil
+	},
+)
+
+type createRuleFromTemplateParams struct {
+	TemplateID string            `json:"templateId" desc:"Template ID from cairn.listRuleTemplates (e.g. notify-github-pr)"`
+	Params     map[string]string `json:"params" desc:"Template parameters as key-value pairs"`
+}
+
+var createRuleFromTemplate = tool.Define("cairn.createRuleFromTemplate",
+	"Create a rule from a bundled template. Use cairn.listRuleTemplates to see available templates and their parameters.",
+	[]tool.Mode{tool.ModeTalk, tool.ModeWork, tool.ModeCoding},
+	func(ctx *tool.ToolContext, p createRuleFromTemplateParams) (*tool.ToolResult, error) {
+		if ctx.Rules == nil {
+			return &tool.ToolResult{Error: "rules service not configured"}, nil
+		}
+
+		if strings.TrimSpace(p.TemplateID) == "" {
+			return &tool.ToolResult{Error: "templateId is required"}, nil
+		}
+
+		rule, err := rules.Instantiate(p.TemplateID, p.Params)
+		if err != nil {
+			return &tool.ToolResult{Error: fmt.Sprintf("template instantiation failed: %v", err)}, nil
+		}
+
+		// Marshal trigger and actions to JSON for the RulesService.Create interface.
+		triggerJSON, err := json.Marshal(rule.Trigger)
+		if err != nil {
+			return &tool.ToolResult{Error: fmt.Sprintf("failed to marshal trigger: %v", err)}, nil
+		}
+		actionsJSON, err := json.Marshal(rule.Actions)
+		if err != nil {
+			return &tool.ToolResult{Error: fmt.Sprintf("failed to marshal actions: %v", err)}, nil
+		}
+
+		id, err := ctx.Rules.Create(ctx.Cancel, rule.Name, rule.Description, string(triggerJSON), rule.Condition, string(actionsJSON), rule.ThrottleMs)
+		if err != nil {
+			return &tool.ToolResult{Error: fmt.Sprintf("failed to create rule: %v", err)}, nil
+		}
+
+		return &tool.ToolResult{
+			Output: fmt.Sprintf("Rule %q created from template %q (ID: %s).", rule.Name, p.TemplateID, id),
+			Metadata: map[string]any{
+				"id":         id,
+				"name":       rule.Name,
+				"templateId": p.TemplateID,
+			},
 		}, nil
 	},
 )

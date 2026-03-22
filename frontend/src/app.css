@@ -332,3 +332,302 @@
 .animate-in {
   animation: fade-in-up var(--dur-slow) var(--ease-out) both;
 }
+
+/* ============================================
+   diff2html Dark Theme Overrides
+   Uses RGBA overlays so syntax highlighting
+   tokens remain readable through tinted bg.
+   ============================================ */
+.d2h-wrapper {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  tab-size: 4;
+}
+
+.d2h-file-wrapper {
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  background: var(--bg-1);
+}
+
+.d2h-file-header {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0.375rem 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.d2h-file-name-wrapper {
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.d2h-tag {
+  font-size: 0.625rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
+.d2h-file-diff {
+  overflow-x: auto;
+}
+
+/* Table layout */
+.d2h-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+}
+
+/* Line number gutter */
+.d2h-code-linenumber {
+  color: var(--text-tertiary);
+  background: var(--bg-2);
+  border-right: 1px solid var(--border-subtle);
+  padding: 0 0.5rem;
+  text-align: right;
+  user-select: none;
+  width: 1%;
+  min-width: 2.5rem;
+  vertical-align: top;
+}
+
+/* Code content area */
+.d2h-code-line {
+  padding: 0 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Prevent +/- prefix from being included when copying diff code. */
+.d2h-code-line-prefix {
+  user-select: none;
+  display: inline-block;
+  width: 1ch;
+  color: var(--text-tertiary);
+}
+
+.d2h-code-line-ctn {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+/* Context (unchanged) lines */
+.d2h-cntx .d2h-code-linenumber {
+  background: var(--bg-2);
+}
+.d2h-cntx .d2h-code-line {
+  background: var(--bg-1);
+  color: var(--text-secondary);
+}
+
+/* Added lines - emerald RGBA overlay */
+.d2h-ins .d2h-code-linenumber {
+  background: rgba(16, 185, 129, 0.12);
+  border-left: 3px solid rgba(16, 185, 129, 0.6);
+  color: #34d399;
+}
+.d2h-ins .d2h-code-line {
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--text-primary);
+}
+.d2h-ins .d2h-code-line-prefix {
+  color: #34d399;
+}
+/* Word-level addition highlight */
+.d2h-ins .d2h-code-line-ctn ins,
+.d2h-ins.d2h-change .d2h-code-line-ctn ins {
+  background: rgba(16, 185, 129, 0.25);
+  text-decoration: none;
+  border-radius: 2px;
+}
+
+/* Deleted lines - red RGBA overlay */
+.d2h-del .d2h-code-linenumber {
+  background: rgba(239, 68, 68, 0.12);
+  border-left: 3px solid rgba(239, 68, 68, 0.5);
+  color: #f87171;
+}
+.d2h-del .d2h-code-line {
+  background: rgba(239, 68, 68, 0.06);
+  color: var(--text-primary);
+}
+.d2h-del .d2h-code-line-prefix {
+  color: #f87171;
+}
+/* Word-level deletion highlight */
+.d2h-del .d2h-code-line-ctn del,
+.d2h-del.d2h-change .d2h-code-line-ctn del {
+  background: rgba(239, 68, 68, 0.2);
+  text-decoration: none;
+  border-radius: 2px;
+}
+
+/* Hunk headers (@@ ... @@) */
+.d2h-info .d2h-code-linenumber {
+  background: var(--bg-3);
+}
+.d2h-info .d2h-code-line {
+  background: var(--bg-2);
+  color: #818cf8;
+  font-style: italic;
+}
+
+/* Side-by-side specific */
+.d2h-file-side-diff {
+  width: 50%;
+  overflow-x: auto;
+}
+
+/* Empty placeholder lines in side-by-side */
+.d2h-emptyplaceholder {
+  background: var(--bg-2);
+  border-left: 3px solid transparent;
+}
+
+/* File list (summary) */
+.d2h-file-list-wrapper {
+  margin-bottom: 0.75rem;
+}
+.d2h-file-list-header {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 0.375rem 0.5rem;
+}
+.d2h-file-list-line {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.d2h-file-list-line a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.d2h-file-list-line a:hover {
+  color: var(--cairn-accent);
+}
+
+/* Stats badges (additions/deletions) */
+.d2h-lines-added {
+  color: #34d399;
+}
+.d2h-lines-deleted {
+  color: #f87171;
+}
+
+/* File switch icons */
+.d2h-moved-tag,
+.d2h-changed-tag,
+.d2h-added-tag,
+.d2h-deleted-tag,
+.d2h-renamed-tag {
+  font-size: 0.625rem;
+  border-radius: 0.25rem;
+  padding: 0.0625rem 0.25rem;
+}
+.d2h-added-tag { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+.d2h-deleted-tag { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.d2h-changed-tag { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.d2h-renamed-tag { background: rgba(129, 140, 248, 0.15); color: #818cf8; }
+.d2h-moved-tag { background: rgba(129, 140, 248, 0.15); color: #818cf8; }
+
+/* Scrollbar inside diff panes */
+.d2h-file-diff::-webkit-scrollbar {
+  height: 6px;
+}
+.d2h-file-diff::-webkit-scrollbar-track {
+  background: var(--bg-1);
+}
+.d2h-file-diff::-webkit-scrollbar-thumb {
+  background: var(--bg-4);
+  border-radius: 3px;
+}
+
+/* highlight.js token colors (GitHub Dark) for syntax-highlighted diffs.
+   Only token colors - no layout rules that conflict with diff2html. */
+.d2h-wrapper .hljs { color: #c9d1d9; background: transparent; }
+.d2h-wrapper .hljs-doctag,
+.d2h-wrapper .hljs-keyword,
+.d2h-wrapper .hljs-meta .hljs-keyword,
+.d2h-wrapper .hljs-template-tag,
+.d2h-wrapper .hljs-template-variable,
+.d2h-wrapper .hljs-type,
+.d2h-wrapper .hljs-variable.language_ { color: #ff7b72; }
+.d2h-wrapper .hljs-title,
+.d2h-wrapper .hljs-title.class_,
+.d2h-wrapper .hljs-title.class_.inherited__,
+.d2h-wrapper .hljs-title.function_ { color: #d2a8ff; }
+.d2h-wrapper .hljs-attr,
+.d2h-wrapper .hljs-attribute,
+.d2h-wrapper .hljs-literal,
+.d2h-wrapper .hljs-meta,
+.d2h-wrapper .hljs-number,
+.d2h-wrapper .hljs-operator,
+.d2h-wrapper .hljs-selector-attr,
+.d2h-wrapper .hljs-selector-class,
+.d2h-wrapper .hljs-selector-id,
+.d2h-wrapper .hljs-variable { color: #79c0ff; }
+.d2h-wrapper .hljs-meta .hljs-string,
+.d2h-wrapper .hljs-regexp,
+.d2h-wrapper .hljs-string { color: #a5d6ff; }
+.d2h-wrapper .hljs-built_in,
+.d2h-wrapper .hljs-symbol { color: #ffa657; }
+.d2h-wrapper .hljs-code,
+.d2h-wrapper .hljs-comment,
+.d2h-wrapper .hljs-formula { color: #8b949e; }
+.d2h-wrapper .hljs-name,
+.d2h-wrapper .hljs-quote,
+.d2h-wrapper .hljs-selector-pseudo,
+.d2h-wrapper .hljs-selector-tag { color: #7ee787; }
+.d2h-wrapper .hljs-subst { color: #c9d1d9; }
+.d2h-wrapper .hljs-section { color: #1f6feb; font-weight: 700; }
+.d2h-wrapper .hljs-bullet { color: #f2cc60; }
+.d2h-wrapper .hljs-emphasis { font-style: italic; }
+.d2h-wrapper .hljs-strong { font-weight: 700; }
+
+/* Light theme overrides */
+[data-theme="light"] .d2h-ins .d2h-code-linenumber {
+  background: rgba(5, 150, 105, 0.1);
+  border-left-color: rgba(5, 150, 105, 0.5);
+  color: #047857;
+}
+[data-theme="light"] .d2h-ins .d2h-code-line {
+  background: rgba(5, 150, 105, 0.06);
+}
+[data-theme="light"] .d2h-ins .d2h-code-line-prefix { color: #047857; }
+[data-theme="light"] .d2h-ins .d2h-code-line-ctn ins,
+[data-theme="light"] .d2h-ins.d2h-change .d2h-code-line-ctn ins {
+  background: rgba(5, 150, 105, 0.2);
+}
+[data-theme="light"] .d2h-del .d2h-code-linenumber {
+  background: rgba(220, 38, 38, 0.08);
+  border-left-color: rgba(220, 38, 38, 0.4);
+  color: #dc2626;
+}
+[data-theme="light"] .d2h-del .d2h-code-line {
+  background: rgba(220, 38, 38, 0.04);
+}
+[data-theme="light"] .d2h-del .d2h-code-line-prefix { color: #dc2626; }
+[data-theme="light"] .d2h-del .d2h-code-line-ctn del,
+[data-theme="light"] .d2h-del.d2h-change .d2h-code-line-ctn del {
+  background: rgba(220, 38, 38, 0.15);
+}
+[data-theme="light"] .d2h-lines-added { color: #047857; }
+[data-theme="light"] .d2h-lines-deleted { color: #dc2626; }
+[data-theme="light"] .d2h-added-tag { background: rgba(5, 150, 105, 0.1); color: #047857; }
+[data-theme="light"] .d2h-deleted-tag { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
+[data-theme="light"] .d2h-changed-tag { background: rgba(146, 64, 14, 0.1); color: #92400e; }
+
+/* diff2html applies a bottom border on every <td>; remove it on the last
+   row to avoid a double-border against the file-wrapper's own border. */
+.d2h-diff-tbody > tr:last-child > td {
+  border-bottom: none;
+}

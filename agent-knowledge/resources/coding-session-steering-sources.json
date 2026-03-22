@@ -1,0 +1,388 @@
+{
+  "topic": "Human-in-the-loop steering and intervention UIs for AI coding agents",
+  "slug": "coding-session-steering",
+  "generated": "2026-03-21T00:00:00Z",
+  "depth": "medium",
+  "totalSources": 20,
+  "sources": [
+    {
+      "url": "https://docs.openhands.dev/sdk/guides/convo-send-message-while-running.md",
+      "title": "OpenHands SDK: Send Message While Running",
+      "qualityScore": 95,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 9,
+        "examples": 9,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Mid-execution steering via conversation.send_message() without stopping the agent",
+        "Background threading model: run() in thread, send_message() adds to events queue",
+        "Agent.step() processes all queued events including newly injected ones",
+        "Enables real-time multi-turn steering without restarting the agent"
+      ]
+    },
+    {
+      "url": "https://docs.openhands.dev/sdk/guides/security.md",
+      "title": "OpenHands SDK: Security & Action Confirmation",
+      "qualityScore": 97,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 10,
+        "examples": 10,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Three built-in confirmation policies: AlwaysConfirm(), NeverConfirm(), ConfirmRisky()",
+        "WAITING_FOR_CONFIRMATION execution status for detecting pending approvals",
+        "get_unmatched_actions() to retrieve pending action queue",
+        "reject_pending_actions(reason) with explanatory feedback guides agent to alternative approaches",
+        "LLMSecurityAnalyzer classifies actions as LOW/MEDIUM/HIGH/UNKNOWN risk",
+        "Custom security policies via Jinja2 templates embed organizational guidelines"
+      ]
+    },
+    {
+      "url": "https://docs.openhands.dev/sdk/guides/convo-pause-and-resume.md",
+      "title": "OpenHands SDK: Pause and Resume",
+      "qualityScore": 95,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 9,
+        "examples": 9,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "conversation.pause() halts execution from another thread with state preserved",
+        "conversation.run() resumes from exact pause point without restarting",
+        "State persists: new messages sent while paused become part of resumed context",
+        "Primary use cases: operational interruption, direction change, resource management"
+      ]
+    },
+    {
+      "url": "https://docs.openhands.dev/sdk/guides/iterative-refinement.md",
+      "title": "OpenHands SDK: Iterative Refinement",
+      "qualityScore": 90,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 8,
+        "examples": 9,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Agent-critic feedback loop: primary agent acts, critic scores on 4 dimensions (100 pts total)",
+        "Configurable QUALITY_THRESHOLD (default 90.0) and MAX_ITERATIONS (default 5)",
+        "Critic report fed back to agent with instruction to address all issues",
+        "Reduces human oversight burden by automating mechanical quality checks"
+      ]
+    },
+    {
+      "url": "https://docs.openhands.dev/sdk/guides/critic.md",
+      "title": "OpenHands SDK: Critic (Experimental)",
+      "qualityScore": 85,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 7,
+        "examples": 7,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Real-time LLM-based critic evaluates agent actions as they occur",
+        "Provides built-in iterative refinement loop",
+        "Experimental feature enabling automated quality gating without human involvement"
+      ]
+    },
+    {
+      "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+      "title": "LangGraph: Interrupt Documentation",
+      "qualityScore": 97,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 10,
+        "examples": 10,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "interrupt() pauses graph execution at a node, saves state via checkpointer, returns payload to caller",
+        "Resume via graph.invoke(Command(resume=value), config=config) with same thread_id",
+        "Common patterns: approval workflows, review-and-edit, tool call approval, input validation loops",
+        "Critical rules: never wrap in bare try/except, keep interrupt call order stable, avoid non-idempotent ops before interrupt",
+        "interrupt_before/interrupt_after for static debugging breakpoints",
+        "Streaming: detect __interrupt__ in chunk data for real-time handling"
+      ]
+    },
+    {
+      "url": "https://docs.devin.ai/docs/interact-with-devin",
+      "title": "Devin: Interacting with Devin",
+      "qualityScore": 90,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 8,
+        "examples": 6,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Real-time monitoring: follow Devin's work and take over to run commands or make edits",
+        "IDE takeover: embedded IDE allows following and taking over the development process",
+        "Interactive browser: users jump in to help Devin navigate browsing tasks",
+        "Draft review pattern: take over once Devin produces a good first draft",
+        "Make tasks easy to verify via CI pass or automatic deployment checks",
+        "PR-based workflow: return to review draft PRs"
+      ]
+    },
+    {
+      "url": "https://github.blog/ai-and-ml/github-copilot/github-copilot-meet-the-new-coding-agent/",
+      "title": "GitHub Copilot Coding Agent: Overview",
+      "qualityScore": 92,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 8,
+        "examples": 7,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "Draft PR as primary oversight artifact with full session logs visible at each step",
+        "Separation of duties: task initiator cannot approve the resulting PR",
+        "GitHub Actions won't run without user approval, gating untested deployment",
+        "Comment-driven mid-session steering: agent automatically picks up PR comments",
+        "Agent can only push to branches it created (limited blast radius)",
+        "Branch protections and existing rulesets are automatically respected"
+      ]
+    },
+    {
+      "url": "https://docs.windsurf.com/windsurf/cascade",
+      "title": "Windsurf Cascade: User Controls",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 9,
+        "recency": 10,
+        "depth": 8,
+        "examples": 6,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Accept-before-apply: users explicitly accept and insert suggested code changes",
+        "Up to 20 tool calls per prompt; manual Continue button at stopping points",
+        "Message queueing: type while agent executes; delete from queue before dispatch",
+        "Checkpoint/revert: hover over prompt card to revert all changes from that point",
+        "Named snapshots for navigation and state restoration",
+        "Problems panel integration: Send to Cascade button for targeted intervention"
+      ]
+    },
+    {
+      "url": "https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/human-in-the-loop.html",
+      "title": "AutoGen: Human-in-the-Loop Tutorial",
+      "qualityScore": 93,
+      "scores": {
+        "authority": 10,
+        "recency": 9,
+        "depth": 9,
+        "examples": 9,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "UserProxyAgent models human as a first-class team member, not external caller",
+        "Blocks execution until human provides feedback — for short interactions only",
+        "HandoffTermination: agent sends HandoffMessage when it needs human info",
+        "max_turns creates periodic natural pause points for async human feedback",
+        "Custom input_func enables WebSocket, ChainLit, Streamlit integration",
+        "Team composition can be swapped (human vs mock agent) for testing"
+      ]
+    },
+    {
+      "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/agents-returncontrol.html",
+      "title": "Amazon Bedrock: Return Control for Action Groups",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 10,
+        "recency": 8,
+        "depth": 8,
+        "examples": 9,
+        "uniqueness": 9
+      },
+      "keyInsights": [
+        "RETURN_CONTROL setting bypasses Lambda and returns action parameters to application",
+        "Application receives invocationInputs and invocationId for inspection",
+        "Application can modify parameters before returning results to agent via same invocationId",
+        "Enables custom processing, human review/approval, and fine-grained control",
+        "Supports multi-agent supervisor-collaborator scenarios with proper result routing"
+      ]
+    },
+    {
+      "url": "https://www.anthropic.com/research/building-effective-agents",
+      "title": "Anthropic: Building Effective Agents",
+      "qualityScore": 95,
+      "scores": {
+        "authority": 10,
+        "recency": 9,
+        "depth": 9,
+        "examples": 7,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Agents should pause for human feedback at checkpoints or when encountering blockers",
+        "Implement stopping conditions (max iterations) to maintain human control",
+        "Programmatic gate checks in prompt chains ensure process stays on track",
+        "Sandboxed testing with appropriate guardrails before deployment",
+        "Meaningful human oversight is foundational, not an optional add-on",
+        "Human review remains crucial even when automated testing validates functionality"
+      ]
+    },
+    {
+      "url": "https://arxiv.org/abs/2405.15793",
+      "title": "SWE-agent: Agent-Computer Interfaces Enable Software Engineering (arXiv:2405.15793)",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 9,
+        "recency": 9,
+        "depth": 8,
+        "examples": 6,
+        "uniqueness": 10
+      },
+      "keyInsights": [
+        "Agent-Computer Interface (ACI) design reduces the need for human intervention by construction",
+        "Well-designed interfaces surface clear errors enabling self-correction, reducing oversight burden",
+        "LLM agents benefit from specially-built interfaces tailored to their reasoning patterns",
+        "12.5% pass@1 improvement on SWE-bench via interface improvements alone",
+        "Interface architecture itself can function as an oversight mechanism"
+      ]
+    },
+    {
+      "url": "https://huggingface.co/docs/smolagents/en/tutorials/building_good_agents",
+      "title": "HuggingFace SmolAgents: Building Good Agents",
+      "qualityScore": 85,
+      "scores": {
+        "authority": 9,
+        "recency": 10,
+        "depth": 8,
+        "examples": 9,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Simplify workflows to reduce LLM error rate and oversight need",
+        "Tool design: log all execution details to enable self-debugging",
+        "planning_interval parameter inserts explicit planning steps during long tasks",
+        "additional_args for passing context to agent without reprompting",
+        "Prefer deterministic functions over agentic decisions when possible"
+      ]
+    },
+    {
+      "url": "https://arxiv.org/abs/2402.01030",
+      "title": "CodeAct: Executable Code Actions for LLM Agents (arXiv:2402.01030)",
+      "qualityScore": 78,
+      "scores": {
+        "authority": 8,
+        "recency": 8,
+        "depth": 7,
+        "examples": 5,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "Executable Python code as action representation makes agent plans human-readable",
+        "Multi-turn interactions enable natural course correction across steps",
+        "Code-as-action creates implicit transparency: humans can read what agent intends",
+        "Self-debugging capability reduces frequency of human intervention needed"
+      ]
+    },
+    {
+      "url": "https://docs.openhands.dev/usage/getting-started",
+      "title": "OpenHands: Getting Started & Interaction Patterns",
+      "qualityScore": 75,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 6,
+        "examples": 5,
+        "uniqueness": 4
+      },
+      "keyInsights": [
+        "Start small and iterate: helps calibrate how the agent interprets prompts",
+        "Include technical context (language, paths, stack) in steering messages",
+        "Break tasks into manageable chunks for incremental verification",
+        "Repository integration with branch/credential selection before agent starts",
+        "Commit and push frequently during sessions for intermediate checkpoints"
+      ]
+    },
+    {
+      "url": "https://docs.openhands.dev/usage/feedback",
+      "title": "OpenHands: Feedback Mechanisms",
+      "qualityScore": 72,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 5,
+        "examples": 3,
+        "uniqueness": 6
+      },
+      "keyInsights": [
+        "Thumbs-up/thumbs-down feedback UI available at any point during interaction",
+        "Feedback creates open corpus of coding agent training examples (Share-OpenHands)",
+        "Public/private submission options with email notification",
+        "Feedback steers future model improvement via reinforcement from human signals"
+      ]
+    },
+    {
+      "url": "https://docs.crewai.com/llms.txt",
+      "title": "CrewAI Documentation Index: Human-in-the-Loop Features",
+      "qualityScore": 80,
+      "scores": {
+        "authority": 9,
+        "recency": 10,
+        "depth": 6,
+        "examples": 5,
+        "uniqueness": 8
+      },
+      "keyInsights": [
+        "human_input parameter on tasks pauses crew execution for validation",
+        "@human_feedback decorator on flow steps injects review between automated stages",
+        "Enterprise POST /resume endpoint for async approval via email or webhook",
+        "Flow HITL Management with routing rules and auto-response capabilities",
+        "Sequential, hierarchical, and hybrid process support with human-in-the-loop triggers"
+      ]
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/docs/agents-and-tools/computer-use",
+      "title": "Anthropic: Claude Computer Use — Safety & Oversight",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 10,
+        "recency": 10,
+        "depth": 7,
+        "examples": 6,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "Prompt injection classifier automatically triggers user confirmation when injection detected in screenshots",
+        "Opt-out available for use cases without a human in the loop",
+        "Isolate Claude from sensitive data and actions to reduce prompt injection risk",
+        "Inform end users of relevant risks and obtain consent before enabling computer use",
+        "Reference implementation includes web interface with agent loop for oversight"
+      ]
+    },
+    {
+      "url": "https://microsoft.github.io/autogen/stable/user-guide/agentchat-user-guide/tutorial/human-in-the-loop.html",
+      "title": "AutoGen: Between-Run Feedback Pattern",
+      "qualityScore": 88,
+      "scores": {
+        "authority": 10,
+        "recency": 9,
+        "depth": 8,
+        "examples": 9,
+        "uniqueness": 7
+      },
+      "keyInsights": [
+        "max_turns=1 creates single-turn checkpoints, conversation history persists across runs",
+        "Turn counter resets on resumption enabling precise control granularity",
+        "Async feedback pattern: pause team, provide human feedback, resume — no blocking",
+        "TextMentionTermination as natural task completion signal from agent to human"
+      ]
+    }
+  ]
+}

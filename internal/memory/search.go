@@ -23,6 +23,9 @@ func Search(ctx context.Context, store *Store, embedder Embedder, query string, 
 	if limit <= 0 {
 		limit = 10
 	}
+	if limit > 200 {
+		limit = 200
+	}
 
 	// Step 1: keyword matches.
 	keywordMatches, err := store.SearchByKeyword(ctx, query, limit*3)
@@ -139,6 +142,9 @@ func Search(ctx context.Context, store *Store, embedder Embedder, query string, 
 func mmrRerank(candidates []searchCandidate, limit int, lambda float64) []SearchResult {
 	if len(candidates) == 0 {
 		return nil
+	}
+	if limit > len(candidates) {
+		limit = len(candidates)
 	}
 
 	selected := make([]SearchResult, 0, limit)

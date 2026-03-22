@@ -208,7 +208,7 @@ type TelegramAdapter struct {
 
 ### CLI Adapter (future)
 BubbleTea TUI or simple stdin/stdout.
-For scripting: `pub chat "hello"` → stdout.
+For scripting: `cairn chat "hello"` → stdout.
 
 ### Slack Adapter (future)
 Socket Mode. Block Kit for rich messages. App Home for dashboard.

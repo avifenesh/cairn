@@ -93,9 +93,9 @@ type Config struct {
 	ReflectionInterval int // Seconds (default: 1800)
 
 	// Tool round limits per mode
-	TalkMaxRounds   int // TALK_MAX_ROUNDS (default: 20)
-	WorkMaxRounds   int // WORK_MAX_ROUNDS (default: 40)
-	CodingMaxRounds int // CODING_MAX_ROUNDS (default: 200)
+	TalkMaxRounds   int // TALK_MAX_ROUNDS (default: 40)
+	WorkMaxRounds   int // WORK_MAX_ROUNDS (default: 80)
+	CodingMaxRounds int // CODING_MAX_ROUNDS (default: 400)
 
 	// Coding allowed repos — CSV of absolute repo paths where agent can create worktrees.
 	// Empty = only the default repo (cwd), no restriction. When set, the default repo
@@ -107,9 +107,9 @@ type Config struct {
 	MemoryAutoExtract bool // MEMORY_AUTO_EXTRACT (default: true)
 
 	// Session compaction
-	CompactionTriggerTokens int // COMPACTION_TRIGGER_TOKENS (default: 80000)
+	CompactionTriggerTokens int // COMPACTION_TRIGGER_TOKENS (default: 150000)
 	CompactionKeepRecent    int // COMPACTION_KEEP_RECENT (default: 10)
-	CompactionMaxToolOutput int // COMPACTION_MAX_TOOL_OUTPUT (default: 8000)
+	CompactionMaxToolOutput int // COMPACTION_MAX_TOOL_OUTPUT (default: 32000)
 
 	// MCP server
 	MCPServerEnabled  bool   // MCP_SERVER_ENABLED (default false)

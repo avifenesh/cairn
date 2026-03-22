@@ -54,7 +54,7 @@ type Engine interface {
 ```go
 type WorktreeManager struct {
     repoDir     string          // main repo path
-    worktreeDir string          // base dir for worktrees (e.g., ~/.pub/worktrees/)
+    worktreeDir string          // base dir for worktrees (e.g., ~/.cairn/worktrees/)
     mu          sync.Mutex      // serialize git worktree operations
 }
 

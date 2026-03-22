@@ -24,7 +24,7 @@ Key design decisions:
 
 ## Modules
 
-14 modules, all complete. See `docs/design/pieces/` for architecture specs.
+17 packages in `internal/`, all complete. 11 architecture specs in `docs/design/pieces/`.
 
 Cairn watches your world (11 pollers), acts on your behalf (52+ tools, 39 skills), learns over time (semantic + episodic + procedural memory, Soul), and stays on 24/7 via orchestrator, subagents, and auto-deploy.
 

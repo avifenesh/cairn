@@ -38,10 +38,10 @@ func (s *SkillService) Watch() error     // re-discover on file changes
 
 ```
 Priority (high to low):
-1. {workspace}/.pub/skills/       — project-specific
+1. {workspace}/.cairn/skills/      — project-specific
 2. {workspace}/.claude/skills/    — Claude Code compatibility
 3. {workspace}/.agents/skills/    — OpenCode/agent compatibility
-4. ~/.pub/skills/                 — user global
+4. ~/.cairn/skills/               — user global (marketplace installs)
 5. {binary}/skills/               — bundled with binary
 ```
 

@@ -39,7 +39,7 @@ make build-prod
 
 **Agent** - ReAct loop with 52+ tools, three modes (talk/work/coding), session persistence.
 
-- File tools: read, write, edit, delete, list, search (path traversal protection)
+- File tools: read, write, edit, delete, undo, list, search (checkpointing, fuzzy match, path traversal protection)
 - Shell: policy engine, env filtering, shell detection
 - Git, web search, web fetch, memory CRUD, feed, tasks, cron, notifications
 - Z.ai integration: vision analysis, repo structure, search docs (GLM provider)
@@ -54,7 +54,7 @@ make build-prod
 
 - Keyword + vector search with MMR re-ranking (LLM provider embedding API)
 - Auto-extraction of memories from conversations (contradiction detection)
-- Session compaction (SummaryBuffer at 80K tokens)
+- Session compaction (SummaryBuffer at 150K tokens)
 - Hot-reloadable SOUL.md for behavioral identity
 - 39 skills (17 bundled + 22 user, SKILL.md format, ClawHub-compatible)
 - Confidence decay over time

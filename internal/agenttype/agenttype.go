@@ -12,6 +12,7 @@ type AgentType struct {
 	Mode         tool.Mode      // talk, work, or coding
 	AllowedTools []string       // allowlist: only these tools (nil = all tools in mode)
 	DeniedTools  []string       // denylist: exclude these tools (applied after AllowedTools; nil = no denials)
+	Skills       []string       // skills to pre-load into session (nil = none)
 	MaxRounds    int            // max reasoning rounds
 	Model        string         // LLM model override (empty = default)
 	Worktree     bool           // requires worktree isolation

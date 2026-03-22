@@ -291,6 +291,7 @@ export interface CronJob {
 	timezone: string;
 	priority: number;
 	cooldownMs: number;
+	agentType?: string;
 	createdAt: string;
 	updatedAt: string;
 	lastRunAt?: string;

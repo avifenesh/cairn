@@ -4,6 +4,7 @@ description: "Fast codebase exploration. Finds files, traces dependencies, maps 
 mode: work
 max-rounds: 40
 denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory"
+skills: web-search
 ---
 
 # Explorer Agent

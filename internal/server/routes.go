@@ -68,6 +68,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /v1/agent-types", s.handleListAgentTypes)
 	s.mux.HandleFunc("GET /v1/agent-types/{name}", s.handleGetAgentType)
 	s.mux.HandleFunc("POST /v1/agent-types", s.requireWrite(s.handleCreateAgentType))
+	s.mux.HandleFunc("PUT /v1/agent-types/{name}", s.requireWrite(s.handleUpdateAgentType))
+	s.mux.HandleFunc("POST /v1/agent-types/{name}/run", s.requireWrite(s.rateLimitMiddleware(10, time.Minute, s.handleRunAgentType)))
 	s.mux.HandleFunc("DELETE /v1/agent-types/{name}", s.requireWrite(s.handleDeleteAgentType))
 
 	// User profile and agents config.

@@ -1,16 +1,26 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getFleet, getAgentTypes, type AgentTypeItem } from '$lib/api/client';
+	import { getFleet, getAgentTypes, createAgentType, type AgentTypeItem } from '$lib/api/client';
 	import { relativeTime } from '$lib/utils/time';
 	import type { Agent } from '$lib/types';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Bot, Circle, Cpu, Code, Search, Eye, Wrench, FileText, Database, Layout, Server, PenTool, Compass, Shield } from '@lucide/svelte';
+	import { Bot, Circle, Cpu, Code, Search, Eye, Wrench, FileText, Database, Layout, Server, PenTool, Compass, Shield, Plus, X, Loader2 } from '@lucide/svelte';
 
 	let agents = $state<Agent[]>([]);
 	let agentTypes = $state<AgentTypeItem[]>([]);
 	let loading = $state(true);
 	let tab = $state<'types' | 'fleet'>('types');
+
+	// Create form state
+	let showCreate = $state(false);
+	let newName = $state('');
+	let newDescription = $state('');
+	let newMode = $state('work');
+	let newMaxRounds = $state(80);
+	let newContent = $state('');
+	let creating = $state(false);
+	let createError = $state('');
 
 	onMount(async () => {
 		try {
@@ -24,6 +34,35 @@
 			loading = false;
 		}
 	});
+
+	async function handleCreate() {
+		if (!newName.trim() || !newDescription.trim()) {
+			createError = 'Name and description are required';
+			return;
+		}
+		creating = true;
+		createError = '';
+		try {
+			await createAgentType({
+				name: newName.trim().toLowerCase(),
+				description: newDescription.trim(),
+				mode: newMode,
+				maxRounds: newMaxRounds,
+				content: newContent.trim() || `You are a ${newName.trim()} agent.`,
+			});
+			agentTypes = await getAgentTypes().catch(() => []);
+			showCreate = false;
+			newName = '';
+			newDescription = '';
+			newMode = 'work';
+			newMaxRounds = 80;
+			newContent = '';
+		} catch (e: unknown) {
+			createError = e instanceof Error ? e.message : 'Failed to create';
+		} finally {
+			creating = false;
+		}
+	}
 
 	const statusColor: Record<string, string> = {
 		idle: 'var(--color-success)',
@@ -63,6 +102,16 @@
 <div class="mx-auto max-w-5xl px-4 py-4 sm:p-6">
 	<div class="mb-6 flex items-center justify-between">
 		<h1 class="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Agents</h1>
+		<div class="flex items-center gap-2">
+			{#if tab === 'types'}
+				<button
+					class="inline-flex items-center gap-1.5 rounded-md bg-[var(--cairn-accent)] px-3 py-1.5 text-xs text-white hover:opacity-90 transition-opacity"
+					onclick={() => { showCreate = !showCreate; createError = ''; }}
+				>
+					{#if showCreate}<X class="h-3 w-3" />{:else}<Plus class="h-3 w-3" />{/if}
+					{showCreate ? 'Cancel' : 'New Agent Type'}
+				</button>
+			{/if}
 		<div class="flex gap-1 rounded-lg border border-border-subtle bg-[var(--bg-1)] p-0.5">
 			<button
 				class="rounded-md px-3 py-1 text-xs font-medium transition-colors {tab === 'types' ? 'bg-[var(--bg-2)] text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}"
@@ -77,7 +126,84 @@
 				Fleet ({agents.length})
 			</button>
 		</div>
+		</div>
 	</div>
+
+	{#if showCreate && tab === 'types'}
+		<div class="mb-6 rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4 space-y-3">
+			<p class="text-sm font-medium text-[var(--text-primary)]">Create Agent Type</p>
+
+			<div class="grid grid-cols-2 gap-3">
+				<div>
+					<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Name</p>
+					<input
+						type="text"
+						bind:value={newName}
+						placeholder="my-agent"
+						class="w-full h-7 rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 text-xs text-[var(--text-primary)] font-mono focus:border-[var(--cairn-accent)] focus:outline-none"
+					/>
+				</div>
+				<div>
+					<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Mode</p>
+					<select
+						bind:value={newMode}
+						class="w-full h-7 rounded-md border border-border-subtle bg-[var(--bg-0)] px-2 text-xs text-[var(--text-primary)] focus:border-[var(--cairn-accent)] focus:outline-none"
+					>
+						<option value="talk">talk</option>
+						<option value="work">work</option>
+						<option value="coding">coding</option>
+					</select>
+				</div>
+			</div>
+
+			<div>
+				<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Description</p>
+				<textarea
+					bind:value={newDescription}
+					placeholder="What does this agent type do?"
+					class="w-full rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--cairn-accent)] focus:outline-none resize-none h-12"
+				></textarea>
+			</div>
+
+			<div class="grid grid-cols-2 gap-3">
+				<div>
+					<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Max Rounds</p>
+					<input
+						type="number"
+						bind:value={newMaxRounds}
+						min="1"
+						max="400"
+						class="w-full h-7 rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 text-xs text-[var(--text-primary)] focus:border-[var(--cairn-accent)] focus:outline-none"
+					/>
+				</div>
+				<div></div>
+			</div>
+
+			<div>
+				<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">System Prompt</p>
+				<textarea
+					bind:value={newContent}
+					placeholder="System prompt for this agent type..."
+					class="w-full rounded-md border border-border-subtle bg-[var(--bg-0)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] font-mono focus:border-[var(--cairn-accent)] focus:outline-none resize-y h-24"
+				></textarea>
+			</div>
+
+			{#if createError}
+				<p class="text-[10px] text-[var(--color-error)]">{createError}</p>
+			{/if}
+
+			<div class="flex justify-end">
+				<button
+					class="inline-flex items-center gap-1.5 rounded-md bg-[var(--cairn-accent)] px-3 py-1.5 text-xs text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+					onclick={handleCreate}
+					disabled={creating}
+				>
+					{#if creating}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Plus class="h-3 w-3" />{/if}
+					Create
+				</button>
+			</div>
+		</div>
+	{/if}
 
 	{#if loading}
 		<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -95,7 +221,7 @@
 		</div>
 
 	{:else if tab === 'types'}
-		{#if agentTypes.length === 0}
+		{#if agentTypes.length === 0 && !showCreate}
 			<div class="flex flex-col items-center justify-center py-20 text-[var(--text-tertiary)]">
 				<Cpu class="mb-3 h-10 w-10 opacity-30" />
 				<p class="text-sm">No agent types discovered</p>

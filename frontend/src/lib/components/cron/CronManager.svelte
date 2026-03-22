@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getCrons, createCron, updateCron, deleteCron, getCronDetail } from '$lib/api/client';
+	import { getCrons, createCron, updateCron, deleteCron, getCronDetail, getAgentTypes, type AgentTypeItem } from '$lib/api/client';
 	import type { CronJob, CronExecution } from '$lib/types';
 	import { relativeTime } from '$lib/utils/time';
 	import { cronToHuman } from '$lib/utils/cron';
@@ -22,12 +22,15 @@
 	let savingEdit = $state(false);
 	let editError = $state('');
 
+	let availableAgentTypes = $state<AgentTypeItem[]>([]);
+
 	// Create form state
 	let newName = $state('');
 	let newSchedule = $state('');
 	let newInstruction = $state('');
 	let newPriority = $state(3);
 	let newTimezone = $state('UTC');
+	let newAgentType = $state('');
 	let creating = $state(false);
 	let createError = $state('');
 
@@ -48,8 +51,12 @@
 
 	onMount(async () => {
 		try {
-			const res = await getCrons();
+			const [res, types] = await Promise.all([
+				getCrons(),
+				getAgentTypes().catch(() => []),
+			]);
 			jobs = res.items ?? [];
+			availableAgentTypes = types;
 		} catch (e) {
 			console.error('Failed to load cron jobs:', e);
 		} finally {
@@ -71,12 +78,14 @@
 				instruction: newInstruction.trim(),
 				priority: Number(newPriority),
 				timezone: newTimezone.trim() || 'UTC',
+				agentType: newAgentType || undefined,
 			});
 			jobs = [job, ...jobs];
 			newName = '';
 			newSchedule = '';
 			newInstruction = '';
 			newPriority = 3;
+			newAgentType = '';
 		} catch (e) {
 			createError = e instanceof Error ? e.message : 'Failed to create';
 		} finally {
@@ -302,6 +311,12 @@
 									<p class="text-xs text-[var(--text-primary)]">{job.cooldownMs >= 60000 ? Math.round(job.cooldownMs / 60000) + 'min' : Math.round(job.cooldownMs / 1000) + 's'}</p>
 								</div>
 							</div>
+							{#if job.agentType}
+								<div class="mb-3">
+									<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Agent Type</p>
+									<Badge variant="outline" class="mt-0.5 text-[10px]">{job.agentType}</Badge>
+								</div>
+							{/if}
 						{/if}
 
 						<!-- Execution history -->
@@ -371,7 +386,7 @@
 			></textarea>
 		</div>
 
-		<div class="grid grid-cols-2 gap-3">
+		<div class="grid grid-cols-3 gap-3">
 			<div>
 				<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Priority</p>
 				<select
@@ -386,6 +401,18 @@
 			<div>
 				<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Timezone</p>
 				<Input type="text" bind:value={newTimezone} placeholder="UTC" class="h-7 text-xs font-mono" />
+			</div>
+			<div>
+				<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Agent Type</p>
+				<select
+					bind:value={newAgentType}
+					class="w-full h-7 rounded-md border border-border-subtle bg-[var(--bg-1)] px-2 text-xs text-[var(--text-primary)] focus:border-[var(--cairn-accent)] focus:outline-none"
+				>
+					<option value="">Default</option>
+					{#each availableAgentTypes as at}
+						<option value={at.name}>{at.name}</option>
+					{/each}
+				</select>
 			</div>
 		</div>
 

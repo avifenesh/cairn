@@ -92,6 +92,14 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 		mode = tool.Mode(req.Mode)
 	}
 
+	// Validate agentType if provided.
+	if req.AgentType != "" && s.agentTypes != nil {
+		if s.agentTypes.Get(req.AgentType) == nil {
+			writeError(w, http.StatusBadRequest, "unknown agent type: "+req.AgentType)
+			return
+		}
+	}
+
 	// Create or load session.
 	ctx := r.Context()
 	var session *agent.Session
@@ -106,9 +114,13 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if session == nil {
+		state := map[string]any{}
+		if req.AgentType != "" {
+			state["agentType"] = req.AgentType
+		}
 		session = &agent.Session{
 			Mode:  mode,
-			State: map[string]any{"workDir": "."},
+			State: state,
 		}
 		if s.sessions != nil {
 			if err := s.sessions.Create(ctx, session); err != nil {
@@ -118,6 +130,17 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 		if session.ID == "" {
 			session.ID = "ephemeral"
 		}
+	}
+
+	// Always sync agentType from the request into session state.
+	// This allows switching specialist types mid-session.
+	if session.State == nil {
+		session.State = map[string]any{}
+	}
+	if req.AgentType != "" {
+		session.State["agentType"] = req.AgentType
+	} else {
+		delete(session.State, "agentType")
 	}
 
 	// Create a task for this assistant invocation.
@@ -205,42 +228,55 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 	s.RegisterSteeringChannel(session.ID, steerCh)
 	defer s.UnregisterSteeringChannel(session.ID)
 
+	agentCfg := &agent.AgentConfig{
+		Model:     s.config.LLMModel,
+		MaxRounds: s.config.MaxRoundsForMode(string(mode)),
+	}
+
+	// Apply agent type overrides if set in session state.
+	if typeName, ok := session.State["agentType"].(string); ok && typeName != "" && s.agentTypes != nil {
+		if at := s.agentTypes.Get(typeName); at != nil {
+			agentCfg.SubagentSystemHint = at.Content
+			mode = at.Mode
+			if at.MaxRounds > 0 {
+				agentCfg.MaxRounds = at.MaxRounds
+			}
+		}
+	}
+
 	invCtx := &agent.InvocationContext{
-		Context:        ctx,
-		SessionID:      session.ID,
-		UserMessage:    message,
-		Mode:           mode,
-		Session:        session,
-		Tools:          s.tools,
-		LLM:            s.llm,
-		Memory:         s.memories,
-		Soul:           s.soul,
-		UserProfile:    s.userProfile,
-		AgentsFile:     s.agentsFile,
-		CuratedMemory:  s.curatedMemory,
-		AgentTypes:     s.agentTypes,
-		Bus:            s.bus,
-		ContextBuilder: s.contextBuilder,
-		JournalEntries: journalEntries,
-		Plugins:        s.plugins,
-		ActivityStore:  s.activityStore,
-		SteeringCh:     steerCh,
-		Subagents:      s.subagentRunner,
-		ToolMemories:   s.toolMemories,
-		ToolEvents:     s.toolEvents,
-		ToolDigest:     s.toolDigest,
-		ToolJournal:    s.toolJournal,
-		ToolTasks:      s.toolTasks,
-		ToolStatus:     s.toolStatus,
-		ToolSkills:     s.toolSkills,
-		ToolNotifier:   s.toolNotifier,
-		ToolCrons:      s.toolCrons,
-		ToolRules:      s.toolRules,
-		ToolConfig:     s.toolConfig,
-		Config: &agent.AgentConfig{
-			Model:     s.config.LLMModel,
-			MaxRounds: s.config.MaxRoundsForMode(string(mode)),
-		},
+		Context:         ctx,
+		SessionID:       session.ID,
+		UserMessage:     message,
+		Mode:            mode,
+		Session:         session,
+		Tools:           s.tools,
+		LLM:             s.llm,
+		Memory:          s.memories,
+		Soul:            s.soul,
+		UserProfile:     s.userProfile,
+		AgentsFile:      s.agentsFile,
+		CuratedMemory:   s.curatedMemory,
+		AgentTypes:      s.agentTypes,
+		Bus:             s.bus,
+		ContextBuilder:  s.contextBuilder,
+		JournalEntries:  journalEntries,
+		Plugins:         s.plugins,
+		ActivityStore:   s.activityStore,
+		SteeringCh:      steerCh,
+		Subagents:       s.subagentRunner,
+		ToolMemories:    s.toolMemories,
+		ToolEvents:      s.toolEvents,
+		ToolDigest:      s.toolDigest,
+		ToolJournal:     s.toolJournal,
+		ToolTasks:       s.toolTasks,
+		ToolStatus:      s.toolStatus,
+		ToolSkills:      s.toolSkills,
+		ToolNotifier:    s.toolNotifier,
+		ToolCrons:       s.toolCrons,
+		ToolRules:       s.toolRules,
+		ToolConfig:      s.toolConfig,
+		Config:          agentCfg,
 		CheckpointStore: s.checkpointStore,
 		Origin:          "chat",
 	}

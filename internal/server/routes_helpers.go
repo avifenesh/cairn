@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
@@ -207,4 +208,12 @@ type assistantMessageRequest struct {
 	Message   string `json:"message"`
 	Mode      string `json:"mode"`
 	SessionID string `json:"sessionId"`
+	AgentType string `json:"agentType"`
+}
+
+// stripNewlines removes \n and \r from a string to prevent frontmatter injection.
+func stripNewlines(s string) string {
+	s = strings.ReplaceAll(s, "\n", "")
+	s = strings.ReplaceAll(s, "\r", "")
+	return s
 }

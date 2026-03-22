@@ -200,6 +200,21 @@ func (s *Service) Create(name, content string) error {
 	return s.Discover()
 }
 
+// Update overwrites the AGENT.md content and re-discovers.
+func (s *Service) Update(name, content string) error {
+	if err := validateName(name); err != nil {
+		return err
+	}
+	at := s.Get(name)
+	if at == nil {
+		return fmt.Errorf("agent type %q not found", name)
+	}
+	if err := os.WriteFile(at.Location, []byte(content), 0644); err != nil {
+		return fmt.Errorf("write AGENT.md: %w", err)
+	}
+	return s.Discover()
+}
+
 // Delete removes an agent type directory and re-discovers.
 func (s *Service) Delete(name string) error {
 	at := s.Get(name)

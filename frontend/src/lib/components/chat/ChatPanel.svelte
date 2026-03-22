@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { sendMessage, getSessions, getSessionMessages } from '$lib/api/client';
+	import { sendMessage, getSessions, getSessionMessages, getAgentTypes, type AgentTypeItem } from '$lib/api/client';
 	import { chatStore } from '$lib/stores/chat.svelte';
 	import MessageBubble from './MessageBubble.svelte';
 	import StreamingText from './StreamingText.svelte';
@@ -23,11 +23,16 @@
 	let textareaEl: HTMLTextAreaElement;
 	let sending = $state(false);
 	let attachment = $state<Attachment | null>(null);
+	let availableAgentTypes = $state<AgentTypeItem[]>([]);
 
 	onMount(async () => {
 		try {
-			const res = await getSessions();
+			const [res, types] = await Promise.all([
+				getSessions(),
+				getAgentTypes().catch(() => []),
+			]);
 			chatStore.setSessions(res.items);
+			availableAgentTypes = types;
 			// Auto-load last session if one was saved
 			if (chatStore.currentSessionId && res.items.some((s) => s.id === chatStore.currentSessionId)) {
 				const msgs = await getSessionMessages(chatStore.currentSessionId);
@@ -80,7 +85,7 @@
 		scrollToBottom();
 
 		try {
-			const res = await sendMessage(message, chatStore.mode, chatStore.currentSessionId ?? undefined);
+			const res = await sendMessage(message, chatStore.mode, chatStore.currentSessionId ?? undefined, chatStore.agentType ?? undefined);
 			if (res.sessionId && !chatStore.currentSessionId) {
 				chatStore.setCurrentSession(res.sessionId);
 			}
@@ -299,6 +304,29 @@
 					<Plus class="h-3 w-3" /> <span class="hidden sm:inline">New</span>
 				</Button>
 				<ActiveSkillChip />
+				{#if availableAgentTypes.length > 0}
+					<select
+						class="h-7 rounded-md border border-border-subtle bg-[var(--bg-0)] px-1.5 text-[10px] text-[var(--text-secondary)] focus:outline-none focus:border-[var(--cairn-accent)]"
+						value={chatStore.agentType ?? ''}
+						onchange={(e) => chatStore.setAgentType((e.target as HTMLSelectElement).value || null)}
+						title="Specialist agent type"
+						aria-label="Agent type"
+					>
+						<option value="">Default</option>
+						{#each availableAgentTypes as at}
+							<option value={at.name}>{at.name}</option>
+						{/each}
+					</select>
+					{#if chatStore.agentType}
+						<span class="inline-flex items-center gap-1 rounded-md bg-[var(--cairn-accent)]/10 px-1.5 py-0.5 text-[10px] text-[var(--cairn-accent)]">
+							<Bot class="h-2.5 w-2.5" />
+							{chatStore.agentType}
+							<button class="ml-0.5 hover:text-[var(--text-primary)]" onclick={() => chatStore.setAgentType(null)} title="Clear agent type">
+								<X class="h-2.5 w-2.5" />
+							</button>
+						</span>
+					{/if}
+				{/if}
 				{#if chatStore.currentSessionId}
 					<a
 						href="/session/{chatStore.currentSessionId}"

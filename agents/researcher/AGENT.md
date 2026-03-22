@@ -4,6 +4,7 @@ description: "Investigates topics, explores codebases, gathers information from 
 mode: work
 max-rounds: 80
 denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory"
+skills: web-search
 ---
 
 # Research Agent

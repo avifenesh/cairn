@@ -4,6 +4,7 @@ description: "System health monitor. Checks logs, services, CI status, feed poll
 mode: work
 max-rounds: 40
 denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory"
+skills: system-health
 ---
 
 # Observer Agent

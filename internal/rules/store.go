@@ -222,6 +222,20 @@ func (s *Store) ListRecentExecutions(ctx context.Context, limit int) ([]*Executi
 	return scanExecutions(rows)
 }
 
+// Count returns the total number of rules.
+func (s *Store) Count(ctx context.Context) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM rules").Scan(&count)
+	return count, err
+}
+
+// CountFailedExecutions returns the number of failed executions since the given time.
+func (s *Store) CountFailedExecutions(ctx context.Context, since time.Time) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM rule_executions WHERE status = 'error' AND created_at > ?", since.Format(timeFormat)).Scan(&count)
+	return count, err
+}
+
 // --- Internal scan helpers ---
 
 func (s *Store) scanOne(ctx context.Context, query string, args ...any) (*Rule, error) {

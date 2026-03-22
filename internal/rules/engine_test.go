@@ -347,3 +347,251 @@ func TestExpandTemplate(t *testing.T) {
 		t.Errorf("expected 'plain text', got %q", got)
 	}
 }
+
+func TestEngine_ConditionNonBool(t *testing.T) {
+	// Condition that returns a non-bool (string) should not pass AsBool() compilation.
+	// expr.Compile with AsBool() rejects non-bool expressions at compile time,
+	// so the rule is skipped during cache refresh. No notification should fire.
+	engine, notifier, _, bus := setupEngine(t)
+	ctx := context.Background()
+
+	rule := &Rule{
+		Name:    "non-bool-condition",
+		Enabled: true,
+		Trigger: Trigger{
+			Type:      TriggerEvent,
+			EventType: "EventIngested",
+		},
+		Condition: `"hello"`,
+		Actions: []Action{
+			{Type: ActionNotify, Params: map[string]string{"message": "should not fire"}},
+		},
+	}
+	engine.store.Create(ctx, rule)
+	engine.Start()
+	defer engine.Close()
+
+	eventbus.Publish(bus, eventbus.EventIngested{
+		EventMeta:  eventbus.NewMeta("test"),
+		SourceType: "test",
+		Title:      "test event",
+	})
+	time.Sleep(200 * time.Millisecond)
+
+	if len(notifier.Messages()) != 0 {
+		t.Error("expected no notification for non-bool condition")
+	}
+}
+
+func TestEngine_NilNotifier(t *testing.T) {
+	store := NewStore(testDB(t))
+	bus := eventbus.New()
+	t.Cleanup(func() { bus.Close() })
+
+	engine := NewEngine(EngineDeps{
+		Store:    store,
+		Bus:      bus,
+		Notifier: nil,
+		Tasks:    &mockTasks{},
+	})
+	ctx := context.Background()
+
+	rule := &Rule{
+		Name:    "nil-notifier",
+		Enabled: true,
+		Trigger: Trigger{Type: TriggerEvent, EventType: "EventIngested"},
+		Actions: []Action{
+			{Type: ActionNotify, Params: map[string]string{"message": "test"}},
+		},
+	}
+	engine.store.Create(ctx, rule)
+	engine.Start()
+	defer engine.Close()
+
+	eventbus.Publish(bus, eventbus.EventIngested{
+		EventMeta: eventbus.NewMeta("test"),
+		Title:     "test",
+	})
+	time.Sleep(200 * time.Millisecond)
+
+	execs, _ := engine.store.ListExecutions(ctx, rule.ID, 10)
+	if len(execs) == 0 {
+		t.Fatal("expected at least 1 execution record")
+	}
+	if execs[0].Status != ExecError {
+		t.Errorf("expected status 'error', got %q", execs[0].Status)
+	}
+}
+
+func TestEngine_NilTasks(t *testing.T) {
+	store := NewStore(testDB(t))
+	bus := eventbus.New()
+	t.Cleanup(func() { bus.Close() })
+
+	engine := NewEngine(EngineDeps{
+		Store:    store,
+		Bus:      bus,
+		Notifier: &mockNotifier{},
+		Tasks:    nil,
+	})
+	ctx := context.Background()
+
+	rule := &Rule{
+		Name:    "nil-tasks",
+		Enabled: true,
+		Trigger: Trigger{Type: TriggerEvent, EventType: "EventIngested"},
+		Actions: []Action{
+			{Type: ActionTask, Params: map[string]string{"description": "do something"}},
+		},
+	}
+	engine.store.Create(ctx, rule)
+	engine.Start()
+	defer engine.Close()
+
+	eventbus.Publish(bus, eventbus.EventIngested{
+		EventMeta: eventbus.NewMeta("test"),
+		Title:     "test",
+	})
+	time.Sleep(200 * time.Millisecond)
+
+	execs, _ := engine.store.ListExecutions(ctx, rule.ID, 10)
+	if len(execs) == 0 {
+		t.Fatal("expected at least 1 execution record")
+	}
+	if execs[0].Status != ExecError {
+		t.Errorf("expected status 'error', got %q", execs[0].Status)
+	}
+}
+
+func TestEngine_CronRuleIgnoredOnEvent(t *testing.T) {
+	engine, notifier, _, bus := setupEngine(t)
+	ctx := context.Background()
+
+	rule := &Rule{
+		Name:    "cron-rule",
+		Enabled: true,
+		Trigger: Trigger{
+			Type:     TriggerCron,
+			Schedule: "0 * * * *",
+		},
+		Actions: []Action{
+			{Type: ActionNotify, Params: map[string]string{"message": "cron fired"}},
+		},
+	}
+	engine.store.Create(ctx, rule)
+	engine.Start()
+	defer engine.Close()
+
+	// Publish an event - cron rules should NOT match event triggers.
+	eventbus.Publish(bus, eventbus.EventIngested{
+		EventMeta: eventbus.NewMeta("test"),
+		Title:     "test",
+	})
+	time.Sleep(200 * time.Millisecond)
+
+	if len(notifier.Messages()) != 0 {
+		t.Error("cron rule should not fire on bus events")
+	}
+}
+
+func TestEngine_Stats(t *testing.T) {
+	store := NewStore(testDB(t))
+	bus := eventbus.New()
+	t.Cleanup(func() { bus.Close() })
+
+	engine := NewEngine(EngineDeps{
+		Store:    store,
+		Bus:      bus,
+		Notifier: &mockNotifier{},
+		Tasks:    &mockTasks{},
+	})
+	ctx := context.Background()
+
+	// Create 2 rules: 1 enabled, 1 disabled.
+	r1 := &Rule{
+		Name:    "enabled-rule",
+		Enabled: true,
+		Trigger: Trigger{Type: TriggerEvent, EventType: "EventIngested"},
+		Actions: []Action{{Type: ActionNotify, Params: map[string]string{"message": "x"}}},
+	}
+	r2 := &Rule{
+		Name:    "disabled-rule",
+		Enabled: false,
+		Trigger: Trigger{Type: TriggerEvent, EventType: "EventIngested"},
+		Actions: []Action{{Type: ActionNotify, Params: map[string]string{"message": "y"}}},
+	}
+	store.Create(ctx, r1)
+	store.Create(ctx, r2)
+
+	// Record some executions.
+	store.RecordExecution(ctx, &Execution{RuleID: r1.ID, Status: ExecSuccess})
+	store.RecordExecution(ctx, &Execution{RuleID: r1.ID, Status: ExecError, Error: "fail1"})
+	store.RecordExecution(ctx, &Execution{RuleID: r1.ID, Status: ExecError, Error: "fail2"})
+
+	engine.Start()
+	defer engine.Close()
+
+	total, enabled, failures := engine.Stats()
+	if total != 2 {
+		t.Errorf("total: want 2, got %d", total)
+	}
+	if enabled != 1 {
+		t.Errorf("enabled: want 1, got %d", enabled)
+	}
+	if failures != 2 {
+		t.Errorf("recentFailures: want 2, got %d", failures)
+	}
+}
+
+func TestEngine_ConcurrentAccess(t *testing.T) {
+	engine, _, _, bus := setupEngine(t)
+	ctx := context.Background()
+
+	// Create a rule to have something in cache.
+	rule := &Rule{
+		Name:    "concurrent-test",
+		Enabled: true,
+		Trigger: Trigger{Type: TriggerEvent, EventType: "EventIngested"},
+		Actions: []Action{
+			{Type: ActionNotify, Params: map[string]string{"message": "concurrent"}},
+		},
+	}
+	engine.store.Create(ctx, rule)
+	engine.Start()
+	defer engine.Close()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			eventbus.Publish(bus, eventbus.EventIngested{
+				EventMeta: eventbus.NewMeta("test"),
+				Title:     "concurrent event",
+			})
+			engine.RefreshCache()
+		}()
+	}
+	wg.Wait()
+	// If we reach here without panic (and pass -race), the test passes.
+}
+
+func TestExpandTemplate_EdgeCases(t *testing.T) {
+	// Missing key: placeholder should be preserved.
+	got := expandTemplate("Hello {{.missing}}", map[string]any{"title": "PR"})
+	if got != "Hello {{.missing}}" {
+		t.Errorf("missing key: expected placeholder preserved, got %q", got)
+	}
+
+	// Nil value in data: should expand to "<nil>".
+	got = expandTemplate("Value: {{.key}}", map[string]any{"key": nil})
+	if got != "Value: <nil>" {
+		t.Errorf("nil value: expected 'Value: <nil>', got %q", got)
+	}
+
+	// Multiple occurrences of same key.
+	got = expandTemplate("{{.x}} and {{.x}}", map[string]any{"x": "hello"})
+	if got != "hello and hello" {
+		t.Errorf("multiple occurrences: expected 'hello and hello', got %q", got)
+	}
+}

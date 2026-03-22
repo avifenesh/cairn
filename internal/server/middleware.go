@@ -23,9 +23,11 @@ func extractToken(r *http.Request) string {
 	if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
 		return strings.TrimPrefix(auth, "Bearer ")
 	}
-	// 3. ?token= query param (needed for EventSource which can't set headers).
-	if tok := r.URL.Query().Get("token"); tok != "" {
-		return tok
+	// 3. ?token= query param (only for SSE stream - EventSource can't set headers).
+	if r.URL.Path == "/v1/stream" {
+		if tok := r.URL.Query().Get("token"); tok != "" {
+			return tok
+		}
 	}
 	return ""
 }

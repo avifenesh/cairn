@@ -169,18 +169,13 @@ func (e *Engine) Stats() (total, enabled, recentFailures int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	all, err := e.store.List(ctx)
-	if err == nil {
-		total = len(all)
+	if n, err := e.store.Count(ctx); err == nil {
+		total = n
 	}
 
-	recent, err := e.store.ListRecentExecutions(ctx, 50)
-	if err == nil {
-		for _, ex := range recent {
-			if ex.Status == ExecError {
-				recentFailures++
-			}
-		}
+	// Count failures from the last ~50 execution window (approximate with 1h lookback).
+	if n, err := e.store.CountFailedExecutions(ctx, time.Now().Add(-1*time.Hour)); err == nil {
+		recentFailures = n
 	}
 	return
 }

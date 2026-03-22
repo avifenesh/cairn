@@ -3,7 +3,9 @@ package rules
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -204,5 +206,179 @@ func TestStore_DuplicateName(t *testing.T) {
 	}
 	if err := store.Create(ctx, rule2); err == nil {
 		t.Fatal("expected error on duplicate name")
+	}
+}
+
+func TestStore_UpdateAllFields(t *testing.T) {
+	store := NewStore(testDB(t))
+	ctx := context.Background()
+
+	rule := &Rule{
+		Name:    "original",
+		Enabled: true,
+		Trigger: Trigger{Type: TriggerEvent, EventType: "EventIngested"},
+		Actions: []Action{{Type: ActionNotify, Params: map[string]string{"message": "old"}}},
+	}
+	store.Create(ctx, rule)
+
+	newName := "updated-name"
+	newDesc := "updated description"
+	newEnabled := false
+	newCondition := `title contains "important"`
+	newTrigger := Trigger{Type: TriggerEvent, EventType: "TaskFailed", Filter: map[string]string{"source": "agent"}}
+	newActions := []Action{
+		{Type: ActionTask, Params: map[string]string{"description": "follow up"}},
+		{Type: ActionNotify, Params: map[string]string{"message": "alert"}},
+	}
+	var newThrottle int64 = 30000
+
+	err := store.Update(ctx, rule.ID, UpdateOpts{
+		Name:        &newName,
+		Description: &newDesc,
+		Enabled:     &newEnabled,
+		Condition:   &newCondition,
+		Trigger:     &newTrigger,
+		Actions:     newActions,
+		ThrottleMs:  &newThrottle,
+	})
+	if err != nil {
+		t.Fatalf("update all fields: %v", err)
+	}
+
+	got, err := store.Get(ctx, rule.ID)
+	if err != nil {
+		t.Fatalf("get after update: %v", err)
+	}
+	if got.Name != newName {
+		t.Errorf("name: want %q, got %q", newName, got.Name)
+	}
+	if got.Description != newDesc {
+		t.Errorf("description: want %q, got %q", newDesc, got.Description)
+	}
+	if got.Enabled != newEnabled {
+		t.Errorf("enabled: want %v, got %v", newEnabled, got.Enabled)
+	}
+	if got.Condition != newCondition {
+		t.Errorf("condition: want %q, got %q", newCondition, got.Condition)
+	}
+	if got.Trigger.EventType != "TaskFailed" {
+		t.Errorf("trigger.eventType: want %q, got %q", "TaskFailed", got.Trigger.EventType)
+	}
+	if got.Trigger.Filter["source"] != "agent" {
+		t.Errorf("trigger.filter[source]: want %q, got %q", "agent", got.Trigger.Filter["source"])
+	}
+	if len(got.Actions) != 2 {
+		t.Fatalf("actions: want 2, got %d", len(got.Actions))
+	}
+	if got.Actions[0].Type != ActionTask {
+		t.Errorf("actions[0].type: want %q, got %q", ActionTask, got.Actions[0].Type)
+	}
+	if got.Actions[1].Type != ActionNotify {
+		t.Errorf("actions[1].type: want %q, got %q", ActionNotify, got.Actions[1].Type)
+	}
+	if got.ThrottleMs != newThrottle {
+		t.Errorf("throttleMs: want %d, got %d", newThrottle, got.ThrottleMs)
+	}
+}
+
+func TestStore_UpdateLastFired(t *testing.T) {
+	store := NewStore(testDB(t))
+	ctx := context.Background()
+
+	rule := &Rule{
+		Name:    "fire-test",
+		Enabled: true,
+		Trigger: Trigger{Type: TriggerEvent, EventType: "EventIngested"},
+		Actions: []Action{{Type: ActionNotify, Params: map[string]string{"message": "x"}}},
+	}
+	store.Create(ctx, rule)
+
+	firedAt := time.Now().UTC().Truncate(time.Millisecond)
+	if err := store.UpdateLastFired(ctx, rule.ID, firedAt); err != nil {
+		t.Fatalf("updateLastFired: %v", err)
+	}
+
+	got, err := store.Get(ctx, rule.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.LastFiredAt == nil {
+		t.Fatal("expected LastFiredAt to be set")
+	}
+	// Compare formatted strings since SQLite stores with millisecond precision.
+	if got.LastFiredAt.Format(timeFormat) != firedAt.Format(timeFormat) {
+		t.Errorf("lastFiredAt: want %s, got %s", firedAt.Format(timeFormat), got.LastFiredAt.Format(timeFormat))
+	}
+}
+
+func TestStore_GetNotFound(t *testing.T) {
+	store := NewStore(testDB(t))
+	ctx := context.Background()
+
+	_, err := store.Get(ctx, "bogus-id-does-not-exist")
+	if err == nil {
+		t.Fatal("expected error for missing rule")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected 'not found' in error, got %q", err.Error())
+	}
+}
+
+func TestStore_GetByNameNotFound(t *testing.T) {
+	store := NewStore(testDB(t))
+	ctx := context.Background()
+
+	_, err := store.GetByName(ctx, "nonexistent-rule-name")
+	if err == nil {
+		t.Fatal("expected error for missing rule name")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected 'not found' in error, got %q", err.Error())
+	}
+}
+
+func TestStore_DeleteNotFound(t *testing.T) {
+	store := NewStore(testDB(t))
+	ctx := context.Background()
+
+	err := store.Delete(ctx, "bogus-id-does-not-exist")
+	if err == nil {
+		t.Fatal("expected error deleting non-existent rule")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected 'not found' in error, got %q", err.Error())
+	}
+}
+
+func TestStore_ListRecentLimit(t *testing.T) {
+	store := NewStore(testDB(t))
+	ctx := context.Background()
+
+	rule := &Rule{
+		Name:    "limit-test",
+		Enabled: true,
+		Trigger: Trigger{Type: TriggerEvent, EventType: "EventIngested"},
+		Actions: []Action{{Type: ActionNotify, Params: map[string]string{"message": "x"}}},
+	}
+	store.Create(ctx, rule)
+
+	// Create 5 executions with staggered timestamps so ordering is deterministic.
+	for i := 0; i < 5; i++ {
+		exec := &Execution{
+			RuleID:    rule.ID,
+			Status:    ExecSuccess,
+			CreatedAt: time.Now().UTC().Add(time.Duration(i) * time.Second),
+		}
+		if err := store.RecordExecution(ctx, exec); err != nil {
+			t.Fatalf("record %d: %v", i, err)
+		}
+	}
+
+	recent, err := store.ListRecentExecutions(ctx, 2)
+	if err != nil {
+		t.Fatalf("listRecent: %v", err)
+	}
+	if len(recent) != 2 {
+		t.Errorf("expected 2 executions with limit=2, got %d", len(recent))
 	}
 }

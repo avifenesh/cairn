@@ -17,6 +17,7 @@ import (
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/plugin"
+	"github.com/avifenesh/cairn/internal/rules"
 	"github.com/avifenesh/cairn/internal/signal"
 	"github.com/avifenesh/cairn/internal/skill"
 	"github.com/avifenesh/cairn/internal/task"
@@ -67,12 +68,15 @@ type Loop struct {
 	skillSuggestor  *SkillSuggestor          // nil = skill suggestions disabled
 	marketplace     *skill.MarketplaceClient // nil = marketplace disabled
 
+	rulesEngine *rules.Engine // nil = rules engine disabled
+
 	cancel  context.CancelFunc
 	stopped atomic.Bool
 	wg      sync.WaitGroup
 
-	tickCount   atomic.Int64
-	lastReflect time.Time
+	tickCount      atomic.Int64
+	lastReflect    time.Time
+	lastRulePrune  time.Time
 
 	// Last orchestrator decision — recorded in activity store for UI visibility.
 	lastIdleDecision *IdleDecision
@@ -163,6 +167,7 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		worktreeManager: deps.WorktreeManager,
 		notifier:        deps.Notifier,
 		marketplace:     deps.Marketplace,
+		rulesEngine:     deps.RulesEngine,
 		skillSuggestor:  NewSkillSuggestor(logger),
 		orchestrator: NewOrchestrator(OrchestratorDeps{
 			Memories:       deps.Memories,
@@ -228,6 +233,7 @@ type LoopDeps struct {
 	Notifier        tool.NotifyService       // optional: routes notifications to channels
 	Marketplace     *skill.MarketplaceClient // optional: ClawHub marketplace for suggestions
 	Approvals       *task.ApprovalStore      // optional: human-in-the-loop approvals
+	RulesEngine     *rules.Engine            // optional: automation rules engine (for pruning)
 }
 
 // Start begins the agent loop in a background goroutine. Safe to call only once.
@@ -336,6 +342,16 @@ func (l *Loop) tick(ctx context.Context) {
 
 	// 1. Check for due cron jobs and submit them as tasks (before claiming).
 	cronSubmitted := l.checkDueCrons(ctx)
+
+	// 1b. Prune old rule execution logs daily.
+	if l.rulesEngine != nil && time.Since(l.lastRulePrune) > 24*time.Hour {
+		if n, err := l.rulesEngine.PruneExecutions(ctx, 30*24*time.Hour); err != nil {
+			l.logger.Warn("rules: prune failed", "error", err)
+		} else if n > 0 {
+			l.logger.Info("rules: pruned old executions", "count", n)
+		}
+		l.lastRulePrune = time.Now()
+	}
 
 	// 2. Check for pending tasks and execute the highest priority one.
 	executed, taskSummary, taskDetails := l.executePendingTask(ctx)

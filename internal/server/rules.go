@@ -109,6 +109,10 @@ func (s *Server) handleUpdateRule(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
+	if req.Actions != nil && len(req.Actions) == 0 {
+		writeError(w, http.StatusBadRequest, "at least one action is required")
+		return
+	}
 
 	opts := rules.UpdateOpts{
 		Enabled:     req.Enabled,

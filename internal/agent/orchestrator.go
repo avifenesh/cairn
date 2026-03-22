@@ -73,7 +73,6 @@ type OrchestratorDeps struct {
 	Journaler      *Journaler
 	Logger         *slog.Logger
 	CodingEnabled  bool
-	CronStore      interface{} // unused, kept for future
 }
 
 // NewOrchestrator creates an Orchestrator from the given dependencies.

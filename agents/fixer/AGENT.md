@@ -2,7 +2,6 @@
 name: fixer
 description: "Quick fix agent. Applies targeted fixes — lint errors, CI failures, review comments, small bugs. Fast and focused."
 mode: coding
-allowed-tools: "cairn.readFile,cairn.editFile,cairn.writeFile,cairn.shell,cairn.gitRun,cairn.searchFiles,cairn.listFiles"
 max-rounds: 80
 worktree: false
 ---

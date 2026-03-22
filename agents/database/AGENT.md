@@ -2,7 +2,6 @@
 name: database
 description: "Database specialist. SQLite schema design, migrations, query optimization, data integrity. Read + shell access."
 mode: work
-allowed-tools: "cairn.readFile,cairn.listFiles,cairn.searchFiles,cairn.shell,cairn.gitRun,cairn.writeFile,cairn.editFile"
 max-rounds: 80
 ---
 

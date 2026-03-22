@@ -2,7 +2,6 @@
 name: planner
 description: "Designs implementation plans from task descriptions. Analyzes codebase, identifies risks, outputs structured step-by-step plans."
 mode: work
-allowed-tools: "cairn.readFile,cairn.listFiles,cairn.searchFiles,cairn.searchMemory,cairn.shell,cairn.gitRun"
 max-rounds: 80
 ---
 

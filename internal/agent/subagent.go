@@ -22,7 +22,8 @@ import (
 // subagentTypeConfig holds the static configuration for a built-in subagent type.
 type subagentTypeConfig struct {
 	Mode         tool.Mode
-	AllowedTools []string // nil = all tools in mode
+	AllowedTools []string // allowlist: nil = all tools in mode
+	DeniedTools  []string // denylist: nil = no denials. Takes precedence when AllowedTools is nil.
 	MaxRounds    int
 	Worktree     bool
 	SystemPrompt string
@@ -135,6 +136,7 @@ func (r *SubagentRunner) resolveType(name string) (subagentTypeConfig, bool) {
 			cfg := subagentTypeConfig{
 				Mode:         at.Mode,
 				AllowedTools: at.AllowedTools,
+				DeniedTools:  at.DeniedTools,
 				MaxRounds:    at.MaxRounds,
 				Worktree:     at.Worktree,
 				SystemPrompt: at.Content,
@@ -507,26 +509,34 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 	}, nil
 }
 
-// scopeTools creates a child tool.Registry containing only the allowed tools.
+// scopeTools creates a child tool.Registry with appropriate tool access.
+// Priority: AllowedTools (allowlist) > DeniedTools (denylist) > all tools.
 // The spawnSubagent tool is always excluded to enforce two-level max.
 func (r *SubagentRunner) scopeTools(cfg subagentTypeConfig) *tool.Registry {
 	child := tool.NewRegistry()
 	parent := r.tools.All()
 
-	if cfg.AllowedTools == nil {
-		// All tools in parent except spawnSubagent.
-		for _, t := range parent {
-			if t.Name() != "cairn.spawnSubagent" {
-				child.Register(t)
-			}
-		}
-	} else {
+	// Build deny set (always includes spawnSubagent for two-level enforcement).
+	denied := map[string]bool{"cairn.spawnSubagent": true}
+	for _, name := range cfg.DeniedTools {
+		denied[name] = true
+	}
+
+	if cfg.AllowedTools != nil {
+		// Allowlist mode: only include explicitly allowed tools (minus denied).
 		allowed := make(map[string]bool, len(cfg.AllowedTools))
 		for _, name := range cfg.AllowedTools {
 			allowed[name] = true
 		}
 		for _, t := range parent {
-			if allowed[t.Name()] && t.Name() != "cairn.spawnSubagent" {
+			if allowed[t.Name()] && !denied[t.Name()] {
+				child.Register(t)
+			}
+		}
+	} else {
+		// Default: all tools in parent minus denied set.
+		for _, t := range parent {
+			if !denied[t.Name()] {
 				child.Register(t)
 			}
 		}

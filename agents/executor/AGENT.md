@@ -2,7 +2,6 @@
 name: executor
 description: "Runs shell commands, validates system state, executes operational tasks. Shell + file access."
 mode: work
-allowed-tools: "cairn.shell,cairn.readFile,cairn.writeFile,cairn.editFile,cairn.gitRun"
 max-rounds: 80
 ---
 

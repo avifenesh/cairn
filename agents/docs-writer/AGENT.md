@@ -2,7 +2,6 @@
 name: docs-writer
 description: "Documentation specialist. Updates CLAUDE.md, README, design docs, API references. Syncs docs with code reality."
 mode: work
-allowed-tools: "cairn.readFile,cairn.listFiles,cairn.searchFiles,cairn.editFile,cairn.writeFile,cairn.shell,cairn.gitRun"
 max-rounds: 80
 ---
 

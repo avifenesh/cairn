@@ -2,7 +2,6 @@
 name: reviewer
 description: "Analyzes code for quality, security, correctness, and test coverage. Read + shell access for running checks."
 mode: work
-allowed-tools: "cairn.readFile,cairn.listFiles,cairn.searchFiles,cairn.shell,cairn.gitRun"
 max-rounds: 80
 ---
 

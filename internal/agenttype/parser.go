@@ -58,6 +58,8 @@ func ParseContent(content []byte, location string) (*AgentType, error) {
 			}
 		case "allowed-tools":
 			at.AllowedTools = parseCSV(val)
+		case "denied-tools":
+			at.DeniedTools = parseCSV(val)
 		case "max-rounds":
 			if n, err := strconv.Atoi(strings.TrimSpace(val)); err == nil && n > 0 {
 				at.MaxRounds = n

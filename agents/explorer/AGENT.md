@@ -1,9 +1,9 @@
 ---
 name: explorer
 description: "Fast codebase exploration. Finds files, traces dependencies, maps architecture. Read-only, optimized for speed."
-mode: talk
-allowed-tools: "cairn.readFile,cairn.listFiles,cairn.searchFiles,cairn.shell,cairn.gitRun"
+mode: work
 max-rounds: 40
+denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory"
 ---
 
 # Explorer Agent

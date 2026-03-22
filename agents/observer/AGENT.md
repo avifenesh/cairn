@@ -2,8 +2,8 @@
 name: observer
 description: "System health monitor. Checks logs, services, CI status, feed pollers, error rates. Reports issues for action."
 mode: work
-allowed-tools: "cairn.shell,cairn.readFile,cairn.listFiles,cairn.searchFiles,cairn.readFeed,cairn.searchMemory"
 max-rounds: 40
+denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory"
 ---
 
 # Observer Agent

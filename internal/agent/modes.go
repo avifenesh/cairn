@@ -46,7 +46,7 @@ func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilde
 	// Identity — always include for both main agent and subagents.
 	parts = append(parts, "You are Cairn, a personal agent operating system.")
 
-	// Subagent system hint: prepends type-specific role guidance (e.g., "You are a research agent...").
+	// Subagent system hint: appends type-specific role guidance (e.g., "You are a research agent...").
 	// This supplements but does NOT replace the base identity or SOUL.md/memories, which prevents
 	// subagents from hallucinating repo owners and other identity facts.
 	if ctx.Config != nil && ctx.Config.SubagentSystemHint != "" {

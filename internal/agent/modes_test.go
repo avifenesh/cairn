@@ -3,6 +3,7 @@ package agent
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/avifenesh/cairn/internal/memory"
@@ -146,14 +147,9 @@ func TestBuildSystemPrompt_SubagentHintOrder(t *testing.T) {
 }
 
 func containsStr(s, substr string) bool {
-	return indexStr(s, substr) >= 0
+	return strings.Contains(s, substr)
 }
 
 func indexStr(s, substr string) int {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
-	}
-	return -1
+	return strings.Index(s, substr)
 }

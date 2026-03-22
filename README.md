@@ -40,7 +40,7 @@ make build-prod
 **Agent** - Three-layer agent system: always-on loop, LLM orchestrator, ReAct execution.
 
 - **Orchestrator**: LLM-powered management brain that runs when idle. Gathers system state, decides actions (approve memories, spawn subagents, submit tasks, notify, escalate). Runs every 5min.
-- **ReAct agents**: 56 tools, three modes (talk/work/coding), streaming sessions
+- **ReAct agents**: 40+ tools (56 with all integrations enabled), three modes (talk/work/coding), streaming sessions
 - **Automation rules**: declarative "when X → do Y" engine with expr-lang conditions, event triggers, throttling, execution log
 - **Subagents**: 4 types (researcher, coder, reviewer, executor) with tool scoping and isolation. Two-level max nesting.
 - File tools: read, write, edit, delete, undo, list, search (checkpointing, fuzzy match, path traversal protection)
@@ -106,12 +106,12 @@ make build-prod
 ```
 Signal Plane --> Event Bus <-- Agent System --> Tool System
      |               |             |                |
-  11 Pollers      SQLite       Always-On Loop   56 Tools
+  11 Pollers      SQLite       Always-On Loop   40+ Tools
   Webhooks        Store        Orchestrator     Permissions
   Digest          Memory       ReAct Agents     Mode filtering
                   Sessions     Subagents        MCP adapter
-                  Approvals    Compaction       Rules engine
-                  Crons        Steering
+                  Approvals    Compaction       Skills
+                  Crons        Rules engine
 ```
 
 Single binary. No Node, no Python, no Docker. Pure Go + SQLite.
@@ -186,7 +186,7 @@ internal/
   rules/            Automation rules engine (trigger-condition-action, expr-lang)
   skill/            SKILL.md parser, discovery, hot-reload, ClawHub marketplace
   task/             Priority queue, worktree isolation, lease engine, approvals
-  tool/             Tool interface, registry, permissions, 56 built-in tools
+  tool/             Tool interface, registry, permissions, 40+ built-in tools (config-dependent)
   voice/            Whisper STT + edge-tts TTS
 frontend/           SvelteKit 5 app + embed.FS package (242 tests)
 skills/             17 bundled SKILL.md files

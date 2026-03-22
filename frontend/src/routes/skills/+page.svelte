@@ -296,22 +296,22 @@
 		reviewSlug = slug;
 		reviewLoading = true;
 		reviewResult = null;
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), 15000);
 		try {
-			const timeout = new Promise<never>((_, reject) =>
-				setTimeout(() => reject(new Error('timeout')), 15000)
-			);
-			const res = await Promise.race([reviewMarketplaceSkill(slug), timeout]);
+			const res = await reviewMarketplaceSkill(slug, controller.signal);
 			reviewResult = res;
 		} catch (e) {
-			const isTimeout = e instanceof Error && e.message === 'timeout';
+			const isTimeout = e instanceof DOMException && e.name === 'AbortError';
 			console.error('Security review failed:', e);
 			reviewResult = {
-				safe: isTimeout,
-				risk: isTimeout ? 'unknown' : 'unknown',
+				safe: false,
+				risk: 'unknown',
 				issues: [isTimeout ? 'Review timed out' : 'Review request failed'],
 				summary: isTimeout ? 'Security review timed out. Skill has not been reviewed.' : 'Could not complete security review',
 			};
 		} finally {
+			clearTimeout(timer);
 			reviewLoading = false;
 		}
 	}

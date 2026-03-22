@@ -51,12 +51,13 @@ async function get<T>(path: string): Promise<T> {
 	return res.json();
 }
 
-async function post<T>(path: string, body?: unknown): Promise<T> {
+async function post<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
 	const res = await fetch(`${BASE_URL}${path}`, {
 		method: 'POST',
 		credentials: 'include',
 		headers: headers(),
 		body: body ? JSON.stringify(body) : undefined,
+		signal,
 	});
 	if (!res.ok) throw new ApiError(res.status, await res.text());
 	return res.json();
@@ -502,9 +503,11 @@ export const installMarketplaceSkill = (slug: string) =>
 	post<{ ok: boolean; name: string; version: string }>(
 		`/v1/marketplace/skills/${encodeURIComponent(slug)}/install`
 	);
-export const reviewMarketplaceSkill = (slug: string) =>
+export const reviewMarketplaceSkill = (slug: string, signal?: AbortSignal) =>
 	post<{ safe: boolean; risk: string; issues: string[]; summary: string; slug: string }>(
-		`/v1/marketplace/skills/${encodeURIComponent(slug)}/review`
+		`/v1/marketplace/skills/${encodeURIComponent(slug)}/review`,
+		undefined,
+		signal
 	);
 
 // Agent Activity

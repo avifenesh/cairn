@@ -43,12 +43,14 @@ func DefaultModes() map[tool.Mode]*ModeConfig {
 func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilder *memory.ContextBuilder, journalEntries []memory.JournalDigestEntry) string {
 	var parts []string
 
-	// Subagent system hint (overrides identity when running as a child agent).
+	// Identity — always include for both main agent and subagents.
+	parts = append(parts, "You are Cairn, a personal agent operating system.")
+
+	// Subagent system hint: appends type-specific role guidance (e.g., "You are a research agent...").
+	// This supplements but does NOT replace the base identity or SOUL.md/memories, which prevents
+	// subagents from hallucinating repo owners and other identity facts.
 	if ctx.Config != nil && ctx.Config.SubagentSystemHint != "" {
 		parts = append(parts, ctx.Config.SubagentSystemHint)
-	} else {
-		// Identity.
-		parts = append(parts, "You are Cairn, a personal agent operating system.")
 	}
 
 	// Mode instructions.

@@ -15,6 +15,7 @@
 
 	let sourceFilter = $state('');
 	let instantiating = $state<string | null>(null);
+	let instantiateError = $state('');
 
 	const categories = [
 		{ key: 'signal', label: 'Signal', icon: Antenna },
@@ -50,11 +51,12 @@
 		}
 		// Zero required params — instantiate directly.
 		instantiating = t.id;
+		instantiateError = '';
 		try {
 			const res = await instantiateRuleTemplate(t.id, {});
 			ruleStore.addRule(res.rule);
 		} catch (e) {
-			console.error('Failed to instantiate template:', e);
+			instantiateError = e instanceof Error ? e.message : 'Failed to create rule';
 		} finally {
 			instantiating = null;
 		}
@@ -95,6 +97,10 @@
 	{/if}
 
 	<!-- Template cards -->
+	{#if instantiateError}
+		<p class="text-xs text-[var(--color-error)] bg-[var(--color-error)]/10 rounded-md px-3 py-2">{instantiateError}</p>
+	{/if}
+
 	{#if filtered().length === 0}
 		<div class="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-1)] p-6 text-center">
 			<Zap class="mx-auto h-6 w-6 text-[var(--text-tertiary)]/40 mb-2" />

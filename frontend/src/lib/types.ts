@@ -417,7 +417,7 @@ export interface TemplateParam {
 	key: string;
 	label: string;
 	type: 'text' | 'select' | 'number';
-	default: string;
+	default?: string;
 	required: boolean;
 	options?: string[];
 }

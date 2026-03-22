@@ -3,7 +3,11 @@ package rules
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
+
+	"github.com/avifenesh/cairn/internal/signal"
 )
 
 // Template is a pre-built rule pattern that users can instantiate with minimal input.
@@ -194,7 +198,7 @@ var bundledTemplates = []Template{
 			Label:    "Source",
 			Type:     "select",
 			Required: true,
-			Options:  []string{"github", "hn", "reddit", "npm", "crates", "gmail", "calendar", "rss", "stackoverflow", "devto"},
+			Options:  allSourceNames(),
 		}},
 		factory: func(params map[string]string) (*Rule, error) {
 			source := strings.TrimSpace(params["source"])
@@ -306,6 +310,10 @@ var bundledTemplates = []Template{
 			if hour == "" {
 				hour = "9"
 			}
+			h, err := strconv.Atoi(hour)
+			if err != nil || h < 0 || h > 23 {
+				return nil, fmt.Errorf("hour must be an integer between 0 and 23, got %q", hour)
+			}
 			return &Rule{
 				Name:        "Daily Digest Reminder",
 				Description: "Submits a digest task daily.",
@@ -344,17 +352,29 @@ var bundledTemplates = []Template{
 	},
 }
 
-// templateIndex builds a lookup map on first access.
-var templateIndex map[string]*Template
+// allSourceNames returns source names from the signal registry for template options.
+func allSourceNames() []string {
+	sources := signal.AllSourceInfo()
+	names := make([]string, 0, len(sources))
+	for _, s := range sources {
+		names = append(names, s.Name)
+	}
+	return names
+}
+
+// templateIndex builds a lookup map on first access (thread-safe via sync.Once).
+var (
+	templateIndex map[string]*Template
+	indexOnce     sync.Once
+)
 
 func ensureIndex() {
-	if templateIndex != nil {
-		return
-	}
-	templateIndex = make(map[string]*Template, len(bundledTemplates))
-	for i := range bundledTemplates {
-		templateIndex[bundledTemplates[i].ID] = &bundledTemplates[i]
-	}
+	indexOnce.Do(func() {
+		templateIndex = make(map[string]*Template, len(bundledTemplates))
+		for i := range bundledTemplates {
+			templateIndex[bundledTemplates[i].ID] = &bundledTemplates[i]
+		}
+	})
 }
 
 // ListTemplates returns all bundled templates sorted by category then name.

@@ -178,7 +178,7 @@ var toggleRule = tool.Define("cairn.toggleRule",
 // --- Source and template tools ---
 
 var listSources = tool.Define("cairn.listSources",
-	"List active signal sources with their event kinds and filterable fields.",
+	"List all known signal sources with their event kinds and filterable fields.",
 	[]tool.Mode{tool.ModeTalk, tool.ModeWork, tool.ModeCoding},
 	func(_ *tool.ToolContext, _ struct{}) (*tool.ToolResult, error) {
 		sources := signal.AllSourceInfo()
@@ -189,7 +189,7 @@ var listSources = tool.Define("cairn.listSources",
 		var sb strings.Builder
 		fmt.Fprintf(&sb, "## Signal Sources (%d)\n\n", len(sources))
 		for _, src := range sources {
-			fmt.Fprintf(&sb, "- **%s** (%s): kinds=%s\n", src.Label, src.Name, strings.Join(src.Kinds, ", "))
+			fmt.Fprintf(&sb, "- **%s** (%s): kinds=%s, fields=%s\n", src.Label, src.Name, strings.Join(src.Kinds, ", "), strings.Join(src.Fields, ", "))
 		}
 		return &tool.ToolResult{Output: sb.String()}, nil
 	},

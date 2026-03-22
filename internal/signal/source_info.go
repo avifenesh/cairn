@@ -109,8 +109,8 @@ func AllSourceInfo() []SourceInfo {
 func (s *Scheduler) RegisteredSources() []SourceInfo {
 	seen := make(map[string]bool, len(s.pollers))
 	var result []SourceInfo
-	for _, pe := range s.pollers {
-		name := pe.poller.Source()
+	for i := range s.pollers {
+		name := s.pollers[i].poller.Source()
 		if seen[name] {
 			continue
 		}

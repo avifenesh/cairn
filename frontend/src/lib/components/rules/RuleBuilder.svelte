@@ -93,6 +93,8 @@
 		// We don't have the factory output on the client — just set what we can from template metadata.
 		if (prefill.source) selectedSource = prefill.source;
 		if (prefill.category === 'signal') triggerCategory = 'signal';
+		else if (prefill.id?.includes('completed')) triggerCategory = 'task-completed';
+		else if (prefill.id?.includes('created')) triggerCategory = 'task-created';
 		else if (prefill.category === 'task') triggerCategory = 'task-failed';
 		else if (prefill.category === 'memory') triggerCategory = 'memory';
 		else if (prefill.category === 'scheduled') triggerCategory = 'cron';
@@ -154,20 +156,29 @@
 		return trigger;
 	}
 
+	function escapeExprString(value: string): string {
+		// Use JSON.stringify to escape quotes, backslashes, and control characters,
+		// then strip the surrounding quotes so we can embed the result in our own.
+		const json = JSON.stringify(value);
+		return json.slice(1, -1);
+	}
+
 	function buildCondition(): string {
 		const parts: string[] = [];
 		// Kinds with multiple selections become OR.
 		if (selectedKinds.length > 1) {
-			const kindExprs = selectedKinds.map(k => `kind == "${k}"`);
+			const kindExprs = selectedKinds.map(k => `kind == "${escapeExprString(k)}"`);
 			parts.push(`(${kindExprs.join(' || ')})`);
 		}
 		// Non-equals conditions become expr-lang.
 		for (const c of conditions) {
-			if (!c.value.trim()) continue;
+			const rawValue = c.value.trim();
+			if (!rawValue) continue;
+			const escapedValue = escapeExprString(rawValue);
 			if (c.operator === 'contains') {
-				parts.push(`${c.field} contains "${c.value.trim()}"`);
+				parts.push(`${c.field} contains "${escapedValue}"`);
 			} else if (c.operator === 'startsWith') {
-				parts.push(`${c.field} startsWith "${c.value.trim()}"`);
+				parts.push(`${c.field} startsWith "${escapedValue}"`);
 			}
 			// "equals" handled in filter, not condition.
 		}
@@ -439,7 +450,7 @@
 				<p class="font-medium text-[var(--text-primary)]">Summary</p>
 				<p>Trigger: {triggerCategory === 'cron' ? `Schedule: ${cronSchedule}` : `On ${triggerCategory}${selectedSource ? ` from ${selectedSource}` : ''}`}</p>
 				{#if conditions.length > 0}
-					<p>Conditions: {conditions.filter(c => c.value.trim()).map(c => `${c.field} ${c.operator} "${c.value}"`).join(', ')}</p>
+					<p>Conditions: {conditions.filter(c => c.value.trim()).map(c => `${c.field} ${c.operator} ${JSON.stringify(c.value)}`).join(', ')}</p>
 				{/if}
 				<p>Actions: {actions.map(a => a.type === 'notify' ? 'Notify' : 'Create task').join(', ')}</p>
 				{#if throttleSec > 0}<p>Throttle: {throttleSec}s</p>{/if}

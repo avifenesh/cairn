@@ -92,6 +92,18 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /v1/skills/{name}", s.handleUpdateSkill)
 	s.mux.HandleFunc("DELETE /v1/skills/{name}", s.handleDeleteSkill)
 
+	// Agent types.
+	s.mux.HandleFunc("GET /v1/agent-types", s.handleListAgentTypes)
+	s.mux.HandleFunc("GET /v1/agent-types/{name}", s.handleGetAgentType)
+	s.mux.HandleFunc("POST /v1/agent-types", s.requireWrite(s.handleCreateAgentType))
+	s.mux.HandleFunc("DELETE /v1/agent-types/{name}", s.requireWrite(s.handleDeleteAgentType))
+
+	// User profile and agents config.
+	s.mux.HandleFunc("GET /v1/user-profile", s.handleGetUserProfile)
+	s.mux.HandleFunc("PUT /v1/user-profile", s.handlePutUserProfile)
+	s.mux.HandleFunc("GET /v1/agents-config", s.handleGetAgentsConfig)
+	s.mux.HandleFunc("PUT /v1/agents-config", s.handlePutAgentsConfig)
+
 	// Marketplace (ClawHub).
 	if s.marketplace != nil {
 		s.mux.HandleFunc("GET /v1/marketplace/search", s.handleMarketplaceSearch)
@@ -1029,6 +1041,10 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 		LLM:            s.llm,
 		Memory:         s.memories,
 		Soul:           s.soul,
+		UserProfile:    s.userProfile,
+		AgentsFile:     s.agentsFile,
+		CuratedMemory:  s.curatedMemory,
+		AgentTypes:     s.agentTypes,
 		Bus:            s.bus,
 		ContextBuilder: s.contextBuilder,
 		JournalEntries: journalEntries,
@@ -1275,6 +1291,178 @@ func (s *Server) handleDeleteSkill(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// --- Agent Types ---
+
+func (s *Server) handleListAgentTypes(w http.ResponseWriter, r *http.Request) {
+	if s.agentTypes == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"types": []any{}})
+		return
+	}
+	items := s.agentTypes.List()
+	types := make([]map[string]any, 0, len(items))
+	for _, at := range items {
+		types = append(types, map[string]any{
+			"name":         at.Name,
+			"description":  at.Description,
+			"mode":         string(at.Mode),
+			"allowedTools": at.AllowedTools,
+			"deniedTools":  at.DeniedTools,
+			"maxRounds":    at.MaxRounds,
+			"worktree":     at.Worktree,
+			"model":        at.Model,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"types": types})
+}
+
+func (s *Server) handleGetAgentType(w http.ResponseWriter, r *http.Request) {
+	if s.agentTypes == nil {
+		writeError(w, http.StatusServiceUnavailable, "agent types not configured")
+		return
+	}
+	name := r.PathValue("name")
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "missing type name")
+		return
+	}
+	at := s.agentTypes.Get(name)
+	if at == nil {
+		writeError(w, http.StatusNotFound, "agent type not found: "+name)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"name":         at.Name,
+		"description":  at.Description,
+		"mode":         string(at.Mode),
+		"allowedTools": at.AllowedTools,
+		"deniedTools":  at.DeniedTools,
+		"maxRounds":    at.MaxRounds,
+		"worktree":     at.Worktree,
+		"model":        at.Model,
+		"content":      at.Content,
+	})
+}
+
+func (s *Server) handleCreateAgentType(w http.ResponseWriter, r *http.Request) {
+	if s.agentTypes == nil {
+		writeError(w, http.StatusServiceUnavailable, "agent types not configured")
+		return
+	}
+	var req struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Content     string `json:"content"`
+		Mode        string `json:"mode"`
+		MaxRounds   int    `json:"maxRounds"`
+		Worktree    bool   `json:"worktree"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if req.Name == "" || req.Description == "" {
+		writeError(w, http.StatusBadRequest, "name and description are required")
+		return
+	}
+	// Build AGENT.md content from structured fields.
+	var md strings.Builder
+	md.WriteString("---\n")
+	fmt.Fprintf(&md, "name: %s\n", req.Name)
+	fmt.Fprintf(&md, "description: %q\n", req.Description)
+	if req.Mode != "" {
+		fmt.Fprintf(&md, "mode: %s\n", req.Mode)
+	}
+	if req.MaxRounds > 0 {
+		fmt.Fprintf(&md, "max-rounds: %d\n", req.MaxRounds)
+	}
+	if req.Worktree {
+		md.WriteString("worktree: true\n")
+	}
+	md.WriteString("---\n\n")
+	md.WriteString(req.Content)
+	md.WriteString("\n")
+	if err := s.agentTypes.Create(req.Name, md.String()); err != nil {
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "name": req.Name})
+}
+
+func (s *Server) handleDeleteAgentType(w http.ResponseWriter, r *http.Request) {
+	if s.agentTypes == nil {
+		writeError(w, http.StatusServiceUnavailable, "agent types not configured")
+		return
+	}
+	name := r.PathValue("name")
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "missing type name")
+		return
+	}
+	if err := s.agentTypes.Delete(name); err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// --- User Profile & Agents Config ---
+
+func (s *Server) handleGetUserProfile(w http.ResponseWriter, r *http.Request) {
+	if s.userProfile == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"content": ""})
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]any{"content": s.userProfile.Content()})
+}
+
+func (s *Server) handlePutUserProfile(w http.ResponseWriter, r *http.Request) {
+	if s.userProfile == nil {
+		writeError(w, http.StatusServiceUnavailable, "user profile not configured")
+		return
+	}
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := s.userProfile.Save(req.Content); err != nil {
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("save user profile: %v", err))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleGetAgentsConfig(w http.ResponseWriter, r *http.Request) {
+	if s.agentsFile == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"content": ""})
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]any{"content": s.agentsFile.Content()})
+}
+
+func (s *Server) handlePutAgentsConfig(w http.ResponseWriter, r *http.Request) {
+	if s.agentsFile == nil {
+		writeError(w, http.StatusServiceUnavailable, "agents config not configured")
+		return
+	}
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := s.agentsFile.Save(req.Content); err != nil {
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("save agents config: %v", err))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})

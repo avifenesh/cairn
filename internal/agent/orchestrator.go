@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/avifenesh/cairn/internal/agenttype"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
@@ -44,6 +45,7 @@ type Orchestrator struct {
 	marketplace    *skill.MarketplaceClient
 	toolSkills     tool.SkillService
 	journaler      *Journaler
+	agentTypes     *agenttype.Service
 	logger         *slog.Logger
 	codingEnabled  bool
 
@@ -71,6 +73,7 @@ type OrchestratorDeps struct {
 	Marketplace    *skill.MarketplaceClient
 	ToolSkills     tool.SkillService
 	Journaler      *Journaler
+	AgentTypes     *agenttype.Service
 	Logger         *slog.Logger
 	CodingEnabled  bool
 }
@@ -99,6 +102,7 @@ func NewOrchestrator(deps OrchestratorDeps) *Orchestrator {
 		marketplace:    deps.Marketplace,
 		toolSkills:     deps.ToolSkills,
 		journaler:      deps.Journaler,
+		agentTypes:     deps.AgentTypes,
 		logger:         logger,
 		codingEnabled:  deps.CodingEnabled,
 	}
@@ -116,7 +120,7 @@ type OrchestratorDecision struct {
 type OrchestratorAction struct {
 	Type        string `json:"type"`                  // approve_memory, reject_memory, spawn, submit_task, notify, escalate, trigger_reflection, verify_session, wait
 	MemoryID    string `json:"memoryId,omitempty"`    // approve_memory, reject_memory
-	SpawnType   string `json:"spawnType,omitempty"`   // spawn: researcher, coder, reviewer, executor
+	SpawnType   string `json:"spawnType,omitempty"`   // spawn: agent type name (from AGENT.md definitions)
 	Instruction string `json:"instruction,omitempty"` // spawn, submit_task
 	Context     string `json:"context,omitempty"`     // spawn: parent context
 	TaskID      string `json:"taskId,omitempty"`      // verify_session
@@ -360,6 +364,23 @@ func (o *Orchestrator) buildDecisionPrompt(state *OrchestratorState) string {
 	// System prompt.
 	parts = append(parts, orchestratorSystemPrompt)
 
+	// Dynamic agent types listing from AGENT.md definitions.
+	if o.agentTypes != nil {
+		types := o.agentTypes.List()
+		if len(types) > 0 {
+			var sb strings.Builder
+			sb.WriteString("## Available Agent Types\n")
+			for _, at := range types {
+				desc := at.Description
+				if desc == "" {
+					desc = at.Name
+				}
+				fmt.Fprintf(&sb, "- **%s** (%s, %d rounds): %s\n", at.Name, at.Mode, at.MaxRounds, desc)
+			}
+			parts = append(parts, sb.String())
+		}
+	}
+
 	// Briefing.
 	if o.briefing != "" {
 		parts = append(parts, "## Situation Briefing\n"+o.briefing)
@@ -474,8 +495,12 @@ func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecisi
 			}
 
 		case "spawn":
-			validSpawnTypes := map[string]bool{"researcher": true, "coder": true, "reviewer": true, "executor": true}
-			if o.subagentRunner != nil && validSpawnTypes[action.SpawnType] && action.Instruction != "" && activeSpawns < 3 {
+			// Validate spawn type dynamically against AGENT.md definitions.
+			validType := false
+			if o.agentTypes != nil && o.agentTypes.Get(action.SpawnType) != nil {
+				validType = true
+			}
+			if o.subagentRunner != nil && validType && action.Instruction != "" && activeSpawns < 3 {
 				_, err := o.subagentRunner.Spawn(ctx, "orchestrator", &tool.SubagentSpawnRequest{
 					Type:        action.SpawnType,
 					Instruction: action.Instruction,
@@ -701,11 +726,8 @@ You delegate all execution to subagents. You think, decide, and manage.
 ## What You Can Do
 
 spawn — Your primary action. Delegate work to a subagent.
-  Fields: spawnType (researcher|coder|reviewer|executor), instruction (detailed task), context (optional parent context)
-  researcher: investigate topics, explore codebases, gather ideas, learn new approaches
-  coder: write code, fix bugs, add tests, refactor, improve, create PRs
-  reviewer: review code quality, check CI status, verify PRs are clean
-  executor: run commands, check system health, validate integrations
+  Fields: spawnType (see "Available Agent Types" section below), instruction (detailed task), context (optional parent context)
+  Choose the right agent type for the task. Match the type's capabilities to the work needed.
 
 approve_memory — Accept a proposed memory. Fields: memoryId
 reject_memory — Reject a proposed memory. Fields: memoryId

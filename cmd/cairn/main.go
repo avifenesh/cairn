@@ -195,6 +195,11 @@ func runServe(logger *slog.Logger) {
 	memService := memory.NewService(memStore, embedder, bus)
 	soul := memory.NewSoul(cfg.SoulPath)
 	soul.Load() // ignore error if SOUL.md doesn't exist yet
+	// Watch for external modifications (agent reflection, manual edits).
+	// Uses a long-lived context — stopped on process exit.
+	soulCtx, soulCancel := context.WithCancel(context.Background())
+	defer soulCancel()
+	go soul.Watch(soulCtx)
 
 	// Initialize context builder (token-budgeted memory injection).
 	ctxBuilder := memory.NewContextBuilder(memStore, embedder, memory.ContextConfig{

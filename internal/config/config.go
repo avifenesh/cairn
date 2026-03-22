@@ -41,6 +41,7 @@ type Config struct {
 	// Feature flags
 	CodingEnabled   bool
 	IdleModeEnabled bool
+	RulesEnabled    bool
 
 	// Signal plane
 	GHToken            string            // GitHub personal access token
@@ -224,6 +225,7 @@ func Load() (*Config, error) {
 		FrontendOrigin:          envStr("FRONTEND_ORIGIN", ""),
 		CodingEnabled:           envBool("CODING_ENABLED", false),
 		IdleModeEnabled:         envBool("IDLE_MODE_ENABLED", false),
+		RulesEnabled:            envBool("RULES_ENABLED", false),
 		GHToken:                 envStr("GH_TOKEN", envStr("GITHUB_TOKEN", "")),
 		GHOrgs:                  envSlice("GH_ORGS", nil),
 		GHOwner:                 envStr("GH_OWNER", ""),

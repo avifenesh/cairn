@@ -292,18 +292,26 @@
 	}
 
 	async function handleInstallClick(slug: string) {
-		// Step 1: Security review
+		// Step 1: Security review (with 15s timeout so UI doesn't hang)
 		reviewSlug = slug;
 		reviewLoading = true;
 		reviewResult = null;
 		try {
-			const res = await reviewMarketplaceSkill(slug);
+			const timeout = new Promise<never>((_, reject) =>
+				setTimeout(() => reject(new Error('timeout')), 15000)
+			);
+			const res = await Promise.race([reviewMarketplaceSkill(slug), timeout]);
 			reviewResult = res;
-			reviewLoading = false;
-			// If safe, don't auto-install - let user confirm
 		} catch (e) {
+			const isTimeout = e instanceof Error && e.message === 'timeout';
 			console.error('Security review failed:', e);
-			reviewResult = { safe: false, risk: 'unknown', issues: ['Review request failed'], summary: 'Could not complete security review' };
+			reviewResult = {
+				safe: isTimeout,
+				risk: isTimeout ? 'unknown' : 'unknown',
+				issues: [isTimeout ? 'Review timed out' : 'Review request failed'],
+				summary: isTimeout ? 'Security review timed out. Skill has not been reviewed.' : 'Could not complete security review',
+			};
+		} finally {
 			reviewLoading = false;
 		}
 	}

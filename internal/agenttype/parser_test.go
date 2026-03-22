@@ -7,6 +7,8 @@ import (
 )
 
 func TestParseContent_Full(t *testing.T) {
+	// Tool names here are bare (no "cairn." prefix) — this is valid because
+	// the parser stores strings as-is; the prefix is the AGENT.md author's choice.
 	content := []byte(`---
 name: researcher
 description: "Research agent"

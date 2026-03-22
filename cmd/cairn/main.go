@@ -208,7 +208,10 @@ func runServe(logger *slog.Logger) {
 	}
 
 	// Initialize identity enrichment files.
-	home, _ := os.UserHomeDir()
+	home, homeErr := os.UserHomeDir()
+	if homeErr != nil {
+		logger.Warn("could not determine home directory, identity files disabled", "error", homeErr)
+	}
 	cairnDir := filepath.Join(home, ".cairn")
 
 	userProfile := memory.NewUserProfile(filepath.Join(cairnDir, "USER.md"))
@@ -1295,7 +1298,10 @@ func runChat(logger *slog.Logger) {
 	}
 
 	// Load identity enrichment files for CLI chat (best-effort).
-	chatHome, _ := os.UserHomeDir()
+	chatHome, chatHomeErr := os.UserHomeDir()
+	if chatHomeErr != nil {
+		logger.Warn("could not determine home directory, identity files disabled", "error", chatHomeErr)
+	}
 	chatCairnDir := filepath.Join(chatHome, ".cairn")
 	chatUserProfile := memory.NewUserProfile(filepath.Join(chatCairnDir, "USER.md"))
 	chatUserProfile.Load()

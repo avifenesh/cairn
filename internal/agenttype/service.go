@@ -6,9 +6,29 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
+
+// safeAgentNameRe matches valid agent type names: lowercase alphanumeric with hyphens, max 64 chars.
+var safeAgentNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$|^[a-z0-9]$`)
+
+// validateName checks if an agent type name is safe for filesystem use.
+// Mirrors the skill.ValidateName pattern.
+func validateName(name string) error {
+	if name == "" {
+		return fmt.Errorf("agent type name is required")
+	}
+	if name == "." || name == ".." || strings.ContainsAny(name, "/\\") {
+		return fmt.Errorf("agent type name %q is not safe", name)
+	}
+	if !safeAgentNameRe.MatchString(name) {
+		return fmt.Errorf("agent type name %q must be lowercase alphanumeric with hyphens, 1-64 chars", name)
+	}
+	return nil
+}
 
 // Service discovers, caches, and hot-reloads agent types from one or more
 // directories. Each directory contains subdirectories named after agent types,
@@ -156,6 +176,9 @@ func (s *Service) InstallDir() string {
 
 // Create writes a new AGENT.md and re-discovers.
 func (s *Service) Create(name, content string) error {
+	if err := validateName(name); err != nil {
+		return err
+	}
 	if len(s.dirs) == 0 {
 		return fmt.Errorf("no agent type directories configured")
 	}

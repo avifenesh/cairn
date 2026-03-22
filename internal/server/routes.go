@@ -1340,6 +1340,7 @@ func (s *Server) handleGetAgentType(w http.ResponseWriter, r *http.Request) {
 		"description":  at.Description,
 		"mode":         string(at.Mode),
 		"allowedTools": at.AllowedTools,
+		"deniedTools":  at.DeniedTools,
 		"maxRounds":    at.MaxRounds,
 		"worktree":     at.Worktree,
 		"model":        at.Model,

@@ -130,21 +130,22 @@ func NewSubagentRunner(deps SubagentRunnerDeps) *SubagentRunner {
 
 // resolveType looks up a subagent type from AGENT.md definitions (if available),
 // converting to the internal subagentTypeConfig.
-func (r *SubagentRunner) resolveType(name string) (subagentTypeConfig, bool) {
-	if r.agentTypes != nil {
-		if at := r.agentTypes.Get(name); at != nil {
-			cfg := subagentTypeConfig{
-				Mode:         at.Mode,
-				AllowedTools: at.AllowedTools,
-				DeniedTools:  at.DeniedTools,
-				MaxRounds:    at.MaxRounds,
-				Worktree:     at.Worktree,
-				SystemPrompt: at.Content,
-			}
-			return cfg, true
-		}
+func (r *SubagentRunner) resolveType(name string) (subagentTypeConfig, error) {
+	if r.agentTypes == nil {
+		return subagentTypeConfig{}, fmt.Errorf("agent type service not initialized")
 	}
-	return subagentTypeConfig{}, false
+	if at := r.agentTypes.Get(name); at != nil {
+		cfg := subagentTypeConfig{
+			Mode:         at.Mode,
+			AllowedTools: at.AllowedTools,
+			DeniedTools:  at.DeniedTools,
+			MaxRounds:    at.MaxRounds,
+			Worktree:     at.Worktree,
+			SystemPrompt: at.Content,
+		}
+		return cfg, nil
+	}
+	return subagentTypeConfig{}, fmt.Errorf("not found")
 }
 
 // buildSubagentHint combines type system prompt, env context, and AGENTS.md content.
@@ -175,8 +176,8 @@ func (r *SubagentRunner) Spawn(ctx context.Context, parentTaskID string, req *to
 		return nil, fmt.Errorf("instruction is required")
 	}
 
-	typeCfg, ok := r.resolveType(req.Type)
-	if !ok {
+	typeCfg, resolveErr := r.resolveType(req.Type)
+	if resolveErr != nil {
 		// Collect available type names for the error message.
 		var available []string
 		if r.agentTypes != nil {

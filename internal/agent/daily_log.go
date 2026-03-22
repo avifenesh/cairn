@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -28,17 +29,16 @@ func AppendDailyLog(logDir string, entry DailyLogEntry) error {
 	date := entry.Time.Format("2006-01-02")
 	path := filepath.Join(logDir, date+".md")
 
-	// Check if file exists to determine whether to write a header.
-	_, statErr := os.Stat(path)
-	needsHeader := os.IsNotExist(statErr)
-
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("daily log: open: %w", err)
 	}
 	defer f.Close()
 
-	if needsHeader {
+	// Determine whether the file is empty by seeking to the end.
+	// This avoids the TOCTOU race of a separate Stat before OpenFile.
+	pos, seekErr := f.Seek(0, io.SeekEnd)
+	if seekErr == nil && pos == 0 {
 		fmt.Fprintf(f, "# Daily Log: %s\n\n", date)
 	}
 

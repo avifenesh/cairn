@@ -459,6 +459,8 @@ func skillDirs() []string {
 // agentDirs builds the default agent type search path from well-known locations
 // plus any extra directories from the AGENT_DIRS env var.
 // Order: ["./agents", "~/.cairn/agents"] + AGENT_DIRS extras.
+// NOTE: "./agents" is intentionally relative (matches skillDirs pattern with "./skills")
+// so it resolves relative to the process working directory.
 func agentDirs() []string {
 	dirs := []string{"./agents"}
 

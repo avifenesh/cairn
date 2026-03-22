@@ -61,6 +61,8 @@ func (m *MarkdownFile) Content() string {
 }
 
 // Exists returns true if the file has been loaded and has non-empty content.
+// Intentionally returns false for empty files on disk - an empty markdown file
+// is treated as "not configured" since it carries no useful content.
 func (m *MarkdownFile) Exists() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -103,12 +105,23 @@ func (m *MarkdownFile) Save(content string) error {
 		return err
 	}
 
-	tmp := m.filePath + ".tmp"
-	if err := os.WriteFile(tmp, []byte(content), 0644); err != nil {
+	// Use a unique temp file in the same directory for concurrent safety.
+	tmp, err := os.CreateTemp(dir, filepath.Base(m.filePath)+".tmp.*")
+	if err != nil {
 		return err
 	}
-	if err := os.Rename(tmp, m.filePath); err != nil {
-		os.Remove(tmp)
+	tmpName := tmp.Name()
+	if _, err := tmp.Write([]byte(content)); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return err
+	}
+	if err := os.Rename(tmpName, m.filePath); err != nil {
+		os.Remove(tmpName)
 		return err
 	}
 
@@ -133,7 +146,7 @@ func (m *MarkdownFile) checkReload() {
 	}
 
 	m.mu.RLock()
-	changed := info.ModTime() != m.modTime
+	changed := !info.ModTime().Equal(m.modTime)
 	m.mu.RUnlock()
 
 	if !changed {

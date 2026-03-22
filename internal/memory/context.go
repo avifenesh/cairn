@@ -79,6 +79,10 @@ func NewContextBuilder(store *Store, embedder Embedder, config ContextConfig) *C
 	return &ContextBuilder{store: store, embedder: embedder, config: config}
 }
 
+// maxIdentityChars caps the size of identity content (User/Agents/Curated) injected
+// outside the token budget. Prevents runaway files from blowing up context.
+const maxIdentityChars = 20000
+
 // BuildInput carries all parameters for a context Build call.
 type BuildInput struct {
 	Query          string
@@ -142,22 +146,37 @@ func (b *ContextBuilder) Build(ctx context.Context, input BuildInput) *ContextRe
 		soulSection = "## Soul (embody this persona and tone in all responses)\n" + input.SoulContent
 	}
 
-	// Stage 5: User profile (outside memory budget).
+	// Stage 5: User profile (outside memory budget, capped).
 	userSection := ""
 	if input.UserContent != "" {
-		userSection = "## User Profile\n" + input.UserContent
+		uc := input.UserContent
+		if len(uc) > maxIdentityChars {
+			slog.Warn("context: UserContent truncated", "original", len(uc), "max", maxIdentityChars)
+			uc = uc[:maxIdentityChars] + "\n...[truncated]"
+		}
+		userSection = "## User Profile\n" + uc
 	}
 
-	// Stage 6: Agents operating manual (outside memory budget).
+	// Stage 6: Agents operating manual (outside memory budget, capped).
 	agentsSection := ""
 	if input.AgentsContent != "" {
-		agentsSection = "## Operating Manual\n" + input.AgentsContent
+		ac := input.AgentsContent
+		if len(ac) > maxIdentityChars {
+			slog.Warn("context: AgentsContent truncated", "original", len(ac), "max", maxIdentityChars)
+			ac = ac[:maxIdentityChars] + "\n...[truncated]"
+		}
+		agentsSection = "## Operating Manual\n" + ac
 	}
 
-	// Stage 7: Curated long-term memory (outside memory budget).
+	// Stage 7: Curated long-term memory (outside memory budget, capped).
 	curatedSection := ""
 	if input.CuratedContent != "" {
-		curatedSection = "## Long-term Memory\n" + input.CuratedContent
+		cc := input.CuratedContent
+		if len(cc) > maxIdentityChars {
+			slog.Warn("context: CuratedContent truncated", "original", len(cc), "max", maxIdentityChars)
+			cc = cc[:maxIdentityChars] + "\n...[truncated]"
+		}
+		curatedSection = "## Long-term Memory\n" + cc
 	}
 
 	// Assemble final text.

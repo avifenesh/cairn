@@ -12,7 +12,9 @@ import (
 func TestMarkdownFile_Load(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.md")
-	os.WriteFile(path, []byte("# Hello\nWorld"), 0644)
+	if err := os.WriteFile(path, []byte("# Hello\nWorld"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	mf := NewMarkdownFile(path)
 	if err := mf.Load(); err != nil {
@@ -30,7 +32,7 @@ func TestMarkdownFile_Load(t *testing.T) {
 }
 
 func TestMarkdownFile_LoadMissing(t *testing.T) {
-	mf := NewMarkdownFile("/tmp/does-not-exist-cairn-test.md")
+	mf := NewMarkdownFile(filepath.Join(t.TempDir(), "does-not-exist-cairn-test.md"))
 	if err := mf.Load(); err != nil {
 		t.Fatalf("Load on missing file should return nil, got: %v", err)
 	}
@@ -69,7 +71,9 @@ func TestMarkdownFile_Save(t *testing.T) {
 func TestMarkdownFile_Watch(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "watch.md")
-	os.WriteFile(path, []byte("v1"), 0644)
+	if err := os.WriteFile(path, []byte("v1"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	mf := NewMarkdownFile(path)
 	if err := mf.Load(); err != nil {
@@ -89,7 +93,9 @@ func TestMarkdownFile_Watch(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	// Ensure mod time changes (some filesystems have 1s granularity).
 	time.Sleep(1100 * time.Millisecond)
-	os.WriteFile(path, []byte("v2"), 0644)
+	if err := os.WriteFile(path, []byte("v2"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	select {
 	case got := <-changed:
@@ -119,7 +125,9 @@ func TestMarkdownFile_WatchDetectsNewFile(t *testing.T) {
 
 	// Create the file after watch starts.
 	time.Sleep(100 * time.Millisecond)
-	os.WriteFile(path, []byte("new content"), 0644)
+	if err := os.WriteFile(path, []byte("new content"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	select {
 	case got := <-changed:
@@ -134,7 +142,9 @@ func TestMarkdownFile_WatchDetectsNewFile(t *testing.T) {
 func TestMarkdownFile_ThreadSafe(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "thread.md")
-	os.WriteFile(path, []byte("initial"), 0644)
+	if err := os.WriteFile(path, []byte("initial"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	mf := NewMarkdownFile(path)
 	mf.Load()

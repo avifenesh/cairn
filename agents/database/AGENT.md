@@ -57,6 +57,6 @@ CREATE INDEX IF NOT EXISTS ...
 ## Constraints
 
 - **Never DROP tables** without explicit approval and backup.
-- **Idempotent migrations.** Always use IF NOT EXISTS, IF NOT EXISTS.
+- **Idempotent migrations.** Always use IF NOT EXISTS.
 - **Test on a copy.** For destructive operations, work on a copy of the DB first.
 - **Foreign keys.** All references must have proper ON DELETE clauses.

@@ -206,6 +206,59 @@ func TestStore_GetDueJobs_CooldownRespected(t *testing.T) {
 	}
 }
 
+func TestStore_UpdateAfterRun_UpdatesLastRunAt(t *testing.T) {
+	store := NewStore(testDB(t))
+	ctx := context.Background()
+
+	// Create a job with short cooldown and schedule that fires every minute.
+	job := &CronJob{
+		Enabled: true, Name: "retry-test", Schedule: "* * * * *",
+		Instruction: "test", CooldownMs: 60000, // 1 min cooldown
+	}
+	if err := store.Create(ctx, job); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	// Force next_run to the past so it's due.
+	pastNext := time.Now().UTC().Add(-5 * time.Minute)
+	store.db.ExecContext(ctx, "UPDATE cron_jobs SET next_run_at = ? WHERE id = ?",
+		pastNext.Format(timeFormat), job.ID)
+
+	// Verify it's due initially.
+	due, err := store.GetDueJobs(ctx, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("getDueJobs before run: %v", err)
+	}
+	if len(due) != 1 {
+		t.Fatalf("expected 1 due job before run, got %d", len(due))
+	}
+
+	// Simulate a failed spawn by calling UpdateAfterRun (what the fix does).
+	now := time.Now().UTC()
+	next := time.Now().UTC().Add(1 * time.Minute)
+	if err := store.UpdateAfterRun(ctx, job.ID, now, next); err != nil {
+		t.Fatalf("UpdateAfterRun: %v", err)
+	}
+
+	// Verify last_run_at was set by reading back the job.
+	got, err := store.Get(ctx, job.ID)
+	if err != nil {
+		t.Fatalf("get after UpdateAfterRun: %v", err)
+	}
+	if got.LastRunAt == nil {
+		t.Fatal("expected LastRunAt to be set after UpdateAfterRun")
+	}
+
+	// Verify the job is no longer due (cooldown active since we just ran it).
+	due, err = store.GetDueJobs(ctx, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("getDueJobs after run: %v", err)
+	}
+	if len(due) != 0 {
+		t.Fatalf("expected 0 due jobs after UpdateAfterRun (cooldown active), got %d", len(due))
+	}
+}
+
 func TestStore_RecordExecution(t *testing.T) {
 	store := NewStore(testDB(t))
 	ctx := context.Background()

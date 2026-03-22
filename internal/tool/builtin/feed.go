@@ -36,6 +36,12 @@ var readFeed = tool.Define("cairn.readFeed",
 		excludeArchived := true
 		if p.IncludeArchived != nil && *p.IncludeArchived {
 			excludeArchived = false
+			// When showing archived items, also include read ones —
+			// an archived item is almost always already read, so
+			// unreadOnly=true would hide everything.
+			if p.UnreadOnly == nil {
+				unreadOnly = false
+			}
 		}
 
 		events, err := ctx.Events.List(ctx.Cancel, tool.EventFilter{

@@ -805,7 +805,9 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 			if uerr := l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC()); uerr != nil {
 				l.logger.Warn("cron: failed to update last_run_at after spawn", "job", job.Name, "error", uerr)
 			}
-			submitted = err == nil
+			if err == nil {
+				submitted = true
+			}
 			continue
 		}
 

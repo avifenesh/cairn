@@ -234,9 +234,11 @@ func TestStore_UpdateAfterRun_PreventsRetryLoop(t *testing.T) {
 	}
 
 	// Simulate what the scheduler does on a failed spawn:
-	// Update last_run_at to now, but keep next_run_at in the past.
-	// This tests cooldown gating specifically — the SQL filter still
-	// selects the row (next_run_at <= now), but cooldown should skip it.
+	// Construct a state where the job is still SQL-due but should be
+	// suppressed by cooldown: set last_run_at to now while leaving
+	// next_run_at in the past.
+	// The SQL filter still selects the row (next_run_at <= now), but
+	// cooldown logic should skip it.
 	now := time.Now().UTC()
 	stillPast := time.Now().UTC().Add(-1 * time.Minute)
 	if err := store.UpdateAfterRun(ctx, job.ID, now, stillPast); err != nil {

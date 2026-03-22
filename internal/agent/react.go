@@ -501,6 +501,23 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 				"status", status,
 				"duration", duration,
 			)
+
+			// Emit tool_executed event for SSE broadcast.
+			if invCtx.Bus != nil {
+				truncOutput := output
+				if len(truncOutput) > 200 {
+					truncOutput = truncOutput[:200] + "..."
+				}
+				eventbus.Publish(invCtx.Bus, eventbus.ToolExecuted{
+					EventMeta:  eventbus.NewMeta("agent"),
+					TaskID:     invCtx.SessionID,
+					ToolName:   tc.Name,
+					DurationMs: duration.Milliseconds(),
+					IsError:    isError,
+					Output:     truncOutput,
+					Error:      errStr,
+				})
+			}
 		}
 
 		// 5b. Emit round_complete session event.

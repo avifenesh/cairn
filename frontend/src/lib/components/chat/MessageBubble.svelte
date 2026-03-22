@@ -7,13 +7,20 @@
 	import CreateTaskButton from './CreateTaskButton.svelte';
 	import { relativeTime } from '$lib/utils/time';
 	import { Button } from '$lib/components/ui/button';
-	import { Bot, User, Copy, Check, Volume2, Loader2, VolumeOff } from '@lucide/svelte';
+	import { Bot, User, Copy, Check, Volume2, Loader2, VolumeOff, BookOpen, Archive } from '@lucide/svelte';
 	import { playTTS, stopTTS } from '$lib/utils/tts';
+	import { markAllRead } from '$lib/api/client';
 
 	let { message }: { message: ChatMessage } = $props();
 
 	let copied = $state(false);
 	let speaking = $state(false);
+	let markedRead = $state(false);
+
+	const hasFeedTool = $derived(
+		message.role === 'assistant' &&
+		message.toolCalls?.some(tc => tc.toolName === 'cairn.readFeed' || tc.toolName === 'readFeed')
+	);
 
 	async function copyContent() {
 		await navigator.clipboard.writeText(message.content);
@@ -58,6 +65,16 @@
 			<ReasoningBlock steps={message.reasoning} />
 		{/if}
 		<StreamingText content={message.content} isStreaming={false} />
+		{#if hasFeedTool && !markedRead}
+			<div class="mt-1.5 flex items-center gap-1.5">
+				<Button variant="ghost" size="sm" class="h-6 text-[10px] gap-1 text-[var(--text-tertiary)]"
+					onclick={async () => { await markAllRead(); markedRead = true; }}>
+					<BookOpen class="h-3 w-3" /> Mark all read
+				</Button>
+			</div>
+		{:else if hasFeedTool && markedRead}
+			<div class="mt-1 text-[10px] text-[var(--color-success)]">All marked read</div>
+		{/if}
 		<div class="mt-1.5 flex items-center justify-between">
 			<time class="text-[10px] text-[var(--text-tertiary)] tabular-nums font-mono" datetime={message.createdAt}>
 				{relativeTime(message.createdAt)}

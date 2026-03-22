@@ -161,6 +161,8 @@ func (s *Server) registerRoutes() {
 	// System.
 	s.mux.HandleFunc("GET /v1/status", s.handleStatus)
 	s.mux.HandleFunc("GET /v1/costs", s.handleCosts)
+	s.mux.HandleFunc("GET /v1/journal", s.handleJournal)
+	s.mux.HandleFunc("GET /v1/plugins", s.handlePlugins)
 	s.mux.HandleFunc("POST /v1/poll/run", s.handlePollRun)
 
 	// Static files (SPA fallback).
@@ -2197,4 +2199,40 @@ func (s *Server) handleCancelSubagent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleJournal(w http.ResponseWriter, r *http.Request) {
+	if s.journalStore == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
+		return
+	}
+	entries, err := s.journalStore.Recent(r.Context(), 7*24*time.Hour)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	items := make([]map[string]any, 0, len(entries))
+	for _, e := range entries {
+		items = append(items, map[string]any{
+			"sessionId": e.SessionID,
+			"summary":   e.Summary,
+			"mode":      e.Mode,
+			"learnings": e.Learnings,
+			"errors":    e.Errors,
+			"createdAt": e.CreatedAt.Format(time.RFC3339),
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (s *Server) handlePlugins(w http.ResponseWriter, r *http.Request) {
+	items := make([]map[string]any, 0)
+	if s.plugins != nil {
+		for _, p := range s.plugins.Plugins() {
+			items = append(items, map[string]any{
+				"name": p.Name(),
+			})
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }

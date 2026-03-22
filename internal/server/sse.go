@@ -129,6 +129,16 @@ func (b *SSEBroadcaster) Start() {
 				"phase":    e.Phase,
 			})
 		}),
+		eventbus.Subscribe(b.bus, func(e eventbus.ToolExecuted) {
+			b.broadcast("tool_executed", e.ID, map[string]any{
+				"taskId":     e.TaskID,
+				"toolName":   e.ToolName,
+				"durationMs": e.DurationMs,
+				"isError":    e.IsError,
+				"output":     e.Output,
+				"error":      e.Error,
+			})
+		}),
 		eventbus.Subscribe(b.bus, func(e eventbus.MemoryProposed) {
 			b.broadcast("memory_proposed", e.ID, map[string]any{
 				"memoryId": e.MemoryID,

@@ -371,6 +371,9 @@ export const getCosts = () => {
 };
 export const getMetrics = () => get<Record<string, unknown>>('/v1/metrics');
 export const getStatus = () => get<Record<string, unknown>>('/v1/status');
+export const getBudget = () => get<CostData>('/v1/costs');
+export const getJournal = () => get<{ items: Record<string, unknown>[] }>('/v1/journal');
+export const getPlugins = () => get<{ items: Record<string, unknown>[] }>('/v1/plugins');
 
 export const getMcpStatus = async () => {
 	try {

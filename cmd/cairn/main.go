@@ -11,12 +11,14 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
+	"github.com/avifenesh/cairn/internal/agenttype"
 	"github.com/avifenesh/cairn/internal/auth"
 	cairnchannel "github.com/avifenesh/cairn/internal/channel"
 	"github.com/avifenesh/cairn/internal/config"
@@ -203,6 +205,50 @@ func runServe(logger *slog.Logger) {
 		soul.OnChange(func(content string) {
 			logger.Info("soul reloaded from disk", "path", cfg.SoulPath, "bytes", len(content))
 		})
+	}
+
+	// Initialize identity enrichment files.
+	home, homeErr := os.UserHomeDir()
+	if homeErr != nil {
+		logger.Warn("could not determine home directory, identity files disabled", "error", homeErr)
+	}
+	cairnDir := filepath.Join(home, ".cairn")
+
+	userProfile := memory.NewUserProfile(filepath.Join(cairnDir, "USER.md"))
+	if err := userProfile.Load(); err != nil {
+		logger.Warn("user profile load failed", "error", err)
+	}
+
+	agentsFile := memory.NewAgentsFile(filepath.Join(cairnDir, "AGENTS.md"))
+	if err := agentsFile.Load(); err != nil {
+		logger.Warn("agents file load failed", "error", err)
+	}
+
+	curatedMemory := memory.NewMarkdownFile(filepath.Join(cairnDir, "MEMORY.md"))
+	if err := curatedMemory.Load(); err != nil {
+		logger.Warn("curated memory load failed", "error", err)
+	}
+
+	// Initialize agent type service.
+	agentTypeSvc := agenttype.NewService(cfg.AgentDirs, logger)
+	if err := agentTypeSvc.Discover(); err != nil {
+		logger.Warn("agent type discovery failed", "error", err)
+	} else {
+		logger.Info("agent types discovered", "count", len(agentTypeSvc.List()))
+	}
+
+	// Build environment context.
+	envCtx := &agent.EnvContext{
+		OS:      runtime.GOOS,
+		Shell:   os.Getenv("SHELL"),
+		User:    os.Getenv("USER"),
+		Home:    home,
+		Go:      runtime.Version(),
+		GitUser: cfg.GHOwner,
+		DataDir: cfg.DataDir,
+	}
+	if len(cfg.CodingAllowedRepos) > 0 {
+		envCtx.CodingRepos = cfg.CodingAllowedRepos
 	}
 
 	// Initialize context builder (token-budgeted memory injection).
@@ -513,6 +559,9 @@ func runServe(logger *slog.Logger) {
 			ToolCrons:      cronAdapt,
 			ToolRules:      rulesAdapt,
 			ToolConfig:     cfgAdapt,
+			AgentsFile:     agentsFile,
+			AgentTypes:     agentTypeSvc,
+			EnvContext:     envCtx,
 			Model:          cfg.LLMModel,
 		})
 		logger.Info("subagent runner initialized")
@@ -600,6 +649,10 @@ func runServe(logger *slog.Logger) {
 			WorktreeManager: worktreeMgr,
 			Marketplace:     marketplace,
 			Approvals:       approvalStore,
+			UserProfile:     userProfile,
+			AgentsFile:      agentsFile,
+			CuratedMemory:   curatedMemory,
+			AgentTypes:      agentTypeSvc,
 		})
 		agentLoop.SetInitialState(loopState)
 		agentLoop.Start()
@@ -684,11 +737,15 @@ func runServe(logger *slog.Logger) {
 			}
 			return nil
 		}(),
-		MCPClients:  mcpClientMgr,
-		Approvals:   approvalStore,
-		AuthStore:   authStore,
-		WebAuthn:    webauthnHandler,
-		PollTrigger: scheduler,
+		MCPClients:    mcpClientMgr,
+		Approvals:     approvalStore,
+		AuthStore:     authStore,
+		WebAuthn:      webauthnHandler,
+		PollTrigger:   scheduler,
+		AgentTypes:    agentTypeSvc,
+		UserProfile:   userProfile,
+		AgentsFile:    agentsFile,
+		CuratedMemory: curatedMemory,
 	})
 
 	// Graceful shutdown context — all subsystems observe this.
@@ -699,6 +756,12 @@ func runServe(logger *slog.Logger) {
 	if soul.Content() != "" {
 		go soul.Watch(ctx)
 	}
+
+	// Start enrichment file watchers.
+	go userProfile.Watch(ctx)
+	go agentsFile.Watch(ctx)
+	go curatedMemory.Watch(ctx)
+	go agentTypeSvc.Watch(ctx)
 
 	// Notify adapter — set when channels are configured, nil otherwise.
 	var notifyAdapt tool.NotifyService
@@ -852,6 +915,10 @@ func runServe(logger *slog.Logger) {
 				LLM:            provider,
 				Memory:         memService,
 				Soul:           soul,
+				UserProfile:    userProfile,
+				AgentsFile:     agentsFile,
+				CuratedMemory:  curatedMemory,
+				AgentTypes:     agentTypeSvc,
 				Bus:            bus,
 				ContextBuilder: ctxBuilder,
 				Plugins:        pluginMgr,
@@ -1230,20 +1297,36 @@ func runChat(logger *slog.Logger) {
 		chatSkillAdapter = &skillAdapter{svc: chatSkillSvc}
 	}
 
+	// Load identity enrichment files for CLI chat (best-effort).
+	chatHome, chatHomeErr := os.UserHomeDir()
+	if chatHomeErr != nil {
+		logger.Warn("could not determine home directory, identity files disabled", "error", chatHomeErr)
+	}
+	chatCairnDir := filepath.Join(chatHome, ".cairn")
+	chatUserProfile := memory.NewUserProfile(filepath.Join(chatCairnDir, "USER.md"))
+	chatUserProfile.Load()
+	chatAgentsFile := memory.NewAgentsFile(filepath.Join(chatCairnDir, "AGENTS.md"))
+	chatAgentsFile.Load()
+	chatCuratedMemory := memory.NewMarkdownFile(filepath.Join(chatCairnDir, "MEMORY.md"))
+	chatCuratedMemory.Load()
+
 	// Build invocation context.
 	invCtx := &agent.InvocationContext{
-		Context:      ctx,
-		SessionID:    session.ID,
-		UserMessage:  message,
-		Mode:         mode,
-		Session:      session,
-		Tools:        toolRegistry,
-		LLM:          provider,
-		Memory:       memService,
-		Soul:         soul,
-		Bus:          bus,
-		ToolMemories: chatMemAdapter,
-		ToolSkills:   chatSkillAdapter,
+		Context:       ctx,
+		SessionID:     session.ID,
+		UserMessage:   message,
+		Mode:          mode,
+		Session:       session,
+		Tools:         toolRegistry,
+		LLM:           provider,
+		Memory:        memService,
+		Soul:          soul,
+		UserProfile:   chatUserProfile,
+		AgentsFile:    chatAgentsFile,
+		CuratedMemory: chatCuratedMemory,
+		Bus:           bus,
+		ToolMemories:  chatMemAdapter,
+		ToolSkills:    chatSkillAdapter,
 		Config: &agent.AgentConfig{
 			Model: cfg.LLMModel,
 		},

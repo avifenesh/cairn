@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/avifenesh/cairn/internal/agenttype"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
@@ -40,6 +41,10 @@ type InvocationContext struct {
 	LLM            llm.Provider
 	Memory         *memory.Service
 	Soul           *memory.Soul
+	UserProfile    *memory.UserProfile
+	AgentsFile     *memory.AgentsFile
+	CuratedMemory  *memory.MarkdownFile
+	AgentTypes     *agenttype.Service // Available sub-agent types (nil = no type info in prompt)
 	Tasks          *task.Engine
 	Bus            *eventbus.Bus
 	Config         *AgentConfig

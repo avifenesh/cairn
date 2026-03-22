@@ -139,7 +139,7 @@ func TestContextBuilder_EmptyState(t *testing.T) {
 	store := setupContextTestDB(t)
 	builder := NewContextBuilder(store, NoopEmbedder{}, DefaultContextConfig())
 
-	result := builder.Build(context.Background(), "hello", "", nil)
+	result := builder.Build(context.Background(), BuildInput{Query: "hello"})
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -156,7 +156,7 @@ func TestContextBuilder_HardRulesAlwaysIncluded(t *testing.T) {
 	store.Create(ctx, &Memory{Content: "Prefers Go", Category: CatPreference, Scope: ScopeGlobal, Status: StatusAccepted, Confidence: 0.8})
 
 	builder := NewContextBuilder(store, NoopEmbedder{}, DefaultContextConfig())
-	result := builder.Build(ctx, "anything", "", nil)
+	result := builder.Build(ctx, BuildInput{Query: "anything"})
 
 	if !strings.Contains(result.Text, "Never push to main") {
 		t.Error("expected hard rule to be included")
@@ -183,7 +183,7 @@ func TestContextBuilder_BudgetRespected(t *testing.T) {
 	cfg := DefaultContextConfig()
 	cfg.TokenBudget = 500
 	builder := NewContextBuilder(store, NoopEmbedder{}, cfg)
-	result := builder.Build(ctx, "something", "", nil)
+	result := builder.Build(ctx, BuildInput{Query: "something"})
 
 	if result.Stats.BudgetUsed > cfg.TokenBudget {
 		t.Errorf("budget exceeded: used %d, total %d", result.Stats.BudgetUsed, cfg.TokenBudget)
@@ -194,7 +194,7 @@ func TestContextBuilder_SoulIncluded(t *testing.T) {
 	store := setupContextTestDB(t)
 	builder := NewContextBuilder(store, NoopEmbedder{}, DefaultContextConfig())
 
-	result := builder.Build(context.Background(), "", "I am Cairn. I help Avi.", nil)
+	result := builder.Build(context.Background(), BuildInput{SoulContent: "I am Cairn. I help Avi."})
 
 	if !strings.Contains(result.Text, "I am Cairn") {
 		t.Error("expected soul content to be included")
@@ -214,7 +214,7 @@ func TestContextBuilder_JournalIncluded(t *testing.T) {
 		},
 	}
 
-	result := builder.Build(context.Background(), "", "", entries)
+	result := builder.Build(context.Background(), BuildInput{JournalEntries: entries})
 
 	if !strings.Contains(result.Text, "Fixed a memory leak") {
 		t.Error("expected journal entry in context")
@@ -230,7 +230,7 @@ func TestContextBuilder_MemoryPreamblePresent(t *testing.T) {
 	store.Create(ctx, &Memory{Content: "Test rule", Category: CatHardRule, Scope: ScopeGlobal, Status: StatusAccepted, Confidence: 1.0})
 
 	builder := NewContextBuilder(store, NoopEmbedder{}, DefaultContextConfig())
-	result := builder.Build(ctx, "test", "", nil)
+	result := builder.Build(ctx, BuildInput{Query: "test"})
 
 	if !strings.Contains(result.Text, "MANDATORY constraints") {
 		t.Error("expected memory preamble with safety instructions")

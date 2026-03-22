@@ -64,6 +64,18 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /v1/skills/{name}", s.handleUpdateSkill)
 	s.mux.HandleFunc("DELETE /v1/skills/{name}", s.handleDeleteSkill)
 
+	// Agent types.
+	s.mux.HandleFunc("GET /v1/agent-types", s.handleListAgentTypes)
+	s.mux.HandleFunc("GET /v1/agent-types/{name}", s.handleGetAgentType)
+	s.mux.HandleFunc("POST /v1/agent-types", s.requireWrite(s.handleCreateAgentType))
+	s.mux.HandleFunc("DELETE /v1/agent-types/{name}", s.requireWrite(s.handleDeleteAgentType))
+
+	// User profile and agents config.
+	s.mux.HandleFunc("GET /v1/user-profile", s.handleGetUserProfile)
+	s.mux.HandleFunc("PUT /v1/user-profile", s.handlePutUserProfile)
+	s.mux.HandleFunc("GET /v1/agents-config", s.handleGetAgentsConfig)
+	s.mux.HandleFunc("PUT /v1/agents-config", s.handlePutAgentsConfig)
+
 	// Marketplace (ClawHub).
 	if s.marketplace != nil {
 		s.mux.HandleFunc("GET /v1/marketplace/search", s.handleMarketplaceSearch)

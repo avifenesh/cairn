@@ -7,18 +7,18 @@ import (
 )
 
 type spawnSubagentParams struct {
-	Type        string  `json:"type"        desc:"Subagent type: researcher (read-only search), coder (worktree-isolated coding), reviewer (code analysis), executor (shell commands)"`
+	Type        string  `json:"type"        desc:"Subagent type: built-in types (researcher, coder, reviewer, executor) or custom AGENT.md types"`
 	Instruction string  `json:"instruction" desc:"What the subagent should accomplish. Include file paths, success criteria, and expected output format."`
 	Context     *string `json:"context"     desc:"Optional summary of parent context to pass to the child agent"`
 	ExecMode    *string `json:"execMode"    desc:"foreground (default, blocks until done) or background (returns immediately, check via cairn.listTasks)"`
-	MaxRounds   *int    `json:"maxRounds"   desc:"Max reasoning rounds. 0 or omitted = type default (researcher:15, coder:50, reviewer:10, executor:10)"`
+	MaxRounds   *int    `json:"maxRounds"   desc:"Max reasoning rounds. 0 or omitted = type default from AGENT.md"`
 }
 
 var spawnSubagent = tool.Define("cairn.spawnSubagent",
 	"Spawn a child agent to handle a sub-task independently. The child runs in its own context "+
-		"and returns a condensed summary. Types: researcher (read-only web/file search), "+
-		"coder (implements code in isolated worktree), reviewer (analyzes code quality), "+
-		"executor (runs shell commands). Children cannot spawn their own children.",
+		"and returns a condensed summary. Built-in types: researcher (read-only search), "+
+		"coder (worktree-isolated coding), reviewer (code quality), executor (shell commands). "+
+		"Custom types can be defined via AGENT.md files. Children cannot spawn their own children.",
 	[]tool.Mode{tool.ModeWork, tool.ModeCoding},
 	func(ctx *tool.ToolContext, p spawnSubagentParams) (*tool.ToolResult, error) {
 		if ctx.Subagents == nil {

@@ -785,24 +785,29 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 				ExecMode:    "background",
 			}
 			result, err := l.subagentRunner.Spawn(ctx, "cron-"+job.ID, spawnReq)
+			now := time.Now()
 			if err != nil {
 				l.logger.Warn("cron: agent type spawn failed", "job", job.Name, "type", job.AgentType, "error", err)
 				l.cronStore.RecordExecution(ctx, job.ID, "", "failed", err)
 			} else {
-				// Update next-run schedule only on successful spawn.
-				now := time.Now()
-				loc := time.UTC
-				if job.Timezone != "" && job.Timezone != "UTC" {
-					if tl, err := time.LoadLocation(job.Timezone); err == nil {
-						loc = tl
-					}
-				}
-				next, _ := cairncron.NextRun(job.Schedule, now.In(loc))
-				l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC())
 				l.cronStore.RecordExecution(ctx, job.ID, result.TaskID, "fired", nil)
 				l.logger.Info("cron: agent type spawned", "job", job.Name, "type", job.AgentType, "task", result.TaskID)
 			}
-			submitted = true
+			// Always update last_run_at and next_run_at, even on failure,
+			// to prevent tight retry loops when spawn errors occur.
+			loc := time.UTC
+			if job.Timezone != "" && job.Timezone != "UTC" {
+				if tl, err := time.LoadLocation(job.Timezone); err == nil {
+					loc = tl
+				}
+			}
+			next, _ := cairncron.NextRun(job.Schedule, now.In(loc))
+			if uerr := l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC()); uerr != nil {
+				l.logger.Warn("cron: failed to update last_run_at after spawn", "job", job.Name, "error", uerr)
+			}
+			if err == nil {
+				submitted = true
+			}
 			continue
 		}
 
@@ -817,12 +822,6 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 			Description: job.Instruction,
 			Input:       input,
 		})
-		if err != nil {
-			l.logger.Warn("cron: failed to submit task", "job", job.Name, "error", err)
-			l.cronStore.RecordExecution(ctx, job.ID, "", "failed", err)
-			continue
-		}
-		// Compute next run in the job's timezone, store as UTC.
 		now := time.Now()
 		loc := time.UTC
 		if job.Timezone != "" && job.Timezone != "UTC" {
@@ -831,10 +830,21 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 			}
 		}
 		next, _ := cairncron.NextRun(job.Schedule, now.In(loc))
-		l.cronStore.UpdateAfterRun(ctx, job.ID, time.Now().UTC(), next.UTC())
-		l.cronStore.RecordExecution(ctx, job.ID, t.ID, "fired", nil)
-		l.logger.Info("cron: task submitted", "job", job.Name, "task", t.ID, "nextRun", next)
-		submitted = true
+		if err != nil {
+			l.logger.Warn("cron: failed to submit task", "job", job.Name, "error", err)
+			l.cronStore.RecordExecution(ctx, job.ID, "", "failed", err)
+		} else {
+			l.cronStore.RecordExecution(ctx, job.ID, t.ID, "fired", nil)
+			l.logger.Info("cron: task submitted", "job", job.Name, "task", t.ID, "nextRun", next)
+		}
+		// Always update last_run_at and next_run_at, even on failure,
+		// to prevent tight retry loops when submit errors occur.
+		if uerr := l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC()); uerr != nil {
+			l.logger.Warn("cron: failed to update last_run_at after submit", "job", job.Name, "error", uerr)
+		}
+		if err == nil {
+			submitted = true
+		}
 	}
 	return submitted
 }

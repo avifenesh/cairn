@@ -553,3 +553,34 @@ export const updateRule = (id: string, changes: Record<string, unknown>) => patc
 export const deleteRule = (id: string) => del<{ ok: boolean }>(`/v1/rules/${encodeURIComponent(id)}`);
 export const getRuleExecutions = (id: string) => get<{ items: import('$lib/types').RuleExecution[] }>(`/v1/rules/${encodeURIComponent(id)}/executions`);
 export const getRecentRuleExecutions = () => get<{ items: import('$lib/types').RuleExecution[] }>('/v1/rules/executions/recent');
+
+// --- Agent Types ---
+export interface AgentTypeItem {
+	name: string;
+	description: string;
+	mode: string;
+	maxRounds: number;
+	worktree: boolean;
+	model: string;
+	allowedTools: string[] | null;
+	deniedTools: string[] | null;
+}
+export interface AgentTypeDetail extends AgentTypeItem {
+	content: string;
+}
+export const getAgentTypes = async () => {
+	const raw = await get<{ types: AgentTypeItem[] }>('/v1/agent-types');
+	return raw.types ?? [];
+};
+export const getAgentType = (name: string) =>
+	get<AgentTypeDetail>(`/v1/agent-types/${encodeURIComponent(name)}`);
+export const createAgentType = (data: { name: string; description: string; content: string; mode?: string; maxRounds?: number; worktree?: boolean }) =>
+	post<{ ok: boolean; name: string }>('/v1/agent-types', data);
+export const deleteAgentType = (name: string) =>
+	del<{ ok: boolean }>(`/v1/agent-types/${encodeURIComponent(name)}`);
+
+// --- User Profile & Agents Config ---
+export const getUserProfile = () => get<{ content: string }>('/v1/user-profile');
+export const updateUserProfile = (content: string) => put<{ ok: boolean }>('/v1/user-profile', { content });
+export const getAgentsConfig = () => get<{ content: string }>('/v1/agents-config');
+export const updateAgentsConfig = (content: string) => put<{ ok: boolean }>('/v1/agents-config', { content });

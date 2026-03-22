@@ -72,6 +72,7 @@ type Loop struct {
 	userProfile   *memory.UserProfile  // nil = no user profile enrichment
 	agentsFile    *memory.AgentsFile   // nil = no agents file enrichment
 	curatedMemory *memory.MarkdownFile // nil = no curated memory enrichment
+	agentTypes    *agenttype.Service   // nil = no agent type catalog in prompt
 
 	rulesEngine *rules.Engine // nil = rules engine disabled
 
@@ -176,6 +177,7 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		userProfile:     deps.UserProfile,
 		agentsFile:      deps.AgentsFile,
 		curatedMemory:   deps.CuratedMemory,
+		agentTypes:      deps.AgentTypes,
 		skillSuggestor:  NewSkillSuggestor(logger),
 		orchestrator: NewOrchestrator(OrchestratorDeps{
 			Memories:       deps.Memories,
@@ -306,6 +308,7 @@ func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessag
 		UserProfile:     l.userProfile,
 		AgentsFile:      l.agentsFile,
 		CuratedMemory:   l.curatedMemory,
+		AgentTypes:      l.agentTypes,
 		Bus:             l.bus,
 		ContextBuilder:  l.contextBuilder,
 		Plugins:         l.plugins,

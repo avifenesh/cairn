@@ -155,6 +155,22 @@ func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilde
 		}
 	}
 
+	// Agent type catalog: show available sub-agent types.
+	// This lets the main agent (and the LLM) know what specialist agents it can spawn.
+	if ctx.AgentTypes != nil {
+		types := ctx.AgentTypes.List()
+		if len(types) > 0 {
+			sort.Slice(types, func(i, j int) bool { return types[i].Name < types[j].Name })
+			var sb strings.Builder
+			sb.WriteString("## Available Agent Types\n")
+			sb.WriteString("Use `cairn.spawnSubagent` to delegate work to a specialist agent.\n\n")
+			for _, at := range types {
+				fmt.Fprintf(&sb, "- **%s** (%s, %d rounds): %s\n", at.Name, at.Mode, at.MaxRounds, at.Description)
+			}
+			parts = append(parts, sb.String())
+		}
+	}
+
 	// Session-loaded skills: inject full content of explicitly loaded skills.
 	if ctx.Session != nil && len(ctx.Session.ActiveSkills) > 0 {
 		var sb strings.Builder

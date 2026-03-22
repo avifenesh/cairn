@@ -915,6 +915,7 @@ func runServe(logger *slog.Logger) {
 				UserProfile:    userProfile,
 				AgentsFile:     agentsFile,
 				CuratedMemory:  curatedMemory,
+				AgentTypes:     agentTypeSvc,
 				Bus:            bus,
 				ContextBuilder: ctxBuilder,
 				Plugins:        pluginMgr,

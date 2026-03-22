@@ -120,7 +120,7 @@ type OrchestratorDecision struct {
 type OrchestratorAction struct {
 	Type        string `json:"type"`                  // approve_memory, reject_memory, spawn, submit_task, notify, escalate, trigger_reflection, verify_session, wait
 	MemoryID    string `json:"memoryId,omitempty"`    // approve_memory, reject_memory
-	SpawnType   string `json:"spawnType,omitempty"`   // spawn: researcher, coder, reviewer, executor
+	SpawnType   string `json:"spawnType,omitempty"`   // spawn: agent type name (from AGENT.md definitions)
 	Instruction string `json:"instruction,omitempty"` // spawn, submit_task
 	Context     string `json:"context,omitempty"`     // spawn: parent context
 	TaskID      string `json:"taskId,omitempty"`      // verify_session
@@ -726,11 +726,8 @@ You delegate all execution to subagents. You think, decide, and manage.
 ## What You Can Do
 
 spawn — Your primary action. Delegate work to a subagent.
-  Fields: spawnType (researcher|coder|reviewer|executor), instruction (detailed task), context (optional parent context)
-  researcher: investigate topics, explore codebases, gather ideas, learn new approaches
-  coder: write code, fix bugs, add tests, refactor, improve, create PRs
-  reviewer: review code quality, check CI status, verify PRs are clean
-  executor: run commands, check system health, validate integrations
+  Fields: spawnType (see "Available Agent Types" section below), instruction (detailed task), context (optional parent context)
+  Choose the right agent type for the task. Match the type's capabilities to the work needed.
 
 approve_memory — Accept a proposed memory. Fields: memoryId
 reject_memory — Reject a proposed memory. Fields: memoryId

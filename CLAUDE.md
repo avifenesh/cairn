@@ -13,7 +13,7 @@ Signal Plane → Event Bus ← Agent System → Tool System
   Webhooks       Store       Orchestrator     Permissions
   SSE push       Memory      ReAct Agents     Mode filtering
                  Sessions    Subagents        MCP adapter
-                 Approvals   Compaction       Skills (39)
+                 Approvals   Compaction       Skills
 ```
 
 **Agent system (three layers):**
@@ -76,12 +76,12 @@ docs/design/                  Architecture specs (VISION, PHASES, pieces/01-11)
 
 ```bash
 # Backend (from repo root)
-go vet ./...                    # Lint - run before every commit
-go test -race ./...             # Tests with race detector
-go build -o cairn ./cmd/cairn                    # Build binary (dev, filesystem frontend)
+go vet ./...                                        # Lint - run before every commit
+go test -race ./...                                 # Tests with race detector
+go build -o cairn ./cmd/cairn                       # Build binary (dev, filesystem frontend)
 go build -tags embed_frontend -o cairn ./cmd/cairn  # Build with embedded frontend (production)
-./cairn chat "hello"            # CLI chat (ReAct agent)
-./cairn serve                   # HTTP server on :8787 (default; production uses PORT=8788)
+./cairn chat "hello"                                # CLI chat (ReAct agent)
+./cairn serve                                       # HTTP server on :8787 (prod: PORT=8788)
 
 # Frontend (from frontend/)
 pnpm dev                        # Dev server
@@ -294,7 +294,7 @@ Full list from `internal/config/config.go`. 108 distinct var names (including al
 
 Full design specs live in `docs/design/`. Phase plans are archived - all 9 phases complete.
 - `VISION.md` - architecture, differentiators, success criteria
-- `PHASES.md` - implementation phases with dependency graph (archived, all complete)
+- `PHASES.md` - implementation phases with dependency graph (all phases complete, kept as reference)
 - `FRONTEND_AGENT_BRIEF.md` - frontend spec, API contract, SSE events, views
 - `pieces/01-event-bus.md` through `pieces/11-channel-adapters.md` - per-piece design
 

@@ -58,7 +58,7 @@ make build-prod
 - Auto-extraction of memories from conversations (contradiction detection)
 - Session compaction (SummaryBuffer at 150K tokens)
 - Hot-reloadable SOUL.md for behavioral identity
-- 39 skills (17 bundled + 22 user, SKILL.md format, ClawHub-compatible)
+- 17 bundled skills + user-installed via ClawHub marketplace (SKILL.md format, ClawHub-compatible)
 - Confidence decay over time
 
 **Channels** - Multi-channel I/O with session continuity.

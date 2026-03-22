@@ -273,7 +273,7 @@ All MCP endpoints use JSON-RPC 2.0 over HTTP with SSE responses.
 - **Endpoint**: `https://api.z.ai/api/mcp/web_search_prime/mcp`
 - **SSE fallback**: `https://api.z.ai/api/mcp/web_search_prime/sse`
 - **Transport**: HTTP (remote, no local install)
-- **Tool**: `webSearchPrime`
+- **Tool**: `web_search_prime` (docs say `webSearchPrime` but actual MCP tool name is snake_case)
 - **Params**: (not documented — likely `search_query` string)
 - **Returns**: page titles, URLs, summaries, site names, site icons
 

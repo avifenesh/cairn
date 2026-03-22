@@ -65,7 +65,7 @@ Cairn exposes its 52+ built-in tools as an MCP server and consumes external MCP 
  Static files served by Go              via MCP / Channels
 ```
 
-**Signal Plane** polls 11 sources every 5 minutes. Events are deduplicated, normalized, and published to the event bus. The **Agent System** operates in three layers: an always-on loop (60s tick) checks for due crons and pending tasks; when idle, an LLM-powered **Orchestrator** gathers system state and decides what to do proactively (approve memories, spawn subagents, submit tasks, notify, escalate). Actual work is executed by **ReAct agents** - a main agent plus 4 subagent types (researcher, coder, reviewer, executor) with tool scoping and two-level max nesting. The **Memory System** provides context injection (RAG), session compaction at 150K tokens, and persists learned knowledge. Everything converges through a typed async event bus backed by SQLite.
+**Signal Plane** polls 11 sources (default 5min, configurable per source). Events are deduplicated, normalized, and published to the event bus. The **Agent System** operates in three layers: an always-on loop (60s tick) checks for due crons and pending tasks; when idle, an LLM-powered **Orchestrator** gathers system state and decides what to do proactively (approve memories, spawn subagents, submit tasks, notify, escalate). Actual work is executed by **ReAct agents** - a main agent plus 4 subagent types (researcher, coder, reviewer, executor) with tool scoping and two-level max nesting. The **Memory System** provides context injection (RAG), session compaction at 150K tokens, and persists learned knowledge. Everything converges through a typed async event bus backed by SQLite.
 
 ## Why Go
 

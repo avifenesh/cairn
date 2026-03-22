@@ -140,7 +140,7 @@ func (s *EventStore) queryExistingURLs(ctx context.Context, urls []string) map[s
 		args[i] = u
 	}
 
-	query := fmt.Sprintf("SELECT DISTINCT url FROM events WHERE url IN (%s)", strings.Join(placeholders, ", "))
+	query := fmt.Sprintf("SELECT DISTINCT url FROM events WHERE source IN ('rss','devto') AND url IN (%s)", strings.Join(placeholders, ", "))
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		slog.Warn("signal: cross-source URL dedup query failed, skipping", "error", err)

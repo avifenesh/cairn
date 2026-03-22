@@ -33,9 +33,10 @@ var readFeed = tool.Define("cairn.readFeed",
 		}
 
 		events, err := ctx.Events.List(ctx.Cancel, tool.EventFilter{
-			Source:     p.Source,
-			UnreadOnly: unreadOnly,
-			Limit:      limit,
+			Source:          p.Source,
+			UnreadOnly:      unreadOnly,
+			ExcludeArchived: true,
+			Limit:           limit,
 		})
 		if err != nil {
 			return &tool.ToolResult{Error: fmt.Sprintf("failed to read feed: %v", err)}, nil

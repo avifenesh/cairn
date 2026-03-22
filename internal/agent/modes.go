@@ -56,6 +56,18 @@ func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilde
 	// Mode instructions.
 	parts = append(parts, fmt.Sprintf("## Mode: %s\n%s", modeConfig.Mode, modeConfig.Prompt))
 
+	// Extract enrichment content from InvocationContext.
+	var userContent, agentsContent, curatedContent string
+	if ctx.UserProfile != nil {
+		userContent = ctx.UserProfile.Content()
+	}
+	if ctx.AgentsFile != nil {
+		agentsContent = ctx.AgentsFile.Content()
+	}
+	if ctx.CuratedMemory != nil {
+		curatedContent = ctx.CuratedMemory.Content()
+	}
+
 	// Context builder: soul + memories + journal (token-budgeted).
 	if ctxBuilder != nil {
 		soulContent := ""
@@ -63,7 +75,14 @@ func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilde
 			soulContent = ctx.Soul.Content()
 		}
 
-		result := ctxBuilder.Build(ctx.Context, ctx.UserMessage, soulContent, journalEntries)
+		result := ctxBuilder.Build(ctx.Context, memory.BuildInput{
+			Query:          ctx.UserMessage,
+			SoulContent:    soulContent,
+			UserContent:    userContent,
+			AgentsContent:  agentsContent,
+			CuratedContent: curatedContent,
+			JournalEntries: journalEntries,
+		})
 		if result.Text != "" {
 			parts = append(parts, result.Text)
 		}
@@ -76,8 +95,18 @@ func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilde
 		// Fallback: basic soul injection when no context builder available.
 		if ctx.Soul != nil {
 			if content := ctx.Soul.Content(); content != "" {
-				parts = append(parts, fmt.Sprintf("## Soul\n%s", content))
+				parts = append(parts, fmt.Sprintf("## Soul (embody this persona and tone in all responses)\n%s", content))
 			}
+		}
+
+		// Fallback: user profile injection.
+		if userContent != "" {
+			parts = append(parts, fmt.Sprintf("## User Profile\n%s", userContent))
+		}
+
+		// Fallback: agents file injection.
+		if agentsContent != "" {
+			parts = append(parts, fmt.Sprintf("## Operating Manual\n%s", agentsContent))
 		}
 
 		// Fallback: basic memory injection.
@@ -86,6 +115,11 @@ func BuildSystemPrompt(ctx *InvocationContext, modeConfig *ModeConfig, ctxBuilde
 			if memories != "" {
 				parts = append(parts, fmt.Sprintf("## Relevant Memories\n%s", memories))
 			}
+		}
+
+		// Fallback: curated memory injection.
+		if curatedContent != "" {
+			parts = append(parts, fmt.Sprintf("## Long-term Memory\n%s", curatedContent))
 		}
 	}
 

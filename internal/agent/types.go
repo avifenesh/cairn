@@ -40,6 +40,9 @@ type InvocationContext struct {
 	LLM            llm.Provider
 	Memory         *memory.Service
 	Soul           *memory.Soul
+	UserProfile    *memory.UserProfile
+	AgentsFile     *memory.AgentsFile
+	CuratedMemory  *memory.MarkdownFile
 	Tasks          *task.Engine
 	Bus            *eventbus.Bus
 	Config         *AgentConfig

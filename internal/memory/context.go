@@ -79,9 +79,19 @@ func NewContextBuilder(store *Store, embedder Embedder, config ContextConfig) *C
 	return &ContextBuilder{store: store, embedder: embedder, config: config}
 }
 
+// BuildInput carries all parameters for a context Build call.
+type BuildInput struct {
+	Query          string
+	SoulContent    string
+	UserContent    string // USER.md content (injected as "## User Profile", outside budget)
+	AgentsContent  string // AGENTS.md content (injected as "## Operating Manual", outside budget)
+	CuratedContent string // curated long-term memory (injected as "## Long-term Memory", outside budget)
+	JournalEntries []JournalDigestEntry
+}
+
 // Build assembles the memory context for a given query and mode.
 // Each section builds independently — a failure in one section doesn't block others.
-func (b *ContextBuilder) Build(ctx context.Context, query string, soulContent string, journalEntries []JournalDigestEntry) *ContextResult {
+func (b *ContextBuilder) Build(ctx context.Context, input BuildInput) *ContextResult {
 	cfg := b.config
 	result := &ContextResult{
 		Stats: ContextStats{BudgetTotal: cfg.TokenBudget},
@@ -110,8 +120,8 @@ func (b *ContextBuilder) Build(ctx context.Context, query string, soulContent st
 
 	// Stage 2: RAG memories (remaining budget after hard rules + overhead).
 	ragBudget := cfg.TokenBudget - budgetUsed
-	if ragBudget > 0 && query != "" {
-		ragSection, ragIDs, ragTokens := b.buildRAGMemories(ctx, query, ragBudget)
+	if ragBudget > 0 && input.Query != "" {
+		ragSection, ragIDs, ragTokens := b.buildRAGMemories(ctx, input.Query, ragBudget)
 		if ragSection != "" {
 			sections = append(sections, ragSection)
 			budgetUsed += ragTokens
@@ -121,22 +131,51 @@ func (b *ContextBuilder) Build(ctx context.Context, query string, soulContent st
 	}
 
 	// Stage 3: Journal digest (last 48h, outside memory budget).
-	journalSection := buildJournalDigest(journalEntries)
+	journalSection := buildJournalDigest(input.JournalEntries)
 	if journalSection != "" {
-		result.Stats.JournalEntries = len(journalEntries)
+		result.Stats.JournalEntries = len(input.JournalEntries)
 	}
 
 	// Stage 4: Soul identity (outside memory budget).
 	soulSection := ""
-	if soulContent != "" {
-		soulSection = "## Soul\n" + soulContent
+	if input.SoulContent != "" {
+		soulSection = "## Soul (embody this persona and tone in all responses)\n" + input.SoulContent
+	}
+
+	// Stage 5: User profile (outside memory budget).
+	userSection := ""
+	if input.UserContent != "" {
+		userSection = "## User Profile\n" + input.UserContent
+	}
+
+	// Stage 6: Agents operating manual (outside memory budget).
+	agentsSection := ""
+	if input.AgentsContent != "" {
+		agentsSection = "## Operating Manual\n" + input.AgentsContent
+	}
+
+	// Stage 7: Curated long-term memory (outside memory budget).
+	curatedSection := ""
+	if input.CuratedContent != "" {
+		curatedSection = "## Long-term Memory\n" + input.CuratedContent
 	}
 
 	// Assemble final text.
+	// Order: Soul -> User -> Agents -> memory_context -> journal -> curated.
 	var out strings.Builder
 
 	if soulSection != "" {
 		out.WriteString(soulSection)
+		out.WriteString("\n\n")
+	}
+
+	if userSection != "" {
+		out.WriteString(userSection)
+		out.WriteString("\n\n")
+	}
+
+	if agentsSection != "" {
+		out.WriteString(agentsSection)
 		out.WriteString("\n\n")
 	}
 
@@ -150,6 +189,11 @@ func (b *ContextBuilder) Build(ctx context.Context, query string, soulContent st
 
 	if journalSection != "" {
 		out.WriteString(journalSection)
+	}
+
+	if curatedSection != "" {
+		out.WriteString(curatedSection)
+		out.WriteString("\n\n")
 	}
 
 	result.Text = out.String()

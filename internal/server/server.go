@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/avifenesh/cairn/internal/agent"
+	"github.com/avifenesh/cairn/internal/agenttype"
 	"github.com/avifenesh/cairn/internal/auth"
 	"github.com/avifenesh/cairn/internal/config"
 	"github.com/avifenesh/cairn/internal/cron"
@@ -90,6 +91,14 @@ type Server struct {
 
 	// MCP client manager (optional: external MCP server connections).
 	mcpClients *cairnmcp.ClientManager
+
+	// Agent type service (optional: AGENT.md type definitions).
+	agentTypes *agenttype.Service
+
+	// Identity enrichment files (optional).
+	userProfile   *memory.UserProfile
+	agentsFile    *memory.AgentsFile
+	curatedMemory *memory.MarkdownFile
 
 	// steeringChannels tracks active session steering channels for the coding session panel.
 	steeringChannels sync.Map // sessionID -> chan agent.SteeringMessage
@@ -181,6 +190,14 @@ type ServerConfig struct {
 
 	// Poll trigger (optional: manual poll via POST /v1/poll/run).
 	PollTrigger PollTrigger
+
+	// Agent type service (optional: AGENT.md type definitions).
+	AgentTypes *agenttype.Service
+
+	// Identity enrichment files (optional).
+	UserProfile   *memory.UserProfile
+	AgentsFile    *memory.AgentsFile
+	CuratedMemory *memory.MarkdownFile
 }
 
 // New creates a fully wired Server with all routes and middleware registered.
@@ -233,6 +250,10 @@ func New(cfg ServerConfig) *Server {
 		authStore:       cfg.AuthStore,
 		webauthn:        cfg.WebAuthn,
 		pollTrigger:     cfg.PollTrigger,
+		agentTypes:      cfg.AgentTypes,
+		userProfile:     cfg.UserProfile,
+		agentsFile:      cfg.AgentsFile,
+		curatedMemory:   cfg.CuratedMemory,
 	}
 
 	// Create SSE broadcaster.

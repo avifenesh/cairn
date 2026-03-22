@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/avifenesh/cairn/internal/agenttype"
 	cairncron "github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
@@ -67,6 +68,10 @@ type Loop struct {
 	notifier        tool.NotifyService       // nil = notifications disabled
 	skillSuggestor  *SkillSuggestor          // nil = skill suggestions disabled
 	marketplace     *skill.MarketplaceClient // nil = marketplace disabled
+
+	userProfile   *memory.UserProfile  // nil = no user profile enrichment
+	agentsFile    *memory.AgentsFile   // nil = no agents file enrichment
+	curatedMemory *memory.MarkdownFile // nil = no curated memory enrichment
 
 	rulesEngine *rules.Engine // nil = rules engine disabled
 
@@ -168,6 +173,9 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		notifier:        deps.Notifier,
 		marketplace:     deps.Marketplace,
 		rulesEngine:     deps.RulesEngine,
+		userProfile:     deps.UserProfile,
+		agentsFile:      deps.AgentsFile,
+		curatedMemory:   deps.CuratedMemory,
 		skillSuggestor:  NewSkillSuggestor(logger),
 		orchestrator: NewOrchestrator(OrchestratorDeps{
 			Memories:       deps.Memories,
@@ -186,6 +194,7 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 			Marketplace:    deps.Marketplace,
 			ToolSkills:     deps.ToolSkills,
 			Journaler:      deps.Journaler,
+			AgentTypes:     deps.AgentTypes,
 			Logger:         logger,
 			CodingEnabled:  cfg.CodingEnabled,
 		}),
@@ -234,6 +243,11 @@ type LoopDeps struct {
 	Marketplace     *skill.MarketplaceClient // optional: ClawHub marketplace for suggestions
 	Approvals       *task.ApprovalStore      // optional: human-in-the-loop approvals
 	RulesEngine     *rules.Engine            // optional: automation rules engine (for pruning)
+
+	UserProfile   *memory.UserProfile  // optional: USER.md enrichment
+	AgentsFile    *memory.AgentsFile   // optional: AGENTS.md enrichment
+	CuratedMemory *memory.MarkdownFile // optional: curated long-term memory
+	AgentTypes    *agenttype.Service   // optional: AGENT.md type definitions
 }
 
 // Start begins the agent loop in a background goroutine. Safe to call only once.
@@ -289,6 +303,9 @@ func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessag
 		LLM:             l.provider,
 		Memory:          l.memories,
 		Soul:            l.soul,
+		UserProfile:     l.userProfile,
+		AgentsFile:      l.agentsFile,
+		CuratedMemory:   l.curatedMemory,
 		Bus:             l.bus,
 		ContextBuilder:  l.contextBuilder,
 		Plugins:         l.plugins,

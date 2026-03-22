@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/avifenesh/cairn/internal/agenttype"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
@@ -25,44 +26,6 @@ type subagentTypeConfig struct {
 	MaxRounds    int
 	Worktree     bool
 	SystemPrompt string
-}
-
-// builtinTypes maps subagent type names to their configurations.
-var builtinTypes = map[string]subagentTypeConfig{
-	"researcher": {
-		Mode: tool.ModeTalk,
-		AllowedTools: []string{
-			"cairn.readFile", "cairn.listFiles", "cairn.searchFiles",
-			"cairn.searchMemory", "cairn.webSearch", "cairn.webFetch",
-			"cairn.readFeed", "cairn.getConfig",
-		},
-		MaxRounds:    15,
-		SystemPrompt: "You are a research agent. Gather information thoroughly, cite sources, and return a comprehensive summary. You have read-only access - you cannot modify files or run commands.",
-	},
-	"coder": {
-		Mode:         tool.ModeCoding,
-		MaxRounds:    50,
-		Worktree:     true,
-		SystemPrompt: "You are a coding agent working in an isolated git worktree. Implement the requested changes, run tests, and commit your work. Focus on correctness and clean code.",
-	},
-	"reviewer": {
-		Mode: tool.ModeWork,
-		AllowedTools: []string{
-			"cairn.readFile", "cairn.listFiles", "cairn.searchFiles",
-			"cairn.shell", "cairn.gitRun", "cairn.getConfig",
-		},
-		MaxRounds:    10,
-		SystemPrompt: "You are a code review agent. Analyze the code for quality, security, and correctness. Provide structured feedback organized by priority: critical, warning, suggestion.",
-	},
-	"executor": {
-		Mode: tool.ModeWork,
-		AllowedTools: []string{
-			"cairn.shell", "cairn.readFile", "cairn.writeFile",
-			"cairn.editFile", "cairn.gitRun", "cairn.getConfig",
-		},
-		MaxRounds:    10,
-		SystemPrompt: "You are an executor agent. Run the requested commands and report results. Be cautious with destructive operations.",
-	},
 }
 
 // SubagentRunner implements tool.SubagentService. It spawns child agents
@@ -92,7 +55,10 @@ type SubagentRunner struct {
 	toolCrons      tool.CronService
 	toolRules      tool.RulesService
 	toolConfig     tool.ConfigService
-	model          string // LLM model to use
+	agentsFile     *memory.AgentsFile // operating manual for subagents
+	agentTypes     *agenttype.Service // AGENT.md type definitions (nil = fallback)
+	envContext     *EnvContext        // runtime environment context (nil = omit)
+	model          string             // LLM model to use
 }
 
 // SubagentRunnerDeps carries dependencies for constructing a SubagentRunner.
@@ -119,6 +85,9 @@ type SubagentRunnerDeps struct {
 	ToolCrons      tool.CronService
 	ToolRules      tool.RulesService
 	ToolConfig     tool.ConfigService
+	AgentsFile     *memory.AgentsFile // optional: operating manual for subagents
+	AgentTypes     *agenttype.Service // optional: AGENT.md type definitions
+	EnvContext     *EnvContext        // optional: runtime environment context
 	Model          string
 }
 
@@ -151,8 +120,51 @@ func NewSubagentRunner(deps SubagentRunnerDeps) *SubagentRunner {
 		toolCrons:      deps.ToolCrons,
 		toolRules:      deps.ToolRules,
 		toolConfig:     deps.ToolConfig,
+		agentsFile:     deps.AgentsFile,
+		agentTypes:     deps.AgentTypes,
+		envContext:     deps.EnvContext,
 		model:          deps.Model,
 	}
+}
+
+// resolveType looks up a subagent type from AGENT.md definitions (if available),
+// converting to the internal subagentTypeConfig.
+func (r *SubagentRunner) resolveType(name string) (subagentTypeConfig, bool) {
+	if r.agentTypes != nil {
+		if at := r.agentTypes.Get(name); at != nil {
+			cfg := subagentTypeConfig{
+				Mode:         at.Mode,
+				AllowedTools: at.AllowedTools,
+				MaxRounds:    at.MaxRounds,
+				Worktree:     at.Worktree,
+				SystemPrompt: at.Content,
+			}
+			return cfg, true
+		}
+	}
+	return subagentTypeConfig{}, false
+}
+
+// buildSubagentHint combines type system prompt, env context, and AGENTS.md content.
+func (r *SubagentRunner) buildSubagentHint(typePrompt string) string {
+	var parts []string
+	if typePrompt != "" {
+		parts = append(parts, typePrompt)
+	}
+	if r.envContext != nil {
+		if envStr := r.envContext.Format(); envStr != "" {
+			parts = append(parts, envStr)
+		}
+	}
+	if r.agentsFile != nil {
+		if content := r.agentsFile.Content(); content != "" {
+			parts = append(parts, "## Operating Manual\n"+content)
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 // Spawn implements tool.SubagentService.
@@ -161,9 +173,19 @@ func (r *SubagentRunner) Spawn(ctx context.Context, parentTaskID string, req *to
 		return nil, fmt.Errorf("instruction is required")
 	}
 
-	typeCfg, ok := builtinTypes[req.Type]
+	typeCfg, ok := r.resolveType(req.Type)
 	if !ok {
-		return nil, fmt.Errorf("unknown subagent type %q (available: researcher, coder, reviewer, executor)", req.Type)
+		// Collect available type names for the error message.
+		var available []string
+		if r.agentTypes != nil {
+			for _, at := range r.agentTypes.List() {
+				available = append(available, at.Name)
+			}
+		}
+		if len(available) == 0 {
+			available = []string{"(none configured)"}
+		}
+		return nil, fmt.Errorf("unknown subagent type %q (available: %s)", req.Type, strings.Join(available, ", "))
 	}
 
 	// Reject coder subagents when worktree isolation is unavailable.
@@ -345,11 +367,11 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		userMessage = "## Context from parent\n" + req.Context + "\n\n## Task\n" + req.Instruction
 	}
 
-	// Build the subagent system hint with canonical identity injected.
-	// Uses shared buildSystemHint so tests exercise the real logic.
-	systemHint := r.buildSystemHint(ctx, cfg.SystemPrompt)
+	// Build the subagent system hint combining type prompt, env context, AGENTS.md, and identity.
+	systemHint := r.buildSystemHint(ctx, r.buildSubagentHint(cfg.SystemPrompt))
 
 	// Build invocation context (child gets no Subagents field - cannot spawn grandchildren).
+	// AgentsFile is forwarded (operating manual applies to all agents) but NOT UserProfile or CuratedMemory.
 	invCtx := &InvocationContext{
 		Context:       ctx,
 		SessionID:     childID,
@@ -360,6 +382,7 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		LLM:           r.provider,
 		Memory:        r.memories,
 		Soul:          r.soul,
+		AgentsFile:    r.agentsFile,
 		Bus:           r.bus,
 		Plugins:       r.plugins,
 		ActivityStore: r.activityStore,

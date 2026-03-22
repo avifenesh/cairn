@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/avifenesh/cairn/internal/agenttype"
 	"github.com/avifenesh/cairn/internal/eventbus"
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/memory"
@@ -44,6 +45,7 @@ type Orchestrator struct {
 	marketplace    *skill.MarketplaceClient
 	toolSkills     tool.SkillService
 	journaler      *Journaler
+	agentTypes     *agenttype.Service
 	logger         *slog.Logger
 	codingEnabled  bool
 
@@ -71,6 +73,7 @@ type OrchestratorDeps struct {
 	Marketplace    *skill.MarketplaceClient
 	ToolSkills     tool.SkillService
 	Journaler      *Journaler
+	AgentTypes     *agenttype.Service
 	Logger         *slog.Logger
 	CodingEnabled  bool
 }
@@ -99,6 +102,7 @@ func NewOrchestrator(deps OrchestratorDeps) *Orchestrator {
 		marketplace:    deps.Marketplace,
 		toolSkills:     deps.ToolSkills,
 		journaler:      deps.Journaler,
+		agentTypes:     deps.AgentTypes,
 		logger:         logger,
 		codingEnabled:  deps.CodingEnabled,
 	}
@@ -360,6 +364,23 @@ func (o *Orchestrator) buildDecisionPrompt(state *OrchestratorState) string {
 	// System prompt.
 	parts = append(parts, orchestratorSystemPrompt)
 
+	// Dynamic agent types listing from AGENT.md definitions.
+	if o.agentTypes != nil {
+		types := o.agentTypes.List()
+		if len(types) > 0 {
+			var sb strings.Builder
+			sb.WriteString("## Available Agent Types\n")
+			for _, at := range types {
+				desc := at.Description
+				if desc == "" {
+					desc = at.Name
+				}
+				fmt.Fprintf(&sb, "- **%s** (%s, %d rounds): %s\n", at.Name, at.Mode, at.MaxRounds, desc)
+			}
+			parts = append(parts, sb.String())
+		}
+	}
+
 	// Briefing.
 	if o.briefing != "" {
 		parts = append(parts, "## Situation Briefing\n"+o.briefing)
@@ -474,8 +495,12 @@ func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecisi
 			}
 
 		case "spawn":
-			validSpawnTypes := map[string]bool{"researcher": true, "coder": true, "reviewer": true, "executor": true}
-			if o.subagentRunner != nil && validSpawnTypes[action.SpawnType] && action.Instruction != "" && activeSpawns < 3 {
+			// Validate spawn type dynamically against AGENT.md definitions.
+			validType := false
+			if o.agentTypes != nil && o.agentTypes.Get(action.SpawnType) != nil {
+				validType = true
+			}
+			if o.subagentRunner != nil && validType && action.Instruction != "" && activeSpawns < 3 {
 				_, err := o.subagentRunner.Spawn(ctx, "orchestrator", &tool.SubagentSpawnRequest{
 					Type:        action.SpawnType,
 					Instruction: action.Instruction,

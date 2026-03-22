@@ -163,6 +163,7 @@ type Config struct {
 	// Paths
 	SoulPath  string
 	SkillDirs []string
+	AgentDirs []string // AGENT.md search path (mirrors SkillDirs pattern)
 	DataDir   string
 }
 
@@ -306,6 +307,7 @@ func Load() (*Config, error) {
 		TTSVoice:                envStr("TTS_VOICE", "en-US-BrianNeural"),
 		SoulPath:                envStr("SOUL_PATH", "./SOUL.md"),
 		SkillDirs:               skillDirs(),
+		AgentDirs:               agentDirs(),
 		DataDir:                 envStr("DATA_DIR", "./data"),
 	}
 
@@ -334,6 +336,7 @@ func LoadOptional() *Config {
 			MCPClientServers:  envJSON("MCP_SERVERS"),
 			SoulPath:          envStr("SOUL_PATH", "./SOUL.md"),
 			SkillDirs:         skillDirs(),
+			AgentDirs:         agentDirs(),
 			DataDir:           envStr("DATA_DIR", "./data"),
 		}
 	}
@@ -442,6 +445,28 @@ func skillDirs() []string {
 
 	// Append any extra directories from SKILL_DIRS env var, filtering empty entries.
 	if extra := envSlice("SKILL_DIRS", nil); len(extra) > 0 {
+		for _, d := range extra {
+			d = strings.TrimSpace(d)
+			if d != "" {
+				dirs = append(dirs, d)
+			}
+		}
+	}
+
+	return dirs
+}
+
+// agentDirs builds the default agent type search path from well-known locations
+// plus any extra directories from the AGENT_DIRS env var.
+// Order: ["./agents", "~/.cairn/agents"] + AGENT_DIRS extras.
+func agentDirs() []string {
+	dirs := []string{"./agents"}
+
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, filepath.Join(home, ".cairn", "agents"))
+	}
+
+	if extra := envSlice("AGENT_DIRS", nil); len(extra) > 0 {
 		for _, d := range extra {
 			d = strings.TrimSpace(d)
 			if d != "" {

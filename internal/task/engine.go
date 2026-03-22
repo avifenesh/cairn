@@ -241,6 +241,38 @@ func (e *Engine) Complete(ctx context.Context, taskID string, output json.RawMes
 	return nil
 }
 
+// FailTerminal marks a task as permanently failed, bypassing retry logic.
+// Used for unrecoverable errors (panics, corrupted state) where retrying
+// would produce the same failure.
+func (e *Engine) FailTerminal(ctx context.Context, taskID string, taskErr error) error {
+	t, err := e.store.Get(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("task engine: fail terminal: %w", err)
+	}
+	if t == nil {
+		return fmt.Errorf("task engine: fail terminal: task %s not found", taskID)
+	}
+
+	t.Status = StatusFailed
+	t.Error = taskErr.Error()
+	t.LeaseOwner = ""
+	t.LeaseExpiry = time.Time{}
+	t.UpdatedAt = time.Now()
+
+	if err := e.store.Update(ctx, t); err != nil {
+		return fmt.Errorf("task engine: fail terminal update: %w", err)
+	}
+
+	eventbus.Publish(e.bus, eventbus.TaskFailed{
+		EventMeta: eventbus.NewMeta("task-engine"),
+		TaskID:    taskID,
+		Error:     taskErr.Error(),
+	})
+
+	slog.Info("task failed (terminal)", "id", taskID, "error", taskErr)
+	return nil
+}
+
 // Fail marks a task as failed. If retries remain, re-queues it instead.
 func (e *Engine) Fail(ctx context.Context, taskID string, taskErr error) error {
 	t, err := e.store.Get(ctx, taskID)

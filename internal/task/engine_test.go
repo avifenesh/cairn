@@ -78,6 +78,85 @@ func TestEngine_SubmitAndClaim(t *testing.T) {
 	}
 }
 
+func TestEngine_MarkRunning(t *testing.T) {
+	e := newTestEngine(t)
+	ctx := context.Background()
+
+	task, err := e.Submit(ctx, &SubmitRequest{
+		Type:        TypeChat,
+		Priority:    PriorityNormal,
+		Input:       json.RawMessage(`{"message":"hi"}`),
+		Description: "test mark running",
+	})
+	if err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+
+	// Mark running should succeed and update the DB.
+	if err := e.MarkRunning(ctx, task.ID); err != nil {
+		t.Fatalf("MarkRunning: %v", err)
+	}
+
+	// Verify status is running in the DB.
+	got, err := e.Get(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Status != StatusRunning {
+		t.Errorf("expected status 'running', got %q", got.Status)
+	}
+	if got.LeaseOwner != "http" {
+		t.Errorf("expected lease owner 'http', got %q", got.LeaseOwner)
+	}
+
+	// Trying to claim should return nil (task removed from queue).
+	claimed, err := e.Claim(ctx, TypeChat)
+	if err != nil {
+		t.Fatalf("Claim: %v", err)
+	}
+	if claimed != nil {
+		t.Errorf("expected nil claim (task already running), got %s", claimed.ID)
+	}
+}
+
+func TestEngine_MarkRunning_NotFound(t *testing.T) {
+	e := newTestEngine(t)
+	err := e.MarkRunning(context.Background(), "nonexistent")
+	if err == nil {
+		t.Error("expected error for nonexistent task")
+	}
+}
+
+func TestEngine_FailTerminal(t *testing.T) {
+	e := newTestEngine(t)
+	ctx := context.Background()
+
+	// Submit with retries remaining.
+	task, err := e.Submit(ctx, &SubmitRequest{
+		Type:        TypeGeneral,
+		Priority:    PriorityNormal,
+		Input:       json.RawMessage(`{}`),
+		Description: "test fail terminal",
+		MaxRetries:  5,
+	})
+	if err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+
+	// Claim it first.
+	e.Claim(ctx, TypeGeneral)
+
+	// FailTerminal should mark failed even with retries remaining.
+	if err := e.FailTerminal(ctx, task.ID, errors.New("panic")); err != nil {
+		t.Fatalf("FailTerminal: %v", err)
+	}
+
+	got, _ := e.Get(ctx, task.ID)
+	if got.Status != StatusFailed {
+		t.Errorf("expected 'failed', got %q (FailTerminal should bypass retries)", got.Status)
+	}
+}
+
 func TestEngine_CompleteTask(t *testing.T) {
 	e := newTestEngine(t)
 	ctx := context.Background()

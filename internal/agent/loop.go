@@ -532,9 +532,11 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 			case <-heartbeatDone:
 				return
 			case <-ticker.C:
-				if err := l.tasks.Heartbeat(ctx, t.ID); err != nil {
+				hbCtx, hbCancel := context.WithTimeout(context.Background(), 10*time.Second)
+				if err := l.tasks.Heartbeat(hbCtx, t.ID); err != nil {
 					l.logger.Warn("agent loop: lease heartbeat failed", "task", t.ID, "error", err)
 				}
+				hbCancel()
 			}
 		}
 	}()

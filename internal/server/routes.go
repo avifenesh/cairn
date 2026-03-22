@@ -954,8 +954,12 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 
 	// Mark running immediately so the agent loop doesn't claim it.
 	// Chat tasks are handled by the HTTP handler goroutine, not the loop.
+	// If this fails, abort — running the agent without the DB update would
+	// let the loop also claim and execute the same task.
 	if err := s.tasks.MarkRunning(ctx, t.ID); err != nil {
-		s.logger.Error("mark running failed", "task", t.ID, "error", err)
+		s.logger.Error("mark running failed, aborting chat task", "task", t.ID, "error", err)
+		writeError(w, http.StatusInternalServerError, fmt.Sprintf("mark running: %v", err))
+		return
 	}
 
 	// Run the agent asynchronously.

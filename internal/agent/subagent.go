@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -240,10 +241,14 @@ func (r *SubagentRunner) runBackground(ctx context.Context, parentTaskID string,
 		defer bgCancel()
 		defer func() {
 			if p := recover(); p != nil {
+				stack := string(debug.Stack())
 				panicErr := fmt.Errorf("subagent panic: %v", p)
-				r.logger.Error("background subagent panicked", "id", childID, "panic", p)
+				r.logger.Error("background subagent panicked", "id", childID, "panic", p, "stack", stack)
+				// Terminal failure — panicking tasks must not be retried.
 				if r.tasks != nil && taskID != "" {
-					r.tasks.Fail(context.Background(), taskID, panicErr)
+					if err := r.tasks.FailTerminal(context.Background(), taskID, panicErr); err != nil {
+						r.logger.Error("subagent panic: failed to update task", "id", taskID, "err", err)
+					}
 				}
 				// Publish completion event so the UI doesn't show a hung task.
 				eventbus.Publish(r.bus, eventbus.SubagentCompleted{

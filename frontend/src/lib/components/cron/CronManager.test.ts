@@ -8,6 +8,7 @@ vi.mock('$lib/api/client', () => ({
 	updateCron: vi.fn(() => Promise.resolve({ ok: true, job: {} })),
 	deleteCron: vi.fn(() => Promise.resolve({ ok: true })),
 	getCronDetail: vi.fn(() => Promise.resolve({ job: {}, executions: [] })),
+	getAgentTypes: vi.fn(() => Promise.resolve([])),
 }));
 
 describe('CronManager', () => {

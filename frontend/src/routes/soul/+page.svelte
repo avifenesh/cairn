@@ -294,7 +294,7 @@
 
 			<!-- Soul content — {#key} forces re-render when content changes -->
 			<div class="flex-1 min-w-0 rounded-lg border border-border-subtle bg-[var(--bg-1)] p-6">
-				{#key content}
+				{#key content.length}
 				<div class="cairn-prose text-sm text-[var(--text-primary)] leading-relaxed">
 					{@html renderMarkdown(content)}
 				</div>

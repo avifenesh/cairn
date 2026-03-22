@@ -25,9 +25,9 @@
 | 15 | Diff viewer library selection, Monaco, CodeMirror, streaming diffs | coding-session-diff-ui.md | 20 | 2026-03-21 |
 | 16 | Diff view visual design, CSS, color schemes, diff2html config | diff-view-visual-design.md | 22 | 2026-03-21 |
 | 17 | Z.ai API reference (models, endpoints, MCP, quotas) | zai-api-reference.md | docs.z.ai | 2026-03-19 |
-| 18 | Coding session architecture, file tree, checkpoint/resume | coding-session-architecture.md | - | 2026-03-22 |
-| 19 | Coding session observability, progress tracking | coding-session-observability.md | - | 2026-03-22 |
-| 20 | Coding session steering, user intervention mid-session | coding-session-steering.md | - | 2026-03-22 |
+| 18 | Coding session architecture, file tree, checkpoint/resume | coding-session-architecture.md | N/A | 2026-03-22 |
+| 19 | Coding session observability, progress tracking | coding-session-observability.md | N/A | 2026-03-22 |
+| 20 | Coding session steering, user intervention mid-session | coding-session-steering.md | N/A | 2026-03-22 |
 
 ## Keyword Lookup
 

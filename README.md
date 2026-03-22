@@ -2,7 +2,7 @@
 
 Self-hosted, always-on personal agent OS. Single Go binary.
 
-Cairn watches your world (GitHub, Gmail, Calendar, HN, Reddit, npm, crates.io, RSS, Stack Overflow, Dev.to, webhooks), acts on your behalf through an LLM-powered agent with 54 tools, learns over time through episodic memory and reflection, and stays on 24/7.
+Cairn watches your world (GitHub, Gmail, Calendar, HN, Reddit, npm, crates.io, RSS, Stack Overflow, Dev.to, webhooks), acts on your behalf through an LLM-powered agent with 54+ tools, learns over time through episodic memory and reflection, and stays on 24/7.
 
 ## Quick Start
 
@@ -40,7 +40,7 @@ make build-prod
 **Agent** - Three-layer agent system: always-on loop, LLM orchestrator, ReAct execution.
 
 - **Orchestrator**: LLM-powered management brain that runs when idle. Gathers system state, decides actions (approve memories, spawn subagents, submit tasks, notify, escalate). Runs every 5min.
-- **ReAct agents**: 54 tools, three modes (talk/work/coding), streaming sessions
+- **ReAct agents**: 54+ tools, three modes (talk/work/coding), streaming sessions
 - **Subagents**: 4 types (researcher, coder, reviewer, executor) with tool scoping and isolation. Two-level max nesting.
 - File tools: read, write, edit, delete, undo, list, search (checkpointing, fuzzy match, path traversal protection)
 - Shell: policy engine, env filtering, shell detection

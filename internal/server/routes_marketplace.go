@@ -1,12 +1,14 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/avifenesh/cairn/internal/llm"
 	"github.com/avifenesh/cairn/internal/skill"
@@ -226,8 +228,9 @@ func (s *Server) handleMarketplaceReview(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Send to LLM for security review.
-	ctx := r.Context()
+	// Send to LLM for security review (30s timeout to avoid hanging).
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
 	ch, err := s.llm.Stream(ctx, &llm.Request{
 		System:          securityReviewPrompt,
 		Messages:        []llm.Message{{Role: llm.RoleUser, Content: []llm.ContentBlock{llm.TextBlock{Text: content}}}},

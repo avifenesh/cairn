@@ -292,18 +292,26 @@
 	}
 
 	async function handleInstallClick(slug: string) {
-		// Step 1: Security review
+		// Step 1: Security review (with 15s timeout so UI doesn't hang)
 		reviewSlug = slug;
 		reviewLoading = true;
 		reviewResult = null;
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), 15000);
 		try {
-			const res = await reviewMarketplaceSkill(slug);
+			const res = await reviewMarketplaceSkill(slug, controller.signal);
 			reviewResult = res;
-			reviewLoading = false;
-			// If safe, don't auto-install - let user confirm
 		} catch (e) {
+			const isTimeout = e instanceof DOMException && e.name === 'AbortError';
 			console.error('Security review failed:', e);
-			reviewResult = { safe: false, risk: 'unknown', issues: ['Review request failed'], summary: 'Could not complete security review' };
+			reviewResult = {
+				safe: false,
+				risk: 'unknown',
+				issues: [isTimeout ? 'Review timed out' : 'Review request failed'],
+				summary: isTimeout ? 'Security review timed out. Skill has not been reviewed.' : 'Could not complete security review',
+			};
+		} finally {
+			clearTimeout(timer);
 			reviewLoading = false;
 		}
 	}

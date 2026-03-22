@@ -74,9 +74,9 @@ type Loop struct {
 	stopped atomic.Bool
 	wg      sync.WaitGroup
 
-	tickCount      atomic.Int64
-	lastReflect    time.Time
-	lastRulePrune  time.Time
+	tickCount     atomic.Int64
+	lastReflect   time.Time
+	lastRulePrune time.Time
 
 	// Last orchestrator decision — recorded in activity store for UI visibility.
 	lastIdleDecision *IdleDecision

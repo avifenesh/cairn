@@ -71,7 +71,7 @@ type SSEClient struct {
 ## MCP Server (via mcp-go)
 
 ```go
-// Expose Pub's tools and resources as MCP server
+// Expose Cairn's tools and resources as MCP server
 type MCPServer struct {
     server *mcpserver.MCPServer
     tools  *tool.Registry
@@ -81,22 +81,6 @@ type MCPServer struct {
 // Tools: all built-in tools exposed via MCP
 // Resources: feed events, memories, sessions
 // Transport: stdio (for local) + HTTP/SSE (for remote)
-```
-
-## A2A Server (ADK-Go inspired)
-
-```go
-// Agent-to-Agent protocol server
-// Allows external agents to send tasks to Pub
-type A2AServer struct {
-    taskEngine task.Engine
-    agent      agent.Agent
-}
-
-// POST /.well-known/agent.json → agent card
-// POST /a2a/tasks → submit task
-// GET  /a2a/tasks/:id → task status
-// POST /a2a/tasks/:id/cancel → cancel task
 ```
 
 ## Auth
@@ -135,7 +119,7 @@ type AuthMiddleware struct {
 | 9.5 | Assistant message endpoint (→ agent) | 9.1, 9.2, 4 (agent) |
 | 9.6 | Voice endpoints (whisper STT + Polly TTS) | 9.1, 9.2 |
 | 9.7 | MCP server (via mcp-go) | 9.1, 3 (tools) |
-| 9.8 | A2A server | 9.1, 5 (task engine) |
+| 9.8 | MCP client (consume external servers) | 9.1, 3 (tools) |
 | 9.9 | Static file server | 9.1 |
 | 9.10 | Rate limiting + CORS | 9.1 |
 | 9.11 | Tests | All |

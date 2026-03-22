@@ -21,6 +21,7 @@ import (
 	"github.com/avifenesh/cairn/internal/skill"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
+	"github.com/avifenesh/cairn/internal/tool/builtin"
 )
 
 // Loop is the always-on agent loop. It ticks periodically, checks for pending
@@ -448,6 +449,7 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 	l.logger.Info("agent loop: executing task", "task", t.ID, "type", t.Type, "description", t.Description)
 
 	sessionID := "loop-" + t.ID
+	defer builtin.CleanupSessionFiles(sessionID)
 
 	// Determine mode based on task type.
 	mode := tool.ModeWork

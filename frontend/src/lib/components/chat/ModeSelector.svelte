@@ -120,8 +120,7 @@
 
 		<DropdownMenu.Separator />
 		{#if showAdd}
-			<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
-		<div class="p-2 space-y-2" onclick={(e) => e.stopPropagation()}>
+		<div class="p-2 space-y-2" role="presentation" onclick={(e) => e.stopPropagation()}>
 				<Input
 					bind:value={newName}
 					placeholder="Mode name"

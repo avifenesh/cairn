@@ -1395,6 +1395,7 @@ func (s *Server) handleGetSoul(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Cache-Control", "no-store")
 	content := s.soul.Content()
 	writeJSON(w, http.StatusOK, map[string]any{
 		"content": content,

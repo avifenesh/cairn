@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -293,6 +294,53 @@ func TestEventStore_Ingest_IntraBatchURLDedup(t *testing.T) {
 		t.Fatalf("ingest: count = %d, want 1 (intra-batch dedup)", len(inserted))
 	}
 }
+
+func TestEventStore_Ingest_ConcurrentCrossSourceURLDedup(t *testing.T) {
+	sqlDB := setupTestDB(t)
+	store := NewEventStore(sqlDB)
+	ctx := t.Context()
+
+	articleURL := "https://dev.to/same-article"
+	const goroutines = 10
+	var wg sync.WaitGroup
+	results := make([]int, goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			source := "rss"
+			sourceID := fmt.Sprintf("rss:feed%d:%s", idx, articleURL)
+			events := []*RawEvent{{
+				Source:     source,
+				SourceID:   sourceID,
+				Kind:       "post",
+				Title:      "Same Article",
+				URL:        articleURL,
+				OccurredAt: time.Now().UTC(),
+			}}
+			inserted, err := store.Ingest(ctx, events)
+			if err != nil {
+				t.Errorf("goroutine %d: %v", idx, err)
+				results[idx] = -1
+				return
+			}
+			results[idx] = len(inserted)
+		}(i)
+	}
+	wg.Wait()
+
+	totalInserted := 0
+	for _, n := range results {
+		if n > 0 {
+			totalInserted += n
+		}
+	}
+	if totalInserted != 1 {
+		t.Errorf("concurrent dedup: total inserted = %d, want exactly 1", totalInserted)
+	}
+}
+
 func TestEventStore_MarkRead(t *testing.T) {
 	sqlDB := setupTestDB(t)
 	store := NewEventStore(sqlDB)

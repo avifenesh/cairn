@@ -165,8 +165,8 @@ func (s *EventStore) queryExistingURLsTx(ctx context.Context, tx *sql.Tx, urls [
 	urlPlaceholders := make([]string, len(urls))
 	sourceArgs := make([]any, len(articleSourceList))
 	urlArgs := make([]any, len(urls))
-	for i, s := range articleSourceList {
-		sourceArgs[i] = s
+	for i, src := range articleSourceList {
+		sourceArgs[i] = src
 	}
 	for i, u := range urls {
 		urlPlaceholders[i] = "?"

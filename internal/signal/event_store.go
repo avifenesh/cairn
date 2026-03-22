@@ -147,7 +147,7 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 // table for article sources only (rss, devto). Accepts a transaction so the
 // caller can hold a write lock while checking, preventing TOCTOU races.
 func (s *EventStore) queryExistingURLsTx(ctx context.Context, tx *sql.Tx, urls []string) map[string]bool {
-	if len(urls) == 0 {
+	if len(articleSourceList) == 0 || len(urls) == 0 {
 		return map[string]bool{}
 	}
 

@@ -270,28 +270,50 @@ func buildDiscordComponents(actions []ActionGroup) []discordgo.MessageComponent 
 	return components
 }
 
-// splitMessage splits text into chunks of at most maxLen characters,
-// preferring to split on newline boundaries.
+// splitMessage splits text into chunks of at most maxLen runes,
+// preferring to break on newline or space boundaries when a delimiter
+// occurs in the latter half of the window (idx > maxLen/2). This avoids
+// creating very short chunks when a delimiter appears near the start.
+// When splitting at a delimiter, the delimiter is included in the current
+// chunk so that strings.Join(chunks, "") exactly preserves the original text.
+// Hard splits (no suitable delimiter) also preserve text — no characters
+// are trimmed or dropped.
 func splitMessage(text string, maxLen int) []string {
-	if len(text) <= maxLen {
+	runes := []rune(text)
+	if len(runes) <= maxLen {
 		return []string{text}
 	}
 
 	var chunks []string
-	for len(text) > 0 {
-		if len(text) <= maxLen {
-			chunks = append(chunks, text)
+	for len(runes) > 0 {
+		if len(runes) <= maxLen {
+			chunks = append(chunks, string(runes))
 			break
 		}
 
-		// Find a good split point (last newline within limit).
+		// Find a good split point: prefer newline, then space, then hard split.
+		// When splitting at a delimiter, include it in the current chunk (cut = idx + 1)
+		// so that reassembly via strings.Join(chunks, "") preserves the original text.
 		cut := maxLen
-		if idx := strings.LastIndex(text[:maxLen], "\n"); idx > 0 {
+		if idx := runeLastIndex(runes[:maxLen], '\n'); idx > maxLen/2 {
+			cut = idx + 1
+		} else if idx := runeLastIndex(runes[:maxLen], ' '); idx > maxLen/2 {
 			cut = idx + 1
 		}
+		// else: hard split at maxLen
 
-		chunks = append(chunks, text[:cut])
-		text = text[cut:]
+		chunks = append(chunks, string(runes[:cut]))
+		runes = runes[cut:]
 	}
 	return chunks
+}
+
+// runeLastIndex returns the last index of r in runes, or -1.
+func runeLastIndex(runes []rune, r rune) int {
+	for i := len(runes) - 1; i >= 0; i-- {
+		if runes[i] == r {
+			return i
+		}
+	}
+	return -1
 }

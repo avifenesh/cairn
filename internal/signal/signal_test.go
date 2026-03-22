@@ -149,6 +149,115 @@ func TestEventStore_Ingest_CrossSourceURLDedup(t *testing.T) {
 	}
 }
 
+// TestEventStore_Ingest_CrossSourceURLDedup_NPMDoesNotBlockGitHub verifies that
+// same-URL events from non-article sources (npm, github) are NOT cross-deduped.
+// A github star event and an npm publish event can share the same base URL
+// (e.g. npmjs.com/package/express) but represent distinct events.
+func TestEventStore_Ingest_CrossSourceURLDedup_NPMDoesNotBlockGitHub(t *testing.T) {
+	sqlDB := setupTestDB(t)
+	store := NewEventStore(sqlDB)
+	ctx := t.Context()
+
+	events := []*RawEvent{
+		{
+			Source:     "npm",
+			SourceID:   "npm:express:5.1.0",
+			Kind:       "version",
+			Title:      "express 5.1.0 published",
+			URL:        "https://www.npmjs.com/package/express",
+			OccurredAt: time.Now().UTC(),
+		},
+	}
+	inserted, err := store.Ingest(ctx, events)
+	if err != nil {
+		t.Fatalf("npm ingest: %v", err)
+	}
+	if len(inserted) != 1 {
+		t.Fatalf("npm ingest: count = %d, want 1", len(inserted))
+	}
+
+	// Same URL from github — should NOT be deduped.
+	events2 := []*RawEvent{
+		{
+			Source:     "github",
+			SourceID:   "gh:star:expressjs/express",
+			Kind:       "star",
+			Title:      "express repo starred",
+			URL:        "https://www.npmjs.com/package/express",
+			OccurredAt: time.Now().UTC(),
+		},
+	}
+	inserted2, err := store.Ingest(ctx, events2)
+	if err != nil {
+		t.Fatalf("github ingest: %v", err)
+	}
+	if len(inserted2) != 1 {
+		t.Fatalf("github ingest: count = %d, want 1 (non-article sources should not cross-dedup)", len(inserted2))
+	}
+
+	count, err := store.Count(ctx, EventFilter{})
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("total count = %d, want 2", count)
+	}
+}
+
+// TestEventStore_Ingest_CrossSourceURLDedup_DevToDoesNotBlockGitHub verifies that
+// a devto article URL does not block a github event with the same URL (e.g. a
+// devto article linking to a github repo). Only article↔article dedup should apply.
+func TestEventStore_Ingest_CrossSourceURLDedup_DevToDoesNotBlockGitHub(t *testing.T) {
+	sqlDB := setupTestDB(t)
+	store := NewEventStore(sqlDB)
+	ctx := t.Context()
+
+	events := []*RawEvent{
+		{
+			Source:     "devto",
+			SourceID:   "devto:99999",
+			Kind:       "post",
+			Title:      "Some Dev.to Article",
+			URL:        "https://github.com/expressjs/express",
+			OccurredAt: time.Now().UTC(),
+		},
+	}
+	inserted, err := store.Ingest(ctx, events)
+	if err != nil {
+		t.Fatalf("devto ingest: %v", err)
+	}
+	if len(inserted) != 1 {
+		t.Fatalf("devto ingest: count = %d, want 1", len(inserted))
+	}
+
+	// Same URL from github — should NOT be deduped (github is not an article source).
+	events2 := []*RawEvent{
+		{
+			Source:     "github",
+			SourceID:   "gh:star:expressjs/express",
+			Kind:       "star",
+			Title:      "express starred",
+			URL:        "https://github.com/expressjs/express",
+			OccurredAt: time.Now().UTC(),
+		},
+	}
+	inserted2, err := store.Ingest(ctx, events2)
+	if err != nil {
+		t.Fatalf("github ingest: %v", err)
+	}
+	if len(inserted2) != 1 {
+		t.Fatalf("github ingest: count = %d, want 1 (github should not be deduped against devto URL)", len(inserted2))
+	}
+
+	count, err := store.Count(ctx, EventFilter{})
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("total count = %d, want 2", count)
+	}
+}
+
 // TestEventStore_Ingest_IntraBatchURLDedup verifies that duplicate URLs
 // within a single batch (e.g. same dev.to article from multiple RSS feeds)
 // are deduplicated.

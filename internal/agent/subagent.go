@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -238,6 +239,26 @@ func (r *SubagentRunner) runBackground(ctx context.Context, parentTaskID string,
 	// Run in background goroutine using the SAME childID.
 	go func() {
 		defer bgCancel()
+		defer func() {
+			if p := recover(); p != nil {
+				stack := string(debug.Stack())
+				panicErr := fmt.Errorf("subagent panic: %v", p)
+				r.logger.Error("background subagent panicked", "id", childID, "panic", p, "stack", stack)
+				// Terminal failure — panicking tasks must not be retried.
+				if r.tasks != nil && taskID != "" {
+					if err := r.tasks.FailTerminal(context.Background(), taskID, panicErr); err != nil {
+						r.logger.Error("subagent panic: failed to update task", "id", taskID, "err", err)
+					}
+				}
+				// Publish completion event so the UI doesn't show a hung task.
+				eventbus.Publish(r.bus, eventbus.SubagentCompleted{
+					EventMeta:  eventbus.NewMeta("agent"),
+					SubagentID: childID,
+					Status:     "failed",
+					Error:      panicErr.Error(),
+				})
+			}
+		}()
 		result, err := r.executeSubagent(bgCtx, childID, parentTaskID, req, cfg, maxRounds, "background")
 		// Update task engine status on completion.
 		if r.tasks != nil && taskID != "" {

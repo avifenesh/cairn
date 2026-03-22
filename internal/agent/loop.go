@@ -520,6 +520,28 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 
 	invCtx := l.buildInvocationContext(ctx, sessionID, userMessage, mode, session)
 
+	// Heartbeat the lease every 2 minutes while the agent runs.
+	// Without this, the 5-minute lease expires during long tasks (coding: 400 rounds)
+	// and the reaper re-queues the task, causing duplicate execution.
+	heartbeatDone := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(2 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-heartbeatDone:
+				return
+			case <-ticker.C:
+				hbCtx, hbCancel := context.WithTimeout(context.Background(), 10*time.Second)
+				if err := l.tasks.Heartbeat(hbCtx, t.ID); err != nil {
+					l.logger.Warn("agent loop: lease heartbeat failed", "task", t.ID, "error", err)
+				}
+				hbCancel()
+			}
+		}
+	}()
+	defer close(heartbeatDone)
+
 	// Run agent, collect assistant response only (skip user events).
 	var response strings.Builder
 	taskStart := time.Now()

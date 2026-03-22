@@ -25,33 +25,58 @@ func NewEventStore(db *sql.DB) *EventStore {
 	return &EventStore{db: db}
 }
 
+// articleSourceList is the single source of truth for sources where
+// same-URL = same-content article. URL dedup (cross-source and intra-batch)
+// only applies to these sources.
+var articleSourceList = []string{SourceRSS, SourceDevTo, SourceStackOverflow, SourceReddit}
+
+// articleSources is a membership set derived from articleSourceList,
+// used for O(1) lookups during ingest filtering.
+var articleSources = func() map[string]bool {
+	m := make(map[string]bool, len(articleSourceList))
+	for _, src := range articleSourceList {
+		m[src] = true
+	}
+	return m
+}()
+
 // Ingest stores a batch of raw events, skipping duplicates via the
 // UNIQUE(source, source_item_id) constraint and a cross-source URL
-// dedup pass (same article URL from different sources, e.g. dev.to
-// articles arriving via both the devto and rss pollers). Returns the
-// slice of newly inserted events (deduped out events are excluded).
+// dedup pass for article sources only (rss/devto — where same-URL
+// means same-content article arriving via multiple pollers). Returns
+// the slice of newly inserted events (deduped out events are excluded).
 func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEvent, error) {
 	if len(events) == 0 {
 		return nil, nil
 	}
 
-	// Cross-source URL dedup: collect all URLs, query for existing matches,
-	// and filter out events whose URL already exists from any source.
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("signal: begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Cross-source URL dedup: collect URLs from article sources only,
+	// query for existing matches INSIDE the transaction. Because
+	// MaxOpenConns(1) serializes writes, holding the transaction
+	// guarantees no concurrent poller can INSERT between our SELECT
+	// and INSERT, eliminating the TOCTOU race condition.
 	urls := make([]string, 0, len(events))
 	for _, ev := range events {
-		if ev.URL != "" {
+		if ev.URL != "" && articleSources[ev.Source] {
 			urls = append(urls, ev.URL)
 		}
 	}
 	seenURLs := make(map[string]bool)
 	if len(urls) > 0 {
-		seenURLs = s.queryExistingURLs(ctx, urls)
+		seenURLs = s.queryExistingURLsTx(ctx, tx, urls)
 	}
 
-	// Filter out events with already-seen URLs (in DB or earlier in this batch).
+	// Filter out article-source events with already-seen URLs
+	// (in DB or earlier in this batch).
 	var filtered []*RawEvent
 	for _, ev := range events {
-		if ev.URL != "" {
+		if ev.URL != "" && articleSources[ev.Source] {
 			if seenURLs[ev.URL] {
 				continue
 			}
@@ -64,12 +89,6 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 	if len(filtered) == 0 {
 		return nil, nil
 	}
-
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("signal: begin tx: %w", err)
-	}
-	defer tx.Rollback()
 
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO events (id, source, source_item_id, kind, title, body, url, actor, group_key, metadata, created_at)
@@ -124,24 +143,37 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 	return inserted, nil
 }
 
-// queryExistingURLs returns a set of URLs that already exist in the events
-// table (from any source). This enables cross-source dedup for feed items
-// that arrive through multiple pollers (e.g. dev.to articles via both the
-// devto poller and an RSS feed subscription).
-func (s *EventStore) queryExistingURLs(ctx context.Context, urls []string) map[string]bool {
-	if len(urls) == 0 {
+// queryExistingURLsTx returns a set of URLs that already exist in the events
+// table for article sources only (rss, devto, stackoverflow, reddit). Accepts a transaction so the
+// caller can perform the deduplication SELECT and any subsequent writes in a
+// single, serialized unit of work (with SQLite this relies on using a single
+// connection, e.g. via SetMaxOpenConns(1), rather than an eager write lock).
+func (s *EventStore) queryExistingURLsTx(ctx context.Context, tx *sql.Tx, urls []string) map[string]bool {
+	if len(articleSourceList) == 0 || len(urls) == 0 {
 		return map[string]bool{}
 	}
 
-	placeholders := make([]string, len(urls))
-	args := make([]any, len(urls))
-	for i, u := range urls {
+	// Only query article sources to avoid false-positive dedup of event
+	// sources (github, npm, crates) where same-URL ≠ same-content.
+	placeholders := make([]string, len(articleSourceList))
+	for i := range articleSourceList {
 		placeholders[i] = "?"
-		args[i] = u
 	}
 
-	query := fmt.Sprintf("SELECT DISTINCT url FROM events WHERE url IN (%s)", strings.Join(placeholders, ", "))
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	urlPlaceholders := make([]string, len(urls))
+	sourceArgs := make([]any, len(articleSourceList))
+	urlArgs := make([]any, len(urls))
+	for i, src := range articleSourceList {
+		sourceArgs[i] = src
+	}
+	for i, u := range urls {
+		urlPlaceholders[i] = "?"
+		urlArgs[i] = u
+	}
+
+	allArgs := append(sourceArgs, urlArgs...)
+	query := fmt.Sprintf("SELECT DISTINCT url FROM events WHERE source IN (%s) AND url IN (%s)", strings.Join(placeholders, ", "), strings.Join(urlPlaceholders, ", "))
+	rows, err := tx.QueryContext(ctx, query, allArgs...)
 	if err != nil {
 		slog.Warn("signal: cross-source URL dedup query failed, skipping", "error", err)
 		return map[string]bool{}

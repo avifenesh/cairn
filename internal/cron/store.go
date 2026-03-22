@@ -233,6 +233,18 @@ func (s *Store) UpdateAfterRun(ctx context.Context, id string, lastRun, nextRun 
 	return err
 }
 
+// UpdateLastRunOnly updates last_run_at without changing next_run_at.
+// Used when the schedule expression is invalid (NextRun fails) — we still need
+// the cooldown from last_run_at to prevent retry loops, but must not write a
+// zero next_run_at that would lock the job into an always-due state.
+func (s *Store) UpdateLastRunOnly(ctx context.Context, id string, lastRun time.Time) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE cron_jobs SET last_run_at = ?, updated_at = ? WHERE id = ?`,
+		lastRun.Format(timeFormat),
+		time.Now().UTC().Format(timeFormat), id)
+	return err
+}
+
 // RecordExecution logs a cron fire attempt.
 func (s *Store) RecordExecution(ctx context.Context, cronJobID, taskID, status string, execErr error) error {
 	errStr := ""

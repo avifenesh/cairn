@@ -237,7 +237,7 @@ func TestStore_UpdateAfterRun_UpdatesLastRunAt(t *testing.T) {
 
 	// Simulate a failed spawn by calling UpdateAfterRun (what the fix does).
 	now := time.Now().UTC()
-	next := time.Now().UTC().Add(1 * time.Minute)
+	next := now.Add(1 * time.Minute)
 	if err := store.UpdateAfterRun(ctx, job.ID, now, next); err != nil {
 		t.Fatalf("UpdateAfterRun: %v", err)
 	}
@@ -267,6 +267,46 @@ func TestStore_UpdateAfterRun_UpdatesLastRunAt(t *testing.T) {
 	}
 	if len(due) != 0 {
 		t.Fatalf("expected 0 due jobs within cooldown window, got %d", len(due))
+	}
+}
+
+func TestStore_UpdateLastRunOnly(t *testing.T) {
+	store := NewStore(testDB(t))
+	ctx := context.Background()
+
+	job := &CronJob{
+		Enabled: true, Name: "last-run-only-test", Schedule: "* * * * *",
+		Instruction: "test", CooldownMs: 60000, // 1 min cooldown
+	}
+	if err := store.Create(ctx, job); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	// Record the original next_run_at.
+	got, err := store.Get(ctx, job.ID)
+	if err != nil {
+		t.Fatalf("get before: %v", err)
+	}
+	originalNextRun := got.NextRunAt
+
+	// Call UpdateLastRunOnly — should update last_run_at but leave next_run_at untouched.
+	now := time.Now().UTC()
+	if err := store.UpdateLastRunOnly(ctx, job.ID, now); err != nil {
+		t.Fatalf("UpdateLastRunOnly: %v", err)
+	}
+
+	got, err = store.Get(ctx, job.ID)
+	if err != nil {
+		t.Fatalf("get after: %v", err)
+	}
+	if got.LastRunAt == nil {
+		t.Fatal("expected LastRunAt to be set")
+	}
+	if got.LastRunAt.Unix() != now.Unix() {
+		t.Errorf("LastRunAt: got %v, want %v", got.LastRunAt, now)
+	}
+	if got.NextRunAt == nil || got.NextRunAt.Unix() != originalNextRun.Unix() {
+		t.Errorf("NextRunAt changed: got %v, want %v (unchanged)", got.NextRunAt, originalNextRun)
 	}
 }
 

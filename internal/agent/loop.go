@@ -802,8 +802,16 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 					loc = tl
 				}
 			}
-			next, _ := cairncron.NextRun(job.Schedule, now.In(loc))
-			if err := l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC()); err != nil {
+			next, nextErr := cairncron.NextRun(job.Schedule, now.In(loc))
+			if nextErr != nil {
+				l.logger.Error("cron: invalid schedule expression, skipping next_run_at update",
+					"job", job.Name, "schedule", job.Schedule, "error", nextErr)
+				// Only update last_run_at to preserve cooldown; leave next_run_at unchanged
+				// to avoid writing a zero time that would lock the job into an always-due state.
+				if err := l.cronStore.UpdateLastRunOnly(ctx, job.ID, now.UTC()); err != nil {
+					l.logger.Warn("cron: failed to update last_run_at", "job", job.Name, "error", err)
+				}
+			} else if err := l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC()); err != nil {
 				l.logger.Warn("cron: failed to update schedule after run", "job", job.Name, "error", err)
 			}
 			continue
@@ -827,7 +835,7 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 				loc = l
 			}
 		}
-		next, _ := cairncron.NextRun(job.Schedule, now.In(loc))
+		next, nextErr := cairncron.NextRun(job.Schedule, now.In(loc))
 		if err != nil {
 			l.logger.Warn("cron: failed to submit task", "job", job.Name, "error", err)
 			l.cronStore.RecordExecution(ctx, job.ID, "", "failed", err)
@@ -838,7 +846,13 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 		}
 		// Always update last_run_at and next_run_at, even on failure,
 		// to prevent tight retry loops when submit errors occur.
-		if err := l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC()); err != nil {
+		if nextErr != nil {
+			l.logger.Error("cron: invalid schedule expression, skipping next_run_at update",
+				"job", job.Name, "schedule", job.Schedule, "error", nextErr)
+			if err := l.cronStore.UpdateLastRunOnly(ctx, job.ID, now.UTC()); err != nil {
+				l.logger.Warn("cron: failed to update last_run_at", "job", job.Name, "error", err)
+			}
+		} else if err := l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC()); err != nil {
 			l.logger.Warn("cron: failed to update schedule after run", "job", job.Name, "error", err)
 		}
 	}

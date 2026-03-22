@@ -91,11 +91,9 @@
 				renderNothingWhenEmpty: true,
 				maxLineSizeInBlockForComparison: 200,
 			});
+			// draw() handles highlightCode() and synchronisedScroll() when
+			// the corresponding config flags (highlight, synchronisedScroll) are true.
 			ui.draw();
-			ui.highlightCode();
-			if (mode === 'side-by-side') {
-				ui.synchronisedScroll();
-			}
 		} catch {
 			// Fallback: render escaped plain text diff.
 			if (diffEl) {

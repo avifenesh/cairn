@@ -181,10 +181,8 @@ func formatBytes(b int) string {
 }
 
 func formatFloat(f float64) string {
-	return strings.Replace(
-		strings.TrimRight(strings.TrimRight(
-			func() string { s := make([]byte, 0, 8); return string(appendFloat(s, f)) }(), "0"), "."),
-		"", "", 0)
+	return strings.TrimRight(strings.TrimRight(
+		func() string { s := make([]byte, 0, 8); return string(appendFloat(s, f)) }(), "0"), ".")
 }
 
 // Simpler approach — just use Sprintf-like formatting without importing fmt.

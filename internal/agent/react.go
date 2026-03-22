@@ -601,8 +601,9 @@ func workDir(ctx *InvocationContext) string {
 }
 
 // isConfined returns true when the session has worktree isolation enabled.
-// Confined sessions restrict shell/git tools to the worktree directory,
-// preventing escape to the main repo or other worktrees.
+// Confined sessions validate shell initial workDir against the worktree
+// boundary and disable $HOME fallback, preventing the LLM from passing
+// absolute paths outside the worktree.
 func isConfined(ctx *InvocationContext) bool {
 	if ctx.Session == nil || ctx.Session.State == nil {
 		return false

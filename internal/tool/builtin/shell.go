@@ -73,7 +73,10 @@ var shell = tool.Define("cairn.shell",
 		}
 
 		// Enforce containment for worktree-isolated subagents.
-		// File tools use safePath(); shell must match when Confined is set.
+		// This validates the initial working directory against the worktree boundary.
+		// Note: commands can still cd within the shell - full filesystem isolation
+		// requires OS-level mechanisms (namespaces/chroot). This prevents the common
+		// case of the LLM passing an absolute workDir outside the worktree.
 		if ctx.Confined && ctx.WorkDir != "" {
 			resolved, err := safePath(ctx.WorkDir, workDir)
 			if err != nil {
@@ -92,6 +95,12 @@ var shell = tool.Define("cairn.shell",
 				if !os.IsNotExist(statErr) {
 					return &tool.ToolResult{
 						Error: fmt.Sprintf("workDir %q: %s", workDir, statErr),
+					}, nil
+				}
+				// In confined mode, never fall back to $HOME - that escapes the worktree.
+				if ctx.Confined {
+					return &tool.ToolResult{
+						Error: fmt.Sprintf("workDir %q not found (confined to %s)", workDir, ctx.WorkDir),
 					}, nil
 				}
 				home, _ := os.UserHomeDir()

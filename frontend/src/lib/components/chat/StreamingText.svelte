@@ -18,23 +18,27 @@
 		}, 80);
 	});
 
-	// Attach copy handlers directly to rendered copy buttons (no event delegation on parent).
+	// Attach copy handlers to rendered copy buttons with proper cleanup.
 	$effect(() => {
 		if (!containerEl || !renderedContent) return;
-		// Wait for DOM update after renderedContent change.
+		const ac = new AbortController();
 		const frame = requestAnimationFrame(() => {
 			const buttons = containerEl!.querySelectorAll<HTMLElement>('[data-copy="true"]');
 			for (const btn of buttons) {
-				btn.onclick = () => {
+				btn.addEventListener('click', async () => {
 					const block = btn.closest('.cairn-code-block');
 					const code = block?.querySelector('code')?.textContent ?? '';
-					navigator.clipboard.writeText(code);
-					btn.textContent = 'Copied';
+					try {
+						await navigator.clipboard.writeText(code);
+						btn.textContent = 'Copied';
+					} catch {
+						btn.textContent = 'Failed';
+					}
 					setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-				};
+				}, { signal: ac.signal });
 			}
 		});
-		return () => cancelAnimationFrame(frame);
+		return () => { cancelAnimationFrame(frame); ac.abort(); };
 	});
 </script>
 

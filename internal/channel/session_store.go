@@ -80,15 +80,18 @@ func (s *SessionStore) GetOrCreate(ctx context.Context, channel, chatID string, 
 func (s *SessionStore) Reset(ctx context.Context, channel, chatID string) error {
 	// Clean up file tracking state for the old session before deleting.
 	var oldSessionID string
-	if err := s.db.QueryRowContext(ctx, `
+	err := s.db.QueryRowContext(ctx, `
 		SELECT session_id FROM channel_sessions WHERE channel = ? AND chat_id = ?`,
-		channel, chatID).Scan(&oldSessionID); err == nil {
+		channel, chatID).Scan(&oldSessionID)
+	if err == nil {
 		builtin.CleanupSessionFiles(oldSessionID)
+	} else if err != sql.ErrNoRows {
+		return fmt.Errorf("channel session reset lookup: %w", err)
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, delErr := s.db.ExecContext(ctx, `
 		DELETE FROM channel_sessions WHERE channel = ? AND chat_id = ?`,
 		channel, chatID)
-	return err
+	return delErr
 }
 
 func generateSessionID() string {

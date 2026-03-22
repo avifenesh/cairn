@@ -11,8 +11,8 @@ import (
 type readFeedParams struct {
 	Source          string `json:"source,omitempty" desc:"Filter by source (e.g. github, hn, reddit, npm, crates)"`
 	Limit           *int   `json:"limit,omitempty" desc:"Maximum events to return (default 20)"`
-	UnreadOnly      *bool  `json:"unreadOnly,omitempty" desc:"Only return unread events (default true)"`
-	IncludeArchived *bool  `json:"includeArchived,omitempty" desc:"Include archived events (default false)"`
+	UnreadOnly      *bool  `json:"unreadOnly,omitempty" desc:"Only return unread events (default true; when includeArchived is true and unreadOnly is omitted, defaults to false)"`
+	IncludeArchived *bool  `json:"includeArchived,omitempty" desc:"Include archived events (default false; when true and unreadOnly is omitted, read events are also included)"`
 }
 
 var readFeed = tool.Define("cairn.readFeed",
@@ -41,6 +41,12 @@ var readFeed = tool.Define("cairn.readFeed",
 			// unreadOnly=true would hide everything.
 			if p.UnreadOnly == nil {
 				unreadOnly = false
+			}
+			// Archived items are older and sorted newest-first, so they
+			// can be hidden by newer active events. Bump the default
+			// limit so archived items are actually visible.
+			if p.Limit == nil {
+				limit = 100
 			}
 		}
 

@@ -28,7 +28,7 @@ func NewEventStore(db *sql.DB) *EventStore {
 // articleSourceList is the single source of truth for sources where
 // same-URL = same-content article. URL dedup (cross-source and intra-batch)
 // only applies to these sources.
-var articleSourceList = []string{SourceRSS, SourceDevTo}
+var articleSourceList = []string{SourceRSS, SourceDevTo, SourceStackOverflow}
 
 // articleSources is a membership set derived from articleSourceList,
 // used for O(1) lookups during ingest filtering.
@@ -144,8 +144,10 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 }
 
 // queryExistingURLsTx returns a set of URLs that already exist in the events
-// table for article sources only (rss, devto). Accepts a transaction so the
-// caller can hold a write lock while checking, preventing TOCTOU races.
+// table for article sources only (rss, devto, stackoverflow). Accepts a transaction so the
+// caller can perform the deduplication SELECT and any subsequent writes in a
+// single, serialized unit of work (with SQLite this relies on using a single
+// connection, e.g. via SetMaxOpenConns(1), rather than an eager write lock).
 func (s *EventStore) queryExistingURLsTx(ctx context.Context, tx *sql.Tx, urls []string) map[string]bool {
 	if len(articleSourceList) == 0 || len(urls) == 0 {
 		return map[string]bool{}

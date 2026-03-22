@@ -1,8 +1,10 @@
 # Agent Knowledge Base
 
-> Research guides for Cairn development. Read the relevant guide before answering questions on these topics.
+> Research guides and API references for Cairn development. Read the relevant guide before answering questions on these topics.
+>
+> **Start here:** Guides are research syntheses from 6-108 online sources each. They contain best practices, common pitfalls, implementation patterns, and further reading links. The keyword lookup table maps concepts to the right guide.
 
-## Guides (16)
+## Guides (17)
 
 | # | Topic | File | Sources | Created |
 |---|-------|------|---------|---------|
@@ -21,7 +23,8 @@
 | 13 | Cron systems, agent resilience | cron-and-resilience.md | 108 | 2026-03-19 |
 | 14 | File write/edit tools in AI coding assistants | ai-file-edit-tools.md | 42 | 2026-03-21 |
 | 15 | Diff viewer library selection, Monaco, CodeMirror, streaming diffs | coding-session-diff-ui.md | 20 | 2026-03-21 |
-| 16 | Diff view visual design, CSS, color schemes, diff2html config, virtual scrolling | diff-view-visual-design.md | 22 | 2026-03-21 |
+| 16 | Diff view visual design, CSS, color schemes, diff2html config | diff-view-visual-design.md | 22 | 2026-03-21 |
+| 17 | Z.ai API reference (models, endpoints, MCP, quotas) | zai-api-reference.md | docs.z.ai | 2026-03-19 |
 
 ## Keyword Lookup
 
@@ -33,12 +36,13 @@
 | memory extraction, auto-extract, contradiction detection, confidence | auto-memory-extraction.md |
 | Mem0, HippoRAG, entity extraction, memory decay, Ebbinghaus | auto-memory-extraction.md |
 | subagent, spawn, delegate, agent-as-tool, two-level max | subagents.md |
-| LangGraph supervisor, CrewAI, AutoGen, OpenAI handoffs, A2A | subagents.md |
+| LangGraph supervisor, CrewAI, AutoGen, OpenAI handoffs | subagents.md |
 | orchestrator, supervisor, thin management, idle tick, AIOS | orchestrator-pattern.md |
 | autonomous quality, guardrails, self-improvement, Voyager | autonomous-agent-quality.md |
 | property-based testing, PBT, permission allowlist, auto-accept | autonomous-agent-quality.md |
 | telegram bot, mini app, webhook, inline keyboard | telegram-development.md |
-| GLM, Z.ai, zhipu, vision API, web search API | zai-glm-api.md |
+| GLM, Z.ai, zhipu, vision API, web search API | zai-glm-api.md, zai-api-reference.md |
+| GLM models, GLM pricing, MCP services, coding plan quotas | zai-api-reference.md |
 | thinking UI, reasoning trace, streaming indicator | ai-thinking-ui-patterns.md |
 | active learning, user adaptation, preference learning | active-learning-user-adaptation.md |
 | agent personality, SOUL, agent OS, identity | agent-os-personality.md |

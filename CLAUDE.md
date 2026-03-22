@@ -2,50 +2,7 @@
 
 > Open-source, self-hosted, always-on personal agent OS. Written in Go.
 > Models propose, humans dispose. No irreversible side effects without explicit approval.
-
-Not a chatbot. Not a coding assistant. Not a notification hub. All three, unified under a single binary that watches your world, acts on your behalf, learns over time, and stays on 24/7.
-
-## Stack
-
-Go 1.25 single binary + SQLite (modernc, pure Go, no CGO) + SvelteKit 5 frontend (Svelte 5 runes, Tailwind v4, static adapter embedded via `embed.FS`).
-
-## Modules (update status before starting any piece)
-
-| # | Piece | Status | Package |
-|---|-------|--------|---------|
-| 1 | Event Bus - typed async pub/sub backbone | Done | `internal/eventbus/` |
-| 2 | LLM Client - multi-provider streaming, retry/fallback/budget | Done | `internal/llm/` |
-| 3 | Tool System - type-safe tools, registry, mode filtering, permissions | Done | `internal/tool/` |
-| 4 | Agent Core - ReAct loop, sessions, journaler, reflection, orchestrator, subagents | Done | `internal/agent/` |
-| 4+ | Plugin System - lifecycle hooks (agent/tool/LLM), budget, logging | Done | `internal/plugin/` |
-| 5 | Task Engine - priority queue, worktree isolation, leases | Done | `internal/task/` |
-| 6 | Memory System - semantic + episodic + procedural, RAG, Soul | Done | `internal/memory/` |
-| 7 | Signal Plane - source polling, webhooks, event ingestion, dedup | Done | `internal/signal/` |
-| 8 | Skill System - SKILL.md parser, discovery, hot-reload, injection | Done | `internal/skill/` |
-| 9 | Server & Protocols - HTTP, SSE, REST API, auth, static files | Done | `internal/server/` |
-| 10 | Frontend - Svelte 5 dashboard, embedded in Go binary | Done (Phase 6-9, 242 tests, 38 PRs) | `frontend/` |
-| 11 | Channel Adapters - Telegram, Discord, Slack | Done | `internal/channel/` |
-| 12 | Z.ai Integration - web search, reader, zread, vision (13 tools) | Done | `internal/tool/builtin/zai.go`, `vision.go` |
-| 13 | Intelligence - embeddings, session compaction | Done | `internal/memory/`, `internal/agent/compaction.go` |
-| 14 | Voice - Whisper STT + edge-tts TTS | Done | `internal/voice/` |
-
-839+ tests (597 Go + 242 frontend), 52+ built-in tools (40 base + conditional by config) + MCP client tools, 11 pollers, 39 skills (17 bundled + 22 user). 171+ PRs merged. Orchestrator: thin management layer replacing idle tick - scans system state, spawns subagents, approves/rejects memories, verifies coding sessions. Subagent system: cairn.spawnSubagent tool with 4 types (researcher, coder, reviewer, executor), context isolation, worktree isolation, SSE streaming. Memory auto-accept: facts/preferences auto-accepted after dedup + contradiction checks; hard_rules/decisions stay proposed for orchestrator review. Auto-deploy on merge via self-hosted runner. MCP server (expose tools) + MCP client (consume external servers). Home: command center (agent status pill, approvals inline, activity stream, unread highlights, system pulse, quick chat input). Chat: text, voice, file upload, vision, stop button, new chat, ?msg= from home. Feed: API wired, archive/delete, source filters, bulk archive/delete, GitHub signal, Gmail/Calendar (auto-archive GH emails), RSS/SO/DevTo. Skills: CRUD + ClawHub marketplace (search/browse/install with LLM security review, stats enrichment, client-side sort) + auto-discovery suggestions. Soul: markdown render, patch review flow (approve/deny). Settings: 11 sections, all editable via UI and agent tools, dynamic MCP connections. Approval system with channel commands. Cron manager with inline edit. Notification prefs (priority, quiet hours, muted sources, channel routing). Agent config tools (patchConfig/getConfig). Activity observability tab (live stream, tool stats, error tracking). GLM fallback chain (glm-5-turbo -> glm-5 -> glm-4.7).
-
-## Phases
-
-```
-Phase 1: Foundation (event bus + LLM + SQLite)                [DONE]
-Phase 2: Core Systems (tools | tasks | memory) in parallel    [DONE]
-Phase 3: Agent Core (ReAct loop wires all together)           [DONE]
-Phase 4: Server + Skills + Signal Plane (4a+4b+4c)             [DONE]
-Phase 5: Always-on, CI/CD, docs, open-source                   [DONE]
-Phase 6: Tools & Skills + MCP server                          [DONE]
-Phase 7: Channels (Telegram, Discord, Slack) + Z.ai tools      [DONE]
-Phase 8: Intelligence (embeddings, compaction, voice, Gmail)    [DONE]
-Phase 9: Agent Autonomy (MCP client, approvals, auto-deploy)   [DONE]
-```
-
-Full plan: `docs/design/PHASE6_PLAN.md`
+> Stack: Go 1.25 + SQLite (pure Go) + SvelteKit 5 (embedded via embed.FS)
 
 ## Architecture
 
@@ -65,19 +22,13 @@ Key design decisions:
 - SQLite: WAL mode, single writer, foreign keys ON, MMAP 256MB
 - Frontend uses Svelte 5 runes (`.svelte.ts` stores), `tailwind-variants` for component styling
 
-## Differentiators
+## Modules
 
-1. **Worktree isolation** - every coding task gets its own git worktree. ✅ Done
-2. **Permission engine** - wildcard rules scoped per agent mode, per tool, per file pattern. ✅ Done
-3. **Always-on with proactive behavior** - Soul, episodic + semantic + procedural memory. ✅ Done
-4. **Skill ecosystem compatibility** - OpenClaw SKILL.md format + ClawHub marketplace. ✅ Done
-5. **Multi-protocol** - MCP server (expose tools) + MCP client (consume external servers). ✅ Done
-6. **Event-sourced sessions** - append-only, compactable. ✅ Done
-7. **Single binary** - `scp cairn server:/usr/local/bin/`. ✅ Done
-8. **Auto-deploy** - CI deploys on merge to main via self-hosted runner. ✅ Done
-9. **Approval system** - channel commands, interactive buttons, human-in-the-loop. ✅ Done
+14 modules, all complete. See `docs/design/pieces/` for architecture specs.
 
-## Current Structure
+Cairn watches your world (11 pollers), acts on your behalf (52+ tools, 39 skills), learns over time (semantic + episodic + procedural memory, Soul), and stays on 24/7 via orchestrator, subagents, and auto-deploy.
+
+## Project Structure
 
 ```
 cmd/cairn/main.go             CLI entry point (cairn chat | cairn serve)
@@ -104,6 +55,36 @@ frontend/                     SvelteKit 5 app + embed.FS package for production 
   src/lib/utils/              markdown (marked+DOMPurify), time (relative), tts (playback)
 docs/design/                  Architecture specs (VISION, PHASES, pieces/01-11)
 ```
+
+## Development
+
+```bash
+# Backend (from repo root)
+go vet ./...                    # Lint - run before every commit
+go test -race ./...             # Tests with race detector
+go build -o cairn ./cmd/cairn                    # Build binary (dev, filesystem frontend)
+go build -tags embed_frontend -o cairn ./cmd/cairn  # Build with embedded frontend (production)
+./cairn chat "hello"            # CLI chat (ReAct agent)
+./cairn serve                   # HTTP server on :8787 (default; production uses PORT=8788)
+
+# Frontend (from frontend/)
+pnpm dev                        # Dev server
+pnpm build                      # Static build to dist/
+pnpm check                      # Svelte + TypeScript check
+pnpm test                       # Vitest
+
+# Make targets
+make test                       # Tests with race detector
+make lint                       # Formatting + vet
+make build                      # Dev binary
+make build-prod                 # Production binary with embedded frontend
+make dev                        # Run dev server
+
+# Full validation
+go vet ./... && go test -race ./... && cd frontend && pnpm check && pnpm test
+```
+
+Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend).
 
 ## Deployment (Production - agntic.garden)
 
@@ -156,40 +137,6 @@ Unsafe builds caused data loss (split databases, lost settings, broken auth).
    all agents, all processes must use this same file. Config overrides saved to
    `/home/ubuntu/.cairn/data/config.json`.
 6. **Build lock**: `/tmp/cairn-build.lock` prevents concurrent builds.
-
-## Commands
-
-```bash
-# Backend (from repo root)
-go vet ./...                    # Lint - run before every commit
-go test -race ./...             # Tests with race detector
-go build -o cairn ./cmd/cairn                    # Build binary (dev, filesystem frontend)
-go build -tags embed_frontend -o cairn ./cmd/cairn  # Build with embedded frontend (production)
-./cairn chat "hello"            # CLI chat (ReAct agent)
-./cairn serve                   # HTTP server on :8787 (default; production uses PORT=8788)
-
-# Frontend (from frontend/)
-pnpm dev                        # Dev server
-pnpm build                      # Static build to dist/
-pnpm check                      # Svelte + TypeScript check
-pnpm test                       # Vitest
-
-# Make targets
-make test                       # Tests with race detector
-make lint                       # Formatting + vet
-make build                      # Dev binary
-make build-prod                 # Production binary with embedded frontend
-make dev                        # Run dev server
-
-# Production deploy
-./scripts/cairn-server.sh build     # Build binary
-sudo systemctl restart cairn        # Restart service
-
-# Full validation
-go vet ./... && go test -race ./... && cd frontend && pnpm check && pnpm test
-```
-
-Tests: `*_test.go` alongside source (Go), `*.test.ts` alongside stores (frontend).
 
 ## Env Vars
 
@@ -329,9 +276,9 @@ Full list from `internal/config/config.go`. 108 distinct var names (including al
 
 ## Design Docs
 
-Full design specs live in `docs/design/`:
+Full design specs live in `docs/design/`. Phase plans are archived - all 9 phases complete.
 - `VISION.md` - architecture, differentiators, success criteria
-- `PHASES.md` - implementation phases with dependency graph
+- `PHASES.md` - implementation phases with dependency graph (archived, all complete)
 - `FRONTEND_AGENT_BRIEF.md` - frontend spec, API contract, SSE events, views
 - `pieces/01-event-bus.md` through `pieces/11-channel-adapters.md` - per-piece design
 

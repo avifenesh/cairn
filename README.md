@@ -2,7 +2,7 @@
 
 Self-hosted, always-on personal agent OS. Single Go binary.
 
-Cairn watches your world (GitHub, Gmail, Calendar, HN, Reddit, npm, crates.io, RSS, Stack Overflow, Dev.to, webhooks), acts on your behalf through an LLM-powered agent with 50 tools, learns over time through episodic memory and reflection, and stays on 24/7.
+Cairn watches your world (GitHub, Gmail, Calendar, HN, Reddit, npm, crates.io, RSS, Stack Overflow, Dev.to, webhooks), acts on your behalf through an LLM-powered agent with 52+ tools, learns over time through episodic memory and reflection, and stays on 24/7.
 
 ## Quick Start
 
@@ -17,7 +17,7 @@ export LLM_API_KEY=your-key   # or GLM_API_KEY / OPENAI_API_KEY
 # Serve (HTTP API + SSE + embedded frontend)
 cd frontend && pnpm install && pnpm build && cd ..
 make build-prod
-./cairn serve   # serves on :8788
+./cairn serve   # serves on :8787
 
 # Install a skill
 ./cairn install skill https://github.com/user/my-skill.git
@@ -37,7 +37,7 @@ make build-prod
 - Webhooks (HMAC-SHA256 signature verification)
 - LLM-powered digest generation
 
-**Agent** - ReAct loop with 50 tools, three modes (talk/work/coding), session persistence.
+**Agent** - ReAct loop with 52+ tools, three modes (talk/work/coding), session persistence.
 
 - File tools: read, write, edit, delete, list, search (path traversal protection)
 - Shell: policy engine, env filtering, shell detection
@@ -52,11 +52,11 @@ make build-prod
 
 **Memory** - Three-tier system: semantic, episodic, procedural.
 
-- Keyword + vector search with MMR re-ranking (Ollama nomic-embed-text)
+- Keyword + vector search with MMR re-ranking (LLM provider embedding API)
 - Auto-extraction of memories from conversations (contradiction detection)
 - Session compaction (SummaryBuffer at 80K tokens)
 - Hot-reloadable SOUL.md for behavioral identity
-- 41 bundled skills (SKILL.md format, ClawHub-compatible)
+- 39 skills (17 bundled + 22 user, SKILL.md format, ClawHub-compatible)
 - Confidence decay over time
 
 **Channels** - Multi-channel I/O with session continuity.
@@ -102,7 +102,7 @@ make build-prod
 ```
 Signal Plane --> Event Bus <-- Agent Core --> Tool System
      |               |             |              |
-  11 Pollers      SQLite       LLM Client    49 Tools
+  11 Pollers      SQLite       LLM Client    52+ Tools
   Webhooks        Store        Sessions      Permissions
   Digest          Memory       ReAct loop    Mode filtering
                   Journal      Reflection    MCP adapter
@@ -131,7 +131,7 @@ Set via environment variables. Only `LLM_API_KEY` is required.
 | `LLM_API_KEY` | - | LLM provider API key (or `GLM_API_KEY` / `OPENAI_API_KEY`) |
 | `LLM_PROVIDER` | auto | `glm` or `openai` (auto-detected from key var name) |
 | `LLM_MODEL` | provider default | Model ID |
-| `PORT` | 8788 | HTTP server port |
+| `PORT` | 8787 | HTTP server port |
 | `DATABASE_PATH` | ./data/cairn.db | SQLite database path |
 | `SOUL_PATH` | ./SOUL.md | Path to SOUL.md behavioral identity |
 | `GH_TOKEN` | - | GitHub token for polling |
@@ -180,12 +180,28 @@ internal/
   signal/           Event store, scheduler, 11 pollers, webhooks, digest
   skill/            SKILL.md parser, discovery, hot-reload, ClawHub marketplace
   task/             Priority queue, worktree isolation, lease engine, approvals
-  tool/             Tool interface, registry, permissions, 50 built-in tools
+  tool/             Tool interface, registry, permissions, 52+ built-in tools
   voice/            Whisper STT + edge-tts TTS
 frontend/           SvelteKit 5 app + embed.FS package (242 tests)
-skills/             41 bundled SKILL.md files
+skills/             17 bundled SKILL.md files
 docs/design/        Architecture specs and phase plans
 ```
+
+## Roadmap
+
+Planned features, roughly in priority order:
+
+1. **Automation rules engine** - declarative "when X happens, do Y" rules (e.g., "on new PR, run code review")
+2. **Webhook-triggered workflows** - skills auto-invoked from webhook events
+3. **Agent activity analytics** - historical tool call frequency, error rates, cost graphs
+4. **Memory RAG improvements** - conversation-aware retrieval, time-decay search scoring
+5. **Multi-file atomic edits** - single tool call for cross-file refactors
+6. **PWA mobile experience** - push notifications, offline support, swipe gestures
+7. **Session cleanup lifecycle** - automatic memory reclamation for long-running servers
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute.
 
 ## License
 

@@ -7,26 +7,38 @@
 ## Architecture
 
 ```
-Signal Plane → Event Bus ← Agent Core → Tool System
-     ↕              ↕            ↕           ↕
-  Pollers        SQLite      LLM Client   Permissions
-  Webhooks       Store       Sessions     Mode filtering
-  SSE push       Memory      ReAct loop   MCP adapter
+Signal Plane → Event Bus ← Agent System → Tool System
+     ↕              ↕            ↕              ↕
+  11 Pollers     SQLite      Always-On Loop   52+ Tools
+  Webhooks       Store       Orchestrator     Permissions
+  SSE push       Memory      ReAct Agents     Mode filtering
+                 Sessions    Subagents        MCP adapter
+                 Approvals   Compaction       Skills (39)
 ```
 
-Key design decisions:
-- Event bus uses Go generics: `Subscribe[E](bus, handler)`, `Publish[E](bus, event)`
-- LLM providers implement `Provider` interface: `ID()`, `Stream()`, `Models()`
-- Streaming returns `<-chan Event` with variants: TextDelta, ReasoningDelta, ToolCallDelta, MessageEnd, StreamError
-- Migrations embedded via `//go:embed`, applied in filename order, tracked in schema_migrations
+**Agent system (three layers):**
+- **Loop** (60s tick) — checks crons → executes pending tasks → runs orchestrator if idle
+- **Orchestrator** — LLM-powered management brain. Gathers system state (feeds, errors, memories, subagents), calls LLM to decide actions: approve/reject memories, spawn subagents, submit tasks, notify, escalate to human. Runs every 5min when idle. Max 5 actions per tick.
+- **ReAct agents** — execute work. Main agent (talk/work/coding modes) + 4 subagent types (researcher/coder/reviewer/executor). Two-level max nesting. Session streaming via channels.
+
+**Subagent types:**
+- `researcher` (15 rounds, read-only tools) — investigation, data gathering
+- `coder` (50 rounds, all tools, worktree isolation) — implementation
+- `reviewer` (10 rounds, read + shell) — code quality analysis
+- `executor` (10 rounds, shell + file tools) — command execution, validation
+
+**Key design decisions:**
+- Event bus: Go generics `Subscribe[E](bus, handler)`, `Publish[E](bus, event)`
+- LLM: `Provider` interface with `ID()`, `Stream()`, `Models()`
+- Streaming: `<-chan Event` (TextDelta, ReasoningDelta, ToolCallDelta, MessageEnd, StreamError)
+- Sessions: append-only events, compaction at 150K tokens (keep 10 recent pairs, summarize old)
+- Steering: user can inject messages into running sessions between ReAct rounds (normal/urgent/stop)
+- Approvals: human-in-the-loop gates for irreversible actions (merge PR, send email, deploy)
 - SQLite: WAL mode, single writer, foreign keys ON, MMAP 256MB
-- Frontend uses Svelte 5 runes (`.svelte.ts` stores), `tailwind-variants` for component styling
+- Migrations: `//go:embed`, applied in filename order, tracked in schema_migrations
+- Frontend: Svelte 5 runes (`.svelte.ts` stores), `tailwind-variants` for component styling
 
-## Modules
-
-17 packages in `internal/`, all complete. 11 architecture specs in `docs/design/pieces/`.
-
-Cairn watches your world (11 pollers), acts on your behalf (52+ tools, 39 skills), learns over time (semantic + episodic + procedural memory, Soul), and stays on 24/7 via orchestrator, subagents, and auto-deploy.
+17 packages in `internal/`, 11 architecture specs in `docs/design/pieces/`.
 
 ## Project Structure
 
@@ -38,15 +50,19 @@ internal/
   eventbus/                   Typed pub/sub (generics), sync + async + stream delivery
   llm/                        Provider interface, GLM + OpenAI providers, SSE parser, retry, budget
   tool/                       Tool interface, Define[P] generics, registry, permission engine
-  tool/builtin/               Built-in tools: readFile, writeFile, editFile, shell, gitRun, etc.
-  task/                       Task store, priority queue, worktree manager, lease claiming, reaper
-  memory/                     Memory store, RAG search + MMR, embedder interface, Soul loader
-  agent/                      ReAct loop, sessions, journaler, reflection, always-on loop
+  tool/builtin/               52+ built-in tools: file ops, shell, git, memory, feed, tasks, cron, etc.
+  task/                       Task store, priority queue, worktree manager, lease claiming, approvals
+  memory/                     Memory store, RAG search + MMR, embedder, Soul loader, extraction
+  agent/                      Always-on loop, orchestrator, ReAct agents, subagents, compaction, sessions
+  auth/                       WebAuthn biometric authentication (passkeys)
+  channel/                    Telegram, Discord, Slack adapters, notification routing
+  cron/                       Cron scheduler + SQLite store
   plugin/                     Lifecycle hooks (agent/tool/LLM), logging plugin, budget plugin
   server/                     HTTP server, REST routes, SSE broadcaster, auth, static (embed+FS), webhooks
-  skill/                      SKILL.md parser, discovery, hot-reload, prompt injection
+  skill/                      SKILL.md parser, discovery, hot-reload, ClawHub marketplace
   mcp/                        MCP server (expose tools) + MCP client (consume external servers)
   signal/                     Signal plane: event store, scheduler, 11 pollers, webhooks, digest
+  voice/                      Whisper STT + edge-tts TTS
 frontend/                     SvelteKit 5 app + embed.FS package for production binary
   src/routes/                 today, chat, ops, memory, agents, skills, soul, settings
   src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav)

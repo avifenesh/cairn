@@ -65,7 +65,7 @@ Cairn exposes its 52+ built-in tools as an MCP server and consumes external MCP 
  Static files served by Go              via MCP / Channels
 ```
 
-**Signal Plane** polls 11 sources (GitHub, Gmail, Calendar, Reddit, npm, crates.io, Hacker News, Stack Overflow, Dev.to, RSS, webhooks) every 5 minutes. Events are deduplicated, normalized, and published to the event bus. The **Agent Core** subscribes to relevant events, runs a ReAct loop against the LLM, and dispatches tool calls through the **Action Plane**. The **Memory System** provides context injection (RAG) and persists learned knowledge. Everything converges through a typed async event bus backed by SQLite.
+**Signal Plane** polls 11 sources every 5 minutes. Events are deduplicated, normalized, and published to the event bus. The **Agent System** operates in three layers: an always-on loop (60s tick) checks for due crons and pending tasks; when idle, an LLM-powered **Orchestrator** gathers system state and decides what to do proactively (approve memories, spawn subagents, submit tasks, notify, escalate). Actual work is executed by **ReAct agents** - a main agent plus 4 subagent types (researcher, coder, reviewer, executor) with tool scoping and two-level max nesting. The **Memory System** provides context injection (RAG), session compaction at 150K tokens, and persists learned knowledge. Everything converges through a typed async event bus backed by SQLite.
 
 ## Why Go
 
@@ -83,7 +83,7 @@ Cairn exposes its 52+ built-in tools as an MCP server and consumes external MCP 
 
 2. **Permission engine** - wildcard rules scoped per agent mode, per tool, per file pattern, and per approval policy. The owner configures once; the system enforces everywhere. Not binary allow/deny - graduated control with pattern matching.
 
-3. **Always-on with proactive behavior** - the agent has a Soul (behavioral identity), episodic memory (what happened), semantic memory (what it knows), and procedural memory (rules it has learned). It does not wait to be spoken to - it watches, learns, acts, and reaches out through configured channels.
+3. **Always-on with orchestrator brain** - an LLM-powered orchestrator runs every 5 minutes when idle, gathering system state (feeds, errors, memories, subagents) and deciding what to do proactively: approve memories, spawn subagents, submit tasks, notify the user, or escalate to human review. The agent has a Soul (behavioral identity), episodic memory (what happened), semantic memory (what it knows), and procedural memory (rules it has learned).
 
 4. **Skill ecosystem compatibility** - skills follow the OpenClaw SKILL.md format, and ClawHub marketplace skills install without modification. Cairn adds typed tool integration, sandboxed execution, and skill-level permissions on top of the shared ecosystem.
 

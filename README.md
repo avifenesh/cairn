@@ -37,18 +37,20 @@ make build-prod
 - Webhooks (HMAC-SHA256 signature verification)
 - LLM-powered digest generation
 
-**Agent** - ReAct loop with 52+ tools, three modes (talk/work/coding), session persistence.
+**Agent** - Three-layer agent system: always-on loop, LLM orchestrator, ReAct execution.
 
+- **Orchestrator**: LLM-powered management brain that runs when idle. Gathers system state, decides actions (approve memories, spawn subagents, submit tasks, notify, escalate). Runs every 5min.
+- **ReAct agents**: 52+ tools, three modes (talk/work/coding), streaming sessions
+- **Subagents**: 4 types (researcher, coder, reviewer, executor) with tool scoping and isolation. Two-level max nesting.
 - File tools: read, write, edit, delete, undo, list, search (checkpointing, fuzzy match, path traversal protection)
 - Shell: policy engine, env filtering, shell detection
 - Git, web search, web fetch, memory CRUD, feed, tasks, cron, notifications
 - Z.ai integration: vision analysis, repo structure, search docs (GLM provider)
 - Google Workspace tools (query + execute)
 - Skill management: CRUD, install from git, ClawHub marketplace search
-- Config tools: patchConfig, getConfig (live settings changes)
 - Permission engine with wildcard rules per agent mode
-- Session journaling + reflection engine
-- Always-on idle loop with proactive behavior
+- Session compaction at 150K tokens, steering messages, approval gates
+- Always-on with proactive behavior (SOUL.md identity, reflection engine)
 
 **Memory** - Three-tier system: semantic, episodic, procedural.
 
@@ -100,14 +102,14 @@ make build-prod
 ## Architecture
 
 ```
-Signal Plane --> Event Bus <-- Agent Core --> Tool System
-     |               |             |              |
-  11 Pollers      SQLite       LLM Client    52+ Tools
-  Webhooks        Store        Sessions      Permissions
-  Digest          Memory       ReAct loop    Mode filtering
-                  Journal      Reflection    MCP adapter
-                  Crons        Idle loop
-                               Compaction
+Signal Plane --> Event Bus <-- Agent System --> Tool System
+     |               |             |                |
+  11 Pollers      SQLite       Always-On Loop   52+ Tools
+  Webhooks        Store        Orchestrator     Permissions
+  Digest          Memory       ReAct Agents     Mode filtering
+                  Sessions     Subagents        MCP adapter
+                  Approvals    Compaction       Skills (39)
+                  Crons        Steering
 ```
 
 Single binary. No Node, no Python, no Docker. Pure Go + SQLite.
@@ -165,7 +167,7 @@ See `CLAUDE.md` for full env var reference.
 ```
 cmd/cairn/          CLI entry point (chat, serve, install skill, version)
 internal/
-  agent/            ReAct loop, sessions, journaler, reflection, idle loop, compaction
+  agent/            Always-on loop, orchestrator, ReAct agents, subagents, compaction, sessions
   auth/             WebAuthn biometric authentication
   channel/          Telegram, Discord, Slack adapters, notification routing
   config/           Env-based configuration with live patching

@@ -370,6 +370,7 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 			return nil, fmt.Errorf("worktree creation failed: %w", err)
 		}
 		session.State["workDir"] = wtPath
+		session.State["confined"] = true
 		defer func() {
 			if rmErr := r.worktrees.Remove(childID); rmErr != nil {
 				r.logger.Warn("subagent: worktree cleanup failed", "id", childID, "error", rmErr)

@@ -253,6 +253,7 @@ type ToolContext struct {
 	TaskID      string
 	AgentMode   Mode
 	WorkDir     string // Worktree path for coding tasks
+	Confined    bool   // When true, shell/git tools are restricted to WorkDir (worktree isolation)
 	Permissions *PermissionSet
 	Bus         *eventbus.Bus
 	Cancel      context.Context

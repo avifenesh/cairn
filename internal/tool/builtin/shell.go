@@ -72,6 +72,18 @@ var shell = tool.Define("cairn.shell",
 			}
 		}
 
+		// Enforce containment for worktree-isolated subagents.
+		// File tools use safePath(); shell must match when Confined is set.
+		if ctx.Confined && ctx.WorkDir != "" {
+			resolved, err := safePath(ctx.WorkDir, workDir)
+			if err != nil {
+				return &tool.ToolResult{
+					Error: fmt.Sprintf("shell containment: %s (confined to %s)", err, ctx.WorkDir),
+				}, nil
+			}
+			workDir = resolved
+		}
+
 		// Validate workDir exists before attempting exec. A missing directory
 		// causes exec to fail with a cryptic exit -1 (process didn't start).
 		// Only fall back for "not found" errors; permission/IO errors are real problems.

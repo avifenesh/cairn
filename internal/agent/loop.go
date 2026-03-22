@@ -792,6 +792,7 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 			} else {
 				l.cronStore.RecordExecution(ctx, job.ID, result.TaskID, "fired", nil)
 				l.logger.Info("cron: agent type spawned", "job", job.Name, "type", job.AgentType, "task", result.TaskID)
+				submitted = true
 			}
 			// Always update last_run_at and next_run_at, even on failure,
 			// to prevent tight retry loops when spawn errors occur.
@@ -802,8 +803,9 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 				}
 			}
 			next, _ := cairncron.NextRun(job.Schedule, now.In(loc))
-			l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC())
-			submitted = true
+			if err := l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC()); err != nil {
+				l.logger.Warn("cron: failed to update schedule after run", "job", job.Name, "error", err)
+			}
 			continue
 		}
 
@@ -832,11 +834,13 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 		} else {
 			l.cronStore.RecordExecution(ctx, job.ID, t.ID, "fired", nil)
 			l.logger.Info("cron: task submitted", "job", job.Name, "task", t.ID, "nextRun", next)
+			submitted = true
 		}
 		// Always update last_run_at and next_run_at, even on failure,
 		// to prevent tight retry loops when submit errors occur.
-		l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC())
-		submitted = true
+		if err := l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC()); err != nil {
+			l.logger.Warn("cron: failed to update schedule after run", "job", job.Name, "error", err)
+		}
 	}
 	return submitted
 }

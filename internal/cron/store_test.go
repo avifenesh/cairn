@@ -221,8 +221,10 @@ func TestStore_UpdateAfterRun_UpdatesLastRunAt(t *testing.T) {
 
 	// Force next_run to the past so it's due.
 	pastNext := time.Now().UTC().Add(-5 * time.Minute)
-	store.db.ExecContext(ctx, "UPDATE cron_jobs SET next_run_at = ? WHERE id = ?",
-		pastNext.Format(timeFormat), job.ID)
+	if _, err := store.db.ExecContext(ctx, "UPDATE cron_jobs SET next_run_at = ? WHERE id = ?",
+		pastNext.Format(timeFormat), job.ID); err != nil {
+		t.Fatalf("force next_run_at into past: %v", err)
+	}
 
 	// Verify it's due initially.
 	due, err := store.GetDueJobs(ctx, time.Now().UTC())
@@ -249,13 +251,22 @@ func TestStore_UpdateAfterRun_UpdatesLastRunAt(t *testing.T) {
 		t.Fatal("expected LastRunAt to be set after UpdateAfterRun")
 	}
 
-	// Verify the job is no longer due (cooldown active since we just ran it).
-	due, err = store.GetDueJobs(ctx, time.Now().UTC())
+	// Verify cooldown prevents re-execution even if next_run_at is in the past.
+	// Force next_run_at back into the past so the job would otherwise be due by schedule alone.
+	pastAfterRun := now.Add(-1 * time.Minute)
+	if _, err := store.db.ExecContext(ctx, "UPDATE cron_jobs SET next_run_at = ? WHERE id = ?",
+		pastAfterRun.Format(timeFormat), job.ID); err != nil {
+		t.Fatalf("update next_run_at after run: %v", err)
+	}
+
+	// Query for due jobs within the cooldown window (CooldownMs = 60000, so use now + 30s).
+	checkTime := now.Add(30 * time.Second)
+	due, err = store.GetDueJobs(ctx, checkTime)
 	if err != nil {
-		t.Fatalf("getDueJobs after run: %v", err)
+		t.Fatalf("getDueJobs after run (within cooldown): %v", err)
 	}
 	if len(due) != 0 {
-		t.Fatalf("expected 0 due jobs after UpdateAfterRun (cooldown active), got %d", len(due))
+		t.Fatalf("expected 0 due jobs within cooldown window, got %d", len(due))
 	}
 }
 

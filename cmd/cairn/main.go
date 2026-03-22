@@ -194,12 +194,15 @@ func runServe(logger *slog.Logger) {
 	memStore := memory.NewStore(database)
 	memService := memory.NewService(memStore, embedder, bus)
 	soul := memory.NewSoul(cfg.SoulPath)
-	soul.Load() // ignore error if SOUL.md doesn't exist yet
-	// Watch for external modifications (agent reflection, manual edits).
-	// Uses a long-lived context — stopped on process exit.
-	soulCtx, soulCancel := context.WithCancel(context.Background())
-	defer soulCancel()
-	go soul.Watch(soulCtx)
+	if err := soul.Load(); err != nil {
+		logger.Warn("soul: initial load failed (file may not exist yet)", "path", cfg.SoulPath, "error", err)
+	} else {
+		// Only watch if the file loaded successfully. Avoids noisy stat
+		// warnings every 5s when the file doesn't exist.
+		soul.OnChange(func(content string) {
+			logger.Info("soul reloaded from disk", "path", cfg.SoulPath, "bytes", len(content))
+		})
+	}
 
 	// Initialize context builder (token-budgeted memory injection).
 	ctxBuilder := memory.NewContextBuilder(memStore, embedder, memory.ContextConfig{
@@ -647,6 +650,11 @@ func runServe(logger *slog.Logger) {
 	// Graceful shutdown context — all subsystems observe this.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// Start Soul file watcher (uses shutdown context).
+	if soul.Content() != "" {
+		go soul.Watch(ctx)
+	}
 
 	// Notify adapter — set when channels are configured, nil otherwise.
 	var notifyAdapt tool.NotifyService

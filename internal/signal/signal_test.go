@@ -149,16 +149,15 @@ func TestEventStore_Ingest_CrossSourceURLDedup(t *testing.T) {
 	}
 }
 
-// TestEventStore_Ingest_CrossSourceURLDedup_EventSourcesNotDeduped verifies that
-// same-URL events from non-article sources (github, npm, crates) are NOT
-// deduped. These sources can have multiple distinct events (stars, forks,
-// version bumps) sharing the same base URL.
-func TestEventStore_Ingest_CrossSourceURLDedup_EventSourcesNotDeduped(t *testing.T) {
+// TestEventStore_Ingest_CrossSourceURLDedup_NPMDoesNotBlockGitHub verifies that
+// same-URL events from non-article sources (npm, github) are NOT cross-deduped.
+// A github star event and an npm publish event can share the same base URL
+// (e.g. npmjs.com/package/express) but represent distinct events.
+func TestEventStore_Ingest_CrossSourceURLDedup_NPMDoesNotBlockGitHub(t *testing.T) {
 	sqlDB := setupTestDB(t)
 	store := NewEventStore(sqlDB)
 	ctx := t.Context()
 
-	// Insert an npm version event with a specific URL.
 	events := []*RawEvent{
 		{
 			Source:     "npm",
@@ -177,7 +176,7 @@ func TestEventStore_Ingest_CrossSourceURLDedup_EventSourcesNotDeduped(t *testing
 		t.Fatalf("npm ingest: count = %d, want 1", len(inserted))
 	}
 
-	// Same URL from github (e.g., star event) — should NOT be deduped.
+	// Same URL from github — should NOT be deduped.
 	events2 := []*RawEvent{
 		{
 			Source:     "github",
@@ -196,7 +195,6 @@ func TestEventStore_Ingest_CrossSourceURLDedup_EventSourcesNotDeduped(t *testing
 		t.Fatalf("github ingest: count = %d, want 1 (non-article sources should not cross-dedup)", len(inserted2))
 	}
 
-	// Total should be 2.
 	count, err := store.Count(ctx, EventFilter{})
 	if err != nil {
 		t.Fatalf("count: %v", err)
@@ -204,12 +202,17 @@ func TestEventStore_Ingest_CrossSourceURLDedup_EventSourcesNotDeduped(t *testing
 	if count != 2 {
 		t.Fatalf("total count = %d, want 2", count)
 	}
+}
 
-	// Also verify the inverse: an existing devto article URL should not
-	// block a new github event with the same URL.
-	sqlDB3 := setupTestDB(t)
-	store3 := NewEventStore(sqlDB3)
-	events3 := []*RawEvent{
+// TestEventStore_Ingest_CrossSourceURLDedup_DevToDoesNotBlockGitHub verifies that
+// a devto article URL does not block a github event with the same URL (e.g. a
+// devto article linking to a github repo). Only article↔article dedup should apply.
+func TestEventStore_Ingest_CrossSourceURLDedup_DevToDoesNotBlockGitHub(t *testing.T) {
+	sqlDB := setupTestDB(t)
+	store := NewEventStore(sqlDB)
+	ctx := t.Context()
+
+	events := []*RawEvent{
 		{
 			Source:     "devto",
 			SourceID:   "devto:99999",
@@ -219,16 +222,16 @@ func TestEventStore_Ingest_CrossSourceURLDedup_EventSourcesNotDeduped(t *testing
 			OccurredAt: time.Now().UTC(),
 		},
 	}
-	inserted3, err := store3.Ingest(ctx, events3)
+	inserted, err := store.Ingest(ctx, events)
 	if err != nil {
 		t.Fatalf("devto ingest: %v", err)
 	}
-	if len(inserted3) != 1 {
-		t.Fatalf("devto ingest: count = %d, want 1", len(inserted3))
+	if len(inserted) != 1 {
+		t.Fatalf("devto ingest: count = %d, want 1", len(inserted))
 	}
 
 	// Same URL from github — should NOT be deduped (github is not an article source).
-	events4 := []*RawEvent{
+	events2 := []*RawEvent{
 		{
 			Source:     "github",
 			SourceID:   "gh:star:expressjs/express",
@@ -238,20 +241,20 @@ func TestEventStore_Ingest_CrossSourceURLDedup_EventSourcesNotDeduped(t *testing
 			OccurredAt: time.Now().UTC(),
 		},
 	}
-	inserted4, err := store3.Ingest(ctx, events4)
+	inserted2, err := store.Ingest(ctx, events2)
 	if err != nil {
 		t.Fatalf("github ingest: %v", err)
 	}
-	if len(inserted4) != 1 {
-		t.Fatalf("github ingest: count = %d, want 1 (github should not be deduped against devto URL)", len(inserted4))
+	if len(inserted2) != 1 {
+		t.Fatalf("github ingest: count = %d, want 1 (github should not be deduped against devto URL)", len(inserted2))
 	}
 
-	count4, err := store3.Count(ctx, EventFilter{})
+	count, err := store.Count(ctx, EventFilter{})
 	if err != nil {
 		t.Fatalf("count: %v", err)
 	}
-	if count4 != 2 {
-		t.Fatalf("total count = %d, want 2", count4)
+	if count != 2 {
+		t.Fatalf("total count = %d, want 2", count)
 	}
 }
 

@@ -25,12 +25,20 @@ func NewEventStore(db *sql.DB) *EventStore {
 	return &EventStore{db: db}
 }
 
-// articleSources are sources where same-URL = same-content article.
-// URL dedup only applies to these sources (cross-source and intra-batch).
-var articleSources = map[string]bool{
-	SourceRSS:   true,
-	SourceDevTo: true,
-}
+// articleSourceList is the single source of truth for sources where
+// same-URL = same-content article. URL dedup (cross-source and intra-batch)
+// only applies to these sources.
+var articleSourceList = []string{SourceRSS, SourceDevTo}
+
+// articleSources is a membership set derived from articleSourceList,
+// used for O(1) lookups during ingest filtering.
+var articleSources = func() map[string]bool {
+	m := make(map[string]bool, len(articleSourceList))
+	for _, src := range articleSourceList {
+		m[src] = true
+	}
+	return m
+}()
 
 // Ingest stores a batch of raw events, skipping duplicates via the
 // UNIQUE(source, source_item_id) constraint and a cross-source URL
@@ -144,20 +152,23 @@ func (s *EventStore) queryExistingURLs(ctx context.Context, urls []string) map[s
 
 	// Only query article sources to avoid false-positive dedup of event
 	// sources (github, npm, crates) where same-URL ≠ same-content.
-	articleSourceList := []any{SourceRSS, SourceDevTo}
 	placeholders := make([]string, len(articleSourceList))
 	for i := range articleSourceList {
 		placeholders[i] = "?"
 	}
 
 	urlPlaceholders := make([]string, len(urls))
+	sourceArgs := make([]any, len(articleSourceList))
 	urlArgs := make([]any, len(urls))
+	for i, s := range articleSourceList {
+		sourceArgs[i] = s
+	}
 	for i, u := range urls {
 		urlPlaceholders[i] = "?"
 		urlArgs[i] = u
 	}
 
-	allArgs := append(articleSourceList, urlArgs...)
+	allArgs := append(sourceArgs, urlArgs...)
 	query := fmt.Sprintf("SELECT DISTINCT url FROM events WHERE source IN (%s) AND url IN (%s)", strings.Join(placeholders, ", "), strings.Join(urlPlaceholders, ", "))
 	rows, err := s.db.QueryContext(ctx, query, allArgs...)
 	if err != nil {

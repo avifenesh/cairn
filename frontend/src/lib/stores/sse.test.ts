@@ -34,7 +34,7 @@ vi.mock('./offline-queue.svelte', () => ({
 	offlineQueue: { drain: vi.fn(() => Promise.resolve({ succeeded: 0, failed: 0 })) },
 }));
 vi.mock('$lib/api/client', () => ({
-	getAgentActivity: vi.fn(() => Promise.resolve([])),
+	getAgentActivity: vi.fn(() => Promise.resolve({ items: [], stats: {} })),
 }));
 
 // Mock EventSource

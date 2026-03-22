@@ -4,6 +4,7 @@
 	let { content = '', isStreaming = false }: { content: string; isStreaming: boolean } = $props();
 
 	let renderedContent = $state('');
+	let containerEl: HTMLDivElement | undefined = $state();
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 	$effect(() => {
@@ -17,20 +18,27 @@
 		}, 80);
 	});
 
-	// Event delegation for code block copy buttons (no inline onclick)
-	function handleClick(e: MouseEvent) {
-		const target = e.target as HTMLElement;
-		if (target.dataset.copy !== 'true') return;
-		const block = target.closest('.cairn-code-block');
-		const code = block?.querySelector('code')?.textContent ?? '';
-		navigator.clipboard.writeText(code);
-		target.textContent = 'Copied';
-		setTimeout(() => { target.textContent = 'Copy'; }, 2000);
-	}
+	// Attach copy handlers directly to rendered copy buttons (no event delegation on parent).
+	$effect(() => {
+		if (!containerEl || !renderedContent) return;
+		// Wait for DOM update after renderedContent change.
+		const frame = requestAnimationFrame(() => {
+			const buttons = containerEl!.querySelectorAll<HTMLElement>('[data-copy="true"]');
+			for (const btn of buttons) {
+				btn.onclick = () => {
+					const block = btn.closest('.cairn-code-block');
+					const code = block?.querySelector('code')?.textContent ?? '';
+					navigator.clipboard.writeText(code);
+					btn.textContent = 'Copied';
+					setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+				};
+			}
+		});
+		return () => cancelAnimationFrame(frame);
+	});
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
-<div class="streaming-text" onclick={handleClick}>
+<div class="streaming-text" bind:this={containerEl}>
 	<div class="cairn-prose text-sm text-[var(--text-primary)] leading-relaxed">
 		{@html renderedContent}
 		{#if isStreaming}

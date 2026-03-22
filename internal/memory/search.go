@@ -143,6 +143,9 @@ func mmrRerank(candidates []searchCandidate, limit int, lambda float64) []Search
 	if len(candidates) == 0 {
 		return nil
 	}
+	if limit > len(candidates) {
+		limit = len(candidates)
+	}
 
 	selected := make([]SearchResult, 0, limit)
 	used := make([]bool, len(candidates))

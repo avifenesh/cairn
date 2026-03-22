@@ -344,6 +344,19 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		userMessage = "## Context from parent\n" + req.Context + "\n\n## Task\n" + req.Instruction
 	}
 
+	// Build the subagent system hint with canonical identity injected.
+	// This ensures subagents always have the correct GitHub owner in their system
+	// prompt, preventing hallucinated owner names (e.g., 'aviaryan') that cause
+	// failed API calls and wasted rounds.
+	systemHint := cfg.SystemPrompt
+	if r.toolConfig != nil {
+		if cfg, err := r.toolConfig.GetConfig(ctx); err == nil {
+			if owner, ok := cfg["ghOwner"].(string); ok && owner != "" {
+				systemHint += fmt.Sprintf("\n\n## Canonical Identity\n- GitHub repo owner: %s (exact spelling — never guess or fabricate this value)", owner)
+			}
+		}
+	}
+
 	// Build invocation context (child gets no Subagents field - cannot spawn grandchildren).
 	invCtx := &InvocationContext{
 		Context:       ctx,
@@ -373,7 +386,7 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		Config: &AgentConfig{
 			Model:              r.model,
 			MaxRounds:          maxRounds,
-			SubagentSystemHint: cfg.SystemPrompt,
+			SubagentSystemHint: systemHint,
 		},
 	}
 

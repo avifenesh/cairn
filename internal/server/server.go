@@ -21,6 +21,7 @@ import (
 	cairnmcp "github.com/avifenesh/cairn/internal/mcp"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/plugin"
+	"github.com/avifenesh/cairn/internal/rules"
 	"github.com/avifenesh/cairn/internal/skill"
 	"github.com/avifenesh/cairn/internal/task"
 	"github.com/avifenesh/cairn/internal/tool"
@@ -59,6 +60,7 @@ type Server struct {
 	toolSkills   tool.SkillService
 	toolNotifier tool.NotifyService
 	toolCrons    tool.CronService
+	toolRules    tool.RulesService
 	toolConfig   tool.ConfigService
 
 	// Subagent runner (optional: enables cairn.spawnSubagent tool).
@@ -69,6 +71,10 @@ type Server struct {
 
 	// Cron store (optional).
 	cronStore *cron.Store
+
+	// Rules store + engine (optional: automation rules).
+	rulesStore  *rules.Store
+	rulesEngine *rules.Engine
 
 	// Activity store (optional).
 	activityStore *agent.ActivityStore
@@ -135,6 +141,7 @@ type ServerConfig struct {
 	ToolSkills   tool.SkillService
 	ToolNotifier tool.NotifyService
 	ToolCrons    tool.CronService
+	ToolRules    tool.RulesService
 	ToolConfig   tool.ConfigService
 
 	// Subagent runner (optional: enables cairn.spawnSubagent tool).
@@ -145,6 +152,10 @@ type ServerConfig struct {
 
 	// Cron store (optional: scheduled tasks).
 	CronStore *cron.Store
+
+	// Rules store + engine (optional: automation rules).
+	RulesStore  *rules.Store
+	RulesEngine *rules.Engine
 
 	// Activity store (optional: agent observability).
 	ActivityStore *agent.ActivityStore
@@ -206,10 +217,13 @@ func New(cfg ServerConfig) *Server {
 		toolSkills:      cfg.ToolSkills,
 		toolNotifier:    cfg.ToolNotifier,
 		toolCrons:       cfg.ToolCrons,
+		toolRules:       cfg.ToolRules,
 		toolConfig:      cfg.ToolConfig,
 		subagentRunner:  cfg.SubagentRunner,
 		voice:           cfg.Voice,
 		cronStore:       cfg.CronStore,
+		rulesStore:      cfg.RulesStore,
+		rulesEngine:     cfg.RulesEngine,
 		activityStore:   cfg.ActivityStore,
 		checkpointStore: cfg.CheckpointStore,
 		marketplace:     cfg.Marketplace,

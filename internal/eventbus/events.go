@@ -212,6 +212,18 @@ type SubagentCompleted struct {
 	Rounds     int    `json:"rounds"`
 }
 
+// --- Rules events ---
+
+// RuleExecuted is emitted when an automation rule fires.
+type RuleExecuted struct {
+	EventMeta
+	RuleID     string `json:"ruleId"`
+	RuleName   string `json:"ruleName"`
+	Status     string `json:"status"` // "success", "error", "throttled", "condition_false"
+	DurationMs int64  `json:"durationMs"`
+	Error      string `json:"error,omitempty"`
+}
+
 // --- System events ---
 
 // ShutdownInitiated is emitted when the system begins shutting down.

@@ -362,3 +362,41 @@ export interface SessionRoundInfo {
 	inputTokens: number;
 	outputTokens: number;
 }
+
+// --- Automation Rules ---
+
+export interface RuleTrigger {
+	type: 'event' | 'cron';
+	eventType?: string;
+	filter?: Record<string, string>;
+	schedule?: string;
+}
+
+export interface RuleAction {
+	type: 'notify' | 'task';
+	params: Record<string, string>;
+}
+
+export interface Rule {
+	id: string;
+	name: string;
+	description: string;
+	enabled: boolean;
+	trigger: RuleTrigger;
+	condition: string;
+	actions: RuleAction[];
+	throttleMs: number;
+	createdAt: string;
+	updatedAt: string;
+	lastFiredAt?: string;
+}
+
+export interface RuleExecution {
+	id: string;
+	ruleId: string;
+	triggerEvent?: string;
+	status: 'success' | 'error' | 'throttled' | 'condition_false';
+	error?: string;
+	durationMs: number;
+	createdAt: string;
+}

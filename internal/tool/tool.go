@@ -191,6 +191,14 @@ type CronJobInfo struct {
 	NextRun     *time.Time
 }
 
+// RulesService manages automation rules.
+type RulesService interface {
+	Create(ctx context.Context, name, desc string, trigger, condition, actions string, throttleMs int64) (string, error)
+	List(ctx context.Context) (string, error) // returns formatted output
+	Delete(ctx context.Context, idOrName string) error
+	Toggle(ctx context.Context, id string, enabled bool) error
+}
+
 // ConfigService provides agent access to runtime config (behind approval gate).
 type ConfigService interface {
 	// PatchConfig applies partial config updates. Returns the updated config summary.
@@ -261,6 +269,7 @@ type ToolContext struct {
 	Crons    CronService
 
 	Config ConfigService
+	Rules  RulesService
 
 	// Subagents spawns child agents for delegated work. Nil = spawning not supported.
 	Subagents SubagentService

@@ -13,6 +13,7 @@ import (
 	"github.com/avifenesh/cairn/internal/config"
 	cairncron "github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/memory"
+	"github.com/avifenesh/cairn/internal/rules"
 	"github.com/avifenesh/cairn/internal/signal"
 	"github.com/avifenesh/cairn/internal/skill"
 	"github.com/avifenesh/cairn/internal/task"
@@ -509,6 +510,137 @@ func (a *cronAdapter) Delete(ctx context.Context, idOrName string) error {
 		return fmt.Errorf("cron job %q not found", idOrName)
 	}
 	return a.store.Delete(ctx, job.ID)
+}
+
+// rulesTaskSubmitter bridges task.Engine to rules.TaskSubmitter.
+type rulesTaskSubmitter struct {
+	engine *task.Engine
+}
+
+func (s *rulesTaskSubmitter) Submit(ctx context.Context, description, taskType string, priority int) (string, error) {
+	t, err := s.engine.Submit(ctx, &task.SubmitRequest{
+		Type:        task.TaskType(taskType),
+		Priority:    task.Priority(priority),
+		Description: description,
+	})
+	if err != nil {
+		return "", err
+	}
+	return t.ID, nil
+}
+
+// rulesNotifier bridges tool.NotifyService to rules.NotifyService.
+type rulesNotifier struct {
+	notifier tool.NotifyService
+}
+
+func (n *rulesNotifier) Notify(ctx context.Context, message string, priority int) error {
+	if n.notifier == nil {
+		return fmt.Errorf("notification channels not configured")
+	}
+	n.notifier.Notify(ctx, message, priority)
+	return nil
+}
+
+// rulesAdapter bridges rules.Store to tool.RulesService.
+type rulesAdapter struct {
+	store  *rules.Store
+	engine *rules.Engine
+}
+
+func (a *rulesAdapter) Create(ctx context.Context, name, desc string, trigger, condition, actions string, throttleMs int64) (string, error) {
+	var t rules.Trigger
+	if err := json.Unmarshal([]byte(trigger), &t); err != nil {
+		return "", fmt.Errorf("invalid trigger JSON: %w", err)
+	}
+	var acts []rules.Action
+	if err := json.Unmarshal([]byte(actions), &acts); err != nil {
+		return "", fmt.Errorf("invalid actions JSON: %w", err)
+	}
+
+	rule := &rules.Rule{
+		Name:        name,
+		Description: desc,
+		Enabled:     true,
+		Trigger:     t,
+		Condition:   condition,
+		Actions:     acts,
+		ThrottleMs:  throttleMs,
+	}
+	if err := a.store.Create(ctx, rule); err != nil {
+		return "", err
+	}
+	if a.engine != nil {
+		a.engine.RefreshCache()
+	}
+	return rule.ID, nil
+}
+
+func (a *rulesAdapter) List(ctx context.Context) (string, error) {
+	items, err := a.store.List(ctx)
+	if err != nil {
+		return "", err
+	}
+	if len(items) == 0 {
+		return "No automation rules configured.", nil
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "## Automation Rules (%d)\n\n", len(items))
+	for _, r := range items {
+		status := "enabled"
+		if !r.Enabled {
+			status = "disabled"
+		}
+		fmt.Fprintf(&b, "- **%s** [%s] trigger=%s", r.Name, status, r.Trigger.Type)
+		if r.Trigger.EventType != "" {
+			fmt.Fprintf(&b, "(%s)", r.Trigger.EventType)
+		}
+		if r.Trigger.Schedule != "" {
+			fmt.Fprintf(&b, " schedule=`%s`", r.Trigger.Schedule)
+		}
+		if r.Description != "" {
+			fmt.Fprintf(&b, " - %s", r.Description)
+		}
+		fmt.Fprintln(&b)
+		if r.LastFiredAt != nil {
+			fmt.Fprintf(&b, "  Last fired: %s\n", r.LastFiredAt.Format("2006-01-02 15:04 UTC"))
+		}
+	}
+	return b.String(), nil
+}
+
+func (a *rulesAdapter) Delete(ctx context.Context, idOrName string) error {
+	// Try by ID first.
+	if err := a.store.Delete(ctx, idOrName); err == nil {
+		if a.engine != nil {
+			a.engine.RefreshCache()
+		}
+		return nil
+	}
+	// Fall back to name lookup.
+	rule, err := a.store.GetByName(ctx, idOrName)
+	if err != nil {
+		return fmt.Errorf("rule %q not found", idOrName)
+	}
+	if err := a.store.Delete(ctx, rule.ID); err != nil {
+		return err
+	}
+	if a.engine != nil {
+		a.engine.RefreshCache()
+	}
+	return nil
+}
+
+func (a *rulesAdapter) Toggle(ctx context.Context, id string, enabled bool) error {
+	err := a.store.Update(ctx, id, rules.UpdateOpts{Enabled: &enabled})
+	if err != nil {
+		return err
+	}
+	if a.engine != nil {
+		a.engine.RefreshCache()
+	}
+	return nil
 }
 
 // configAdapter bridges config.Config to tool.ConfigService.

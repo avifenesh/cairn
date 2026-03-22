@@ -77,6 +77,7 @@ type InvocationContext struct {
 	ToolSkills   tool.SkillService
 	ToolNotifier tool.NotifyService
 	ToolCrons    tool.CronService
+	ToolRules    tool.RulesService
 	ToolConfig   tool.ConfigService
 }
 

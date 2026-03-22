@@ -183,6 +183,16 @@ func (b *SSEBroadcaster) Start() {
 				})
 			}
 		}),
+		// Rule execution events.
+		eventbus.Subscribe(b.bus, func(e eventbus.RuleExecuted) {
+			b.broadcast("rule_executed", e.ID, map[string]any{
+				"ruleId":     e.RuleID,
+				"ruleName":   e.RuleName,
+				"status":     e.Status,
+				"durationMs": e.DurationMs,
+				"error":      e.Error,
+			})
+		}),
 		// Subagent lifecycle events.
 		eventbus.Subscribe(b.bus, func(e eventbus.SubagentStarted) {
 			b.broadcast("subagent_started", e.ID, map[string]any{

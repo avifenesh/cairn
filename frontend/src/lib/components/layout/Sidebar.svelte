@@ -18,6 +18,7 @@
 		PanelLeft,
 		Eye,
 		MonitorPlay,
+		Zap,
 	} from '@lucide/svelte';
 	import { activityStore } from '$lib/stores/activity.svelte';
 
@@ -30,6 +31,7 @@
 		{ href: '/memory', label: 'Memory', icon: Brain, key: '6' },
 		{ href: '/agents', label: 'Agents', icon: Bot, key: '7' },
 		{ href: '/skills', label: 'Skills', icon: Sparkles, key: '8' },
+		{ href: '/rules', label: 'Rules', icon: Zap, key: 'r' },
 		{ href: '/soul', label: 'Soul', icon: Heart, key: '9' },
 	];
 

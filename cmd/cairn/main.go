@@ -27,6 +27,7 @@ import (
 	cairnmcp "github.com/avifenesh/cairn/internal/mcp"
 	"github.com/avifenesh/cairn/internal/memory"
 	"github.com/avifenesh/cairn/internal/plugin"
+	"github.com/avifenesh/cairn/internal/rules"
 	"github.com/avifenesh/cairn/internal/server"
 	signalplane "github.com/avifenesh/cairn/internal/signal"
 	"github.com/avifenesh/cairn/internal/skill"
@@ -262,6 +263,14 @@ func runServe(logger *slog.Logger) {
 	// Initialize cron store.
 	cronStore := cairncron.NewStore(database.DB)
 
+	// Initialize rules store + engine (optional: automation rules).
+	var rulesStore *rules.Store
+	var rulesEngine *rules.Engine
+	if cfg.RulesEnabled {
+		rulesStore = rules.NewStore(database.DB)
+		logger.Info("rules store initialized")
+	}
+
 	// Create the ReAct agent.
 	var reactAgent agent.Agent
 	if provider != nil {
@@ -451,9 +460,27 @@ func runServe(logger *slog.Logger) {
 		logger.Info("memory auto-extraction enabled")
 	}
 
-	// Create cron, config, and activity adapters (needed by both server and agent loop).
+	// Create cron, config, rules, and activity adapters (needed by both server and agent loop).
 	cronAdapt := &cronAdapter{store: cronStore}
 	cfgAdapt := &configAdapter{cfg: cfg}
+	// Rules notifier wrapper — the inner notifier is set once channels are configured.
+	rulesNotify := &rulesNotifier{}
+	var rulesAdapt tool.RulesService
+	if rulesStore != nil {
+		rulesEngine = rules.NewEngine(rules.EngineDeps{
+			Store:    rulesStore,
+			Bus:      bus,
+			Notifier: rulesNotify,
+			Tasks:    &rulesTaskSubmitter{engine: taskEngine},
+			Logger:   logger,
+		})
+		rulesEngine.Start()
+		defer rulesEngine.Close()
+
+		rulesAdapt = &rulesAdapter{store: rulesStore, engine: rulesEngine}
+		builtin.SetRulesEnabled(true)
+		logger.Info("rules engine started")
+	}
 	activityStore := agent.NewActivityStore(database.DB)
 	checkpointStore := agent.NewCheckpointStore(database)
 
@@ -484,6 +511,7 @@ func runServe(logger *slog.Logger) {
 			ToolSkills:     skillAdapt,
 			ToolNotifier:   nil, // set later after channels init
 			ToolCrons:      cronAdapt,
+			ToolRules:      rulesAdapt,
 			ToolConfig:     cfgAdapt,
 			Model:          cfg.LLMModel,
 		})
@@ -559,6 +587,7 @@ func runServe(logger *slog.Logger) {
 			ToolStatus:      statusAdapt,
 			ToolSkills:      skillAdapt,
 			ToolCrons:       cronAdapt,
+			ToolRules:       rulesAdapt,
 			ToolConfig:      cfgAdapt,
 			ContextBuilder:  ctxBuilder,
 			Plugins:         pluginMgr,
@@ -639,10 +668,13 @@ func runServe(logger *slog.Logger) {
 		ToolStatus:      statusAdapt,
 		ToolSkills:      skillAdapt,
 		ToolCrons:       cronAdapt,
+		ToolRules:       rulesAdapt,
 		ToolConfig:      cfgAdapt,
 		SubagentRunner:  subagentRunner,
 		Voice:           voiceSvc,
 		CronStore:       cronStore,
+		RulesStore:      rulesStore,
+		RulesEngine:     rulesEngine,
 		ActivityStore:   activityStore,
 		CheckpointStore: checkpointStore,
 		Marketplace:     marketplace,
@@ -833,6 +865,7 @@ func runServe(logger *slog.Logger) {
 				ToolSkills:     skillAdapt,
 				ToolNotifier:   notifyAdapt,
 				ToolCrons:      cronAdapt,
+				ToolRules:      rulesAdapt,
 				ToolConfig:     cfgAdapt,
 				Config:         &agent.AgentConfig{Model: cfg.LLMModel, MaxRounds: cfg.MaxRoundsForMode(string(channelMode))},
 				CompactionConfig: agent.CompactionConfig{
@@ -965,6 +998,9 @@ func runServe(logger *slog.Logger) {
 			agentLoop.SetNotifier(notifyAdapt)
 		}
 
+		// Wire rules engine notifier (deferred until channels are ready).
+		rulesNotify.notifier = notifyAdapt
+
 		// Start router in background — stopped by ctx cancel on shutdown.
 		go func() {
 			if err := channelRouter.Start(ctx); err != nil && err != context.Canceled {
@@ -990,6 +1026,7 @@ func runServe(logger *slog.Logger) {
 			Skills:   skillAdapt,
 			Notifier: notifyAdapt,
 			Crons:    cronAdapt,
+			Rules:    rulesAdapt,
 			Config:   cfgAdapt,
 		}
 		mcpSrv := cairnmcp.New(cairnmcp.Config{

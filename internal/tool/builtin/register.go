@@ -92,6 +92,16 @@ func All() []tool.Tool {
 		)
 	}
 
+	// Automation rules tools (when rules engine is enabled).
+	if RulesEnabled() {
+		tools = append(tools,
+			createRule,
+			listRules,
+			deleteRule,
+			toggleRule,
+		)
+	}
+
 	// Telegram Bot API tool (when Telegram bot is configured).
 	if TelegramEnabled() {
 		tools = append(tools, telegramAction)

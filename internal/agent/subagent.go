@@ -89,6 +89,7 @@ type SubagentRunner struct {
 	toolSkills     tool.SkillService
 	toolNotifier   tool.NotifyService
 	toolCrons      tool.CronService
+	toolRules      tool.RulesService
 	toolConfig     tool.ConfigService
 	model          string // LLM model to use
 }
@@ -115,6 +116,7 @@ type SubagentRunnerDeps struct {
 	ToolSkills     tool.SkillService
 	ToolNotifier   tool.NotifyService
 	ToolCrons      tool.CronService
+	ToolRules      tool.RulesService
 	ToolConfig     tool.ConfigService
 	Model          string
 }
@@ -146,6 +148,7 @@ func NewSubagentRunner(deps SubagentRunnerDeps) *SubagentRunner {
 		toolSkills:     deps.ToolSkills,
 		toolNotifier:   deps.ToolNotifier,
 		toolCrons:      deps.ToolCrons,
+		toolRules:      deps.ToolRules,
 		toolConfig:     deps.ToolConfig,
 		model:          deps.Model,
 	}
@@ -365,6 +368,7 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		ToolSkills:    r.toolSkills,
 		ToolNotifier:  r.toolNotifier,
 		ToolCrons:     r.toolCrons,
+		ToolRules:     r.toolRules,
 		ToolConfig:    r.toolConfig,
 		Config: &AgentConfig{
 			Model:              r.model,

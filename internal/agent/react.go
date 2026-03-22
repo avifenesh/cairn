@@ -343,6 +343,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			Skills:    invCtx.ToolSkills,
 			Notifier:  invCtx.ToolNotifier,
 			Crons:     invCtx.ToolCrons,
+			Rules:     invCtx.ToolRules,
 			Config:    invCtx.ToolConfig,
 			Subagents: invCtx.Subagents,
 			ActivateSkill: func(name, content string, allowedTools []string) {

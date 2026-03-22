@@ -4,7 +4,7 @@
 >
 > **Start here:** Guides are research syntheses from 6-108 online sources each. They contain best practices, common pitfalls, implementation patterns, and further reading links. The keyword lookup table maps concepts to the right guide.
 
-## Guides (20)
+## Guides (21)
 
 | # | Topic | File | Sources | Created |
 |---|-------|------|---------|---------|
@@ -28,6 +28,7 @@
 | 18 | Coding session architecture, file tree, checkpoint/resume | coding-session-architecture.md | N/A | 2026-03-22 |
 | 19 | Coding session observability, progress tracking | coding-session-observability.md | N/A | 2026-03-22 |
 | 20 | Coding session steering, user intervention mid-session | coding-session-steering.md | N/A | 2026-03-22 |
+| 21 | Automation rules engines, event-driven reactive systems | automation-rules-engines.md | 42 | 2026-03-22 |
 
 ## Keyword Lookup
 
@@ -66,9 +67,21 @@
 | virtual scroll diff, TanStack Virtual, large diff performance, lazy hunk rendering | diff-view-visual-design.md |
 | accessible diff, colorblind diff, WCAG diff, gutter prefix, left border accent | diff-view-visual-design.md |
 | diff color palette, GitHub diff colors, VS Code diff colors, word-level highlight | diff-view-visual-design.md |
+<<<<<<< HEAD
 | coding session, file tree, checkpoint, resume, crash recovery, session events | coding-session-architecture.md |
 | coding observability, progress bar, tool stats, round count, session panel | coding-session-observability.md |
 | steering, user intervention, inject message, pause, stop, urgent message | coding-session-steering.md |
+=======
+| automation rules, rules engine, trigger-condition-action, TCA, IFTTT, Zapier | automation-rules-engines.md |
+| event-driven automation, reactive rules, when X do Y, declarative automation | automation-rules-engines.md |
+| expr-lang, CEL, expression evaluator, Go expression, condition evaluation | automation-rules-engines.md |
+| Home Assistant automations, n8n, Windmill, workflow engine | automation-rules-engines.md |
+| Temporal, Inngest, durable execution, saga pattern, circuit breaker | automation-rules-engines.md |
+| OPA, Rego, Drools, grule, decision table, rule priority, salience | automation-rules-engines.md |
+| event sourcing, CQRS, event notification, event bus rules | automation-rules-engines.md |
+| rule storage schema, SQLite rules, rule execution history | automation-rules-engines.md |
+| cooldown, rate limit, chain depth, runaway rules, expression injection | automation-rules-engines.md |
+>>>>>>> d5437bd (feat: automation rules engine — full integration + frontend)
 
 ## How to Use
 

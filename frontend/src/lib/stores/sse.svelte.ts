@@ -252,6 +252,12 @@ export const sseStore = {
 				d.rounds,
 			);
 		});
+
+		// Automation rules.
+		handle('rule_executed', source, (d) => {
+			appStore.addNotification('rule', `Rule fired: ${d.ruleName} (${d.status})`);
+			window.dispatchEvent(new CustomEvent('cairn:rule-executed', { detail: d }));
+		});
 	},
 
 	disconnect() {

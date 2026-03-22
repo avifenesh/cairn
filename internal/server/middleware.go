@@ -23,9 +23,11 @@ func extractToken(r *http.Request) string {
 	if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
 		return strings.TrimPrefix(auth, "Bearer ")
 	}
-	// 3. ?token= query param (needed for EventSource which can't set headers).
-	if tok := r.URL.Query().Get("token"); tok != "" {
-		return tok
+	// 3. ?token= query param (only for SSE stream - EventSource can't set headers).
+	if r.URL.Path == "/v1/stream" {
+		if tok := r.URL.Query().Get("token"); tok != "" {
+			return tok
+		}
 	}
 	return ""
 }
@@ -97,13 +99,13 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// isWriteRequest returns true if the request is a write (POST/PUT/DELETE) to /v1/*.
+// isWriteRequest returns true if the request is a write (POST/PUT/PATCH/DELETE) to /v1/*.
 func isWriteRequest(r *http.Request) bool {
 	if !strings.HasPrefix(r.URL.Path, "/v1/") {
 		return false
 	}
 	switch r.Method {
-	case http.MethodPost, http.MethodPut, http.MethodDelete:
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
 		return true
 	}
 	return false
@@ -160,7 +162,7 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 		}
 
 		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Api-Token, Authorization")
 		// Only set credentials when origin is specific (browsers reject * + credentials).
 		if origin != "*" {

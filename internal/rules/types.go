@@ -58,6 +58,7 @@ const (
 	ExecError          ExecutionStatus = "error"
 	ExecThrottled      ExecutionStatus = "throttled"
 	ExecConditionFalse ExecutionStatus = "condition_false"
+	ExecBackpressure   ExecutionStatus = "backpressure" // semaphore full, not same as throttle
 )
 
 // Execution records a single rule fire.

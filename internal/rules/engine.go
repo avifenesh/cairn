@@ -200,7 +200,7 @@ func (e *Engine) handleEvent(eventType string, data map[string]any) {
 		// Throttle check.
 		if rule.ThrottleMs > 0 && rule.LastFiredAt != nil {
 			if time.Since(*rule.LastFiredAt).Milliseconds() < rule.ThrottleMs {
-				e.recordExec(rule.ID, data, ExecThrottled, nil, 0)
+				e.recordExec(rule.ID, rule.Name, data, ExecThrottled, nil, 0)
 				continue
 			}
 		}
@@ -215,7 +215,7 @@ func (e *Engine) handleEvent(eventType string, data map[string]any) {
 			}()
 		default:
 			e.logger.Warn("rules: execution semaphore full, skipping", "rule", rule.Name)
-			e.recordExec(rule.ID, data, ExecThrottled, nil, 0)
+			e.recordExec(rule.ID, rule.Name, data, ExecBackpressure, nil, 0)
 		}
 	}
 }
@@ -228,12 +228,12 @@ func (e *Engine) evaluateAndExecute(rule compiledRule, data map[string]any) {
 		result, err := expr.Run(rule.program, data)
 		if err != nil {
 			e.logger.Warn("rules: condition eval error", "rule", rule.Name, "error", err)
-			e.recordExec(rule.ID, data, ExecError, err, time.Since(start).Milliseconds())
+			e.recordExec(rule.ID, rule.Name, data, ExecError, err, time.Since(start).Milliseconds())
 			return
 		}
 		b, ok := result.(bool)
 		if !ok || !b {
-			e.recordExec(rule.ID, data, ExecConditionFalse, nil, time.Since(start).Milliseconds())
+			e.recordExec(rule.ID, rule.Name, data, ExecConditionFalse, nil, time.Since(start).Milliseconds())
 			return
 		}
 	}
@@ -242,7 +242,7 @@ func (e *Engine) evaluateAndExecute(rule compiledRule, data map[string]any) {
 	for _, action := range rule.Actions {
 		if err := e.dispatchAction(action, data); err != nil {
 			e.logger.Warn("rules: action failed", "rule", rule.Name, "action", action.Type, "error", err)
-			e.recordExec(rule.ID, data, ExecError, err, time.Since(start).Milliseconds())
+			e.recordExec(rule.ID, rule.Name, data, ExecError, err, time.Since(start).Milliseconds())
 			return
 		}
 	}
@@ -252,17 +252,7 @@ func (e *Engine) evaluateAndExecute(rule compiledRule, data map[string]any) {
 	if err := e.store.UpdateLastFired(context.Background(), rule.ID, time.Now()); err != nil {
 		e.logger.Warn("rules: update last_fired failed", "rule", rule.Name, "error", err)
 	}
-	e.recordExec(rule.ID, data, ExecSuccess, nil, dur)
-
-	// Publish SSE event.
-	if e.bus != nil {
-		eventbus.Publish(e.bus, eventbus.RuleExecuted{
-			EventMeta: eventbus.NewMeta("rules"),
-			RuleID:    rule.ID,
-			RuleName:  rule.Name,
-			Status:    string(ExecSuccess),
-		})
-	}
+	e.recordExec(rule.ID, rule.Name, data, ExecSuccess, nil, dur)
 
 	// Refresh cache asynchronously (lastFiredAt changed) — don't block hot path.
 	go e.refreshCache()
@@ -311,7 +301,7 @@ func (e *Engine) dispatchAction(action Action, data map[string]any) error {
 	}
 }
 
-func (e *Engine) recordExec(ruleID string, data map[string]any, status ExecutionStatus, execErr error, durationMs int64) {
+func (e *Engine) recordExec(ruleID, ruleName string, data map[string]any, status ExecutionStatus, execErr error, durationMs int64) {
 	triggerJSON, _ := json.Marshal(data)
 	// Truncate trigger event to prevent large payloads in execution log.
 	triggerStr := string(triggerJSON)
@@ -330,6 +320,22 @@ func (e *Engine) recordExec(ruleID string, data map[string]any, status Execution
 	}
 	if storeErr := e.store.RecordExecution(context.Background(), exec); storeErr != nil {
 		e.logger.Warn("rules: failed to record execution", "rule", ruleID, "error", storeErr)
+	}
+
+	// Publish SSE event for all statuses so frontend stays in sync.
+	if e.bus != nil {
+		errStr := ""
+		if execErr != nil {
+			errStr = execErr.Error()
+		}
+		eventbus.Publish(e.bus, eventbus.RuleExecuted{
+			EventMeta:  eventbus.NewMeta("rules"),
+			RuleID:     ruleID,
+			RuleName:   ruleName,
+			Status:     string(status),
+			DurationMs: durationMs,
+			Error:      errStr,
+		})
 	}
 }
 

@@ -264,7 +264,6 @@ func TestParseDevToTime(t *testing.T) {
 	}{
 		{"2026-03-20T10:00:00Z", false},
 		{"2026-03-20T10:00:00+05:00", false},
-		{"2026-03-20T10:00:00Z", false},
 		{"invalid", true},
 		{"", true},
 	}

@@ -42,11 +42,11 @@ func TestIsValidGitHubOwner(t *testing.T) {
 		{" has-hyphens ", false, "leading/trailing spaces"},
 		{"-has-leading-hyphen", false, "leading hyphen"},
 		{"has-trailing-hyphen-", false, "trailing hyphen"},
-		{"has--double-hyphen", true, "double hyphen is valid in GitHub"},
+		{"has--double-hyphen", false, "double hyphen disallowed by GitHub"},
 		{"a/b", false, "slash not allowed"},
 		{"user@example", false, "special chars not allowed"},
 		{"<script>alert(1)</script>", false, "HTML injection attempt"},
-		{string(make([]byte, 40)), false, "40 chars exceeds max of 39"},
+		{strings.Repeat("a", 40), false, "40 chars exceeds max of 39"},
 		{strings.Repeat("a", 39), true, "39 chars at the limit"},
 		{"a" + strings.Repeat("b", 38), true, "39 chars with leading 'a'"}, // total 39
 	}

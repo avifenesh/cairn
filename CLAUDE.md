@@ -9,7 +9,7 @@
 ```
 Signal Plane → Event Bus ← Agent System → Tool System
      ↕              ↕            ↕              ↕
-  11 Pollers     SQLite      Always-On Loop   52+ Tools
+  11 Pollers     SQLite      Always-On Loop   54+ Tools
   Webhooks       Store       Orchestrator     Permissions
   SSE push       Memory      ReAct Agents     Mode filtering
                  Sessions    Subagents        MCP adapter
@@ -50,7 +50,7 @@ internal/
   eventbus/                   Typed pub/sub (generics), sync + async + stream delivery
   llm/                        Provider interface, GLM + OpenAI providers, SSE parser, retry, budget
   tool/                       Tool interface, Define[P] generics, registry, permission engine
-  tool/builtin/               52+ built-in tools: file ops, shell, git, memory, feed, tasks, cron, etc.
+  tool/builtin/               54+ built-in tools: file ops, shell, git, memory, feed, tasks, cron, vision, etc.
   task/                       Task store, priority queue, worktree manager, lease claiming, approvals
   memory/                     Memory store, RAG search + MMR, embedder, Soul loader, extraction
   agent/                      Always-on loop, orchestrator, ReAct agents, subagents, compaction, sessions

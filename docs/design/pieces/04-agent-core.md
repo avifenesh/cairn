@@ -73,7 +73,7 @@ type Actions struct {
 type ReActAgent struct {
     name        string
     mode        tool.Mode
-    maxRounds   int // talk: 10, work: 10, coding: 100
+    maxRounds   int // talk: 40, work: 80, coding: 400
     systemBuild func(*InvocationContext) string
 }
 
@@ -155,9 +155,9 @@ type SessionStore interface {
 
 | Mode | Max Rounds | Tools | System Prompt Addendum |
 |------|-----------|-------|----------------------|
-| talk | 10 | read-only (search, read, web, memory) | Quick answers, conversational |
-| work | 10 | operational (+ write, shell, create, deploy) | Deep work, artifacts, triage |
-| coding | 100 | everything (+ file edit, git, PR) | AGENTS.md loaded, full coding workflow |
+| talk | 40 | read-only (search, read, web, memory) | Quick answers, conversational |
+| work | 80 | operational (+ write, shell, create, deploy) | Deep work, artifacts, triage |
+| coding | 400 | everything (+ file edit, git, PR) | AGENTS.md loaded, full coding workflow |
 
 ## Sub-Agents (Phase 4.6 - Done, PR #146)
 

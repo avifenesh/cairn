@@ -332,6 +332,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			TaskID:    taskIDFromSession(invCtx),
 			AgentMode: mode,
 			WorkDir:   workDir(invCtx),
+			Confined:  isConfined(invCtx),
 			Bus:       invCtx.Bus,
 			Cancel:    invCtx.Context,
 			Memories:  invCtx.ToolMemories,
@@ -597,6 +598,18 @@ func workDir(ctx *InvocationContext) string {
 	// Default to current directory (process cwd, typically the repo root).
 	// Shell tool handles its own $HOME fallback for cross-repo access.
 	return "."
+}
+
+// isConfined returns true when the session has worktree isolation enabled.
+// Confined sessions validate shell initial workDir against the worktree
+// boundary and disable $HOME fallback, preventing the LLM from passing
+// absolute paths outside the worktree.
+func isConfined(ctx *InvocationContext) bool {
+	if ctx.Session == nil || ctx.Session.State == nil {
+		return false
+	}
+	confined, _ := ctx.Session.State["confined"].(bool)
+	return confined
 }
 
 // emit sends a RunEvent to the channel, respecting context cancellation.

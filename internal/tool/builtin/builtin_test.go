@@ -22,6 +22,17 @@ func testCtx(t *testing.T) (*tool.ToolContext, string) {
 	}, dir
 }
 
+func confinedCtx(t *testing.T) (*tool.ToolContext, string) {
+	t.Helper()
+	dir := t.TempDir()
+	return &tool.ToolContext{
+		SessionID: "test-confined",
+		WorkDir:   dir,
+		Confined:  true,
+		Cancel:    context.Background(),
+	}, dir
+}
+
 func TestReadFile(t *testing.T) {
 	ctx, dir := testCtx(t)
 
@@ -405,5 +416,98 @@ func TestAll(t *testing.T) {
 		if !names[name] {
 			t.Fatalf("expected tool %q to be registered", name)
 		}
+	}
+}
+
+// --- Shell containment tests ---
+
+func TestShell_ConfinedBlocksAbsolutePath(t *testing.T) {
+	ctx, _ := confinedCtx(t)
+
+	// Attempt to use an absolute workDir outside the confined directory.
+	args := json.RawMessage(`{"command": "echo escaped", "workDir": "/tmp"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error == "" {
+		t.Fatal("expected containment error for absolute path outside workDir")
+	}
+	if !strings.Contains(result.Error, "shell containment") {
+		t.Fatalf("expected shell containment error, got: %s", result.Error)
+	}
+}
+
+func TestShell_ConfinedBlocksTraversal(t *testing.T) {
+	ctx, _ := confinedCtx(t)
+
+	// Attempt to escape via relative path traversal.
+	args := json.RawMessage(`{"command": "echo escaped", "workDir": "../../.."}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error == "" {
+		t.Fatal("expected containment error for path traversal")
+	}
+	if !strings.Contains(result.Error, "shell containment") {
+		t.Fatalf("expected shell containment error, got: %s", result.Error)
+	}
+}
+
+func TestShell_ConfinedAllowsRelative(t *testing.T) {
+	ctx, dir := confinedCtx(t)
+
+	// Create a subdirectory within the confined area.
+	subdir := filepath.Join(dir, "subdir")
+	if err := os.Mkdir(subdir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Relative path within workDir should succeed.
+	args := json.RawMessage(`{"command": "pwd", "workDir": "subdir"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("expected success for relative path within workDir, got error: %s", result.Error)
+	}
+	if !strings.Contains(result.Output, "subdir") {
+		t.Fatalf("expected output to contain 'subdir', got: %s", result.Output)
+	}
+}
+
+func TestShell_ConfinedDefaultWorkDir(t *testing.T) {
+	ctx, _ := confinedCtx(t)
+
+	// No workDir param - should use ctx.WorkDir (the confined directory) and succeed.
+	args := json.RawMessage(`{"command": "echo ok"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("expected success with default workDir, got error: %s", result.Error)
+	}
+	if strings.TrimSpace(result.Output) != "ok" {
+		t.Fatalf("expected 'ok', got: %q", result.Output)
+	}
+}
+
+func TestShell_UnconfinedAllowsAnywhere(t *testing.T) {
+	ctx, _ := testCtx(t)
+
+	// Non-confined context should allow absolute paths.
+	args := json.RawMessage(`{"command": "echo free", "workDir": "/tmp"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("non-confined shell should allow /tmp, got error: %s", result.Error)
+	}
+	if strings.TrimSpace(result.Output) != "free" {
+		t.Fatalf("expected 'free', got: %q", result.Output)
 	}
 }

@@ -253,6 +253,7 @@ type ToolContext struct {
 	TaskID      string
 	AgentMode   Mode
 	WorkDir     string // Worktree path for coding tasks
+	Confined    bool   // When true, shell initial workDir is validated against WorkDir boundary
 	Permissions *PermissionSet
 	Bus         *eventbus.Bus
 	Cancel      context.Context

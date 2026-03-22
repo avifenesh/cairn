@@ -175,6 +175,28 @@ func TestReadFeedExcludesArchived(t *testing.T) {
 	}
 }
 
+func TestReadFeedIncludeArchived(t *testing.T) {
+	now := time.Now()
+	svc := newMockEventService()
+	svc.events = []*tool.StoredEvent{
+		{ID: "ev1", Source: "github", Kind: "pr", Title: "Active PR", CreatedAt: now},
+		{ID: "ev2", Source: "hn", Kind: "story", Title: "Archived Story", CreatedAt: now, ArchivedAt: &now},
+	}
+	ctx := toolCtxWithEvents(svc)
+
+	args, _ := json.Marshal(map[string]any{"includeArchived": true})
+	result, err := readFeed.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("unexpected tool error: %s", result.Error)
+	}
+	if result.Metadata["count"].(int) != 2 {
+		t.Fatalf("expected 2 events (archived included), got %v", result.Metadata["count"])
+	}
+}
+
 func TestReadFeedNoService(t *testing.T) {
 	ctx := &tool.ToolContext{Cancel: context.Background()}
 	args, _ := json.Marshal(map[string]any{})

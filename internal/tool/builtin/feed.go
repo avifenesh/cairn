@@ -9,9 +9,10 @@ import (
 
 // readFeedParams are the parameters for cairn.readFeed.
 type readFeedParams struct {
-	Source     string `json:"source,omitempty" desc:"Filter by source (e.g. github, hn, reddit, npm, crates)"`
-	Limit      *int   `json:"limit,omitempty" desc:"Maximum events to return (default 20)"`
-	UnreadOnly *bool  `json:"unreadOnly,omitempty" desc:"Only return unread events (default true)"`
+	Source          string `json:"source,omitempty" desc:"Filter by source (e.g. github, hn, reddit, npm, crates)"`
+	Limit           *int   `json:"limit,omitempty" desc:"Maximum events to return (default 20)"`
+	UnreadOnly      *bool  `json:"unreadOnly,omitempty" desc:"Only return unread events (default true)"`
+	IncludeArchived *bool  `json:"includeArchived,omitempty" desc:"Include archived events (default false)"`
 }
 
 var readFeed = tool.Define("cairn.readFeed",
@@ -32,10 +33,15 @@ var readFeed = tool.Define("cairn.readFeed",
 			unreadOnly = *p.UnreadOnly
 		}
 
+		excludeArchived := true
+		if p.IncludeArchived != nil && *p.IncludeArchived {
+			excludeArchived = false
+		}
+
 		events, err := ctx.Events.List(ctx.Cancel, tool.EventFilter{
 			Source:          p.Source,
 			UnreadOnly:      unreadOnly,
-			ExcludeArchived: true,
+			ExcludeArchived: excludeArchived,
 			Limit:           limit,
 		})
 		if err != nil {

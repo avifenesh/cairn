@@ -21,7 +21,11 @@ jobs:
       PROD_BIN: /home/ubuntu/cairn/cairn-prod
     steps:
       - name: Clear stale git auth headers
-        run: git config --global --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+        run: |
+          if git config --global --get http.https://github.com/.extraheader >/dev/null 2>&1; then
+            git config --global --unset-all http.https://github.com/.extraheader
+            echo "Cleared stale global extraheader"
+          fi
 
       - uses: actions/checkout@v4
         with:

@@ -40,7 +40,8 @@ make build-prod
 **Agent** - Three-layer agent system: always-on loop, LLM orchestrator, ReAct execution.
 
 - **Orchestrator**: LLM-powered management brain that runs when idle. Gathers system state, decides actions (approve memories, spawn subagents, submit tasks, notify, escalate). Runs every 5min.
-- **ReAct agents**: 54+ tools, three modes (talk/work/coding), streaming sessions
+- **ReAct agents**: 56 tools, three modes (talk/work/coding), streaming sessions
+- **Automation rules**: declarative "when X → do Y" engine with expr-lang conditions, event triggers, throttling, execution log
 - **Subagents**: 4 types (researcher, coder, reviewer, executor) with tool scoping and isolation. Two-level max nesting.
 - File tools: read, write, edit, delete, undo, list, search (checkpointing, fuzzy match, path traversal protection)
 - Shell: policy engine, env filtering, shell detection
@@ -90,6 +91,7 @@ make build-prod
 - Memory: search, edit, delete, batch accept/reject
 - Settings: 11 sections, all editable (cron manager, notification prefs, agent config)
 - Activity: observability tab with live stream, tool stats, error tracking
+- Rules: automation rule list, create form, toggle, execution history with real-time SSE
 - Soul: SOUL.md editor with patch review flow
 - Command palette (Cmd+K), keyboard navigation, dark/light themes, mood packs
 
@@ -104,11 +106,11 @@ make build-prod
 ```
 Signal Plane --> Event Bus <-- Agent System --> Tool System
      |               |             |                |
-  11 Pollers      SQLite       Always-On Loop   52+ Tools
+  11 Pollers      SQLite       Always-On Loop   56 Tools
   Webhooks        Store        Orchestrator     Permissions
   Digest          Memory       ReAct Agents     Mode filtering
                   Sessions     Subagents        MCP adapter
-                  Approvals    Compaction       Skills (39)
+                  Approvals    Compaction       Rules engine
                   Crons        Steering
 ```
 
@@ -149,6 +151,7 @@ Set via environment variables. Only `LLM_API_KEY` is required.
 | `IDLE_MODE_ENABLED` | false | Enable always-on proactive agent loop |
 | `CODING_ENABLED` | false | Enable coding mode (worktree isolation) |
 | `MCP_SERVER_ENABLED` | false | Enable MCP server |
+| `RULES_ENABLED` | false | Enable automation rules engine |
 | `BUDGET_DAILY_CAP` | 0 | Daily LLM spend cap USD (0 = unlimited) |
 
 See `CLAUDE.md` for full env var reference.
@@ -180,9 +183,10 @@ internal/
   plugin/           Lifecycle hooks, logging, budget plugins
   server/           HTTP routes, SSE, auth, rate limiting, static files
   signal/           Event store, scheduler, 11 pollers, webhooks, digest
+  rules/            Automation rules engine (trigger-condition-action, expr-lang)
   skill/            SKILL.md parser, discovery, hot-reload, ClawHub marketplace
   task/             Priority queue, worktree isolation, lease engine, approvals
-  tool/             Tool interface, registry, permissions, 52+ built-in tools
+  tool/             Tool interface, registry, permissions, 56 built-in tools
   voice/            Whisper STT + edge-tts TTS
 frontend/           SvelteKit 5 app + embed.FS package (242 tests)
 skills/             17 bundled SKILL.md files

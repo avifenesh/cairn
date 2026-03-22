@@ -38,7 +38,7 @@ Signal Plane → Event Bus ← Agent System → Tool System
 - Migrations: `//go:embed`, applied in filename order, tracked in schema_migrations
 - Frontend: Svelte 5 runes (`.svelte.ts` stores), `tailwind-variants` for component styling
 
-17 packages in `internal/`, 11 architecture specs in `docs/design/pieces/`.
+18 packages in `internal/` (including `rules/`), 11 architecture specs in `docs/design/pieces/`.
 
 ## Project Structure
 
@@ -50,7 +50,7 @@ internal/
   eventbus/                   Typed pub/sub (generics), sync + async + stream delivery
   llm/                        Provider interface, GLM + OpenAI providers, SSE parser, retry, budget
   tool/                       Tool interface, Define[P] generics, registry, permission engine
-  tool/builtin/               54+ built-in tools: file ops, shell, git, memory, feed, tasks, cron, vision, etc.
+  tool/builtin/               56 built-in tools: file ops, shell, git, memory, feed, tasks, cron, rules, vision, etc.
   task/                       Task store, priority queue, worktree manager, lease claiming, approvals
   memory/                     Memory store, RAG search + MMR, embedder, Soul loader, extraction
   agent/                      Always-on loop, orchestrator, ReAct agents, subagents, compaction, sessions
@@ -59,12 +59,13 @@ internal/
   cron/                       Cron scheduler + SQLite store
   plugin/                     Lifecycle hooks (agent/tool/LLM), logging plugin, budget plugin
   server/                     HTTP server, REST routes, SSE broadcaster, auth, static (embed+FS), webhooks
+  rules/                      Automation rules engine: trigger-condition-action, expr-lang, execution log
   skill/                      SKILL.md parser, discovery, hot-reload, ClawHub marketplace
   mcp/                        MCP server (expose tools) + MCP client (consume external servers)
   signal/                     Signal plane: event store, scheduler, 11 pollers, webhooks, digest
   voice/                      Whisper STT + edge-tts TTS
 frontend/                     SvelteKit 5 app + embed.FS package for production binary
-  src/routes/                 today, chat, ops, memory, agents, skills, soul, settings
+  src/routes/                 today, chat, ops, memory, agents, skills, rules, soul, settings
   src/lib/stores/             Reactive stores (app, chat, feed, memory, tasks, sse, offline-queue, keyboard-nav)
   src/lib/components/         chat/, feed/, layout/, memory/, tasks/, shared/
   src/lib/api/client.ts       Typed REST client with normalization layer
@@ -289,6 +290,7 @@ Full list from `internal/config/config.go`. 108 distinct var names (including al
 **Feature Flags:**
 - `CODING_ENABLED` (false) — enable coding mode and worktree isolation
 - `IDLE_MODE_ENABLED` (false) — enable always-on idle/proactive agent loop
+- `RULES_ENABLED` (false) — enable automation rules engine (event-driven TCA)
 
 ## Design Docs
 

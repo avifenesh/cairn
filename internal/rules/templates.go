@@ -21,7 +21,7 @@ type Template struct {
 type TemplateParam struct {
 	Key      string   `json:"key"`
 	Label    string   `json:"label"`
-	Type     string   `json:"type"`              // "text", "select", "number"
+	Type     string   `json:"type"` // "text", "select", "number"
 	Default  string   `json:"default,omitempty"`
 	Required bool     `json:"required"`
 	Options  []string `json:"options,omitempty"` // for "select" type

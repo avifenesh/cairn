@@ -180,7 +180,7 @@ func TestShell_GrepNoMatch(t *testing.T) {
 	}
 
 	// grep for something that doesn't exist — exit 1 expected.
-	// Quote the path for the shell so spaces/special chars don't break the command.
+	// Shell-quote the path so spaces/special chars don't break the command.
 	escapedPath := "'" + strings.ReplaceAll(path, "'", "'\"'\"'") + "'"
 	cmdStr := "grep nonexistent " + escapedPath + "; grep_rc=$?; echo after-grep rc=$grep_rc"
 	args, marshalErr := json.Marshal(map[string]string{"command": cmdStr})
@@ -224,10 +224,10 @@ func TestShell_TestFalse(t *testing.T) {
 
 func TestShell_PipefailStillActive(t *testing.T) {
 	// set -o pipefail should still be active, catching mid-pipe failures.
-	// Skip when the detected shell doesn't support pipefail (e.g., plain /bin/sh).
+	// Skip on shells that don't support pipefail (e.g., /bin/sh on some systems).
 	si := detectShell()
 	if !si.supportsPipefail {
-		t.Skip("detected shell does not support pipefail")
+		t.Skipf("skipping: detected shell %q does not support pipefail", si.path)
 	}
 
 	ctx, _ := testCtx(t)

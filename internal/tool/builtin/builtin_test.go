@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -164,6 +165,103 @@ func TestShell_Timeout(t *testing.T) {
 	}
 	if !strings.Contains(result.Error, "timed out") {
 		t.Fatalf("expected timeout error, got: %s", result.Error)
+	}
+}
+
+func TestShell_GrepNoMatch(t *testing.T) {
+	// grep returning exit 1 (no match) should NOT cause the shell to abort.
+	// With set -e this would kill the shell; without it, the command
+	// completes and subsequent commands (like the echo) still run.
+	if _, err := exec.LookPath("grep"); err != nil {
+		t.Skip("grep not available in test environment")
+	}
+
+	ctx, dir := testCtx(t)
+
+	// Create a file with known content.
+	path := filepath.Join(dir, "test.txt")
+	if err := os.WriteFile(path, []byte("hello world\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// grep for something that doesn't exist — exit 1 expected.
+	// Shell-quote the path so spaces/special chars don't break the command.
+	escapedPath := "'" + strings.ReplaceAll(path, "'", "'\"'\"'") + "'"
+	cmdStr := "grep nonexistent " + escapedPath + "; grep_rc=$?; echo after-grep rc=$grep_rc"
+	args, marshalErr := json.Marshal(map[string]string{"command": cmdStr})
+	if marshalErr != nil {
+		t.Fatal(marshalErr)
+	}
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("unexpected tool error: %s", result.Error)
+	}
+	// The command should complete fully; "after-grep" should appear in output.
+	if !strings.Contains(result.Output, "after-grep") {
+		t.Fatalf("expected 'after-grep' in output (shell aborted early), got: %s", result.Output)
+	}
+	// Verify grep actually returned exit 1.
+	if !strings.Contains(result.Output, "rc=1") {
+		t.Fatalf("expected 'rc=1' (grep no-match exit code), got: %s", result.Output)
+	}
+}
+
+func TestShell_TestFalse(t *testing.T) {
+	// test returning exit 1 (false) should NOT cause the shell to abort.
+	ctx, _ := testCtx(t)
+
+	args, marshalErr := json.Marshal(map[string]string{"command": "test -f /nonexistent_file; test_rc=$?; echo after-test rc=$test_rc"})
+	if marshalErr != nil {
+		t.Fatal(marshalErr)
+	}
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("unexpected tool error: %s", result.Error)
+	}
+	if !strings.Contains(result.Output, "after-test") {
+		t.Fatalf("expected 'after-test' in output (shell aborted early), got: %s", result.Output)
+	}
+	// Verify test actually returned exit 1.
+	if !strings.Contains(result.Output, "rc=1") {
+		t.Fatalf("expected 'rc=1' (test false exit code), got: %s", result.Output)
+	}
+}
+
+func TestShell_PipefailStillActive(t *testing.T) {
+	// set -o pipefail should still be active, catching mid-pipe failures.
+	// Skip on shells that don't support pipefail (e.g., /bin/sh on some systems).
+	si := detectShell()
+	if !si.supportsPipefail {
+		t.Skipf("skipping: detected shell %q does not support pipefail", si.path)
+	}
+	if _, err := exec.LookPath("cat"); err != nil {
+		t.Skip("cat not available in test environment")
+	}
+
+	ctx, _ := testCtx(t)
+
+	// false | cat — with pipefail this should return non-zero (1 from false).
+	// Without pipefail, the exit code would be 0 (from cat).
+	args, marshalErr := json.Marshal(map[string]string{"command": "false | cat; echo exit=$?"})
+	if marshalErr != nil {
+		t.Fatal(marshalErr)
+	}
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("unexpected tool error: %s", result.Error)
+	}
+	// pipefail should propagate the non-zero exit from false.
+	if !strings.Contains(result.Output, "exit=1") {
+		t.Fatalf("expected 'exit=1' (pipefail should propagate false's exit), got: %s", result.Output)
 	}
 }
 

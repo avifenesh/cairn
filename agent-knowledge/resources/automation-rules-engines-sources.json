@@ -1,0 +1,792 @@
+{
+  "topic": "Automation Rules Engines for Personal Agent OS - Event-Driven Reactive Systems",
+  "slug": "automation-rules-engines",
+  "generated": "2026-03-22T00:00:00Z",
+  "depth": "deep",
+  "totalSources": 42,
+  "sources": [
+    {
+      "url": "https://github.com/expr-lang/expr",
+      "title": "expr-lang/expr: Go Expression Language",
+      "qualityScore": 95,
+      "authority": 10,
+      "recency": 9,
+      "depth": 9,
+      "examples": 10,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Safe expression evaluation: memory-safe, side-effect-free, always terminates",
+        "Bytecode VM with optimizing compiler for high performance",
+        "Compile-time type checking with Go struct integration",
+        "Used by Google, Uber, ByteDance, Kubernetes projects",
+        "Built-in functions: all, none, any, one, filter, map"
+      ]
+    },
+    {
+      "url": "https://pkg.go.dev/github.com/expr-lang/expr",
+      "title": "expr-lang/expr Go Package API Reference",
+      "qualityScore": 92,
+      "authority": 9,
+      "recency": 9,
+      "depth": 10,
+      "examples": 9,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Compile() returns thread-safe vm.Program for reuse",
+        "AsBooll() enforces boolean output at compile time",
+        "AllowUndefinedVariables() for flexible runtime environments",
+        "MaxNodes() limits expression complexity for security",
+        "Custom functions via Function() and operator overloading via Operator()"
+      ]
+    },
+    {
+      "url": "https://expr-lang.org/docs/getting-started",
+      "title": "expr-lang Getting Started Guide",
+      "qualityScore": 88,
+      "authority": 9,
+      "recency": 9,
+      "depth": 7,
+      "examples": 9,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Compile once, run many pattern for performance",
+        "Programs are safe for concurrent use",
+        "Struct environments expose methods as callable functions",
+        "Type validation at compile time prevents runtime surprises"
+      ]
+    },
+    {
+      "url": "https://github.com/google/cel-go",
+      "title": "CEL-Go: Common Expression Language for Go",
+      "qualityScore": 90,
+      "authority": 10,
+      "recency": 8,
+      "depth": 8,
+      "examples": 9,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Linear time evaluation, mutation-free, not Turing-complete",
+        "Partial state evaluation handles missing variables gracefully",
+        "Thread-safe compiled programs, cacheable for reuse",
+        "Apache 2.0 license, 2.9k stars, used by 14.2k projects",
+        "First-class protobuf support with gradual typing"
+      ]
+    },
+    {
+      "url": "https://github.com/google/cel-spec",
+      "title": "CEL Specification: Common Expression Language",
+      "qualityScore": 82,
+      "authority": 10,
+      "recency": 7,
+      "depth": 7,
+      "examples": 6,
+      "uniqueness": 8,
+      "keyInsights": [
+        "C-like syntax familiar to most developers",
+        "Designed for security policy evaluation",
+        "Canonical protocol buffer serialization for persistence",
+        "Extensible with application-defined functions"
+      ]
+    },
+    {
+      "url": "https://www.home-assistant.io/docs/automation/trigger/",
+      "title": "Home Assistant Automation Triggers",
+      "qualityScore": 93,
+      "authority": 9,
+      "recency": 9,
+      "depth": 10,
+      "examples": 10,
+      "uniqueness": 7,
+      "keyInsights": [
+        "20+ trigger types: state, numeric, time, event, MQTT, webhook, template, zone, sun, tag, calendar",
+        "Trigger IDs enable conditional routing in actions",
+        "for: duration option delays trigger until condition holds for specified time",
+        "Multiple triggers per automation, any one fires the rule",
+        "Trigger variables accessible via trigger_variables block"
+      ]
+    },
+    {
+      "url": "https://www.home-assistant.io/docs/automation/condition/",
+      "title": "Home Assistant Automation Conditions",
+      "qualityScore": 85,
+      "authority": 9,
+      "recency": 9,
+      "depth": 7,
+      "examples": 8,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Conditions check current state, not events - critical distinction from triggers",
+        "All conditions must be true (AND logic by default)",
+        "OR/NOT conditions for complex logic",
+        "Template conditions with Jinja2 for arbitrary expressions"
+      ]
+    },
+    {
+      "url": "https://www.home-assistant.io/docs/automation/action/",
+      "title": "Home Assistant Automation Actions",
+      "qualityScore": 80,
+      "authority": 9,
+      "recency": 9,
+      "depth": 7,
+      "examples": 8,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Actions are scripts - supports service calls, delays, conditions, scenes",
+        "Conditional logic within actions halts execution if false",
+        "Actions compose as lists for multi-step execution"
+      ]
+    },
+    {
+      "url": "https://www.home-assistant.io/docs/automation/yaml/",
+      "title": "Home Assistant YAML Automation Format",
+      "qualityScore": 82,
+      "authority": 9,
+      "recency": 9,
+      "depth": 7,
+      "examples": 7,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Four execution modes: single, restart, queued, parallel",
+        "max parameter limits concurrent executions in queued/parallel mode",
+        "Trace configuration for execution debugging (stored_traces)",
+        "initial_state controls startup behavior"
+      ]
+    },
+    {
+      "url": "https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows",
+      "title": "GitHub Actions Event Triggers",
+      "qualityScore": 92,
+      "authority": 10,
+      "recency": 9,
+      "depth": 10,
+      "examples": 8,
+      "uniqueness": 7,
+      "keyInsights": [
+        "30+ event types with activity type filters",
+        "Branch/tag/path filters combine as AND conditions",
+        "repository_dispatch and workflow_dispatch for custom/manual triggers",
+        "Three levels of workflow nesting maximum",
+        "Scheduled workflows disable after 60 days inactivity"
+      ]
+    },
+    {
+      "url": "https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/evaluate-expressions-in-workflows-and-actions",
+      "title": "GitHub Actions Expression Syntax",
+      "qualityScore": 88,
+      "authority": 10,
+      "recency": 9,
+      "depth": 8,
+      "examples": 9,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Expression syntax: ${{ }} with context objects, operators, functions",
+        "Status functions: success(), failure(), always(), cancelled()",
+        "Object filter syntax: collection.*.property returns array",
+        "Case-insensitive string comparison, loose type coercion",
+        "Functions: contains, startsWith, endsWith, format, join, toJSON, fromJSON"
+      ]
+    },
+    {
+      "url": "https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/workflow-commands-for-github-actions",
+      "title": "GitHub Actions Workflow Commands",
+      "qualityScore": 75,
+      "authority": 10,
+      "recency": 9,
+      "depth": 7,
+      "examples": 8,
+      "uniqueness": 5,
+      "keyInsights": [
+        "Environment file pattern: GITHUB_ENV, GITHUB_OUTPUT, GITHUB_STATE",
+        "Annotations: debug, notice, warning, error with file positioning",
+        "Job summaries support Markdown, 1MiB limit per step",
+        "Multiline values via delimiter pattern"
+      ]
+    },
+    {
+      "url": "https://www.ifttt.com/docs/api_reference",
+      "title": "IFTTT Service API Architecture",
+      "qualityScore": 85,
+      "authority": 9,
+      "recency": 7,
+      "depth": 9,
+      "examples": 7,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Polling triggers: hourly check, return 50 most recent events",
+        "Realtime triggers: service POSTs to realtime.ifttt.com for instant execution",
+        "Trigger ingredients flow into action fields via template",
+        "Trigger identity enables subscription management",
+        "Health check endpoint for service availability monitoring"
+      ]
+    },
+    {
+      "url": "https://docs.n8n.io/workflows/",
+      "title": "n8n Workflow Architecture",
+      "qualityScore": 86,
+      "authority": 8,
+      "recency": 9,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Three node categories: Core, Action (500+ integrations), Cluster (AI)",
+        "Trigger types: manual, schedule, webhook, app-specific, email IMAP",
+        "IF/Switch/Filter nodes for conditional branching",
+        "Expression language with JMESPath for complex JSON queries",
+        "Export/import and version control support"
+      ]
+    },
+    {
+      "url": "https://docs.n8n.io/flow-logic/error-handling/",
+      "title": "n8n Error Handling Model",
+      "qualityScore": 75,
+      "authority": 8,
+      "recency": 9,
+      "depth": 6,
+      "examples": 5,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Error Trigger node captures workflow failures",
+        "Stop And Error node for intentional failure",
+        "Dedicated error workflows for exception management",
+        "Sub-workflows for specialized error handling"
+      ]
+    },
+    {
+      "url": "https://docs.n8n.io/flow-logic/looping/",
+      "title": "n8n Looping Patterns",
+      "qualityScore": 70,
+      "authority": 8,
+      "recency": 9,
+      "depth": 5,
+      "examples": 5,
+      "uniqueness": 5,
+      "keyInsights": [
+        "Loop Over Items (Split in Batches) for iterative processing",
+        "Process items individually or in batches",
+        "Conditional looping and completion-based looping",
+        "Item linking preserves data relationships across loop iterations"
+      ]
+    },
+    {
+      "url": "https://www.inngest.com/docs/features/events-triggers",
+      "title": "Inngest Event Triggers",
+      "qualityScore": 85,
+      "authority": 8,
+      "recency": 9,
+      "depth": 7,
+      "examples": 7,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Events trigger functions from backend, cron, webhooks, or other functions",
+        "Event filtering, delayed execution, batching, multiple triggers",
+        "Fan-out: one event triggers multiple functions simultaneously",
+        "Cross-application function triggering capability"
+      ]
+    },
+    {
+      "url": "https://www.inngest.com/docs/features/inngest-functions/steps-workflows",
+      "title": "Inngest Steps and Workflows",
+      "qualityScore": 78,
+      "authority": 8,
+      "recency": 9,
+      "depth": 6,
+      "examples": 7,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Steps as retriable checkpoints for fault tolerance",
+        "step.run() for named operations with data reuse",
+        "Flow control: concurrency, throttling, temporal distribution",
+        "Durable execution with step-level error handling"
+      ]
+    },
+    {
+      "url": "https://www.inngest.com/docs/reference/functions/create",
+      "title": "Inngest Function Creation API",
+      "qualityScore": 90,
+      "authority": 8,
+      "recency": 9,
+      "depth": 10,
+      "examples": 9,
+      "uniqueness": 8,
+      "keyInsights": [
+        "CEL expressions for event filtering and concurrency keys",
+        "Concurrency: limit, scope (fn/env/account), key for virtual queues",
+        "Throttling: limit per period with burst support",
+        "Debouncing: configurable period with scoped keys",
+        "Cancellation via cancelOn with event matching and CEL conditions",
+        "Event batching: maxSize (100), timeout, conditional batching"
+      ]
+    },
+    {
+      "url": "https://www.inngest.com/docs/guides/error-handling",
+      "title": "Inngest Error Handling",
+      "qualityScore": 78,
+      "authority": 8,
+      "recency": 9,
+      "depth": 6,
+      "examples": 6,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Error vs failure distinction: error triggers retry, failure is permanent",
+        "Failure handlers as callbacks when all retries exhausted",
+        "Individual step retry logic and rollback support",
+        "Idempotency requirement for safe retries"
+      ]
+    },
+    {
+      "url": "https://temporal.io/how-temporal-works",
+      "title": "How Temporal Works: Durable Execution",
+      "qualityScore": 88,
+      "authority": 9,
+      "recency": 8,
+      "depth": 8,
+      "examples": 6,
+      "uniqueness": 9,
+      "keyInsights": [
+        "Workflow state is durable and fault-tolerant by default",
+        "Activities separate failure-prone operations from workflow logic",
+        "Workers poll task queues, alternative workers resume on crash",
+        "Scales beyond 200M executions/second",
+        "Event history enables deterministic replay for state recovery"
+      ]
+    },
+    {
+      "url": "https://temporal.io/blog/workflow-engine-principles",
+      "title": "Temporal Workflow Engine Design Principles",
+      "qualityScore": 92,
+      "authority": 9,
+      "recency": 8,
+      "depth": 10,
+      "examples": 7,
+      "uniqueness": 10,
+      "keyInsights": [
+        "Deterministic replay preserves complete program state including local variables",
+        "Event-driven state machine: state in -> commands out -> execute -> notify -> repeat",
+        "Task queues for activity routing, flow control, load distribution",
+        "Transfer queues: local shard queues with async transfer (transactional outbox pattern)",
+        "Sharding by workflow ID with consistent hashing",
+        "Transactional consistency across DB, timers, and task queues is critical"
+      ]
+    },
+    {
+      "url": "https://docs.temporal.io/develop/go/core-application",
+      "title": "Temporal Go SDK: Core Application Patterns",
+      "qualityScore": 85,
+      "authority": 9,
+      "recency": 8,
+      "depth": 8,
+      "examples": 9,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Workflow functions: workflow.Context as first param, serializable params only",
+        "Activity options: StartToCloseTimeout, retry policies with backoff",
+        "Deterministic constraints: use workflow.Now(), workflow.Sleep(), workflow.Go()",
+        "Dynamic workflows/activities via converter.EncodedValues",
+        "Worker configuration: max concurrent activities, activities per second"
+      ]
+    },
+    {
+      "url": "https://docs.temporal.io/develop/go/message-passing",
+      "title": "Temporal Go Message Passing",
+      "qualityScore": 82,
+      "authority": 9,
+      "recency": 8,
+      "depth": 8,
+      "examples": 8,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Queries: synchronous, read-only state inspection",
+        "Signals: asynchronous messages that modify workflow behavior",
+        "Updates: synchronous with validators, can modify state and return results",
+        "workflow.Mutex for safe concurrent handler access",
+        "Signals persist in Event History for durability"
+      ]
+    },
+    {
+      "url": "https://www.windmill.dev/docs/intro",
+      "title": "Windmill Architecture Overview",
+      "qualityScore": 78,
+      "authority": 7,
+      "recency": 9,
+      "depth": 6,
+      "examples": 5,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Multi-language support: TypeScript, Python, Go, PHP, Bash, C#, SQL, Rust",
+        "12+ trigger types: schedule, webhook, email, HTTP, Kafka, NATS, SQS, MQTT, Postgres",
+        "Orchestrator for low-code or YAML flow assembly",
+        "Reduces boilerplate for UIs, error handling, scaling, dependencies"
+      ]
+    },
+    {
+      "url": "https://www.windmill.dev/docs/flows/flow_trigger",
+      "title": "Windmill Flow Triggers",
+      "qualityScore": 80,
+      "authority": 7,
+      "recency": 9,
+      "depth": 7,
+      "examples": 6,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Trigger scripts pull data from external sources and return new items since last run",
+        "State system: persistent JSON objects as resources to track processed items",
+        "Data flows from triggers into for loops for batch processing",
+        "Native triggers for Postgres, Kafka, NATS, SQS, MQTT, GCP, WebSocket"
+      ]
+    },
+    {
+      "url": "https://www.windmill.dev/docs/flows/flow_error_handler",
+      "title": "Windmill Error Handling in Flows",
+      "qualityScore": 76,
+      "authority": 7,
+      "recency": 9,
+      "depth": 6,
+      "examples": 6,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Error handler: special step that executes on flow error",
+        "Receives input from failed step including error details",
+        "Activates after retry attempts exhausted",
+        "Complementary: suspend/approval, early stop, early return"
+      ]
+    },
+    {
+      "url": "https://martinfowler.com/articles/201701-event-driven.html",
+      "title": "Martin Fowler: Event-Driven Architecture Patterns",
+      "qualityScore": 95,
+      "authority": 10,
+      "recency": 7,
+      "depth": 9,
+      "examples": 7,
+      "uniqueness": 10,
+      "keyInsights": [
+        "Four distinct patterns: event notification, event-carried state transfer, event sourcing, CQRS",
+        "These patterns are often conflated, causing architectural confusion",
+        "Event notification: simple, decoupled, but complex flows hard to track",
+        "Event-carried state transfer: reduced latency, improved resilience, significant duplication",
+        "CQRS is orthogonal to events, works independently"
+      ]
+    },
+    {
+      "url": "https://microservices.io/patterns/data/event-sourcing.html",
+      "title": "Event Sourcing Pattern (microservices.io)",
+      "qualityScore": 85,
+      "authority": 9,
+      "recency": 7,
+      "depth": 8,
+      "examples": 6,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Event store acts as both database and message broker",
+        "State reconstructed by replaying events in sequence",
+        "Snapshots for performance with long event histories",
+        "Events are immutable, append-only operations",
+        "Concurrency and ordering must be maintained per aggregate"
+      ]
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing",
+      "title": "Event Sourcing Pattern (Microsoft Azure)",
+      "qualityScore": 88,
+      "authority": 9,
+      "recency": 8,
+      "depth": 10,
+      "examples": 8,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Append-only store as system of record, materialized views for queries",
+        "Event versioning challenges: handlers must support all versions",
+        "Snapshots at intervals reduce replay cost",
+        "Idempotency requirement for event consumers",
+        "Circular logic warning: event processing creating new events can cause infinite loops"
+      ]
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/saga",
+      "title": "Saga Pattern (Microsoft Azure)",
+      "qualityScore": 90,
+      "authority": 9,
+      "recency": 8,
+      "depth": 10,
+      "examples": 8,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Choreography: services exchange events without centralized controller",
+        "Orchestration: centralized orchestrator directs participants via commands",
+        "Three transaction types: compensable, pivot (point of no return), retryable",
+        "Data anomalies: lost updates, dirty reads, fuzzy reads",
+        "Countermeasures: semantic lock, commutative updates, pessimistic view, reread values"
+      ]
+    },
+    {
+      "url": "https://microservices.io/patterns/data/saga.html",
+      "title": "Saga Pattern (microservices.io)",
+      "qualityScore": 82,
+      "authority": 9,
+      "recency": 7,
+      "depth": 7,
+      "examples": 7,
+      "uniqueness": 5,
+      "keyInsights": [
+        "Sequence of local transactions with compensating transactions on failure",
+        "Choreography: services publish domain events autonomously",
+        "Orchestration: central orchestrator sends commands and receives replies",
+        "Must atomically update database AND publish messages",
+        "Three client outcome approaches: await, poll, or event notification"
+      ]
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker",
+      "title": "Circuit Breaker Pattern (Microsoft Azure)",
+      "qualityScore": 90,
+      "authority": 9,
+      "recency": 9,
+      "depth": 10,
+      "examples": 8,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Three states: Closed (normal), Open (blocking), Half-Open (testing recovery)",
+        "Time-based failure counter with automatic reset",
+        "Success counter in Half-Open state for controlled recovery",
+        "Manual override for administrator control",
+        "Accelerated tripping via failure response content (e.g., HTTP 429)",
+        "Different purpose from Retry pattern - prevents likely-to-fail operations"
+      ]
+    },
+    {
+      "url": "https://www.openpolicyagent.org/docs/latest/policy-language/",
+      "title": "OPA/Rego Policy Language",
+      "qualityScore": 85,
+      "authority": 9,
+      "recency": 8,
+      "depth": 9,
+      "examples": 8,
+      "uniqueness": 9,
+      "keyInsights": [
+        "Declarative policy language inspired by Datalog",
+        "Rules as virtual documents with head + body structure",
+        "Comprehensions for building collections: array, object, set",
+        "Universal quantification via every keyword, negation, or comprehensions",
+        "Default values for fallback when conditions not met",
+        "Metadata annotations for tooling and type checking"
+      ]
+    },
+    {
+      "url": "https://www.openpolicyagent.org/docs/latest/integration/",
+      "title": "OPA Integration Patterns",
+      "qualityScore": 80,
+      "authority": 9,
+      "recency": 8,
+      "depth": 7,
+      "examples": 6,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Four integration methods: REST API, Go SDK, Go rego package, WebAssembly",
+        "SDK provides simplified API with bundle management and decision logging",
+        "Wasm offers less overhead than REST, potentially better than native Go eval",
+        "Bundle system for distributing policies to instances"
+      ]
+    },
+    {
+      "url": "https://github.com/hyperjumptech/grule-rule-engine",
+      "title": "Grule Rule Engine for Go",
+      "qualityScore": 80,
+      "authority": 7,
+      "recency": 7,
+      "depth": 8,
+      "examples": 8,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Drools-inspired GRL syntax with when/then blocks",
+        "Salience attribute controls rule execution priority",
+        "Performance: 0.009ms per evaluation against 100 rules",
+        "Direct struct field access without getter/setter methods",
+        "Inference Engine with Rete-style evaluation"
+      ]
+    },
+    {
+      "url": "https://github.com/gorules/zen",
+      "title": "GoRules Zen: Business Rules Engine",
+      "qualityScore": 82,
+      "authority": 7,
+      "recency": 8,
+      "depth": 8,
+      "examples": 7,
+      "uniqueness": 9,
+      "keyInsights": [
+        "JSON Decision Model (JDM) with interconnected graph nodes",
+        "Decision tables: row-by-row AND evaluation with hit policies (first/collect)",
+        "Five node types: decision table, switch, function, expression, decision",
+        "Cross-language: Rust core with Go, Node.js, Python bindings",
+        "Function nodes with 50ms timeout limit for safety"
+      ]
+    },
+    {
+      "url": "https://github.com/hashicorp/go-bexpr",
+      "title": "HashiCorp go-bexpr: Boolean Expression Evaluator",
+      "qualityScore": 72,
+      "authority": 8,
+      "recency": 7,
+      "depth": 6,
+      "examples": 7,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Boolean expression evaluation against Go structs and maps",
+        "Struct tags control field exposure (bexpr:'-' excludes fields)",
+        "Uses pointerstructure for nested data access",
+        "Simple operators: == and != comparisons"
+      ]
+    },
+    {
+      "url": "https://github.com/nikunjy/rules",
+      "title": "nikunjy/rules: Go Rules Engine",
+      "qualityScore": 70,
+      "authority": 6,
+      "recency": 6,
+      "depth": 7,
+      "examples": 8,
+      "uniqueness": 6,
+      "keyInsights": [
+        "ANTLR4-based parser for rule expressions",
+        "SCIM-like operators: eq, ne, lt, gt, co, sw, ew, in, pr",
+        "Evaluates against map[string]interface{} data",
+        "Nested property access with dot notation",
+        "Case-insensitive operations"
+      ]
+    },
+    {
+      "url": "https://github.com/PaesslerAG/gval",
+      "title": "Gval: Go Expression Evaluator",
+      "qualityScore": 78,
+      "authority": 7,
+      "recency": 7,
+      "depth": 7,
+      "examples": 7,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Go-like expression syntax with all standard operators",
+        "Performance: 3.5ns constant, 165-352ns parameter evaluation",
+        "JSON Path support via jsonpath extension",
+        "Custom functions, operators, and constants",
+        "Parse once, evaluate many pattern"
+      ]
+    },
+    {
+      "url": "https://github.com/Knetic/govaluate",
+      "title": "Govaluate: Go Expression Evaluation (Archived)",
+      "qualityScore": 60,
+      "authority": 7,
+      "recency": 3,
+      "depth": 7,
+      "examples": 7,
+      "uniqueness": 5,
+      "keyInsights": [
+        "ARCHIVED as of March 2025 - do not use for new projects",
+        "Parse time ~1.4us, eval time ~30ns - good benchmark reference",
+        "Full operator set including regex matching",
+        "Custom functions with variable arguments"
+      ]
+    },
+    {
+      "url": "https://github.com/dop251/goja",
+      "title": "Goja: ECMAScript Runtime in Pure Go",
+      "qualityScore": 75,
+      "authority": 7,
+      "recency": 8,
+      "depth": 7,
+      "examples": 6,
+      "uniqueness": 8,
+      "keyInsights": [
+        "Full ECMAScript 5.1 with most ES6 features",
+        "Not goroutine-safe - requires single-threaded access per Runtime",
+        "Bidirectional Go-JS value conversion via ToValue/Export",
+        "Pure Go, no cgo dependency",
+        "Useful for full scripting when simple expressions insufficient"
+      ]
+    },
+    {
+      "url": "https://www.sqlite.org/lang_createtrigger.html",
+      "title": "SQLite CREATE TRIGGER Documentation",
+      "qualityScore": 88,
+      "authority": 10,
+      "recency": 8,
+      "depth": 9,
+      "examples": 9,
+      "uniqueness": 7,
+      "keyInsights": [
+        "BEFORE/AFTER/INSTEAD OF trigger timing",
+        "WHEN clause for conditional trigger execution",
+        "NEW/OLD references for accessing row data in triggers",
+        "RAISE() function for error handling (ROLLBACK, ABORT, FAIL, IGNORE)",
+        "Use cases: referential integrity, audit logging, cascading operations"
+      ]
+    },
+    {
+      "url": "https://github.com/robfig/cron",
+      "title": "robfig/cron: Go Cron Scheduler",
+      "qualityScore": 82,
+      "authority": 8,
+      "recency": 7,
+      "depth": 7,
+      "examples": 7,
+      "uniqueness": 6,
+      "keyInsights": [
+        "Standard and Quartz cron formats with custom parser options",
+        "CRON_TZ for timezone support",
+        "Job wrapping via Chain: panic recovery, delayed execution, skip on running",
+        "V3 supports job removal for lifecycle management",
+        "Functional options pattern for scheduler construction"
+      ]
+    },
+    {
+      "url": "https://github.com/itchyny/gojq",
+      "title": "gojq: Pure Go jq Implementation",
+      "qualityScore": 72,
+      "authority": 7,
+      "recency": 8,
+      "depth": 6,
+      "examples": 7,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Full jq query language for JSON transformation",
+        "Embeddable as Go library with custom functions",
+        "Arbitrary-precision integer arithmetic",
+        "WithFunction/WithIterFunction for custom extensions",
+        "Useful for complex JSON event data extraction in rules"
+      ]
+    },
+    {
+      "url": "https://www.langflow.org/",
+      "title": "Langflow: Visual AI Builder",
+      "qualityScore": 65,
+      "authority": 6,
+      "recency": 9,
+      "depth": 4,
+      "examples": 4,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Visual drag-and-drop flow builder with Python backend",
+        "Agent fleet with components as tools",
+        "Flow-as-API deployment for production use",
+        "Pre-built flows and components library"
+      ]
+    },
+    {
+      "url": "https://flowiseai.com/",
+      "title": "Flowise: AI Agent Builder",
+      "qualityScore": 65,
+      "authority": 6,
+      "recency": 9,
+      "depth": 4,
+      "examples": 4,
+      "uniqueness": 7,
+      "keyInsights": [
+        "Agentflow for multi-agent orchestration, Chatflow for single agents",
+        "Human-in-the-loop for agent task review",
+        "REST API, embedded chat, TypeScript/Python SDKs",
+        "Observable execution with Prometheus/OpenTelemetry"
+      ]
+    }
+  ]
+}

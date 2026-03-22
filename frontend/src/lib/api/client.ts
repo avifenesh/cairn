@@ -544,3 +544,12 @@ export const getSubagents = (parentTaskId?: string) => {
 	return get<{ subagents: import('$lib/types').SubagentInfo[] }>(`/v1/subagents${params}`);
 };
 export const cancelSubagent = (id: string) => post<{ ok: boolean }>(`/v1/subagents/${encodeURIComponent(id)}/cancel`);
+
+// --- Automation Rules ---
+export const getRules = () => get<{ items: import('$lib/types').Rule[] }>('/v1/rules');
+export const createRule = (rule: Partial<import('$lib/types').Rule>) => post<{ rule: import('$lib/types').Rule }>('/v1/rules', rule);
+export const getRule = (id: string) => get<{ rule: import('$lib/types').Rule; executions: import('$lib/types').RuleExecution[] }>(`/v1/rules/${encodeURIComponent(id)}`);
+export const updateRule = (id: string, changes: Record<string, unknown>) => patch<{ ok: boolean }>(`/v1/rules/${encodeURIComponent(id)}`, changes);
+export const deleteRule = (id: string) => del<{ ok: boolean }>(`/v1/rules/${encodeURIComponent(id)}`);
+export const getRuleExecutions = (id: string) => get<{ items: import('$lib/types').RuleExecution[] }>(`/v1/rules/${encodeURIComponent(id)}/executions`);
+export const getRecentRuleExecutions = () => get<{ items: import('$lib/types').RuleExecution[] }>('/v1/rules/executions/recent');

@@ -49,6 +49,7 @@ type Loop struct {
 	toolSkills   tool.SkillService
 	toolNotifier tool.NotifyService
 	toolCrons    tool.CronService
+	toolRules    tool.RulesService
 	toolConfig   tool.ConfigService
 
 	contextBuilder *memory.ContextBuilder // token-budgeted context (nil = fallback)
@@ -149,6 +150,7 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		toolSkills:      deps.ToolSkills,
 		toolNotifier:    deps.ToolNotifier,
 		toolCrons:       deps.ToolCrons,
+		toolRules:       deps.ToolRules,
 		toolConfig:      deps.ToolConfig,
 		contextBuilder:  deps.ContextBuilder,
 		plugins:         deps.Plugins,
@@ -210,6 +212,7 @@ type LoopDeps struct {
 	ToolSkills   tool.SkillService
 	ToolNotifier tool.NotifyService
 	ToolCrons    tool.CronService
+	ToolRules    tool.RulesService
 	ToolConfig   tool.ConfigService
 
 	ContextBuilder *memory.ContextBuilder // optional: token-budgeted context
@@ -294,6 +297,7 @@ func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessag
 		ToolSkills:      l.toolSkills,
 		ToolNotifier:    l.toolNotifier,
 		ToolCrons:       l.toolCrons,
+		ToolRules:       l.toolRules,
 		ToolConfig:      l.toolConfig,
 		Config:          &AgentConfig{Model: l.config.Model, MaxRounds: l.config.maxRoundsForMode(mode)},
 		CheckpointStore: l.checkpoints,

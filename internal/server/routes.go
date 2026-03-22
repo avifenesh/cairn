@@ -130,6 +130,17 @@ func (s *Server) registerRoutes() {
 		s.mux.HandleFunc("DELETE /v1/crons/{id}", s.handleDeleteCron)
 	}
 
+	// Automation rules (optional).
+	if s.rulesStore != nil {
+		s.mux.HandleFunc("GET /v1/rules/executions/recent", s.handleRecentRuleExecutions)
+		s.mux.HandleFunc("GET /v1/rules", s.handleListRules)
+		s.mux.HandleFunc("POST /v1/rules", s.handleCreateRule)
+		s.mux.HandleFunc("GET /v1/rules/{id}", s.handleGetRule)
+		s.mux.HandleFunc("PATCH /v1/rules/{id}", s.handleUpdateRule)
+		s.mux.HandleFunc("DELETE /v1/rules/{id}", s.handleDeleteRule)
+		s.mux.HandleFunc("GET /v1/rules/{id}/executions", s.handleListRuleExecutions)
+	}
+
 	// Agent activity.
 	if s.activityStore != nil {
 		s.mux.HandleFunc("GET /v1/agent/activity", s.handleAgentActivity)
@@ -1034,6 +1045,7 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 		ToolSkills:     s.toolSkills,
 		ToolNotifier:   s.toolNotifier,
 		ToolCrons:      s.toolCrons,
+		ToolRules:      s.toolRules,
 		ToolConfig:     s.toolConfig,
 		Config: &agent.AgentConfig{
 			Model:     s.config.LLMModel,

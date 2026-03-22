@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -350,9 +351,14 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 	// failed API calls and wasted rounds.
 	systemHint := cfg.SystemPrompt
 	if r.toolConfig != nil {
-		if cfg, err := r.toolConfig.GetConfig(ctx); err == nil {
-			if owner, ok := cfg["ghOwner"].(string); ok && owner != "" {
+		sysCfg, err := r.toolConfig.GetConfig(ctx)
+		if err != nil {
+			r.logger.Warn("subagent: failed to get config for identity injection", "error", err)
+		} else if owner, ok := sysCfg["ghOwner"].(string); ok && owner != "" {
+			if isValidGitHubOwner(owner) {
 				systemHint += fmt.Sprintf("\n\n## Canonical Identity\n- GitHub repo owner: %s (exact spelling — never guess or fabricate this value)", owner)
+			} else {
+				r.logger.Warn("subagent: skipping identity injection — invalid ghOwner", "owner", owner)
 			}
 		}
 	}
@@ -569,6 +575,14 @@ func (r *SubagentRunner) llmCondense(ctx context.Context, fullOutput string) (st
 		return "", fmt.Errorf("empty LLM response")
 	}
 	return result.String(), nil
+}
+
+// ghOwnerPattern validates GitHub usernames: alphanumeric + hyphens, 1-39 chars, no leading/trailing hyphens.
+var ghOwnerPattern = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$`)
+
+// isValidGitHubOwner checks that owner matches GitHub's username rules.
+func isValidGitHubOwner(owner string) bool {
+	return len(owner) >= 1 && len(owner) <= 39 && ghOwnerPattern.MatchString(owner)
 }
 
 func truncate(s string, maxLen int) string {

@@ -1,0 +1,30 @@
+[Unit]
+Description=Cairn Agent OS
+After=network.target
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/cairn
+EnvironmentFile=/home/ubuntu/.cairn/.env.cairn
+# Include node/npx in PATH for vision tools and other npm-based integrations.
+Environment=PATH=/home/ubuntu/.nvm/versions/node/v25.8.1/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/ubuntu/cairn/cairn-prod serve
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cairn
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

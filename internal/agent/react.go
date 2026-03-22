@@ -294,7 +294,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			}
 			// Clear checkpoint on successful completion.
 			if invCtx.CheckpointStore != nil {
-				if err := invCtx.CheckpointStore.Delete(invCtx.Context, invCtx.SessionID); err != nil {
+				if err := invCtx.CheckpointStore.Delete(context.Background(), invCtx.SessionID); err != nil {
 					a.logger.Warn("checkpoint delete failed", "session", invCtx.SessionID, "error", err)
 				}
 			}
@@ -557,7 +557,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 
 	// Max rounds exhausted — treat as abnormal termination.
 	if invCtx.CheckpointStore != nil {
-		if err := invCtx.CheckpointStore.Delete(invCtx.Context, invCtx.SessionID); err != nil {
+		if err := invCtx.CheckpointStore.Delete(context.Background(), invCtx.SessionID); err != nil {
 			a.logger.Warn("checkpoint delete failed", "session", invCtx.SessionID, "error", err)
 		}
 	}

@@ -1,6 +1,9 @@
 package voice
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestSanitizeForSpeech(t *testing.T) {
 	tests := []struct {
@@ -72,5 +75,60 @@ func TestSanitizeForSpeech(t *testing.T) {
 				t.Errorf("\ninput:    %q\nexpected: %q\ngot:      %q", tt.input, tt.expected, got)
 			}
 		})
+	}
+}
+
+func TestDefaultConfig(t *testing.T) {
+	cfg := DefaultConfig()
+	if cfg.WhisperURL != "http://127.0.0.1:8178" {
+		t.Errorf("WhisperURL: got %q", cfg.WhisperURL)
+	}
+	if cfg.TTSVoice != "en-US-BrianNeural" {
+		t.Errorf("TTSVoice: got %q", cfg.TTSVoice)
+	}
+	if !cfg.TTSEnabled || !cfg.STTEnabled {
+		t.Error("expected TTS and STT enabled by default")
+	}
+}
+
+func TestNew(t *testing.T) {
+	svc := New(DefaultConfig(), nil)
+	if svc == nil {
+		t.Fatal("expected non-nil service")
+	}
+	if svc.cfg.TTSVoice != "en-US-BrianNeural" {
+		t.Errorf("voice: got %q", svc.cfg.TTSVoice)
+	}
+}
+
+func TestTranscribe_Disabled(t *testing.T) {
+	svc := New(Config{STTEnabled: false}, nil)
+	_, err := svc.Transcribe(context.Background(), []byte("audio"), "test.wav")
+	if err == nil {
+		t.Fatal("expected error when STT disabled")
+	}
+}
+
+func TestTranscribe_EmptyAudio(t *testing.T) {
+	svc := New(Config{STTEnabled: true}, nil)
+	_, err := svc.Transcribe(context.Background(), nil, "test.wav")
+	if err == nil {
+		t.Fatal("expected error for empty audio")
+	}
+}
+
+func TestSynthesize_Disabled(t *testing.T) {
+	svc := New(Config{TTSEnabled: false}, nil)
+	_, err := svc.Synthesize(context.Background(), "hello", "")
+	if err == nil {
+		t.Fatal("expected error when TTS disabled")
+	}
+}
+
+func TestSynthesize_EmptyText(t *testing.T) {
+	svc := New(Config{TTSEnabled: true}, nil)
+	_, err := svc.Synthesize(context.Background(), "", "")
+	if err == nil {
+		t.Fatal("expected error for empty text")
 	}
 }

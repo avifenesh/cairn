@@ -605,14 +605,16 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 		}
 		return true, summary, details
 	}
-	if err := l.tasks.Complete(ctx, t.ID, json.RawMessage(outputJSON)); err != nil {
+	// Use background context for cleanup - must complete even if loop ctx canceled.
+	cleanupCtx := context.Background()
+	if err := l.tasks.Complete(cleanupCtx, t.ID, json.RawMessage(outputJSON)); err != nil {
 		l.logger.Warn("agent loop: complete task error", "task", t.ID, "error", err)
 	}
 	l.logger.Info("agent loop: task completed", "task", t.ID, "duration", time.Since(taskStart))
 
 	// Journal the session.
 	if l.journaler != nil {
-		l.journaler.Record(ctx, session, time.Since(taskStart))
+		l.journaler.Record(cleanupCtx, session, time.Since(taskStart))
 	}
 
 	// Extract memories from completed session (fire-and-forget).

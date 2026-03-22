@@ -802,8 +802,10 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 				}
 			}
 			next, _ := cairncron.NextRun(job.Schedule, now.In(loc))
-			l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC())
-			submitted = true
+			if uerr := l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC()); uerr != nil {
+				l.logger.Warn("cron: failed to update last_run_at after spawn", "job", job.Name, "error", uerr)
+			}
+			submitted = err == nil
 			continue
 		}
 
@@ -835,8 +837,12 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 		}
 		// Always update last_run_at and next_run_at, even on failure,
 		// to prevent tight retry loops when submit errors occur.
-		l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC())
-		submitted = true
+		if uerr := l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC()); uerr != nil {
+			l.logger.Warn("cron: failed to update last_run_at after submit", "job", job.Name, "error", uerr)
+		}
+		if err == nil {
+			submitted = true
+		}
 	}
 	return submitted
 }

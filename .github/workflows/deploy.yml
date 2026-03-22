@@ -20,7 +20,12 @@ jobs:
     env:
       PROD_BIN: /home/ubuntu/cairn/cairn-prod
     steps:
+      - name: Clear stale git auth headers
+        run: git config --global --unset-all http.https://github.com/.extraheader 2>/dev/null || true
+
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Build frontend
         run: |

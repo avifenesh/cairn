@@ -570,11 +570,13 @@ func (r *SubagentRunner) buildSystemHint(ctx context.Context, basePrompt string)
 	if r.toolConfig != nil {
 		sysCfg, err := r.toolConfig.GetConfig(ctx)
 		if err != nil {
-			r.logger.Warn("subagent: failed to get config for identity injection", "error", err)
+			if r.logger != nil {
+				r.logger.Warn("subagent: failed to get config for identity injection", "error", err)
+			}
 		} else if owner, ok := sysCfg["ghOwner"].(string); ok && owner != "" {
 			if isValidGitHubOwner(owner) {
 				systemHint += fmt.Sprintf("\n\n## Canonical Identity\n- GitHub repo owner: %s (exact spelling — never guess or fabricate this value)", owner)
-			} else {
+			} else if r.logger != nil {
 				r.logger.Warn("subagent: skipping identity injection — invalid ghOwner", "owner", owner)
 			}
 		}

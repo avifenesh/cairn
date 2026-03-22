@@ -1,4 +1,6 @@
 <script lang="ts">
+	// diff2html's JS doesn't auto-import its stylesheet; load it here since
+	// DiffViewer is the only consumer. Our app.css overrides take precedence.
 	import 'diff2html/bundles/css/diff2html.min.css';
 	import type { FileChange } from '$lib/types';
 	import { FileText, FilePlus, FileX, Columns2, AlignJustify } from '@lucide/svelte';
@@ -7,6 +9,13 @@
 		files: FileChange[];
 		selectedFile?: string | null;
 	} = $props();
+
+	// Deduplicate: if a file is edited multiple times, keep only the latest entry.
+	const uniqueFiles = $derived.by((): FileChange[] => {
+		const map = new Map<string, FileChange>();
+		for (const f of files) map.set(f.path, f);
+		return Array.from(map.values());
+	});
 
 	let diffEl: HTMLElement | undefined = $state();
 	let viewMode = $state<'line-by-line' | 'side-by-side'>('line-by-line');
@@ -19,7 +28,7 @@
 	}
 	const fileStats = $derived.by((): Map<string, FileStats> => {
 		const map = new Map<string, FileStats>();
-		for (const f of files) {
+		for (const f of uniqueFiles) {
 			if (!f.diff) {
 				map.set(f.path, { added: 0, deleted: 0 });
 				continue;
@@ -43,14 +52,14 @@
 
 	// Auto-select first file.
 	$effect(() => {
-		if (!selectedFile && files.length > 0) {
-			selectedFile = files[0].path;
+		if (!selectedFile && uniqueFiles.length > 0) {
+			selectedFile = uniqueFiles[0].path;
 		}
 	});
 
 	// Render diff when selection or view mode changes.
 	$effect(() => {
-		const file = selectedFile ? files.find((f) => f.path === selectedFile) : null;
+		const file = selectedFile ? uniqueFiles.find((f) => f.path === selectedFile) : null;
 		const diff = file?.diff;
 		const mode = viewMode;
 		const token = ++renderToken;
@@ -79,7 +88,7 @@
 				highlight: true,
 				fileContentToggle: false,
 				stickyFileHeaders: true,
-				renderNothingWhenEmpty: false,
+				renderNothingWhenEmpty: true,
 				maxLineSizeInBlockForComparison: 200,
 			});
 			ui.draw();
@@ -123,7 +132,7 @@
 </script>
 
 <div class="diff-viewer">
-	{#if files.length === 0}
+	{#if uniqueFiles.length === 0}
 		<div class="empty-state">
 			<FileText size={24} class="text-muted-foreground" />
 			<p class="text-sm text-muted-foreground mt-2">No file changes yet</p>
@@ -131,7 +140,7 @@
 	{:else}
 		<!-- Summary bar -->
 		<div class="diff-summary">
-			<span class="summary-files">{files.length} file{files.length !== 1 ? 's' : ''} changed</span>
+			<span class="summary-files">{uniqueFiles.length} file{uniqueFiles.length !== 1 ? 's' : ''} changed</span>
 			{#if totalAdded > 0}<span class="summary-added">+{totalAdded}</span>{/if}
 			{#if totalDeleted > 0}<span class="summary-deleted">-{totalDeleted}</span>{/if}
 			<div class="summary-controls">
@@ -150,7 +159,7 @@
 
 		<!-- File tree -->
 		<div class="file-tree">
-			{#each files as file (file.path)}
+			{#each uniqueFiles as file (file.path)}
 				{@const stats = fileStats.get(file.path)}
 				{@const icon = getIcon(file)}
 				{@const IconComponent = icon.component}
@@ -171,7 +180,7 @@
 
 		<!-- Diff pane -->
 		{#if selectedFile}
-			{@const file = files.find((f) => f.path === selectedFile)}
+			{@const file = uniqueFiles.find((f) => f.path === selectedFile)}
 			{#if file?.diff}
 				<div class="diff-pane" bind:this={diffEl}></div>
 			{:else}

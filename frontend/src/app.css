@@ -407,6 +407,7 @@
   word-break: break-all;
 }
 
+/* Prevent +/- prefix from being included when copying diff code. */
 .d2h-code-line-prefix {
   user-select: none;
   display: inline-block;
@@ -625,7 +626,8 @@
 [data-theme="light"] .d2h-deleted-tag { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
 [data-theme="light"] .d2h-changed-tag { background: rgba(146, 64, 14, 0.1); color: #92400e; }
 
-/* Hide diff2html's own border-bottom styles that conflict */
+/* diff2html applies a bottom border on every <td>; remove it on the last
+   row to avoid a double-border against the file-wrapper's own border. */
 .d2h-diff-tbody > tr:last-child > td {
   border-bottom: none;
 }

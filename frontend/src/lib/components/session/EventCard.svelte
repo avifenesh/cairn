@@ -215,6 +215,7 @@
 				<span class="text-xs font-mono font-medium">{p.path}</span>
 				<Badge variant="outline" class="text-xs">{p.operation}</Badge>
 				{#if onFileClick}
+					<!-- stopPropagation prevents the parent file_change card's onclick from also firing. -->
 					<button class="open-panel-btn" onclick={(e) => { e.stopPropagation(); onFileClick?.(String(p.path)); }}
 						aria-label="Open in diff panel">
 						<PanelRight size={10} /><span>panel</span>

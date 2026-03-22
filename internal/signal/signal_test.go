@@ -197,9 +197,61 @@ func TestEventStore_Ingest_CrossSourceURLDedup_EventSourcesNotDeduped(t *testing
 	}
 
 	// Total should be 2.
-	count, _ := store.Count(ctx, EventFilter{})
+	count, err := store.Count(ctx, EventFilter{})
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
 	if count != 2 {
 		t.Fatalf("total count = %d, want 2", count)
+	}
+
+	// Also verify the inverse: an existing devto article URL should not
+	// block a new github event with the same URL.
+	sqlDB3 := setupTestDB(t)
+	store3 := NewEventStore(sqlDB3)
+	events3 := []*RawEvent{
+		{
+			Source:     "devto",
+			SourceID:   "devto:99999",
+			Kind:       "post",
+			Title:      "Some Dev.to Article",
+			URL:        "https://github.com/expressjs/express",
+			OccurredAt: time.Now().UTC(),
+		},
+	}
+	inserted3, err := store3.Ingest(ctx, events3)
+	if err != nil {
+		t.Fatalf("devto ingest: %v", err)
+	}
+	if len(inserted3) != 1 {
+		t.Fatalf("devto ingest: count = %d, want 1", len(inserted3))
+	}
+
+	// Same URL from github — should NOT be deduped (github is not an article source).
+	events4 := []*RawEvent{
+		{
+			Source:     "github",
+			SourceID:   "gh:star:expressjs/express",
+			Kind:       "star",
+			Title:      "express starred",
+			URL:        "https://github.com/expressjs/express",
+			OccurredAt: time.Now().UTC(),
+		},
+	}
+	inserted4, err := store3.Ingest(ctx, events4)
+	if err != nil {
+		t.Fatalf("github ingest: %v", err)
+	}
+	if len(inserted4) != 1 {
+		t.Fatalf("github ingest: count = %d, want 1 (github should not be deduped against devto URL)", len(inserted4))
+	}
+
+	count4, err := store3.Count(ctx, EventFilter{})
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count4 != 2 {
+		t.Fatalf("total count = %d, want 2", count4)
 	}
 }
 

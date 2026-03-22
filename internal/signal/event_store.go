@@ -25,21 +25,29 @@ func NewEventStore(db *sql.DB) *EventStore {
 	return &EventStore{db: db}
 }
 
+// articleSources are sources where same-URL = same-content article.
+// URL dedup only applies to these sources (cross-source and intra-batch).
+var articleSources = map[string]bool{
+	SourceRSS:   true,
+	SourceDevTo: true,
+}
+
 // Ingest stores a batch of raw events, skipping duplicates via the
 // UNIQUE(source, source_item_id) constraint and a cross-source URL
-// dedup pass (same article URL from different sources, e.g. dev.to
-// articles arriving via both the devto and rss pollers). Returns the
-// slice of newly inserted events (deduped out events are excluded).
+// dedup pass for article sources only (rss/devto — where same-URL
+// means same-content article arriving via multiple pollers). Returns
+// the slice of newly inserted events (deduped out events are excluded).
 func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEvent, error) {
 	if len(events) == 0 {
 		return nil, nil
 	}
 
-	// Cross-source URL dedup: collect all URLs, query for existing matches,
-	// and filter out events whose URL already exists from any source.
+	// Cross-source URL dedup: collect URLs from article sources only,
+	// query for existing matches, and filter out events whose URL
+	// already exists from any article source.
 	urls := make([]string, 0, len(events))
 	for _, ev := range events {
-		if ev.URL != "" {
+		if ev.URL != "" && articleSources[ev.Source] {
 			urls = append(urls, ev.URL)
 		}
 	}
@@ -48,10 +56,11 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 		seenURLs = s.queryExistingURLs(ctx, urls)
 	}
 
-	// Filter out events with already-seen URLs (in DB or earlier in this batch).
+	// Filter out article-source events with already-seen URLs
+	// (in DB or earlier in this batch).
 	var filtered []*RawEvent
 	for _, ev := range events {
-		if ev.URL != "" {
+		if ev.URL != "" && articleSources[ev.Source] {
 			if seenURLs[ev.URL] {
 				continue
 			}
@@ -125,23 +134,32 @@ func (s *EventStore) Ingest(ctx context.Context, events []*RawEvent) ([]*RawEven
 }
 
 // queryExistingURLs returns a set of URLs that already exist in the events
-// table (from any source). This enables cross-source dedup for feed items
-// that arrive through multiple pollers (e.g. dev.to articles via both the
-// devto poller and an RSS feed subscription).
+// table for article sources only (rss, devto). This enables cross-source
+// dedup for feed items that arrive through multiple pollers (e.g. dev.to
+// articles via both the devto poller and an RSS feed subscription).
 func (s *EventStore) queryExistingURLs(ctx context.Context, urls []string) map[string]bool {
 	if len(urls) == 0 {
 		return map[string]bool{}
 	}
 
-	placeholders := make([]string, len(urls))
-	args := make([]any, len(urls))
-	for i, u := range urls {
+	// Only query article sources to avoid false-positive dedup of event
+	// sources (github, npm, crates) where same-URL ≠ same-content.
+	articleSourceList := []any{SourceRSS, SourceDevTo}
+	placeholders := make([]string, len(articleSourceList))
+	for i := range articleSourceList {
 		placeholders[i] = "?"
-		args[i] = u
 	}
 
-	query := fmt.Sprintf("SELECT DISTINCT url FROM events WHERE source IN ('rss','devto') AND url IN (%s)", strings.Join(placeholders, ", "))
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	urlPlaceholders := make([]string, len(urls))
+	urlArgs := make([]any, len(urls))
+	for i, u := range urls {
+		urlPlaceholders[i] = "?"
+		urlArgs[i] = u
+	}
+
+	allArgs := append(articleSourceList, urlArgs...)
+	query := fmt.Sprintf("SELECT DISTINCT url FROM events WHERE source IN (%s) AND url IN (%s)", strings.Join(placeholders, ", "), strings.Join(urlPlaceholders, ", "))
+	rows, err := s.db.QueryContext(ctx, query, allArgs...)
 	if err != nil {
 		slog.Warn("signal: cross-source URL dedup query failed, skipping", "error", err)
 		return map[string]bool{}

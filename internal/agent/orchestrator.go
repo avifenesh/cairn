@@ -49,7 +49,7 @@ type Orchestrator struct {
 	logger         *slog.Logger
 	codingEnabled  bool
 
-	envContext      string // injected environment facts (paths, repo, worktrees)
+	envContext      *EnvContext // injected environment facts (paths, repo, worktrees)
 	briefing        string
 	briefingBuiltAt time.Time
 	lastEvaluation  time.Time
@@ -77,7 +77,7 @@ type OrchestratorDeps struct {
 	AgentTypes     *agenttype.Service
 	Logger         *slog.Logger
 	CodingEnabled  bool
-	EnvContext     string // ground truth about the runtime environment
+	EnvContext     *EnvContext // ground truth about the runtime environment
 }
 
 // NewOrchestrator creates an Orchestrator from the given dependencies.
@@ -368,8 +368,8 @@ func (o *Orchestrator) buildDecisionPrompt(state *OrchestratorState) string {
 	parts = append(parts, orchestratorSystemPrompt)
 
 	// Environment ground truth (prevents hallucinated paths/repos).
-	if o.envContext != "" {
-		parts = append(parts, o.envContext)
+	if envStr := o.envContext.Format(); envStr != "" {
+		parts = append(parts, envStr)
 	}
 
 	// Dynamic agent types listing from AGENT.md definitions.

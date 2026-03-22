@@ -100,7 +100,7 @@ type LoopConfig struct {
 	CodingEnabled      bool     // Whether coding tasks can be submitted from idle loop
 	CodingAllowedRepos []string // Repo paths where coding is allowed (empty = cwd only)
 	BriefingModel      string   // Cheap model for context summarization (default: fallback model)
-	EnvContext         string   // Ground-truth environment context for orchestrator (paths, repo, worktrees)
+	EnvContext         *EnvContext // Ground-truth environment context for orchestrator
 }
 
 func (c LoopConfig) maxRoundsForMode(mode tool.Mode) int {

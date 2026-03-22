@@ -245,10 +245,22 @@ func runServe(logger *slog.Logger) {
 		Home:    home,
 		Go:      runtime.Version(),
 		GitUser: cfg.GHOwner,
+		GHRepo:  cfg.GHOwner + "/cairn",
 		DataDir: cfg.DataDir,
+	}
+	if cfg.GHOwner == "" {
+		envCtx.GHRepo = "" // don't emit partial repo name
 	}
 	if len(cfg.CodingAllowedRepos) > 0 {
 		envCtx.CodingRepos = cfg.CodingAllowedRepos
+	}
+	// Populate worktree list for orchestrator environment grounding.
+	if wtOut, err := exec.CommandContext(context.Background(), "git", "worktree", "list").Output(); err == nil {
+		for _, line := range strings.Split(strings.TrimSpace(string(wtOut)), "\n") {
+			if line != "" {
+				envCtx.Worktrees = append(envCtx.Worktrees, line)
+			}
+		}
 	}
 
 	// Initialize context builder (token-budgeted memory injection).
@@ -615,7 +627,7 @@ func runServe(logger *slog.Logger) {
 			CodingEnabled:      cfg.CodingEnabled,
 			CodingAllowedRepos: cfg.CodingAllowedRepos,
 			BriefingModel:      cfg.LLMFallbackModel,
-			EnvContext:         buildEnvContext(cfg),
+			EnvContext:         envCtx,
 		}, agent.LoopDeps{
 			Agent:           reactAgent,
 			Tasks:           taskEngine,
@@ -1606,41 +1618,4 @@ func copyFile(src, dst string, perm fs.FileMode) error {
 		return err
 	}
 	return out.Close()
-}
-
-// buildEnvContext creates the ground-truth environment section injected into the
-// orchestrator prompt. This prevents the LLM from hallucinating paths, repo names,
-// or confusing worktrees with separate repositories.
-func buildEnvContext(cfg *config.Config) string {
-	home, _ := os.UserHomeDir()
-	cwd, _ := os.Getwd()
-
-	var b strings.Builder
-	b.WriteString("## Environment (ground truth - do not hallucinate or override)\n\n")
-	fmt.Fprintf(&b, "- Home directory: %s\n", home)
-	fmt.Fprintf(&b, "- Working directory: %s\n", cwd)
-	fmt.Fprintf(&b, "- GitHub repo: avifenesh/cairn (this is the ONLY repo - there is no other)\n")
-	if cfg.GHOwner != "" {
-		fmt.Fprintf(&b, "- GitHub owner: %s\n", cfg.GHOwner)
-	}
-	fmt.Fprintf(&b, "- Database: %s\n", cfg.DatabasePath)
-
-	// List active worktrees so the LLM understands the topology.
-	b.WriteString("\n### Git Worktrees\n")
-	b.WriteString("Worktrees are LOCAL directories sharing the same repo (avifenesh/cairn). They are NOT separate repos.\n")
-	if out, err := exec.CommandContext(context.Background(), "git", "worktree", "list").Output(); err == nil {
-		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-			if line != "" {
-				fmt.Fprintf(&b, "- %s\n", line)
-			}
-		}
-	}
-
-	b.WriteString("\n### Rules\n")
-	b.WriteString("- Never treat a worktree name (e.g. cairn-mike) as a GitHub repo name\n")
-	b.WriteString("- The GitHub repo is always avifenesh/cairn, regardless of which worktree is active\n")
-	b.WriteString("- Paths always start with /home/ubuntu/, never /home/avi/ or any other prefix\n")
-	b.WriteString("- If a subagent fails with 'repo not found' or 'path not found', the instruction had wrong paths - do not re-spawn with the same wrong paths\n")
-
-	return b.String()
 }

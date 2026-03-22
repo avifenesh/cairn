@@ -231,7 +231,9 @@ func (g *GmailPoller) callGWS(ctx context.Context, service, resource, subResourc
 
 	out, err := cmd.CombinedOutput()
 	if execCtx.Err() != nil {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		if cmd.Process != nil {
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
 		return nil, fmt.Errorf("gmail: gws timeout after 30s")
 	}
 	if err != nil {

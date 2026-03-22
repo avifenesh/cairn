@@ -106,6 +106,54 @@ Test body.
 	}
 }
 
+func TestService_Update(t *testing.T) {
+	dir := t.TempDir()
+	svc := NewService([]string{dir}, slog.Default())
+	svc.Discover()
+
+	content := `---
+name: updatable
+mode: talk
+max-rounds: 5
+---
+Original body.
+`
+	if err := svc.Create("updatable", content); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	newContent := `---
+name: updatable
+mode: coding
+max-rounds: 50
+worktree: true
+---
+Updated body.
+`
+	if err := svc.Update("updatable", newContent); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	at := svc.Get("updatable")
+	if at == nil {
+		t.Fatal("Get after Update should return non-nil")
+	}
+	if at.MaxRounds != 50 {
+		t.Errorf("MaxRounds = %d, want 50", at.MaxRounds)
+	}
+	if !at.Worktree {
+		t.Error("Worktree should be true after update")
+	}
+	if at.Content != "Updated body.\n" {
+		t.Errorf("Content = %q, want %q", at.Content, "Updated body.\n")
+	}
+
+	// Update nonexistent should fail.
+	if err := svc.Update("nonexistent", newContent); err == nil {
+		t.Error("Update nonexistent should return error")
+	}
+}
+
 func TestService_InstallDir(t *testing.T) {
 	svc := NewService([]string{"/first", "/second"}, slog.Default())
 	if got := svc.InstallDir(); got != "/second" {

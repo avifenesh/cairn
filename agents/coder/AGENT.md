@@ -4,6 +4,7 @@ description: "Implements code changes in an isolated git worktree. Full tool acc
 mode: coding
 max-rounds: 200
 worktree: true
+skills: code-review,github,pr-workflow
 ---
 
 # Coding Agent

@@ -4,6 +4,7 @@ description: "Frontend specialist. Svelte 5, SvelteKit, Tailwind CSS, TypeScript
 mode: coding
 max-rounds: 200
 worktree: true
+skills: code-review
 ---
 
 # Frontend Agent

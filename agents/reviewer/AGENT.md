@@ -3,6 +3,7 @@ name: reviewer
 description: "Analyzes code for quality, security, correctness, and test coverage. Read + shell access for running checks."
 mode: work
 max-rounds: 80
+skills: code-review,secrets-scanner
 ---
 
 # Code Review Agent

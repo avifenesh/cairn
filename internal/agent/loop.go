@@ -775,6 +775,35 @@ func (l *Loop) checkDueCrons(ctx context.Context) bool {
 	}
 	submitted := false
 	for _, job := range dueJobs {
+		// If a specific agent type is bound, spawn it via subagentRunner.
+		if job.AgentType != "" && l.subagentRunner != nil {
+			spawnReq := &tool.SubagentSpawnRequest{
+				Type:        job.AgentType,
+				Instruction: job.Instruction,
+				ExecMode:    "background",
+			}
+			result, err := l.subagentRunner.Spawn(ctx, "cron-"+job.ID, spawnReq)
+			if err != nil {
+				l.logger.Warn("cron: agent type spawn failed", "job", job.Name, "type", job.AgentType, "error", err)
+				l.cronStore.RecordExecution(ctx, job.ID, "", "failed", err)
+			} else {
+				// Update next-run schedule only on successful spawn.
+				now := time.Now()
+				loc := time.UTC
+				if job.Timezone != "" && job.Timezone != "UTC" {
+					if tl, err := time.LoadLocation(job.Timezone); err == nil {
+						loc = tl
+					}
+				}
+				next, _ := cairncron.NextRun(job.Schedule, now.In(loc))
+				l.cronStore.UpdateAfterRun(ctx, job.ID, now.UTC(), next.UTC())
+				l.cronStore.RecordExecution(ctx, job.ID, result.TaskID, "fired", nil)
+				l.logger.Info("cron: agent type spawned", "job", job.Name, "type", job.AgentType, "task", result.TaskID)
+			}
+			submitted = true
+			continue
+		}
+
 		input, _ := json.Marshal(map[string]string{
 			"cronJobID":   job.ID,
 			"cronJobName": job.Name,

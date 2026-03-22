@@ -31,6 +31,7 @@ func (s *Server) handleCreateCron(w http.ResponseWriter, r *http.Request) {
 		Priority    *int   `json:"priority"`
 		Timezone    string `json:"timezone"`
 		CooldownMs  *int64 `json:"cooldownMs"`
+		AgentType   string `json:"agentType"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
@@ -39,6 +40,13 @@ func (s *Server) handleCreateCron(w http.ResponseWriter, r *http.Request) {
 	if req.Name == "" || req.Schedule == "" || req.Instruction == "" {
 		writeError(w, http.StatusBadRequest, "name, schedule, and instruction are required")
 		return
+	}
+	// Validate agent type reference if provided.
+	if req.AgentType != "" && s.agentTypes != nil {
+		if s.agentTypes.Get(req.AgentType) == nil {
+			writeError(w, http.StatusBadRequest, "unknown agent type: "+req.AgentType)
+			return
+		}
 	}
 	priority := 3
 	if req.Priority != nil {
@@ -62,6 +70,7 @@ func (s *Server) handleCreateCron(w http.ResponseWriter, r *http.Request) {
 		Timezone:    tz,
 		Priority:    priority,
 		CooldownMs:  cooldown,
+		AgentType:   req.AgentType,
 	}
 	if err := s.cronStore.Create(r.Context(), job); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -90,12 +99,20 @@ func (s *Server) handleUpdateCron(w http.ResponseWriter, r *http.Request) {
 		Description *string `json:"description"`
 		Priority    *int    `json:"priority"`
 		CooldownMs  *int64  `json:"cooldownMs"`
+		AgentType   *string `json:"agentType"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	if err := s.cronStore.Update(r.Context(), id, req.Enabled, req.Schedule, req.Instruction, req.Description, req.Priority, req.CooldownMs); err != nil {
+	// Validate agent type reference if provided.
+	if req.AgentType != nil && *req.AgentType != "" && s.agentTypes != nil {
+		if s.agentTypes.Get(*req.AgentType) == nil {
+			writeError(w, http.StatusBadRequest, "unknown agent type: "+*req.AgentType)
+			return
+		}
+	}
+	if err := s.cronStore.Update(r.Context(), id, req.Enabled, req.Schedule, req.Instruction, req.Description, req.Priority, req.CooldownMs, req.AgentType); err != nil {
 		if err == sql.ErrNoRows {
 			writeError(w, http.StatusNotFound, "cron job not found")
 		} else {

@@ -24,6 +24,7 @@ type subagentTypeConfig struct {
 	Mode         tool.Mode
 	AllowedTools []string // allowlist: nil = all tools in mode
 	DeniedTools  []string // denylist: nil = no denials. Takes precedence when AllowedTools is nil.
+	Skills       []string // skills to pre-load into session
 	MaxRounds    int
 	Worktree     bool
 	SystemPrompt string
@@ -139,6 +140,7 @@ func (r *SubagentRunner) resolveType(name string) (subagentTypeConfig, error) {
 			Mode:         at.Mode,
 			AllowedTools: at.AllowedTools,
 			DeniedTools:  at.DeniedTools,
+			Skills:       at.Skills,
 			MaxRounds:    at.MaxRounds,
 			Worktree:     at.Worktree,
 			SystemPrompt: at.Content,
@@ -345,6 +347,20 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 			"parentTaskId": parentTaskID,
 			"subagentType": req.Type,
 		},
+	}
+
+	// Pre-load skills defined in the agent type's AGENT.md frontmatter.
+	if len(cfg.Skills) > 0 && r.toolSkills != nil {
+		for _, skillName := range cfg.Skills {
+			sk := r.toolSkills.Get(skillName)
+			if sk != nil && sk.Content != "" {
+				session.ActiveSkills = append(session.ActiveSkills, ActiveSkill{
+					Name:         sk.Name,
+					Content:      sk.Content,
+					AllowedTools: sk.AllowedTools,
+				})
+			}
+		}
 	}
 
 	// Create worktree for coder type (already validated in Spawn that worktrees != nil).

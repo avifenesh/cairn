@@ -21,6 +21,7 @@ let streamingMessages = $state<Map<string, StreamingMessage>>(new Map());
 let mode = $state<ChatMode>('talk');
 let loading = $state(false);
 let pendingMessage = $state<string | null>(null);
+let agentType = $state<string | null>(null);
 
 export const chatStore = {
 	get sessions() { return sessions; },
@@ -30,6 +31,7 @@ export const chatStore = {
 	get mode() { return mode; },
 	get loading() { return loading; },
 	get pendingMessage() { return pendingMessage; },
+	get agentType() { return agentType; },
 	get activeStream() {
 		for (const sm of streamingMessages.values()) {
 			if (sm.isStreaming) return sm;
@@ -52,6 +54,7 @@ export const chatStore = {
 	setLoading(v: boolean) { loading = v; },
 	setPendingMessage(msg: string | null) { pendingMessage = msg; },
 	consumePendingMessage(): string | null { const m = pendingMessage; pendingMessage = null; return m; },
+	setAgentType(t: string | null) { agentType = t; },
 	clearStreaming() { streamingMessages = new Map(); },
 
 	startStreaming(taskId: string) {

@@ -258,8 +258,8 @@ export const getSessionMessages = async (sessionId: string) => {
 	return { items: messages };
 };
 
-export const sendMessage = (message: string, mode?: ChatMode, sessionId?: string) =>
-	post<{ taskId: string; sessionId?: string }>('/v1/assistant/message', { message, mode, sessionId });
+export const sendMessage = (message: string, mode?: ChatMode, sessionId?: string, agentType?: string) =>
+	post<{ taskId: string; sessionId?: string }>('/v1/assistant/message', { message, mode, sessionId, agentType });
 
 // Voice — transcribe audio to text via Whisper STT
 export const transcribeVoice = async (audio: Blob): Promise<string> => {
@@ -450,6 +450,7 @@ export const createCron = (body: {
 	priority?: number;
 	timezone?: string;
 	cooldownMs?: number;
+	agentType?: string;
 }) => post<CronJob>('/v1/crons', body);
 export const getCronDetail = (id: string) =>
 	get<{ job: CronJob; executions: CronExecution[] }>(`/v1/crons/${id}`);
@@ -459,6 +460,7 @@ export const updateCron = (id: string, body: {
 	instruction?: string;
 	description?: string;
 	priority?: number;
+	agentType?: string;
 }) => patch<{ ok: boolean; job: CronJob }>(`/v1/crons/${id}`, body);
 export const deleteCron = (id: string) => del<{ ok: boolean }>(`/v1/crons/${id}`);
 
@@ -564,6 +566,7 @@ export interface AgentTypeItem {
 	model: string;
 	allowedTools: string[] | null;
 	deniedTools: string[] | null;
+	skills: string[] | null;
 }
 export interface AgentTypeDetail extends AgentTypeItem {
 	content: string;
@@ -576,6 +579,13 @@ export const getAgentType = (name: string) =>
 	get<AgentTypeDetail>(`/v1/agent-types/${encodeURIComponent(name)}`);
 export const createAgentType = (data: { name: string; description: string; content: string; mode?: string; maxRounds?: number; worktree?: boolean }) =>
 	post<{ ok: boolean; name: string }>('/v1/agent-types', data);
+export const updateAgentType = (name: string, data: Partial<AgentTypeDetail>) =>
+	put<{ ok: boolean }>(`/v1/agent-types/${encodeURIComponent(name)}`, data);
+export const runAgentType = (name: string, data: { instruction: string; context?: string; execMode?: string }) =>
+	post<{ ok: boolean; taskId: string; sessionId: string; status: string }>(
+		`/v1/agent-types/${encodeURIComponent(name)}/run`,
+		data
+	);
 export const deleteAgentType = (name: string) =>
 	del<{ ok: boolean }>(`/v1/agent-types/${encodeURIComponent(name)}`);
 

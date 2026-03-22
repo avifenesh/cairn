@@ -4,6 +4,7 @@ description: "Quick fix agent. Applies targeted fixes — lint errors, CI failur
 mode: coding
 max-rounds: 80
 worktree: false
+skills: code-review,github
 ---
 
 # Fixer Agent

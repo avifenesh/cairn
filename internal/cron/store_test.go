@@ -25,6 +25,7 @@ func testDB(t *testing.T) *sql.DB {
 			schedule TEXT NOT NULL, instruction TEXT NOT NULL,
 			timezone TEXT DEFAULT 'UTC', priority INTEGER DEFAULT 3,
 			cooldown_ms INTEGER DEFAULT 3600000,
+			agent_type TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
 			last_run_at TEXT, next_run_at TEXT)`,
 		`CREATE TABLE cron_executions (
@@ -256,7 +257,7 @@ func TestStore_Update(t *testing.T) {
 
 	newInstruction := "new instruction"
 	disabled := false
-	if err := store.Update(ctx, job.ID, &disabled, nil, &newInstruction, nil, nil, nil); err != nil {
+	if err := store.Update(ctx, job.ID, &disabled, nil, &newInstruction, nil, nil, nil, nil); err != nil {
 		t.Fatalf("update: %v", err)
 	}
 
@@ -270,7 +271,7 @@ func TestStore_Update(t *testing.T) {
 
 	// Update cooldownMs.
 	newCooldown := int64(60000)
-	if err := store.Update(ctx, job.ID, nil, nil, nil, nil, nil, &newCooldown); err != nil {
+	if err := store.Update(ctx, job.ID, nil, nil, nil, nil, nil, &newCooldown, nil); err != nil {
 		t.Fatalf("update cooldown: %v", err)
 	}
 	got, _ = store.Get(ctx, job.ID)
@@ -279,11 +280,57 @@ func TestStore_Update(t *testing.T) {
 	}
 
 	// Nil cooldownMs should leave it unchanged.
-	if err := store.Update(ctx, job.ID, nil, nil, nil, nil, nil, nil); err != nil {
+	if err := store.Update(ctx, job.ID, nil, nil, nil, nil, nil, nil, nil); err != nil {
 		t.Fatalf("update nil cooldown: %v", err)
 	}
 	got, _ = store.Get(ctx, job.ID)
 	if got.CooldownMs != 60000 {
 		t.Errorf("cooldownMs after nil update: got %d, want 60000", got.CooldownMs)
+	}
+}
+
+func TestUpdateAgentType(t *testing.T) {
+	ctx := context.Background()
+	store := NewStore(testDB(t))
+
+	job := &CronJob{
+		ID:          "test-at-update",
+		Name:        "test-agent-type-update",
+		Schedule:    "0 * * * *",
+		Instruction: "test",
+		Enabled:     true,
+		CooldownMs:  300000,
+	}
+	if err := store.Create(ctx, job); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	// Set agentType.
+	at := "reviewer"
+	if err := store.Update(ctx, job.ID, nil, nil, nil, nil, nil, nil, &at); err != nil {
+		t.Fatalf("update agentType: %v", err)
+	}
+	got, _ := store.Get(ctx, job.ID)
+	if got.AgentType != "reviewer" {
+		t.Errorf("agentType: got %q, want %q", got.AgentType, "reviewer")
+	}
+
+	// Clear agentType with empty string.
+	empty := ""
+	if err := store.Update(ctx, job.ID, nil, nil, nil, nil, nil, nil, &empty); err != nil {
+		t.Fatalf("clear agentType: %v", err)
+	}
+	got, _ = store.Get(ctx, job.ID)
+	if got.AgentType != "" {
+		t.Errorf("agentType after clear: got %q, want empty", got.AgentType)
+	}
+
+	// Nil agentType should leave it unchanged.
+	if err := store.Update(ctx, job.ID, nil, nil, nil, nil, nil, nil, nil); err != nil {
+		t.Fatalf("nil agentType update: %v", err)
+	}
+	got, _ = store.Get(ctx, job.ID)
+	if got.AgentType != "" {
+		t.Errorf("agentType after nil update: got %q, want empty", got.AgentType)
 	}
 }

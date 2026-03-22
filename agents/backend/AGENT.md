@@ -4,6 +4,7 @@ description: "Backend specialist. Go, SQLite, REST APIs, event bus, memory syste
 mode: coding
 max-rounds: 200
 worktree: true
+skills: code-review,github
 ---
 
 # Backend Agent

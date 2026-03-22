@@ -22,6 +22,7 @@ type CronJob struct {
 	Timezone    string     `json:"timezone"`
 	Priority    int        `json:"priority"`
 	CooldownMs  int64      `json:"cooldownMs"`
+	AgentType   string     `json:"agentType"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	UpdatedAt   time.Time  `json:"updatedAt"`
 	LastRunAt   *time.Time `json:"lastRunAt,omitempty"`
@@ -73,11 +74,11 @@ func (s *Store) Create(ctx context.Context, job *CronJob) error {
 	}
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO cron_jobs (id, enabled, name, description, schedule, instruction, timezone, priority, cooldown_ms, created_at, updated_at, next_run_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO cron_jobs (id, enabled, name, description, schedule, instruction, timezone, priority, cooldown_ms, agent_type, created_at, updated_at, next_run_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		job.ID, boolToInt(job.Enabled), job.Name, job.Description,
 		job.Schedule, job.Instruction, job.Timezone,
-		job.Priority, job.CooldownMs,
+		job.Priority, job.CooldownMs, job.AgentType,
 		now.Format(timeFormat), now.Format(timeFormat),
 		formatTimePtr(job.NextRunAt),
 	)
@@ -87,7 +88,7 @@ func (s *Store) Create(ctx context.Context, job *CronJob) error {
 // List returns all cron jobs ordered by name.
 func (s *Store) List(ctx context.Context) ([]*CronJob, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, enabled, name, description, schedule, instruction, timezone, priority, cooldown_ms, created_at, updated_at, last_run_at, next_run_at
+		`SELECT id, enabled, name, description, schedule, instruction, timezone, priority, cooldown_ms, agent_type, created_at, updated_at, last_run_at, next_run_at
 		 FROM cron_jobs ORDER BY name`)
 	if err != nil {
 		return nil, err
@@ -108,7 +109,7 @@ func (s *Store) List(ctx context.Context) ([]*CronJob, error) {
 // Get returns a single cron job by ID.
 func (s *Store) Get(ctx context.Context, id string) (*CronJob, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, enabled, name, description, schedule, instruction, timezone, priority, cooldown_ms, created_at, updated_at, last_run_at, next_run_at
+		`SELECT id, enabled, name, description, schedule, instruction, timezone, priority, cooldown_ms, agent_type, created_at, updated_at, last_run_at, next_run_at
 		 FROM cron_jobs WHERE id = ?`, id)
 	return scanJobRow(row)
 }
@@ -116,13 +117,13 @@ func (s *Store) Get(ctx context.Context, id string) (*CronJob, error) {
 // GetByName returns a cron job by name.
 func (s *Store) GetByName(ctx context.Context, name string) (*CronJob, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, enabled, name, description, schedule, instruction, timezone, priority, cooldown_ms, created_at, updated_at, last_run_at, next_run_at
+		`SELECT id, enabled, name, description, schedule, instruction, timezone, priority, cooldown_ms, agent_type, created_at, updated_at, last_run_at, next_run_at
 		 FROM cron_jobs WHERE name = ?`, name)
 	return scanJobRow(row)
 }
 
 // Update modifies a cron job. Only non-nil fields are updated.
-func (s *Store) Update(ctx context.Context, id string, enabled *bool, schedule, instruction, description *string, priority *int, cooldownMs *int64) error {
+func (s *Store) Update(ctx context.Context, id string, enabled *bool, schedule, instruction, description *string, priority *int, cooldownMs *int64, agentType *string) error {
 	sets := []string{"updated_at = ?"}
 	args := []any{time.Now().UTC().Format(timeFormat)}
 
@@ -158,6 +159,10 @@ func (s *Store) Update(ctx context.Context, id string, enabled *bool, schedule, 
 		sets = append(sets, "cooldown_ms = ?")
 		args = append(args, *cooldownMs)
 	}
+	if agentType != nil {
+		sets = append(sets, "agent_type = ?")
+		args = append(args, *agentType)
+	}
 
 	args = append(args, id)
 	query := "UPDATE cron_jobs SET " + joinStrings(sets, ", ") + " WHERE id = ?"
@@ -191,7 +196,7 @@ func (s *Store) Delete(ctx context.Context, id string) error {
 func (s *Store) GetDueJobs(ctx context.Context, now time.Time) ([]*CronJob, error) {
 	nowStr := now.Format(timeFormat)
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, enabled, name, description, schedule, instruction, timezone, priority, cooldown_ms, created_at, updated_at, last_run_at, next_run_at
+		`SELECT id, enabled, name, description, schedule, instruction, timezone, priority, cooldown_ms, agent_type, created_at, updated_at, last_run_at, next_run_at
 		 FROM cron_jobs
 		 WHERE enabled = 1
 		   AND (next_run_at IS NULL OR next_run_at <= ?)`,
@@ -279,7 +284,7 @@ func scanJob(rows *sql.Rows) (*CronJob, error) {
 
 	err := rows.Scan(&j.ID, &enabled, &j.Name, &j.Description,
 		&j.Schedule, &j.Instruction, &j.Timezone,
-		&j.Priority, &j.CooldownMs,
+		&j.Priority, &j.CooldownMs, &j.AgentType,
 		&createdStr, &updatedStr, &lastRunStr, &nextRunStr)
 	if err != nil {
 		return nil, err
@@ -306,7 +311,7 @@ func scanJobRow(row *sql.Row) (*CronJob, error) {
 
 	err := row.Scan(&j.ID, &enabled, &j.Name, &j.Description,
 		&j.Schedule, &j.Instruction, &j.Timezone,
-		&j.Priority, &j.CooldownMs,
+		&j.Priority, &j.CooldownMs, &j.AgentType,
 		&createdStr, &updatedStr, &lastRunStr, &nextRunStr)
 	if err != nil {
 		return nil, err

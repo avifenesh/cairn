@@ -128,8 +128,8 @@ type SessionRecoveryDeps struct {
 
 // SessionRecoveryStats reports what happened during session recovery.
 type SessionRecoveryStats struct {
-	ChatCleaned    int
-	TaskCleaned    int
+	ChatCleaned     int
+	TaskCleaned     int
 	SubagentCleaned int
 }
 

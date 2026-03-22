@@ -1,0 +1,266 @@
+{
+  "topic": "beautiful diff views web applications visual design CSS diff2html",
+  "slug": "diff-view-visual-design",
+  "generated": "2026-03-21T00:00:00Z",
+  "depth": "medium",
+  "totalSources": 22,
+  "sources": [
+    {
+      "url": "https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css",
+      "title": "diff2html CSS stylesheet (production bundle)",
+      "qualityScore": 98,
+      "scores": { "authority": 10, "recency": 10, "depth": 10, "examples": 9, "uniqueness": 9 },
+      "keyInsights": [
+        "Complete CSS variable set: --d2h-* for light and --d2h-dark-* for dark mode",
+        "Dark mode uses RGBA overlays: rgba(46,160,67,0.15) for insertions, rgba(248,81,73,0.10) for deletions",
+        "Light mode uses flat hex: #dfd for ins-bg, #fee8e9 for del-bg",
+        ".d2h-dark-color-scheme and .d2h-auto-color-scheme class selectors for theming",
+        "GitHub dark palette: bg #0d1117, file-header #161b22, border #30363d"
+      ]
+    },
+    {
+      "url": "https://github.com/rtfpessoa/diff2html",
+      "title": "diff2html GitHub README",
+      "qualityScore": 95,
+      "scores": { "authority": 10, "recency": 9, "depth": 9, "examples": 9, "uniqueness": 8 },
+      "keyInsights": [
+        "Diff2HtmlUI extends Diff2HtmlConfig with synchronisedScroll, highlight, fileListToggle, fileListStartVisible, fileContentToggle, stickyFileHeaders",
+        "draw(), highlightCode(), synchronisedScroll(), fileListToggle(), stickyFileHeaders() must be called separately",
+        "colorScheme option: 'light' | 'dark' | 'auto'",
+        "Slim bundle allows custom hljs instance for tree-shaking"
+      ]
+    },
+    {
+      "url": "https://github.com/rtfpessoa/diff2html/blob/master/src/render-utils.ts",
+      "title": "diff2html render-utils.ts - CSS class constants",
+      "qualityScore": 90,
+      "scores": { "authority": 10, "recency": 9, "depth": 8, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "CSSLineClass values: d2h-ins, d2h-del, d2h-cntx, d2h-info, d2h-ins d2h-change, d2h-del d2h-change",
+        "ColorSchemeType maps to CSS classes: DARK->d2h-dark-color-scheme, AUTO->d2h-auto-color-scheme, LIGHT->d2h-light-color-scheme"
+      ]
+    },
+    {
+      "url": "https://github.com/rtfpessoa/diff2html/blob/master/src/line-by-line-renderer.ts",
+      "title": "diff2html line-by-line renderer",
+      "qualityScore": 88,
+      "scores": { "authority": 10, "recency": 9, "depth": 8, "examples": 7, "uniqueness": 7 },
+      "keyInsights": [
+        "HTML hierarchy: wrapper > file-diff > file-path > block-header > line",
+        "Config: renderNothingWhenEmpty, matchingMaxComparisons (2500), maxLineSizeInBlockForComparison (200)"
+      ]
+    },
+    {
+      "url": "https://github.com/rtfpessoa/diff2html/blob/master/src/side-by-side-renderer.ts",
+      "title": "diff2html side-by-side renderer",
+      "qualityScore": 88,
+      "scores": { "authority": 10, "recency": 9, "depth": 8, "examples": 7, "uniqueness": 7 },
+      "keyInsights": [
+        "Produces FileHtml: { left: string, right: string }",
+        "d2h-code-side-linenumber, d2h-code-side-line, d2h-emptyplaceholder CSS classes",
+        "matching: 'lines' | 'words' config option"
+      ]
+    },
+    {
+      "url": "https://github.com/rtfpessoa/diff2html/blob/master/src/ui/js/diff2html-ui-base.ts",
+      "title": "diff2html UI base TypeScript interface",
+      "qualityScore": 92,
+      "scores": { "authority": 10, "recency": 9, "depth": 9, "examples": 8, "uniqueness": 7 },
+      "keyInsights": [
+        "Diff2HtmlUIConfig interface with full type definitions",
+        "highlightLanguages: Map<string, string> for extension-to-language mapping",
+        "smartSelection deprecated in v3.1.0"
+      ]
+    },
+    {
+      "url": "https://github.com/praneshr/react-diff-viewer/blob/master/src/styles.ts",
+      "title": "react-diff-viewer styles.ts - theme variables",
+      "qualityScore": 85,
+      "scores": { "authority": 8, "recency": 7, "depth": 9, "examples": 8, "uniqueness": 8 },
+      "keyInsights": [
+        "Light: addedBackground #e6ffed, removedBackground #ffeef0, wordAddedBackground #acf2bd, wordRemovedBackground #fdb8c0",
+        "Dark: addedBackground #044B53, removedBackground #632F34, gutterBackground #2c2f3a",
+        "Complete list of 15+ style keys: diffContainer, diffRemoved, diffAdded, gutter, lineNumber, wordDiff, codeFold, etc."
+      ]
+    },
+    {
+      "url": "https://github.com/praneshr/react-diff-viewer/blob/master/README.md",
+      "title": "react-diff-viewer README",
+      "qualityScore": 83,
+      "scores": { "authority": 8, "recency": 7, "depth": 8, "examples": 9, "uniqueness": 7 },
+      "keyInsights": [
+        "DiffMethod enum: CHARS, WORDS, LINES, WORDS_WITH_SPACE, SENTENCES, CSS",
+        "extraLinesSurroundingDiff: number of context lines (default 3)",
+        "showDiffOnly: boolean to hide unchanged sections",
+        "highlightLines array with L/R prefix for line-level selection"
+      ]
+    },
+    {
+      "url": "https://github.com/MrWangJustToDo/git-diff-view",
+      "title": "git-diff-view - multi-framework diff component",
+      "qualityScore": 87,
+      "scores": { "authority": 7, "recency": 10, "depth": 9, "examples": 9, "uniqueness": 9 },
+      "keyInsights": [
+        "FastDiff template: character-level diff via setEnableFastDiffTemplate(true)",
+        "Supports React, Vue, Solid, Svelte",
+        "Range mode: display partial diffs via generateInstanceFromLineNumberRange()",
+        "Web Worker support for background diff processing",
+        "Pure CSS via @git-diff-view/react/styles/diff-view.css"
+      ]
+    },
+    {
+      "url": "https://shiki.style/packages/transformers",
+      "title": "Shiki transformers - transformerNotationDiff",
+      "qualityScore": 93,
+      "scores": { "authority": 9, "recency": 10, "depth": 9, "examples": 10, "uniqueness": 8 },
+      "keyInsights": [
+        "Syntax: // [!code ++] for additions, // [!code --] for removals",
+        "Output classes: span.line.diff.add and span.line.diff.remove",
+        "Container class: pre.has-diff",
+        "matchAlgorithm: 'v1' | 'v3' option"
+      ]
+    },
+    {
+      "url": "https://shiki.style/guide/dual-themes",
+      "title": "Shiki dual themes guide",
+      "qualityScore": 90,
+      "scores": { "authority": 9, "recency": 10, "depth": 8, "examples": 9, "uniqueness": 7 },
+      "keyInsights": [
+        "themes: { light: 'min-light', dark: 'nord' } for dual mode",
+        "CSS variables: --shiki-dark, --shiki-dark-bg for dark mode overrides",
+        "Class-based switching: html.dark .shiki selectors",
+        "defaultColor: false for fully custom CSS control"
+      ]
+    },
+    {
+      "url": "https://github.com/kpdecker/jsdiff",
+      "title": "jsdiff - diff computation library",
+      "qualityScore": 92,
+      "scores": { "authority": 9, "recency": 9, "depth": 9, "examples": 9, "uniqueness": 7 },
+      "keyInsights": [
+        "Myers diff algorithm with pre/post-diff speedups",
+        "maxEditLength option to abort expensive diffs",
+        "timeout option for time-bounded diffs",
+        "Extensible: override tokenize(), equals(), join() for custom diff logic"
+      ]
+    },
+    {
+      "url": "https://github.com/google/diff-match-patch",
+      "title": "diff-match-patch - Google's character diff library",
+      "qualityScore": 82,
+      "scores": { "authority": 8, "recency": 7, "depth": 7, "examples": 7, "uniqueness": 8 },
+      "keyInsights": [
+        "Myers algorithm for character-level intra-line highlighting",
+        "Used by CodeMirror 5 merge view for chunk computation",
+        "Patch module for applying diffs to modified originals"
+      ]
+    },
+    {
+      "url": "https://github.com/codemirror/merge",
+      "title": "CodeMirror merge extension",
+      "qualityScore": 88,
+      "scores": { "authority": 9, "recency": 9, "depth": 8, "examples": 8, "uniqueness": 7 },
+      "keyInsights": [
+        "MergeView: { a: {doc, extensions}, b: {doc, extensions}, parent }",
+        "unifiedMergeView({ original }): single-pane inline diff",
+        "updateOriginalDoc transaction annotation for streaming"
+      ]
+    },
+    {
+      "url": "https://github.com/codemirror/codemirror5/blob/master/addon/merge/merge.js",
+      "title": "CodeMirror 5 merge.js implementation",
+      "qualityScore": 78,
+      "scores": { "authority": 8, "recency": 5, "depth": 9, "examples": 7, "uniqueness": 9 },
+      "keyInsights": [
+        "SVG Bezier curves connect related chunks between split panes",
+        "Ratio-based synchronized scrolling between editors",
+        "ViewMarker + line-class API for change highlighting",
+        "250ms debounce on diff recalculation for fast edits"
+      ]
+    },
+    {
+      "url": "https://github.com/desktop/desktop/blob/development/app/src/ui/diff/",
+      "title": "GitHub Desktop diff view architecture",
+      "qualityScore": 80,
+      "scores": { "authority": 8, "recency": 8, "depth": 7, "examples": 6, "uniqueness": 8 },
+      "keyInsights": [
+        "Modular: separate components for side-by-side-diff, syntax-highlighting, image-diffs",
+        "text-diff-expansion.ts for collapsible unchanged sections",
+        "diff-search-input.tsx for in-diff text search",
+        "get-tokens.ts for lexical tokenization before syntax highlighting"
+      ]
+    },
+    {
+      "url": "https://github.com/otakustay/react-diff-view",
+      "title": "react-diff-view - token-based React diff component",
+      "qualityScore": 84,
+      "scores": { "authority": 7, "recency": 7, "depth": 9, "examples": 8, "uniqueness": 9 },
+      "keyInsights": [
+        "renderToken prop for pluggable syntax highlighting",
+        "Widget system: attach React elements to specific changed lines",
+        "CSS variables: --diff-code-insert-background-color, --diff-gutter-delete-background-color",
+        "Change key system: 'I'/'D'/'N' prefix + line numbers",
+        "Gutter modes: 'default', 'none', 'anchor' (clickable line links)"
+      ]
+    },
+    {
+      "url": "https://tanstack.com/virtual/latest",
+      "title": "TanStack Virtual - headless virtualizer",
+      "qualityScore": 90,
+      "scores": { "authority": 9, "recency": 10, "depth": 9, "examples": 9, "uniqueness": 7 },
+      "keyInsights": [
+        "estimateSize callback for variable row heights",
+        "measureElement for self-correcting actual heights after render",
+        "overscan: render N extra items above/below viewport",
+        "count + getScrollElement + estimateSize are the core three required options"
+      ]
+    },
+    {
+      "url": "https://github.com/satya164/react-simple-code-editor",
+      "title": "react-simple-code-editor - overlay technique",
+      "qualityScore": 72,
+      "scores": { "authority": 6, "recency": 7, "depth": 7, "examples": 7, "uniqueness": 7 },
+      "keyInsights": [
+        "Overlay pattern: highlighted <pre> positioned over <textarea>",
+        "-webkit-text-fill-color: transparent to hide textarea text while preserving cursor",
+        "Font family/weight/style must match exactly between layers"
+      ]
+    },
+    {
+      "url": "https://prismjs.com/",
+      "title": "Prism.js syntax highlighter",
+      "qualityScore": 80,
+      "scores": { "authority": 8, "recency": 8, "depth": 7, "examples": 8, "uniqueness": 6 },
+      "keyInsights": [
+        "diff-highlight plugin: highlights embedded languages inside diff blocks",
+        "language-diff-typescript class for combined diff+syntax highlighting",
+        "2KB minified + gzipped base, plugins added separately",
+        "Toolbar plugin for copy button integration"
+      ]
+    },
+    {
+      "url": "https://highlightjs.org/",
+      "title": "highlight.js - syntax highlighter",
+      "qualityScore": 82,
+      "scores": { "authority": 8, "recency": 9, "depth": 7, "examples": 7, "uniqueness": 6 },
+      "keyInsights": [
+        "192 languages, 512 themes",
+        "Automatic language detection via highlightAuto()",
+        "Used by diff2html for syntax highlighting integration",
+        "github.min.css / github-dark.min.css are the canonical themes for diff views"
+      ]
+    },
+    {
+      "url": "https://www.w3.org/WAI/WCAG21/Techniques/css/C29",
+      "title": "WCAG 2.1 color contrast techniques",
+      "qualityScore": 75,
+      "scores": { "authority": 9, "recency": 7, "depth": 6, "examples": 5, "uniqueness": 7 },
+      "keyInsights": [
+        "Red/green alone fails for ~8% of male users (deuteranopia)",
+        "AA standard: 4.5:1 contrast ratio for normal text",
+        "Supplementary visual cues (symbols, patterns, borders) required alongside color",
+        "+/- gutter prefixes satisfy non-color-only requirement"
+      ]
+    }
+  ]
+}

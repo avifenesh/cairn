@@ -2,7 +2,7 @@
 
 > Research guides for Cairn development. Read the relevant guide before answering questions on these topics.
 
-## Guides (14)
+## Guides (16)
 
 | # | Topic | File | Sources | Created |
 |---|-------|------|---------|---------|
@@ -20,6 +20,8 @@
 | 12 | Self-evolving agents | self-evolving-agents.md | 42 | 2026-03-19 |
 | 13 | Cron systems, agent resilience | cron-and-resilience.md | 108 | 2026-03-19 |
 | 14 | File write/edit tools in AI coding assistants | ai-file-edit-tools.md | 42 | 2026-03-21 |
+| 15 | Diff viewer library selection, Monaco, CodeMirror, streaming diffs | coding-session-diff-ui.md | 20 | 2026-03-21 |
+| 16 | Diff view visual design, CSS, color schemes, diff2html config, virtual scrolling | diff-view-visual-design.md | 22 | 2026-03-21 |
 
 ## Keyword Lookup
 
@@ -49,6 +51,14 @@
 | read-before-write, checkpoint, rollback, fuzzy matching, speculative edits | ai-file-edit-tools.md |
 | JSON code wrapping, line number accuracy, lazy code generation | ai-file-edit-tools.md |
 | architect mode, editor model, two-model approach, apply role | ai-file-edit-tools.md |
+| diff viewer, Monaco DiffEditor, CodeMirror merge, diff2html, jsdiff, react-diff-viewer | coding-session-diff-ui.md |
+| streaming diff, live diff, file tree badges, accept/reject hunk, unified vs split | coding-session-diff-ui.md |
+| diff CSS, diff colors, dark mode diff, RGBA overlay, d2h-ins, d2h-del | diff-view-visual-design.md |
+| diff2html config, colorScheme, synchronisedScroll, matching, outputFormat | diff-view-visual-design.md |
+| syntax highlighting diff, Shiki transformerNotationDiff, hljs diff, Prism diff-highlight | diff-view-visual-design.md |
+| virtual scroll diff, TanStack Virtual, large diff performance, lazy hunk rendering | diff-view-visual-design.md |
+| accessible diff, colorblind diff, WCAG diff, gutter prefix, left border accent | diff-view-visual-design.md |
+| diff color palette, GitHub diff colors, VS Code diff colors, word-level highlight | diff-view-visual-design.md |
 
 ## How to Use
 

@@ -1,11 +1,32 @@
 <script lang="ts" module>
 	function formatDiff(diff: string): string {
+		let oldLine = 0, newLine = 0;
 		return diff.split('\n').map(line => {
 			const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-			if (line.startsWith('+') && !line.startsWith('+++')) return `<span class="diff-add">${escaped}</span>`;
-			if (line.startsWith('-') && !line.startsWith('---')) return `<span class="diff-del">${escaped}</span>`;
-			if (line.startsWith('@@')) return `<span class="diff-hunk">${escaped}</span>`;
-			return escaped;
+			// Parse hunk header for line numbers.
+			if (line.startsWith('@@')) {
+				const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)/);
+				if (match) {
+					oldLine = parseInt(match[1], 10);
+					newLine = parseInt(match[2], 10);
+				}
+				return `<span class="diff-hunk">${escaped}</span>`;
+			}
+			if (line.startsWith('+++') || line.startsWith('---')) return `<span class="diff-meta">${escaped}</span>`;
+			// Build line number gutter.
+			let gutter = '';
+			if (line.startsWith('+')) {
+				gutter = `<span class="diff-gutter diff-gutter-add">${String(newLine++).padStart(4)}</span>`;
+				return `${gutter}<span class="diff-add">${escaped}</span>`;
+			}
+			if (line.startsWith('-')) {
+				gutter = `<span class="diff-gutter diff-gutter-del">${String(oldLine++).padStart(4)}</span>`;
+				return `${gutter}<span class="diff-del">${escaped}</span>`;
+			}
+			// Context line.
+			gutter = `<span class="diff-gutter">${String(oldLine++).padStart(4)}</span>`;
+			newLine++;
+			return `${gutter}<span class="diff-ctx">${escaped}</span>`;
 		}).join('\n');
 	}
 </script>
@@ -15,7 +36,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import { relativeTime, formatTime } from '$lib/utils/time';
-	import { Wrench, Brain, AlertTriangle, MessageSquare, CheckCircle, XCircle, Loader2, Play, ChevronDown, ChevronUp, Code } from '@lucide/svelte';
+	import { Wrench, Brain, AlertTriangle, MessageSquare, CheckCircle, XCircle, Loader2, Play, ChevronDown, ChevronUp, Code, PanelRight } from '@lucide/svelte';
 
 	let { event, completedToolIds = new Set<string>(), isCompleted = false, onFileClick }: {
 		event: SessionEvent;
@@ -188,6 +209,12 @@
 			<div class="event-header">
 				<span class="text-xs font-mono font-medium">{p.path}</span>
 				<Badge variant="outline" class="text-xs">{p.operation}</Badge>
+				{#if onFileClick}
+					<button class="open-panel-btn" onclick={(e) => { e.stopPropagation(); onFileClick?.(String(p.path)); }}
+						aria-label="Open in diff panel">
+						<PanelRight size={10} /><span>panel</span>
+					</button>
+				{/if}
 			</div>
 			{#if p.diff}
 				<button class="expand-btn" onclick={(e) => { e.stopPropagation(); expandedDiff = !expandedDiff; }}>
@@ -300,9 +327,27 @@
 	.event-card--error { border-left: 2px solid var(--color-error, hsl(var(--destructive))); }
 	.event-card--file { border-left: 2px solid #22c55e; cursor: pointer; }
 
-	.diff-block :global(.diff-add) { color: #22c55e; }
-	.diff-block :global(.diff-del) { color: #ef4444; }
-	.diff-block :global(.diff-hunk) { color: #818cf8; }
+	.open-panel-btn {
+		display: inline-flex; align-items: center; gap: 0.25rem;
+		font-size: 0.5625rem; color: var(--text-tertiary, hsl(var(--muted-foreground)));
+		background: none; border: none; cursor: pointer; padding: 0.0625rem 0.25rem;
+		margin-left: auto; border-radius: 0.125rem;
+	}
+	.open-panel-btn:hover { color: var(--cairn-accent, #10b981); background: var(--accent-dim, rgba(16,185,129,0.1)); }
+
+	/* Inline diff styling */
+	.diff-block :global(.diff-gutter) {
+		display: inline-block; width: 4ch; text-align: right;
+		color: var(--text-tertiary, hsl(var(--muted-foreground)));
+		margin-right: 0.5rem; user-select: none; opacity: 0.6;
+	}
+	.diff-block :global(.diff-gutter-add) { color: #34d399; }
+	.diff-block :global(.diff-gutter-del) { color: #f87171; }
+	.diff-block :global(.diff-add) { color: #34d399; }
+	.diff-block :global(.diff-del) { color: #f87171; }
+	.diff-block :global(.diff-ctx) { color: var(--text-secondary, hsl(var(--muted-foreground))); }
+	.diff-block :global(.diff-hunk) { color: #818cf8; font-style: italic; }
+	.diff-block :global(.diff-meta) { color: var(--text-tertiary, hsl(var(--muted-foreground))); font-weight: 500; }
 
 	/* Markdown prose for agent messages */
 	.cairn-prose :global(p) { margin: 0.25rem 0; }

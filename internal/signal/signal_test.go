@@ -576,6 +576,9 @@ func TestScheduler_BusEvents(t *testing.T) {
 		if ev.Title != "Bus Event" {
 			t.Errorf("title = %q, want %q", ev.Title, "Bus Event")
 		}
+		if ev.Kind != "test" {
+			t.Errorf("kind = %q, want %q", ev.Kind, "test")
+		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for bus event after first poll")
 	}

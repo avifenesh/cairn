@@ -189,8 +189,11 @@ func (s *Scheduler) pollOnce(ctx context.Context, idx int) {
 				eventbus.Publish(s.bus, eventbus.EventIngested{
 					EventMeta:  eventbus.NewMeta(source),
 					SourceType: ev.Source,
+					Kind:       ev.Kind,
 					Title:      ev.Title,
 					URL:        ev.URL,
+					Actor:      ev.Actor,
+					Repo:       ev.Repo,
 				})
 			}
 		}

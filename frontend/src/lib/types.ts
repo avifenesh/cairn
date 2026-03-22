@@ -401,3 +401,32 @@ export interface RuleExecution {
 	durationMs: number;
 	createdAt: string;
 }
+
+// --- Signal Sources ---
+
+export interface SourceInfo {
+	name: string;
+	label: string;
+	kinds: string[];
+	fields: string[];
+}
+
+// --- Rule Templates ---
+
+export interface TemplateParam {
+	key: string;
+	label: string;
+	type: 'text' | 'select' | 'number';
+	default?: string;
+	required: boolean;
+	options?: string[];
+}
+
+export interface RuleTemplate {
+	id: string;
+	name: string;
+	description: string;
+	category: string;
+	source?: string;
+	params: TemplateParam[];
+}

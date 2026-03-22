@@ -116,6 +116,9 @@ func (s *Server) registerRoutes() {
 		s.mux.HandleFunc("DELETE /v1/crons/{id}", s.handleDeleteCron)
 	}
 
+	// Signal sources (unconditional — useful for rules UI and general status).
+	s.mux.HandleFunc("GET /v1/sources", s.handleListSources)
+
 	// Automation rules (optional).
 	if s.rulesStore != nil {
 		s.mux.HandleFunc("GET /v1/rules/executions/recent", s.handleRecentRuleExecutions)
@@ -125,6 +128,8 @@ func (s *Server) registerRoutes() {
 		s.mux.HandleFunc("PATCH /v1/rules/{id}", s.handleUpdateRule)
 		s.mux.HandleFunc("DELETE /v1/rules/{id}", s.handleDeleteRule)
 		s.mux.HandleFunc("GET /v1/rules/{id}/executions", s.handleListRuleExecutions)
+		s.mux.HandleFunc("GET /v1/rule-templates", s.handleListRuleTemplates)
+		s.mux.HandleFunc("POST /v1/rule-templates/{id}/instantiate", s.requireWrite(s.handleInstantiateRuleTemplate))
 	}
 
 	// Agent activity.

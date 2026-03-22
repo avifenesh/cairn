@@ -99,6 +99,9 @@ func All() []tool.Tool {
 			listRules,
 			deleteRule,
 			toggleRule,
+			listSources,
+			listRuleTemplates,
+			createRuleFromTemplate,
 		)
 	}
 

@@ -750,15 +750,16 @@ func runServe(logger *slog.Logger) {
 			}
 			return nil
 		}(),
-		MCPClients:    mcpClientMgr,
-		Approvals:     approvalStore,
-		AuthStore:     authStore,
-		WebAuthn:      webauthnHandler,
-		PollTrigger:   scheduler,
-		AgentTypes:    agentTypeSvc,
-		UserProfile:   userProfile,
-		AgentsFile:    agentsFile,
-		CuratedMemory: curatedMemory,
+		MCPClients:     mcpClientMgr,
+		Approvals:      approvalStore,
+		AuthStore:      authStore,
+		WebAuthn:       webauthnHandler,
+		PollTrigger:    scheduler,
+		SourceRegistry: scheduler,
+		AgentTypes:     agentTypeSvc,
+		UserProfile:    userProfile,
+		AgentsFile:     agentsFile,
+		CuratedMemory:  curatedMemory,
 	})
 
 	// Graceful shutdown context — all subsystems observe this.

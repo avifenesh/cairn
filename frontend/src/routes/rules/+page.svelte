@@ -1,29 +1,20 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { getRules, createRule, deleteRule, updateRule, getRecentRuleExecutions } from '$lib/api/client';
+	import { getRules, deleteRule, updateRule, getRecentRuleExecutions, getSources, getRuleTemplates } from '$lib/api/client';
 	import { ruleStore } from '$lib/stores/rules.svelte';
 	import { relativeTime } from '$lib/utils/time';
-	import type { Rule, RuleExecution } from '$lib/types';
+	import type { Rule, RuleTemplate } from '$lib/types';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Zap, Plus, Trash2, ToggleLeft, ToggleRight, Clock, AlertCircle, CheckCircle2, XCircle } from '@lucide/svelte';
+	import TemplateGallery from '$lib/components/rules/TemplateGallery.svelte';
+	import RuleBuilder from '$lib/components/rules/RuleBuilder.svelte';
+	import { Zap, Plus, Trash2, ToggleLeft, ToggleRight, Clock, AlertCircle, CheckCircle2, XCircle, Wrench, BookOpen, History } from '@lucide/svelte';
 
 	let loading = $state(true);
-	let showCreate = $state(false);
-	let tab = $state<'rules' | 'history'>('rules');
-
-	// Create form state
-	let newName = $state('');
-	let newDesc = $state('');
-	let newEventType = $state('EventIngested');
-	let newFilter = $state('');
-	let newCondition = $state('');
-	let newActionType = $state<'notify' | 'task'>('notify');
-	let newActionMessage = $state('');
-	let newThrottle = $state(0);
-	let creating = $state(false);
+	let tab = $state<'templates' | 'rules' | 'history'>('templates');
+	let showBuilder = $state(false);
+	let builderPrefill = $state<RuleTemplate | undefined>(undefined);
 
 	function onRuleExecuted(e: Event) {
 		const detail = (e as CustomEvent).detail;
@@ -33,12 +24,18 @@
 	onMount(async () => {
 		window.addEventListener('cairn:rule-executed', onRuleExecuted);
 		try {
-			const [rulesRes, execsRes] = await Promise.all([
+			const [rulesRes, execsRes, sourcesRes, templatesRes] = await Promise.all([
 				getRules(),
 				getRecentRuleExecutions().catch(() => ({ items: [] })),
+				getSources().catch(() => ({ items: [] })),
+				getRuleTemplates().catch(() => ({ items: [] })),
 			]);
 			ruleStore.setRules(rulesRes.items ?? []);
 			ruleStore.setExecutions(execsRes.items ?? []);
+			ruleStore.setSources(sourcesRes.items ?? []);
+			ruleStore.setTemplates(templatesRes.items ?? []);
+			// If user already has rules, default to rules tab.
+			if ((rulesRes.items ?? []).length > 0) tab = 'rules';
 		} catch (e) {
 			console.error('Failed to load rules:', e);
 		} finally {
@@ -47,35 +44,9 @@
 	});
 	onDestroy(() => window.removeEventListener('cairn:rule-executed', onRuleExecuted));
 
-	async function handleCreate() {
-		if (!newName.trim() || !newActionMessage.trim()) return;
-		creating = true;
-		try {
-			const filter: Record<string, string> = {};
-			if (newFilter.trim()) {
-				try { Object.assign(filter, JSON.parse(newFilter)); } catch { /* ignore */ }
-			}
-			const rule: Partial<Rule> = {
-				name: newName.trim(),
-				description: newDesc.trim(),
-				enabled: true,
-				trigger: { type: 'event', eventType: newEventType, filter },
-				condition: newCondition.trim(),
-				actions: [{ type: newActionType, params: newActionType === 'notify'
-					? { message: newActionMessage, priority: '1' }
-					: { description: newActionMessage, type: 'general' }
-				}],
-				throttleMs: newThrottle * 1000,
-			};
-			const res = await createRule(rule);
-			ruleStore.addRule(res.rule);
-			showCreate = false;
-			newName = ''; newDesc = ''; newFilter = ''; newCondition = ''; newActionMessage = ''; newThrottle = 0;
-		} catch (e) {
-			console.error('Failed to create rule:', e);
-		} finally {
-			creating = false;
-		}
+	function openBuilder(prefill?: RuleTemplate) {
+		builderPrefill = prefill;
+		showBuilder = true;
 	}
 
 	async function handleToggle(rule: Rule) {
@@ -99,11 +70,20 @@
 
 	function triggerSummary(rule: Rule): string {
 		if (rule.trigger.type === 'cron') return `Schedule: ${rule.trigger.schedule}`;
-		let s = `On ${rule.trigger.eventType}`;
-		if (rule.trigger.filter && Object.keys(rule.trigger.filter).length > 0) {
-			s += ` (${Object.entries(rule.trigger.filter).map(([k, v]) => `${k}=${v}`).join(', ')})`;
-		}
-		return s;
+		// Use source registry for human-readable labels.
+		const src = ruleStore.sources.find(s => s.name === rule.trigger.filter?.sourceType);
+		const srcLabel = src?.label ?? rule.trigger.filter?.sourceType;
+		const kind = rule.trigger.filter?.kind;
+		if (srcLabel && kind) return `${srcLabel} ${kind}`;
+		if (srcLabel) return `${srcLabel} events`;
+		const eventLabels: Record<string, string> = {
+			EventIngested: 'Signal event',
+			TaskCreated: 'Task created',
+			TaskCompleted: 'Task completed',
+			TaskFailed: 'Task failed',
+			MemoryProposed: 'Memory proposed',
+		};
+		return eventLabels[rule.trigger.eventType ?? ''] ?? rule.trigger.eventType ?? 'Unknown';
 	}
 
 	function actionSummary(rule: Rule): string {
@@ -133,57 +113,28 @@
 			<h1 class="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Rules</h1>
 			<p class="mt-1 text-xs text-[var(--text-tertiary)]">Automation rules — when X happens, do Y</p>
 		</div>
-		<div class="flex gap-2">
-			<Button variant={tab === 'rules' ? 'default' : 'outline'} size="sm" class="h-8 text-xs" onclick={() => tab = 'rules'}>
-				Rules ({ruleStore.rules.length})
+		<div class="flex gap-1.5">
+			<Button variant={tab === 'templates' ? 'default' : 'outline'} size="sm" class="h-8 text-xs gap-1" onclick={() => tab = 'templates'}>
+				<BookOpen class="h-3.5 w-3.5" /> Templates
 			</Button>
-			<Button variant={tab === 'history' ? 'default' : 'outline'} size="sm" class="h-8 text-xs" onclick={() => tab = 'history'}>
-				History
+			<Button variant={tab === 'rules' ? 'default' : 'outline'} size="sm" class="h-8 text-xs gap-1" onclick={() => tab = 'rules'}>
+				<Wrench class="h-3.5 w-3.5" /> My Rules ({ruleStore.rules.length})
 			</Button>
-			<Button size="sm" class="h-8 text-xs gap-1.5" onclick={() => showCreate = !showCreate}>
-				<Plus class="h-3.5 w-3.5" /> New Rule
+			<Button variant={tab === 'history' ? 'default' : 'outline'} size="sm" class="h-8 text-xs gap-1" onclick={() => tab = 'history'}>
+				<History class="h-3.5 w-3.5" /> History
 			</Button>
 		</div>
 	</div>
 
-	<!-- Create Form -->
-	{#if showCreate}
-		<div class="mb-6 rounded-lg border border-[var(--cairn-accent)]/30 bg-[var(--bg-1)] p-4 space-y-3 animate-in">
-			<p class="text-sm font-medium text-[var(--text-primary)]">Create Rule</p>
-			<div class="grid grid-cols-2 gap-3">
-				<input bind:value={newName} placeholder="Rule name" class="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-0)] px-3 py-1.5 text-sm text-[var(--text-primary)] focus:border-[var(--cairn-accent)] focus:outline-none" />
-				<input bind:value={newDesc} placeholder="Description (optional)" class="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-0)] px-3 py-1.5 text-sm text-[var(--text-primary)] focus:border-[var(--cairn-accent)] focus:outline-none" />
-			</div>
-			<div class="grid grid-cols-3 gap-3">
-				<select bind:value={newEventType} class="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-0)] px-3 py-1.5 text-sm text-[var(--text-primary)]">
-					<option value="EventIngested">Signal Event</option>
-					<option value="TaskCreated">Task Created</option>
-					<option value="TaskCompleted">Task Completed</option>
-					<option value="TaskFailed">Task Failed</option>
-					<option value="MemoryProposed">Memory Proposed</option>
-				</select>
-				<input bind:value={newFilter} placeholder={'Filter JSON: {"sourceType":"github"}'} class="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-0)] px-3 py-1.5 text-sm text-[var(--text-primary)] font-mono text-xs focus:border-[var(--cairn-accent)] focus:outline-none" />
-				<input bind:value={newCondition} placeholder='Condition: contains(title, "PR")' class="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-0)] px-3 py-1.5 text-sm text-[var(--text-primary)] font-mono text-xs focus:border-[var(--cairn-accent)] focus:outline-none" />
-			</div>
-			<div class="grid grid-cols-3 gap-3">
-				<select bind:value={newActionType} class="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-0)] px-3 py-1.5 text-sm text-[var(--text-primary)]">
-					<option value="notify">Notify</option>
-					<option value="task">Submit Task</option>
-				</select>
-				<input bind:value={newActionMessage} placeholder={newActionType === 'notify' ? 'Message: New PR: {{.title}}' : 'Task description'} class="col-span-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-0)] px-3 py-1.5 text-sm text-[var(--text-primary)] focus:border-[var(--cairn-accent)] focus:outline-none" />
-			</div>
-			<div class="flex items-center justify-between">
-				<div class="flex items-center gap-2">
-					<label for="throttle-input" class="text-xs text-[var(--text-tertiary)]">Throttle (seconds):</label>
-					<input id="throttle-input" type="number" bind:value={newThrottle} min="0" class="w-20 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-0)] px-2 py-1 text-sm text-[var(--text-primary)]" />
-				</div>
-				<div class="flex gap-2">
-					<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => showCreate = false}>Cancel</Button>
-					<Button size="sm" class="h-7 text-xs gap-1" onclick={handleCreate} disabled={creating || !newName.trim() || !newActionMessage.trim()}>
-						<Zap class="h-3 w-3" /> Create
-					</Button>
-				</div>
-			</div>
+	<!-- Builder overlay -->
+	{#if showBuilder}
+		<div class="mb-6">
+			<RuleBuilder
+				sources={ruleStore.sources}
+				prefill={builderPrefill}
+				onclose={() => { showBuilder = false; builderPrefill = undefined; }}
+				oncreated={() => { showBuilder = false; builderPrefill = undefined; tab = 'rules'; }}
+			/>
 		</div>
 	{/if}
 
@@ -193,13 +144,36 @@
 			<Skeleton class="h-16 w-full" />
 			<Skeleton class="h-16 w-full" />
 		</div>
+	{:else if tab === 'templates'}
+		<!-- Templates Gallery -->
+		<div class="space-y-4">
+			<TemplateGallery
+				templates={ruleStore.templates}
+				sources={ruleStore.sources}
+				onselect={(t) => openBuilder(t)}
+			/>
+			{#if !showBuilder}
+				<div class="flex justify-center">
+					<Button variant="outline" size="sm" class="h-8 text-xs gap-1.5" onclick={() => openBuilder()}>
+						<Plus class="h-3.5 w-3.5" /> Build custom rule
+					</Button>
+				</div>
+			{/if}
+		</div>
 	{:else if tab === 'rules'}
 		<!-- Rules List -->
+		{#if !showBuilder}
+			<div class="mb-4 flex justify-end">
+				<Button size="sm" class="h-8 text-xs gap-1.5" onclick={() => openBuilder()}>
+					<Plus class="h-3.5 w-3.5" /> New Rule
+				</Button>
+			</div>
+		{/if}
 		{#if ruleStore.rules.length === 0}
 			<div class="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-1)] p-8 text-center">
 				<Zap class="mx-auto h-8 w-8 text-[var(--text-tertiary)]/40 mb-2" />
 				<p class="text-sm text-[var(--text-tertiary)]">No automation rules yet</p>
-				<p class="text-xs text-[var(--text-tertiary)]/60 mt-1">Create a rule to react to events automatically</p>
+				<p class="text-xs text-[var(--text-tertiary)]/60 mt-1">Use a template or build a custom rule</p>
 			</div>
 		{:else}
 			<div class="space-y-2">

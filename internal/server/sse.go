@@ -69,8 +69,11 @@ func (b *SSEBroadcaster) Start() {
 		eventbus.Subscribe(b.bus, func(e eventbus.EventIngested) {
 			b.broadcast("feed_update", e.ID, map[string]any{
 				"sourceType": e.SourceType,
+				"kind":       e.Kind,
 				"title":      e.Title,
 				"url":        e.URL,
+				"actor":      e.Actor,
+				"repo":       e.Repo,
 			})
 		}),
 		eventbus.Subscribe(b.bus, func(e eventbus.TaskCreated) {

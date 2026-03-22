@@ -180,8 +180,9 @@ func TestShell_GrepNoMatch(t *testing.T) {
 	}
 
 	// grep for something that doesn't exist — exit 1 expected.
-	// Use json.Marshal to safely build the command with the temp path.
-	cmdStr := "grep nonexistent " + path + "; grep_rc=$?; echo after-grep rc=$grep_rc"
+	// Quote the path for the shell so spaces/special chars don't break the command.
+	escapedPath := "'" + strings.ReplaceAll(path, "'", "'\"'\"'") + "'"
+	cmdStr := "grep nonexistent " + escapedPath + "; grep_rc=$?; echo after-grep rc=$grep_rc"
 	args, marshalErr := json.Marshal(map[string]string{"command": cmdStr})
 	if marshalErr != nil {
 		t.Fatal(marshalErr)
@@ -223,6 +224,12 @@ func TestShell_TestFalse(t *testing.T) {
 
 func TestShell_PipefailStillActive(t *testing.T) {
 	// set -o pipefail should still be active, catching mid-pipe failures.
+	// Skip when the detected shell doesn't support pipefail (e.g., plain /bin/sh).
+	si := detectShell()
+	if !si.supportsPipefail {
+		t.Skip("detected shell does not support pipefail")
+	}
+
 	ctx, _ := testCtx(t)
 
 	// false | cat — with pipefail this should return non-zero (1 from false).

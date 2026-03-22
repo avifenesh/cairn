@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/avifenesh/cairn/internal/tool/builtin"
 )
 
 const sessionTimeFormat = "2006-01-02T15:04:05.000Z"
@@ -45,7 +47,8 @@ func (s *SessionStore) GetOrCreate(ctx context.Context, channel, chatID string, 
 				return sessionID, false, nil
 			}
 		}
-		// Timed out — create new session, update mapping.
+		// Timed out — clean up old session's file tracking state, create new.
+		builtin.CleanupSessionFiles(sessionID)
 		newID := generateSessionID()
 		now := time.Now().UTC().Format(sessionTimeFormat)
 		_, err = s.db.ExecContext(ctx, `
@@ -75,10 +78,20 @@ func (s *SessionStore) GetOrCreate(ctx context.Context, channel, chatID string, 
 // Reset deletes the session mapping for a channel+chatID, forcing a new session
 // on the next message. Used by the /new command.
 func (s *SessionStore) Reset(ctx context.Context, channel, chatID string) error {
-	_, err := s.db.ExecContext(ctx, `
+	// Clean up file tracking state for the old session before deleting.
+	var oldSessionID string
+	err := s.db.QueryRowContext(ctx, `
+		SELECT session_id FROM channel_sessions WHERE channel = ? AND chat_id = ?`,
+		channel, chatID).Scan(&oldSessionID)
+	if err == nil {
+		builtin.CleanupSessionFiles(oldSessionID)
+	} else if err != sql.ErrNoRows {
+		return fmt.Errorf("channel session reset lookup: %w", err)
+	}
+	_, delErr := s.db.ExecContext(ctx, `
 		DELETE FROM channel_sessions WHERE channel = ? AND chat_id = ?`,
 		channel, chatID)
-	return err
+	return delErr
 }
 
 func generateSessionID() string {

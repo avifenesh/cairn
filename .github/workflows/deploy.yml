@@ -21,6 +21,8 @@ jobs:
       PROD_BIN: /home/ubuntu/cairn/cairn-prod
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Build frontend
         run: |

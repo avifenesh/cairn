@@ -146,15 +146,26 @@ func TestIsQuietHours_NilConfig(t *testing.T) {
 func TestIsQuietHours_SameDay(t *testing.T) {
 	// 01:00 → 06:00 UTC
 	cfg := &NotifyConfig{QuietHoursStart: 1, QuietHoursEnd: 6, QuietHoursTZ: "UTC"}
-	// We can't control time.Now() easily without interfaces, so just verify
-	// the method doesn't panic and returns a boolean.
-	_ = cfg.isQuietHours()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("isQuietHours SameDay panicked: %v", r)
+		}
+	}()
+	// Verify the method returns a valid boolean result.
+	got := cfg.isQuietHours()
+	t.Logf("isQuietHours SameDay returned %v (start=%d, end=%d, tz=%s)", got, cfg.QuietHoursStart, cfg.QuietHoursEnd, cfg.QuietHoursTZ)
 }
 
 func TestIsQuietHours_MidnightWrap(t *testing.T) {
 	// 22:00 → 08:00 UTC — wraps across midnight.
 	cfg := &NotifyConfig{QuietHoursStart: 22, QuietHoursEnd: 8, QuietHoursTZ: "UTC"}
-	_ = cfg.isQuietHours()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("isQuietHours MidnightWrap panicked: %v", r)
+		}
+	}()
+	got := cfg.isQuietHours()
+	t.Logf("isQuietHours MidnightWrap returned %v (start=%d, end=%d, tz=%s)", got, cfg.QuietHoursStart, cfg.QuietHoursEnd, cfg.QuietHoursTZ)
 }
 
 func TestDigestQueue_EnqueueFlush(t *testing.T) {

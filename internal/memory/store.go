@@ -455,12 +455,22 @@ func scanMemory(sc scanner) (*Memory, error) {
 	m.Scope = Scope(scope)
 	m.Status = Status(status)
 
-	m.CreatedAt, _ = time.Parse(timeFormat, createdAt)
-	m.UpdatedAt, _ = time.Parse(timeFormat, updatedAt)
+	m.CreatedAt, err = time.Parse(timeFormat, createdAt)
+	if err != nil {
+		slog.Warn("failed to parse memory created_at", "id", m.ID, "value", createdAt, "error", err)
+	}
+	m.UpdatedAt, err = time.Parse(timeFormat, updatedAt)
+	if err != nil {
+		slog.Warn("failed to parse memory updated_at", "id", m.ID, "value", updatedAt, "error", err)
+	}
 
 	if lastUsed.Valid {
-		t, _ := time.Parse(timeFormat, lastUsed.String)
-		m.LastUsedAt = &t
+		t, err := time.Parse(timeFormat, lastUsed.String)
+		if err != nil {
+			slog.Warn("failed to parse memory last_used_at", "id", m.ID, "value", lastUsed.String, "error", err)
+		} else {
+			m.LastUsedAt = &t
+		}
 	}
 
 	if len(embeddingBlob) > 0 {

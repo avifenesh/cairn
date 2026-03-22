@@ -56,6 +56,8 @@ type Loop struct {
 
 	cronStore       *cairncron.Store         // nil = cron disabled
 	activityStore   *ActivityStore           // nil = activity tracking disabled
+	sessions        *SessionStore            // nil = loop events not persisted (lost on crash)
+	checkpoints     *CheckpointStore         // nil = no session checkpointing
 	db              *sql.DB                  // for state checkpoint
 	orchestrator    *Orchestrator            // management layer (replaces idleTick)
 	subagentRunner  tool.SubagentService     // nil = subagent spawning disabled
@@ -152,6 +154,8 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		plugins:         deps.Plugins,
 		cronStore:       deps.CronStore,
 		activityStore:   deps.ActivityStore,
+		sessions:        deps.Sessions,
+		checkpoints:     deps.Checkpoints,
 		db:              deps.DB,
 		subagentRunner:  deps.SubagentRunner,
 		worktreeManager: deps.WorktreeManager,
@@ -213,6 +217,8 @@ type LoopDeps struct {
 
 	CronStore       *cairncron.Store         // optional: enables cron job checking in tick
 	ActivityStore   *ActivityStore           // optional: enables activity recording
+	Sessions        *SessionStore            // optional: persists loop task events (enables resume)
+	Checkpoints     *CheckpointStore         // optional: session checkpoint for crash recovery
 	DB              *sql.DB                  // optional: enables state checkpoint
 	SubagentRunner  tool.SubagentService     // optional: enables subagent spawning from tools
 	WorktreeManager *task.WorktreeManager    // optional: worktree isolation for coding tasks
@@ -265,31 +271,33 @@ func (l *Loop) SetNotifier(n tool.NotifyService) {
 // deps. Single source of truth — prevents field divergence across code paths.
 func (l *Loop) buildInvocationContext(ctx context.Context, sessionID, userMessage string, mode tool.Mode, session *Session) *InvocationContext {
 	return &InvocationContext{
-		Context:        ctx,
-		SessionID:      sessionID,
-		UserMessage:    userMessage,
-		Mode:           mode,
-		Session:        session,
-		Tools:          l.tools,
-		LLM:            l.provider,
-		Memory:         l.memories,
-		Soul:           l.soul,
-		Bus:            l.bus,
-		ContextBuilder: l.contextBuilder,
-		Plugins:        l.plugins,
-		ActivityStore:  l.activityStore,
-		Subagents:      l.subagentRunner,
-		ToolMemories:   l.toolMemories,
-		ToolEvents:     l.toolEvents,
-		ToolDigest:     l.toolDigest,
-		ToolJournal:    l.toolJournal,
-		ToolTasks:      l.toolTasks,
-		ToolStatus:     l.toolStatus,
-		ToolSkills:     l.toolSkills,
-		ToolNotifier:   l.toolNotifier,
-		ToolCrons:      l.toolCrons,
-		ToolConfig:     l.toolConfig,
-		Config:         &AgentConfig{Model: l.config.Model, MaxRounds: l.config.maxRoundsForMode(mode)},
+		Context:         ctx,
+		SessionID:       sessionID,
+		UserMessage:     userMessage,
+		Mode:            mode,
+		Session:         session,
+		Tools:           l.tools,
+		LLM:             l.provider,
+		Memory:          l.memories,
+		Soul:            l.soul,
+		Bus:             l.bus,
+		ContextBuilder:  l.contextBuilder,
+		Plugins:         l.plugins,
+		ActivityStore:   l.activityStore,
+		Subagents:       l.subagentRunner,
+		ToolMemories:    l.toolMemories,
+		ToolEvents:      l.toolEvents,
+		ToolDigest:      l.toolDigest,
+		ToolJournal:     l.toolJournal,
+		ToolTasks:       l.toolTasks,
+		ToolStatus:      l.toolStatus,
+		ToolSkills:      l.toolSkills,
+		ToolNotifier:    l.toolNotifier,
+		ToolCrons:       l.toolCrons,
+		ToolConfig:      l.toolConfig,
+		Config:          &AgentConfig{Model: l.config.Model, MaxRounds: l.config.maxRoundsForMode(mode)},
+		CheckpointStore: l.checkpoints,
+		Origin:          "task",
 	}
 }
 
@@ -457,10 +465,26 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 		mode = tool.ModeCoding
 	}
 
-	session := &Session{
-		ID:    sessionID,
-		Mode:  mode,
-		State: map[string]any{"taskId": t.ID},
+	// Check if session already exists (resume after crash).
+	var session *Session
+	if l.sessions != nil {
+		if existing, err := l.sessions.Get(ctx, sessionID); err == nil && len(existing.Events) > 0 {
+			session = existing
+			l.logger.Info("agent loop: resuming interrupted session",
+				"task", t.ID, "session", sessionID, "events", len(existing.Events))
+		}
+	}
+	if session == nil {
+		session = &Session{
+			ID:    sessionID,
+			Mode:  mode,
+			State: map[string]any{"taskId": t.ID},
+		}
+		if l.sessions != nil {
+			if err := l.sessions.Create(ctx, session); err != nil {
+				l.logger.Warn("agent loop: session create failed", "session", sessionID, "error", err)
+			}
+		}
 	}
 
 	// Create isolated worktree for coding tasks.
@@ -557,6 +581,12 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 		}
 		if ev.Event != nil {
 			session.Events = append(session.Events, ev.Event)
+			// Persist events so they survive crashes (matches chat path in routes.go).
+			if l.sessions != nil {
+				if err := l.sessions.AppendEvent(ctx, session.ID, ev.Event); err != nil {
+					l.logger.Warn("agent loop: event persist failed", "session", session.ID, "error", err)
+				}
+			}
 			if ev.Event.Author != "user" {
 				for _, part := range ev.Event.Parts {
 					if tp, ok := part.(TextPart); ok {

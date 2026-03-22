@@ -292,6 +292,12 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 					FinishReason: "stop",
 				})
 			}
+			// Clear checkpoint on successful completion.
+			if invCtx.CheckpointStore != nil {
+				if err := invCtx.CheckpointStore.Delete(invCtx.Context, invCtx.SessionID); err != nil {
+					a.logger.Warn("checkpoint delete failed", "session", invCtx.SessionID, "error", err)
+				}
+			}
 			// Plugin: AfterAgentRun.
 			if invCtx.Plugins != nil {
 				invCtx.Plugins.RunAfterAgentRun(invCtx.Context, inv, &plugin.RunResult{
@@ -503,6 +509,23 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			"inputTokens": inputTokens, "outputTokens": outputTokens,
 		})
 
+		// 5c. Checkpoint session state for crash recovery.
+		if invCtx.CheckpointStore != nil {
+			taskID, _ := invCtx.Session.State["taskId"].(string)
+			if err := invCtx.CheckpointStore.Save(invCtx.Context, &SessionCheckpoint{
+				SessionID:   invCtx.SessionID,
+				TaskID:      taskID,
+				Round:       round,
+				Mode:        mode,
+				MaxRounds:   maxRounds,
+				UserMessage: invCtx.UserMessage,
+				Origin:      invCtx.Origin,
+				State:       invCtx.Session.State,
+			}); err != nil {
+				a.logger.Warn("checkpoint save failed", "session", invCtx.SessionID, "round", round, "error", err)
+			}
+		}
+
 		// 6. If a skill was activated, rebuild prompt and tool defs for next round.
 		if skillActivated {
 			systemPrompt = BuildSystemPrompt(invCtx, modeConfig, invCtx.ContextBuilder, invCtx.JournalEntries)
@@ -516,6 +539,11 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 	}
 
 	// Max rounds exhausted — treat as abnormal termination.
+	if invCtx.CheckpointStore != nil {
+		if err := invCtx.CheckpointStore.Delete(invCtx.Context, invCtx.SessionID); err != nil {
+			a.logger.Warn("checkpoint delete failed", "session", invCtx.SessionID, "error", err)
+		}
+	}
 	publishSessionEvent(invCtx, "state_change", map[string]any{"state": "failed", "reason": "max_rounds"})
 	if invCtx.Plugins != nil {
 		invCtx.Plugins.RunOnAgentError(invCtx.Context, inv, fmt.Errorf("max rounds exhausted (%d)", maxRounds))

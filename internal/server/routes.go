@@ -1037,6 +1037,8 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 			Model:     s.config.LLMModel,
 			MaxRounds: s.config.MaxRoundsForMode(string(mode)),
 		},
+		CheckpointStore: s.checkpointStore,
+		Origin:          "chat",
 	}
 
 	var fullText strings.Builder

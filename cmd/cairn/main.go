@@ -455,6 +455,7 @@ func runServe(logger *slog.Logger) {
 	cronAdapt := &cronAdapter{store: cronStore}
 	cfgAdapt := &configAdapter{cfg: cfg}
 	activityStore := agent.NewActivityStore(database.DB)
+	checkpointStore := agent.NewCheckpointStore(database)
 
 	// Approval store — human-in-the-loop gates (needed by both orchestrator and server).
 	approvalStore := task.NewApprovalStore(database.DB)
@@ -502,6 +503,14 @@ func runServe(logger *slog.Logger) {
 			"requeued", len(recoveryStats.Requeued),
 			"failed", len(recoveryStats.Failed))
 	}
+
+	// Recover interrupted sessions (clean up checkpoints, log for visibility).
+	// RecoverSessions logs its own summary when checkpoints are found.
+	agent.RecoverSessions(context.Background(), agent.SessionRecoveryDeps{
+		CheckpointStore: checkpointStore,
+		TaskEngine:      taskEngine,
+		Logger:          logger,
+	})
 
 	// Start always-on agent loop (if idle mode enabled and agent available).
 	var agentLoop *agent.Loop
@@ -555,6 +564,8 @@ func runServe(logger *slog.Logger) {
 			Plugins:         pluginMgr,
 			CronStore:       cronStore,
 			ActivityStore:   activityStore,
+			Sessions:        sessionStore,
+			Checkpoints:     checkpointStore,
 			DB:              database.DB,
 			SubagentRunner:  subagentRunner,
 			WorktreeManager: worktreeMgr,
@@ -606,34 +617,35 @@ func runServe(logger *slog.Logger) {
 
 	// Create and start the server.
 	srv := server.New(server.ServerConfig{
-		Agent:          reactAgent,
-		Sessions:       sessionStore,
-		Tasks:          taskEngine,
-		Memories:       memService,
-		Soul:           soul,
-		Tools:          toolRegistry,
-		LLM:            provider,
-		Bus:            bus,
-		Config:         cfg,
-		Logger:         logger,
-		Webhooks:       webhookHandler,
-		ContextBuilder: ctxBuilder,
-		Plugins:        pluginMgr,
-		JournalStore:   journalStore,
-		ToolMemories:   memAdapter,
-		ToolEvents:     eventAdapter,
-		ToolDigest:     digestAdapt,
-		ToolJournal:    journalAdapt,
-		ToolTasks:      taskAdapt,
-		ToolStatus:     statusAdapt,
-		ToolSkills:     skillAdapt,
-		ToolCrons:      cronAdapt,
-		ToolConfig:     cfgAdapt,
-		SubagentRunner: subagentRunner,
-		Voice:          voiceSvc,
-		CronStore:      cronStore,
-		ActivityStore:  activityStore,
-		Marketplace:    marketplace,
+		Agent:           reactAgent,
+		Sessions:        sessionStore,
+		Tasks:           taskEngine,
+		Memories:        memService,
+		Soul:            soul,
+		Tools:           toolRegistry,
+		LLM:             provider,
+		Bus:             bus,
+		Config:          cfg,
+		Logger:          logger,
+		Webhooks:        webhookHandler,
+		ContextBuilder:  ctxBuilder,
+		Plugins:         pluginMgr,
+		JournalStore:    journalStore,
+		ToolMemories:    memAdapter,
+		ToolEvents:      eventAdapter,
+		ToolDigest:      digestAdapt,
+		ToolJournal:     journalAdapt,
+		ToolTasks:       taskAdapt,
+		ToolStatus:      statusAdapt,
+		ToolSkills:      skillAdapt,
+		ToolCrons:       cronAdapt,
+		ToolConfig:      cfgAdapt,
+		SubagentRunner:  subagentRunner,
+		Voice:           voiceSvc,
+		CronStore:       cronStore,
+		ActivityStore:   activityStore,
+		CheckpointStore: checkpointStore,
+		Marketplace:     marketplace,
 		SkillSuggestor: func() *agent.SkillSuggestor {
 			if agentLoop != nil {
 				return agentLoop.SkillSuggestor()

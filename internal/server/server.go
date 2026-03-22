@@ -73,6 +73,9 @@ type Server struct {
 	// Activity store (optional).
 	activityStore *agent.ActivityStore
 
+	// Checkpoint store (optional: session crash recovery).
+	checkpointStore *agent.CheckpointStore
+
 	// Marketplace client (optional: ClawHub integration).
 	marketplace *skill.MarketplaceClient
 
@@ -146,6 +149,9 @@ type ServerConfig struct {
 	// Activity store (optional: agent observability).
 	ActivityStore *agent.ActivityStore
 
+	// Checkpoint store (optional: session crash recovery).
+	CheckpointStore *agent.CheckpointStore
+
 	// Marketplace client (optional: ClawHub integration).
 	Marketplace *skill.MarketplaceClient
 
@@ -175,43 +181,44 @@ func New(cfg ServerConfig) *Server {
 	mux := http.NewServeMux()
 
 	s := &Server{
-		mux:            mux,
-		agent:          cfg.Agent,
-		sessions:       cfg.Sessions,
-		tasks:          cfg.Tasks,
-		memories:       cfg.Memories,
-		soul:           cfg.Soul,
-		tools:          cfg.Tools,
-		llm:            cfg.LLM,
-		bus:            cfg.Bus,
-		config:         cfg.Config,
-		logger:         cfg.Logger,
-		rateLimiter:    newRateLimiter(),
-		webhooks:       cfg.Webhooks,
-		contextBuilder: cfg.ContextBuilder,
-		plugins:        cfg.Plugins,
-		journalStore:   cfg.JournalStore,
-		toolMemories:   cfg.ToolMemories,
-		toolEvents:     cfg.ToolEvents,
-		toolDigest:     cfg.ToolDigest,
-		toolJournal:    cfg.ToolJournal,
-		toolTasks:      cfg.ToolTasks,
-		toolStatus:     cfg.ToolStatus,
-		toolSkills:     cfg.ToolSkills,
-		toolNotifier:   cfg.ToolNotifier,
-		toolCrons:      cfg.ToolCrons,
-		toolConfig:     cfg.ToolConfig,
-		subagentRunner: cfg.SubagentRunner,
-		voice:          cfg.Voice,
-		cronStore:      cfg.CronStore,
-		activityStore:  cfg.ActivityStore,
-		marketplace:    cfg.Marketplace,
-		skillSuggestor: cfg.SkillSuggestor,
-		mcpClients:     cfg.MCPClients,
-		approvals:      cfg.Approvals,
-		authStore:      cfg.AuthStore,
-		webauthn:       cfg.WebAuthn,
-		pollTrigger:    cfg.PollTrigger,
+		mux:             mux,
+		agent:           cfg.Agent,
+		sessions:        cfg.Sessions,
+		tasks:           cfg.Tasks,
+		memories:        cfg.Memories,
+		soul:            cfg.Soul,
+		tools:           cfg.Tools,
+		llm:             cfg.LLM,
+		bus:             cfg.Bus,
+		config:          cfg.Config,
+		logger:          cfg.Logger,
+		rateLimiter:     newRateLimiter(),
+		webhooks:        cfg.Webhooks,
+		contextBuilder:  cfg.ContextBuilder,
+		plugins:         cfg.Plugins,
+		journalStore:    cfg.JournalStore,
+		toolMemories:    cfg.ToolMemories,
+		toolEvents:      cfg.ToolEvents,
+		toolDigest:      cfg.ToolDigest,
+		toolJournal:     cfg.ToolJournal,
+		toolTasks:       cfg.ToolTasks,
+		toolStatus:      cfg.ToolStatus,
+		toolSkills:      cfg.ToolSkills,
+		toolNotifier:    cfg.ToolNotifier,
+		toolCrons:       cfg.ToolCrons,
+		toolConfig:      cfg.ToolConfig,
+		subagentRunner:  cfg.SubagentRunner,
+		voice:           cfg.Voice,
+		cronStore:       cfg.CronStore,
+		activityStore:   cfg.ActivityStore,
+		checkpointStore: cfg.CheckpointStore,
+		marketplace:     cfg.Marketplace,
+		skillSuggestor:  cfg.SkillSuggestor,
+		mcpClients:      cfg.MCPClients,
+		approvals:       cfg.Approvals,
+		authStore:       cfg.AuthStore,
+		webauthn:        cfg.WebAuthn,
+		pollTrigger:     cfg.PollTrigger,
 	}
 
 	// Create SSE broadcaster.

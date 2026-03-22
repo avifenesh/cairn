@@ -119,6 +119,77 @@ func RecoverLoopState(ctx context.Context, db *sql.DB, logger *slog.Logger) (Loo
 	return state, nil
 }
 
+// SessionRecoveryDeps carries dependencies for session checkpoint recovery.
+type SessionRecoveryDeps struct {
+	CheckpointStore *CheckpointStore
+	TaskEngine      *task.Engine
+	Logger          *slog.Logger
+}
+
+// SessionRecoveryStats reports what happened during session recovery.
+type SessionRecoveryStats struct {
+	ChatCleaned    int
+	TaskCleaned    int
+	SubagentCleaned int
+}
+
+// RecoverSessions detects incomplete sessions (those with checkpoints) and
+// cleans them up. For task sessions, the existing RecoverOnStartup re-queues
+// the task and the loop will load the persisted session for continuity.
+func RecoverSessions(ctx context.Context, deps SessionRecoveryDeps) SessionRecoveryStats {
+	stats := SessionRecoveryStats{}
+	if deps.CheckpointStore == nil {
+		return stats
+	}
+	logger := deps.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	checkpoints, err := deps.CheckpointStore.ListIncomplete(ctx)
+	if err != nil {
+		logger.Warn("session recovery: failed to list checkpoints", "error", err)
+		return stats
+	}
+	if len(checkpoints) == 0 {
+		return stats
+	}
+
+	for _, cp := range checkpoints {
+		switch cp.Origin {
+		case "chat":
+			// Chat sessions: clean up checkpoint. User re-sends to continue.
+			logger.Info("session recovery: chat session interrupted",
+				"session", cp.SessionID, "round", cp.Round)
+			stats.ChatCleaned++
+
+		case "task":
+			// Task sessions: checkpoint cleaned up. RecoverOnStartup already
+			// re-queued the task; the loop will load the existing session.
+			logger.Info("session recovery: task session interrupted",
+				"session", cp.SessionID, "task", cp.TaskID, "round", cp.Round)
+			stats.TaskCleaned++
+
+		case "subagent":
+			logger.Info("session recovery: subagent session interrupted",
+				"session", cp.SessionID, "round", cp.Round)
+			stats.SubagentCleaned++
+
+		default:
+			logger.Warn("session recovery: unknown origin", "origin", cp.Origin, "session", cp.SessionID)
+		}
+
+		// Always delete checkpoint after processing.
+		deps.CheckpointStore.Delete(ctx, cp.SessionID)
+	}
+
+	logger.Info("session recovery complete",
+		"chat", stats.ChatCleaned,
+		"task", stats.TaskCleaned,
+		"subagent", stats.SubagentCleaned)
+	return stats
+}
+
 // CheckpointState persists the current loop state to the database.
 // Called after each tick for crash recovery.
 func CheckpointState(ctx context.Context, db *sql.DB, tickCount int64, lastReflect time.Time) {

@@ -60,6 +60,13 @@ type InvocationContext struct {
 	// Subagents spawns child agents. Nil = spawning not available (e.g., inside a child agent).
 	Subagents tool.SubagentService
 
+	// CheckpointStore persists session checkpoints for crash recovery.
+	// Nil = no checkpointing (e.g., subagents).
+	CheckpointStore *CheckpointStore
+
+	// Origin tracks where this invocation came from ("chat", "task", "subagent").
+	Origin string
+
 	// Tool service adapters — passed through to ToolContext during execution.
 	ToolMemories tool.MemoryService
 	ToolEvents   tool.EventService
@@ -191,53 +198,66 @@ func (s *Session) AllowedToolsFromSkills() []string {
 }
 
 // History converts session events to LLM messages for context.
+// Produces the correct interleaved sequence: user → assistant (text + tool_use) → tool results → ...
 func (s *Session) History() []llm.Message {
 	var msgs []llm.Message
 	for _, ev := range s.Events {
-		msg := eventToMessage(ev)
-		if msg != nil {
-			msgs = append(msgs, *msg)
+		if len(ev.Parts) == 0 {
+			continue
+		}
+
+		if ev.Author == "user" {
+			var blocks []llm.ContentBlock
+			for _, p := range ev.Parts {
+				if tp, ok := p.(TextPart); ok {
+					blocks = append(blocks, llm.TextBlock{Text: tp.Text})
+				}
+			}
+			if len(blocks) > 0 {
+				msgs = append(msgs, llm.Message{Role: llm.RoleUser, Content: blocks})
+			}
+			continue
+		}
+
+		// Agent events: split into assistant blocks and tool result blocks.
+		var assistantBlocks []llm.ContentBlock
+		var toolResults []llm.ContentBlock
+
+		for _, p := range ev.Parts {
+			switch part := p.(type) {
+			case TextPart:
+				assistantBlocks = append(assistantBlocks, llm.TextBlock{Text: part.Text})
+			case ReasoningPart:
+				assistantBlocks = append(assistantBlocks, llm.ReasoningBlock{Text: part.Text})
+			case ToolPart:
+				if part.Status == ToolRunning || part.Status == ToolPending {
+					assistantBlocks = append(assistantBlocks, llm.ToolUseBlock{
+						ID:    part.CallID,
+						Name:  part.ToolName,
+						Input: part.Input,
+					})
+				} else {
+					// ToolCompleted/ToolFailed: produce a tool result message.
+					content := part.Output
+					isError := part.Status == ToolFailed
+					if isError && part.Error != "" {
+						content = part.Error
+					}
+					toolResults = append(toolResults, llm.ToolResultBlock{
+						ToolUseID: part.CallID,
+						Content:   content,
+						IsError:   isError,
+					})
+				}
+			}
+		}
+
+		if len(assistantBlocks) > 0 {
+			msgs = append(msgs, llm.Message{Role: llm.RoleAssistant, Content: assistantBlocks})
+		}
+		if len(toolResults) > 0 {
+			msgs = append(msgs, llm.Message{Role: llm.RoleTool, Content: toolResults})
 		}
 	}
 	return msgs
-}
-
-// eventToMessage converts an agent Event to an LLM Message.
-func eventToMessage(ev *Event) *llm.Message {
-	if len(ev.Parts) == 0 {
-		return nil
-	}
-
-	// Determine role from author.
-	var role llm.Role
-	if ev.Author == "user" {
-		role = llm.RoleUser
-	} else {
-		role = llm.RoleAssistant
-	}
-
-	var blocks []llm.ContentBlock
-	for _, part := range ev.Parts {
-		switch p := part.(type) {
-		case TextPart:
-			blocks = append(blocks, llm.TextBlock{Text: p.Text})
-		case ToolPart:
-			if role == llm.RoleAssistant && p.Status == ToolCompleted {
-				// Assistant requested the tool call.
-				blocks = append(blocks, llm.ToolUseBlock{
-					ID:    p.CallID,
-					Name:  p.ToolName,
-					Input: p.Input,
-				})
-			}
-		case ReasoningPart:
-			blocks = append(blocks, llm.ReasoningBlock{Text: p.Text})
-		}
-	}
-
-	if len(blocks) == 0 {
-		return nil
-	}
-
-	return &llm.Message{Role: role, Content: blocks}
 }

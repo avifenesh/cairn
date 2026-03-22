@@ -292,6 +292,10 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 					FinishReason: "stop",
 				})
 			}
+			// Clear checkpoint on successful completion.
+			if invCtx.CheckpointStore != nil {
+				invCtx.CheckpointStore.Delete(invCtx.Context, invCtx.SessionID)
+			}
 			// Plugin: AfterAgentRun.
 			if invCtx.Plugins != nil {
 				invCtx.Plugins.RunAfterAgentRun(invCtx.Context, inv, &plugin.RunResult{
@@ -503,6 +507,19 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			"inputTokens": inputTokens, "outputTokens": outputTokens,
 		})
 
+		// 5c. Checkpoint session state for crash recovery.
+		if invCtx.CheckpointStore != nil {
+			invCtx.CheckpointStore.Save(invCtx.Context, &SessionCheckpoint{
+				SessionID:   invCtx.SessionID,
+				Round:       round,
+				Mode:        mode,
+				MaxRounds:   maxRounds,
+				UserMessage: invCtx.UserMessage,
+				Origin:      invCtx.Origin,
+				State:       invCtx.Session.State,
+			})
+		}
+
 		// 6. If a skill was activated, rebuild prompt and tool defs for next round.
 		if skillActivated {
 			systemPrompt = BuildSystemPrompt(invCtx, modeConfig, invCtx.ContextBuilder, invCtx.JournalEntries)
@@ -516,6 +533,9 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 	}
 
 	// Max rounds exhausted — treat as abnormal termination.
+	if invCtx.CheckpointStore != nil {
+		invCtx.CheckpointStore.Delete(invCtx.Context, invCtx.SessionID)
+	}
 	publishSessionEvent(invCtx, "state_change", map[string]any{"state": "failed", "reason": "max_rounds"})
 	if invCtx.Plugins != nil {
 		invCtx.Plugins.RunOnAgentError(invCtx.Context, inv, fmt.Errorf("max rounds exhausted (%d)", maxRounds))

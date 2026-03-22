@@ -73,6 +73,9 @@ type Server struct {
 	// Activity store (optional).
 	activityStore *agent.ActivityStore
 
+	// Checkpoint store (optional: session crash recovery).
+	checkpointStore *agent.CheckpointStore
+
 	// Marketplace client (optional: ClawHub integration).
 	marketplace *skill.MarketplaceClient
 
@@ -146,6 +149,9 @@ type ServerConfig struct {
 	// Activity store (optional: agent observability).
 	ActivityStore *agent.ActivityStore
 
+	// Checkpoint store (optional: session crash recovery).
+	CheckpointStore *agent.CheckpointStore
+
 	// Marketplace client (optional: ClawHub integration).
 	Marketplace *skill.MarketplaceClient
 
@@ -204,7 +210,8 @@ func New(cfg ServerConfig) *Server {
 		subagentRunner: cfg.SubagentRunner,
 		voice:          cfg.Voice,
 		cronStore:      cfg.CronStore,
-		activityStore:  cfg.ActivityStore,
+		activityStore:   cfg.ActivityStore,
+		checkpointStore: cfg.CheckpointStore,
 		marketplace:    cfg.Marketplace,
 		skillSuggestor: cfg.SkillSuggestor,
 		mcpClients:     cfg.MCPClients,

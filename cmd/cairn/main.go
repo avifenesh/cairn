@@ -455,6 +455,7 @@ func runServe(logger *slog.Logger) {
 	cronAdapt := &cronAdapter{store: cronStore}
 	cfgAdapt := &configAdapter{cfg: cfg}
 	activityStore := agent.NewActivityStore(database.DB)
+	checkpointStore := agent.NewCheckpointStore(database)
 
 	// Approval store — human-in-the-loop gates (needed by both orchestrator and server).
 	approvalStore := task.NewApprovalStore(database.DB)
@@ -501,6 +502,19 @@ func runServe(logger *slog.Logger) {
 			"recoveredTasks", recoveryStats.Total,
 			"requeued", len(recoveryStats.Requeued),
 			"failed", len(recoveryStats.Failed))
+	}
+
+	// Recover interrupted sessions (clean up checkpoints, log for visibility).
+	sessionRecovery := agent.RecoverSessions(context.Background(), agent.SessionRecoveryDeps{
+		CheckpointStore: checkpointStore,
+		TaskEngine:      taskEngine,
+		Logger:          logger,
+	})
+	if total := sessionRecovery.ChatCleaned + sessionRecovery.TaskCleaned + sessionRecovery.SubagentCleaned; total > 0 {
+		logger.Info("session recovery complete",
+			"chat", sessionRecovery.ChatCleaned,
+			"task", sessionRecovery.TaskCleaned,
+			"subagent", sessionRecovery.SubagentCleaned)
 	}
 
 	// Start always-on agent loop (if idle mode enabled and agent available).
@@ -555,6 +569,8 @@ func runServe(logger *slog.Logger) {
 			Plugins:         pluginMgr,
 			CronStore:       cronStore,
 			ActivityStore:   activityStore,
+			Sessions:        sessionStore,
+			Checkpoints:     checkpointStore,
 			DB:              database.DB,
 			SubagentRunner:  subagentRunner,
 			WorktreeManager: worktreeMgr,
@@ -632,7 +648,8 @@ func runServe(logger *slog.Logger) {
 		SubagentRunner: subagentRunner,
 		Voice:          voiceSvc,
 		CronStore:      cronStore,
-		ActivityStore:  activityStore,
+		ActivityStore:   activityStore,
+		CheckpointStore: checkpointStore,
 		Marketplace:    marketplace,
 		SkillSuggestor: func() *agent.SkillSuggestor {
 			if agentLoop != nil {

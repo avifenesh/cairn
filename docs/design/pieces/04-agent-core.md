@@ -203,7 +203,7 @@ See also: `agent-knowledge/orchestrator-pattern.md` for research.
 | 4.4 | Session compaction | 4.2, 4.3, 2 (LLM for summarization) | Done (PR #10) |
 | 4.5 | Agent modes + system prompt building | 4.2 | Done (PR #3) |
 | 4.6 | Sub-agent spawning | 4.2, 5 (task engine) | Done (PR #146) |
-| 4.7 | Checkpoint/resume (Eino pattern) | 4.2, 4.3 | Deferred |
+| 4.7 | Checkpoint/resume | 4.2, 4.3 | Done (fix History() + persist loop events + checkpoint store + startup recovery) |
 | 4.8 | Tests | All | Done (19 tests) |
 | 4.9 | Orchestrator layer | 4.2, 4.6, 5, 6, 7 | Done (PR #157) |
 

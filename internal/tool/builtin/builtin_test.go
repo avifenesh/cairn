@@ -167,6 +167,66 @@ func TestShell_Timeout(t *testing.T) {
 	}
 }
 
+func TestShell_GrepNoMatch(t *testing.T) {
+	// grep returning exit 1 (no match) should NOT cause the shell to abort.
+	// With set -e this would kill the shell; without it, the command
+	// completes and the non-zero exit is reported normally.
+	ctx, dir := testCtx(t)
+
+	// Create a file with known content.
+	path := filepath.Join(dir, "test.txt")
+	if err := os.WriteFile(path, []byte("hello world\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// grep for something that doesn't exist — exit 1 expected.
+	args := json.RawMessage(`{"command": "grep nonexistent ` + path + `; echo after-grep"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// The command should complete fully; "after-grep" should appear in output.
+	if !strings.Contains(result.Output, "after-grep") {
+		t.Fatalf("expected 'after-grep' in output (shell aborted early), got: %s", result.Output)
+	}
+}
+
+func TestShell_TestFalse(t *testing.T) {
+	// test returning exit 1 (false) should NOT cause the shell to abort.
+	ctx, _ := testCtx(t)
+
+	args := json.RawMessage(`{"command": "test -f /nonexistent_file; echo after-test"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(result.Output, "after-test") {
+		t.Fatalf("expected 'after-test' in output (shell aborted early), got: %s", result.Output)
+	}
+}
+
+func TestShell_PipefailStillActive(t *testing.T) {
+	// set -o pipefail should still be active, catching mid-pipe failures.
+	ctx, dir := testCtx(t)
+
+	path := filepath.Join(dir, "test.txt")
+	if err := os.WriteFile(path, []byte("hello world\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// false | cat — with pipefail this should return non-zero (1 from false).
+	// Without pipefail, the exit code would be 0 (from cat).
+	args := json.RawMessage(`{"command": "false | cat; echo exit=$?"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// pipefail should propagate the non-zero exit from false.
+	if !strings.Contains(result.Output, "exit=1") {
+		t.Fatalf("expected 'exit=1' (pipefail should propagate false's exit), got: %s", result.Output)
+	}
+}
+
 func TestGitRun(t *testing.T) {
 	ctx, dir := testCtx(t)
 

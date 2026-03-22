@@ -99,7 +99,7 @@ var shell = tool.Define("cairn.shell",
 		si := detectShell()
 		command := p.Command
 		if si.supportsPipefail {
-			command = "set -eo pipefail\n" + command
+			command = "set -o pipefail\n" + command
 		}
 
 		// Create context with timeout.

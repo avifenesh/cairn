@@ -78,6 +78,17 @@ type ToolCallEvent struct {
 	Phase    string `json:"phase"`
 }
 
+// ToolExecuted is emitted after a tool completes execution with its result.
+type ToolExecuted struct {
+	EventMeta
+	TaskID     string `json:"taskId"`
+	ToolName   string `json:"toolName"`
+	DurationMs int64  `json:"durationMs"`
+	IsError    bool   `json:"isError"`
+	Output     string `json:"output,omitempty"`
+	Error      string `json:"error,omitempty"`
+}
+
 // StreamEnded is emitted when an LLM stream completes.
 type StreamEnded struct {
 	EventMeta

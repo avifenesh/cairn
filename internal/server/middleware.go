@@ -97,13 +97,13 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// isWriteRequest returns true if the request is a write (POST/PUT/DELETE) to /v1/*.
+// isWriteRequest returns true if the request is a write (POST/PUT/PATCH/DELETE) to /v1/*.
 func isWriteRequest(r *http.Request) bool {
 	if !strings.HasPrefix(r.URL.Path, "/v1/") {
 		return false
 	}
 	switch r.Method {
-	case http.MethodPost, http.MethodPut, http.MethodDelete:
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
 		return true
 	}
 	return false

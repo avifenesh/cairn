@@ -5,6 +5,7 @@
 *.exe
 *.pid
 cairn-server.log
+*.log.bak*
 
 # Frontend
 frontend/node_modules/

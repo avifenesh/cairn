@@ -25,9 +25,9 @@ Phase 1: Foundation (Event Bus + LLM Client + SQLite)     [DONE]
                     │              │              │
                     └──────────────┼──────────────┘
                                    ▼
-                            Phase 5: Integration            [MOSTLY DONE]
+                            Phase 5: Integration            [DONE]
                             (Frontend migration, always-on,
-                             open-source release pending)
+                             open-source release)
                                    │
                     ┌──────────────┼──────────────┐
                     ▼              ▼              ▼
@@ -199,9 +199,9 @@ Phase 1: Foundation (Event Bus + LLM Client + SQLite)     [DONE]
 | 5.5 | Episodic memory: session journaler | Phase 3, Piece 6 | Done (PR #10) |
 | 5.6 | Reflection engine (pattern detection → memories + soul patches) | Piece 6 (subphase 6.7) | Done (PR #10, #125) |
 | 5.7 | Performance testing (30-day soak test) | All | Ongoing (production stable since Phase 5) |
-| 5.8 | Documentation (README, CONTRIBUTING, architecture guide) | All | Ongoing (CLAUDE.md, VISION.md, PHASES.md current; CONTRIBUTING pending) |
+| 5.8 | Documentation (README, CONTRIBUTING, architecture guide) | All | Done (README, CONTRIBUTING, CLAUDE.md, VISION.md, PHASES.md all current) |
 | 5.9 | CI/CD (GitHub Actions: build, test, release binaries) | All | Done (PR #134 auto-deploy) |
-| 5.10 | Open-source release (LICENSE, cleanup, public repo) | All | Pending (LICENSE done, repo private) |
+| 5.10 | Open-source release (LICENSE, cleanup, public repo) | All | Done (repo public, LICENSE/README/CONTRIBUTING/GoReleaser in place; first version tag pending) |
 | 10.12 | Go embed frontend | Phase 4a | Done (PR #11) |
 
 **Deliverable:** Single Go binary replaces Node.js backend. `curl -L github.com/avifenesh/cairn/releases | sh`.

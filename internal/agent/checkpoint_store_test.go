@@ -125,7 +125,10 @@ func TestRecoverSessions_CleansAllOrigins(t *testing.T) {
 	}
 
 	// All checkpoints should be deleted.
-	remaining, _ := store.ListIncomplete(ctx)
+	remaining, err := store.ListIncomplete(ctx)
+	if err != nil {
+		t.Fatalf("list after recovery: %v", err)
+	}
 	if len(remaining) != 0 {
 		t.Errorf("expected 0 remaining checkpoints, got %d", len(remaining))
 	}

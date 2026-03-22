@@ -505,17 +505,12 @@ func runServe(logger *slog.Logger) {
 	}
 
 	// Recover interrupted sessions (clean up checkpoints, log for visibility).
-	sessionRecovery := agent.RecoverSessions(context.Background(), agent.SessionRecoveryDeps{
+	// RecoverSessions logs its own summary when checkpoints are found.
+	agent.RecoverSessions(context.Background(), agent.SessionRecoveryDeps{
 		CheckpointStore: checkpointStore,
 		TaskEngine:      taskEngine,
 		Logger:          logger,
 	})
-	if total := sessionRecovery.ChatCleaned + sessionRecovery.TaskCleaned + sessionRecovery.SubagentCleaned; total > 0 {
-		logger.Info("session recovery complete",
-			"chat", sessionRecovery.ChatCleaned,
-			"task", sessionRecovery.TaskCleaned,
-			"subagent", sessionRecovery.SubagentCleaned)
-	}
 
 	// Start always-on agent loop (if idle mode enabled and agent available).
 	var agentLoop *agent.Loop

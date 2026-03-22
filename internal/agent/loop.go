@@ -479,7 +479,9 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 			State: map[string]any{"taskId": t.ID},
 		}
 		if l.sessions != nil {
-			l.sessions.Create(ctx, session)
+			if err := l.sessions.Create(ctx, session); err != nil {
+				l.logger.Warn("agent loop: session create failed", "session", sessionID, "error", err)
+			}
 		}
 	}
 
@@ -579,7 +581,9 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 			session.Events = append(session.Events, ev.Event)
 			// Persist events so they survive crashes (matches chat path in routes.go).
 			if l.sessions != nil {
-				l.sessions.AppendEvent(ctx, session.ID, ev.Event)
+				if err := l.sessions.AppendEvent(ctx, session.ID, ev.Event); err != nil {
+					l.logger.Warn("agent loop: event persist failed", "session", session.ID, "error", err)
+				}
 			}
 			if ev.Event.Author != "user" {
 				for _, part := range ev.Event.Parts {

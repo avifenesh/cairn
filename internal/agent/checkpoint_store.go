@@ -44,9 +44,12 @@ func (s *CheckpointStore) Save(ctx context.Context, cp *SessionCheckpoint) error
 	}
 	cp.UpdatedAt = time.Now()
 
-	stateJSON, _ := json.Marshal(cp.State)
+	stateJSON, err := json.Marshal(cp.State)
+	if err != nil {
+		return fmt.Errorf("checkpoint store: marshal state for %s: %w", cp.SessionID, err)
+	}
 
-	_, err := s.db.ExecContext(ctx, `
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO session_checkpoints (session_id, task_id, round, mode, max_rounds, user_message, origin, state, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(session_id) DO UPDATE SET
@@ -68,7 +71,8 @@ func (s *CheckpointStore) Save(ctx context.Context, cp *SessionCheckpoint) error
 	return nil
 }
 
-// Load retrieves a checkpoint for a session (nil if none exists).
+// Load retrieves a checkpoint for a session. Returns an error wrapping
+// sql.ErrNoRows if no checkpoint exists for the session.
 func (s *CheckpointStore) Load(ctx context.Context, sessionID string) (*SessionCheckpoint, error) {
 	var taskID, mode, userMessage, origin, stateStr, createdAt, updatedAt string
 	var round, maxRounds int
@@ -95,7 +99,9 @@ func (s *CheckpointStore) Load(ctx context.Context, sessionID string) (*SessionC
 		UpdatedAt:   parseTime(updatedAt),
 	}
 	if stateStr != "" {
-		json.Unmarshal([]byte(stateStr), &cp.State)
+		if err := json.Unmarshal([]byte(stateStr), &cp.State); err != nil {
+			return nil, fmt.Errorf("checkpoint store: unmarshal state for %s: %w", sessionID, err)
+		}
 	}
 	return cp, nil
 }
@@ -139,7 +145,9 @@ func (s *CheckpointStore) ListIncomplete(ctx context.Context) ([]*SessionCheckpo
 			UpdatedAt:   parseTime(updatedAt),
 		}
 		if stateStr != "" {
-			json.Unmarshal([]byte(stateStr), &cp.State)
+			if err := json.Unmarshal([]byte(stateStr), &cp.State); err != nil {
+				return nil, fmt.Errorf("checkpoint store: unmarshal state for %s: %w", sid, err)
+			}
 		}
 		results = append(results, cp)
 	}

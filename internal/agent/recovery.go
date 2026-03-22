@@ -180,7 +180,9 @@ func RecoverSessions(ctx context.Context, deps SessionRecoveryDeps) SessionRecov
 		}
 
 		// Always delete checkpoint after processing.
-		deps.CheckpointStore.Delete(ctx, cp.SessionID)
+		if err := deps.CheckpointStore.Delete(ctx, cp.SessionID); err != nil {
+			logger.Warn("session recovery: checkpoint delete failed", "session", cp.SessionID, "error", err)
+		}
 	}
 
 	logger.Info("session recovery complete",

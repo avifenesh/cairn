@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -171,6 +172,9 @@ func TestShell_GrepNoMatch(t *testing.T) {
 	// grep returning exit 1 (no match) should NOT cause the shell to abort.
 	// With set -e this would kill the shell; without it, the command
 	// completes and subsequent commands (like the echo) still run.
+	if _, err := exec.LookPath("grep"); err != nil {
+		t.Skip("grep not available in test environment")
+	}
 	ctx, dir := testCtx(t)
 
 	// Create a file with known content.
@@ -180,7 +184,7 @@ func TestShell_GrepNoMatch(t *testing.T) {
 	}
 
 	// grep for something that doesn't exist — exit 1 expected.
-	// Shell-quote the path so spaces/special chars don't break the command.
+	// Quote the path for the shell so spaces/special chars don't break the command.
 	escapedPath := "'" + strings.ReplaceAll(path, "'", "'\"'\"'") + "'"
 	cmdStr := "grep nonexistent " + escapedPath + "; grep_rc=$?; echo after-grep rc=$grep_rc"
 	args, marshalErr := json.Marshal(map[string]string{"command": cmdStr})
@@ -190,6 +194,9 @@ func TestShell_GrepNoMatch(t *testing.T) {
 	result, err := shell.Execute(ctx, args)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("unexpected tool error: %s", result.Error)
 	}
 	// The command should complete fully; "after-grep" should appear in output.
 	if !strings.Contains(result.Output, "after-grep") {
@@ -213,6 +220,9 @@ func TestShell_TestFalse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	if result.Error != "" {
+		t.Fatalf("unexpected tool error: %s", result.Error)
+	}
 	if !strings.Contains(result.Output, "after-test") {
 		t.Fatalf("expected 'after-test' in output (shell aborted early), got: %s", result.Output)
 	}
@@ -224,10 +234,13 @@ func TestShell_TestFalse(t *testing.T) {
 
 func TestShell_PipefailStillActive(t *testing.T) {
 	// set -o pipefail should still be active, catching mid-pipe failures.
-	// Skip on shells that don't support pipefail (e.g., /bin/sh on some systems).
+	// Skip when the detected shell doesn't support pipefail (e.g., plain /bin/sh).
 	si := detectShell()
 	if !si.supportsPipefail {
-		t.Skipf("skipping: detected shell %q does not support pipefail", si.path)
+		t.Skip("detected shell does not support pipefail")
+	}
+	if _, err := exec.LookPath("cat"); err != nil {
+		t.Skip("cat not available in test environment")
 	}
 
 	ctx, _ := testCtx(t)
@@ -241,6 +254,9 @@ func TestShell_PipefailStillActive(t *testing.T) {
 	result, err := shell.Execute(ctx, args)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("unexpected tool error: %s", result.Error)
 	}
 	// pipefail should propagate the non-zero exit from false.
 	if !strings.Contains(result.Output, "exit=1") {

@@ -10,6 +10,7 @@
 
 	let diffEl: HTMLElement | undefined = $state();
 	let viewMode = $state<'line-by-line' | 'side-by-side'>('line-by-line');
+	let renderToken = 0;
 
 	// Parse all file diffs to extract line stats.
 	interface FileStats {
@@ -52,19 +53,21 @@
 		const file = selectedFile ? files.find((f) => f.path === selectedFile) : null;
 		const diff = file?.diff;
 		const mode = viewMode;
+		const token = ++renderToken;
 		if (diff && diffEl) {
-			renderDiff(diff, mode);
+			renderDiff(diff, mode, token);
 		} else if (diffEl) {
-			// Clear previous diff by replacing children safely.
 			while (diffEl.firstChild) diffEl.removeChild(diffEl.firstChild);
 		}
 	});
 
-	async function renderDiff(diff: string, mode: 'line-by-line' | 'side-by-side') {
+	async function renderDiff(diff: string, mode: 'line-by-line' | 'side-by-side', token: number) {
 		if (!diffEl) return;
 		try {
 			const { Diff2HtmlUI } = await import('diff2html/lib/ui/js/diff2html-ui');
 			const { ColorSchemeType } = await import('diff2html/lib/types');
+			// Guard against stale renders from rapid file/mode switching.
+			if (token !== renderToken) return;
 			const isDark = !document.documentElement.getAttribute('data-theme')?.includes('light');
 			const ui = new Diff2HtmlUI(diffEl, diff, {
 				outputFormat: mode,

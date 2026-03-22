@@ -550,6 +550,48 @@
   border-radius: 3px;
 }
 
+/* highlight.js token colors (GitHub Dark) for syntax-highlighted diffs.
+   Only token colors - no layout rules that conflict with diff2html. */
+.d2h-wrapper .hljs { color: #c9d1d9; background: transparent; }
+.d2h-wrapper .hljs-doctag,
+.d2h-wrapper .hljs-keyword,
+.d2h-wrapper .hljs-meta .hljs-keyword,
+.d2h-wrapper .hljs-template-tag,
+.d2h-wrapper .hljs-template-variable,
+.d2h-wrapper .hljs-type,
+.d2h-wrapper .hljs-variable.language_ { color: #ff7b72; }
+.d2h-wrapper .hljs-title,
+.d2h-wrapper .hljs-title.class_,
+.d2h-wrapper .hljs-title.class_.inherited__,
+.d2h-wrapper .hljs-title.function_ { color: #d2a8ff; }
+.d2h-wrapper .hljs-attr,
+.d2h-wrapper .hljs-attribute,
+.d2h-wrapper .hljs-literal,
+.d2h-wrapper .hljs-meta,
+.d2h-wrapper .hljs-number,
+.d2h-wrapper .hljs-operator,
+.d2h-wrapper .hljs-selector-attr,
+.d2h-wrapper .hljs-selector-class,
+.d2h-wrapper .hljs-selector-id,
+.d2h-wrapper .hljs-variable { color: #79c0ff; }
+.d2h-wrapper .hljs-meta .hljs-string,
+.d2h-wrapper .hljs-regexp,
+.d2h-wrapper .hljs-string { color: #a5d6ff; }
+.d2h-wrapper .hljs-built_in,
+.d2h-wrapper .hljs-symbol { color: #ffa657; }
+.d2h-wrapper .hljs-code,
+.d2h-wrapper .hljs-comment,
+.d2h-wrapper .hljs-formula { color: #8b949e; }
+.d2h-wrapper .hljs-name,
+.d2h-wrapper .hljs-quote,
+.d2h-wrapper .hljs-selector-pseudo,
+.d2h-wrapper .hljs-selector-tag { color: #7ee787; }
+.d2h-wrapper .hljs-subst { color: #c9d1d9; }
+.d2h-wrapper .hljs-section { color: #1f6feb; font-weight: 700; }
+.d2h-wrapper .hljs-bullet { color: #f2cc60; }
+.d2h-wrapper .hljs-emphasis { font-style: italic; }
+.d2h-wrapper .hljs-strong { font-weight: 700; }
+
 /* Light theme overrides */
 [data-theme="light"] .d2h-ins .d2h-code-linenumber {
   background: rgba(5, 150, 105, 0.1);

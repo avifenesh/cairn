@@ -1,10 +1,12 @@
 <script lang="ts" module>
 	function formatDiff(diff: string): string {
 		let oldLine = 0, newLine = 0;
+		let inHunk = false;
 		return diff.split('\n').map(line => {
 			const escaped = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 			// Parse hunk header for line numbers.
 			if (line.startsWith('@@')) {
+				inHunk = true;
 				const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)/);
 				if (match) {
 					oldLine = parseInt(match[1], 10);
@@ -12,7 +14,10 @@
 				}
 				return `<span class="diff-hunk">${escaped}</span>`;
 			}
-			if (line.startsWith('+++') || line.startsWith('---')) return `<span class="diff-meta">${escaped}</span>`;
+			// Metadata lines before first hunk (diff --git, index, ---/+++).
+			if (!inHunk || line.startsWith('+++') || line.startsWith('---')) {
+				return `<span class="diff-meta">${escaped}</span>`;
+			}
 			// Build line number gutter.
 			let gutter = '';
 			if (line.startsWith('+')) {

@@ -418,7 +418,7 @@
 									class="flex-1 rounded-md border px-2 py-1.5 text-xs font-mono focus:outline-none"
 									style="border-color: var(--border-subtle); background: var(--bg-0); color: var(--text-primary); min-width: 0"
 								/>
-								<button onclick={() => removeCondition(i)} class="p-1 rounded transition-colors hover:bg-[var(--color-error)]/10">
+								<button onclick={() => removeCondition(i)} class="p-1 rounded transition-colors hover:bg-[var(--color-error)]/10" aria-label="Remove filter">
 									<X class="h-3.5 w-3.5" style="color: var(--text-tertiary)" />
 								</button>
 							</div>
@@ -465,7 +465,7 @@
 								<option value="3">Urgent</option>
 							</select>
 							{#if actions.length > 1}
-								<button onclick={() => removeAction(i)} class="ml-auto p-1 rounded transition-colors hover:bg-[var(--color-error)]/10">
+								<button onclick={() => removeAction(i)} class="ml-auto p-1 rounded transition-colors hover:bg-[var(--color-error)]/10" aria-label="Remove action">
 									<X class="h-3.5 w-3.5" style="color: var(--text-tertiary)" />
 								</button>
 							{/if}

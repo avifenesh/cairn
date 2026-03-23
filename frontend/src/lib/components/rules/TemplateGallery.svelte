@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import type { RuleTemplate, SourceInfo, Rule } from '$lib/types';
+	import type { RuleTemplate, SourceInfo } from '$lib/types';
 	import { instantiateRuleTemplate } from '$lib/api/client';
 	import { ruleStore } from '$lib/stores/rules.svelte';
-	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Zap, Loader2, ListTodo, Brain, Clock, Antenna, ChevronRight, Check, X } from '@lucide/svelte';
 
@@ -91,6 +90,7 @@
 			justCreated = t.id;
 			previewing = null;
 			// Flash success briefly, then clear.
+			if (justCreatedTimer) clearTimeout(justCreatedTimer);
 			justCreatedTimer = setTimeout(() => { justCreated = null; }, 2500);
 		} catch (e) {
 			instantiateError = e instanceof Error ? e.message : 'Failed to create rule';

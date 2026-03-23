@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // topicSuppressionThreshold is the number of recent actions mentioning the same
@@ -11,15 +12,22 @@ import (
 // a single entity (PR, branch, task) across multiple ticks.
 const topicSuppressionThreshold = 3
 
-// topicPatterns extracts entity references from action summaries/reasons.
-var topicPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)PR\s*#(\d+)`),                         // PR #219
-	regexp.MustCompile(`(?i)pull\s*request\s*#?(\d+)`),            // pull request 219
-	regexp.MustCompile(`(?i)issue\s*#(\d+)`),                      // issue #42
-	regexp.MustCompile(`(?:branch|worktree)\s+(\S+/\S+)`),         // branch fix/reply-context
-	regexp.MustCompile(`(?i)task\s+([a-f0-9]{8,})`),               // task 3cf8a86c...
-	regexp.MustCompile(`(?i)session\s+([a-z]+-[a-f0-9]{8,})`),     // session loop-abc123
-	regexp.MustCompile(`(?i)cron[- ]job\s+["']?([^"'\s,]+)["']?`), // cron job "name"
+// topicRule pairs a compiled regex with its topic prefix for type-safe dispatch.
+type topicRule struct {
+	re     *regexp.Regexp
+	prefix string // "pr", "issue", "branch", "task", "session", "cron"
+}
+
+// topicRules extracts entity references from action summaries/reasons.
+// The prefix field determines the topic label — no inspection of regex source needed.
+var topicRules = []topicRule{
+	{regexp.MustCompile(`(?i)PR\s*#(\d+)`), "pr"},
+	{regexp.MustCompile(`(?i)pull\s*request\s*#?(\d+)`), "pr"},
+	{regexp.MustCompile(`(?i)issue\s*#(\d+)`), "issue"},
+	{regexp.MustCompile(`(?i)(?:branch|worktree)\s+(\S+/\S+)`), "branch"},
+	{regexp.MustCompile(`(?i)task\s+([a-f0-9]{8,})`), "task"},
+	{regexp.MustCompile(`(?i)session\s+([a-z]+-[a-f0-9]{8,})`), "session"},
+	{regexp.MustCompile(`(?i)cron[- ]job\s+["']?([^"'\s,]+)["']?`), "cron"},
 }
 
 // extractTopics finds entity references in a text string.
@@ -28,30 +36,14 @@ func extractTopics(text string) []string {
 	seen := make(map[string]bool)
 	var topics []string
 
-	for _, pat := range topicPatterns {
-		for _, match := range pat.FindAllStringSubmatch(text, -1) {
+	for _, rule := range topicRules {
+		for _, match := range rule.re.FindAllStringSubmatch(text, -1) {
 			if len(match) < 2 || match[1] == "" {
 				continue
 			}
-			// Normalize: lowercase prefix + captured group.
-			var topic string
-			prefix := strings.ToLower(pat.String())
-			switch {
-			case strings.Contains(prefix, "pr") || strings.Contains(prefix, "pull"):
-				topic = "pr:" + match[1]
-			case strings.Contains(prefix, "issue"):
-				topic = "issue:" + match[1]
-			case strings.Contains(prefix, "branch") || strings.Contains(prefix, "worktree"):
-				topic = "branch:" + match[1]
-			case strings.Contains(prefix, "task"):
-				topic = "task:" + match[1]
-			case strings.Contains(prefix, "session"):
-				topic = "session:" + match[1]
-			case strings.Contains(prefix, "cron"):
-				topic = "cron:" + match[1]
-			default:
-				topic = "entity:" + match[1]
-			}
+			// Normalize: lowercase entity to ensure consistent matching.
+			entity := strings.ToLower(match[1])
+			topic := rule.prefix + ":" + entity
 			if !seen[topic] {
 				seen[topic] = true
 				topics = append(topics, topic)
@@ -68,12 +60,15 @@ func detectSuppressedTopics(actions []ActivityEntry) []string {
 	topicCounts := make(map[string]int)
 
 	for _, a := range actions {
-		// Extract from both summary and details to catch all references.
-		text := a.Summary + " " + a.Details
-		actionTopics := extractTopics(text)
-		// Count each topic once per action (not per mention within an action).
-		for _, t := range actionTopics {
-			topicCounts[t]++
+		// Extract from summary and details independently to avoid cross-field stitching.
+		seen := make(map[string]bool)
+		for _, text := range []string{a.Summary, a.Details} {
+			for _, t := range extractTopics(text) {
+				if !seen[t] {
+					seen[t] = true
+					topicCounts[t]++
+				}
+			}
 		}
 	}
 
@@ -83,12 +78,15 @@ func detectSuppressedTopics(actions []ActivityEntry) []string {
 			suppressed = append(suppressed, topic)
 		}
 	}
-	sort.Strings(suppressed)
+	if len(suppressed) > 1 {
+		sort.Strings(suppressed)
+	}
 	return suppressed
 }
 
 // instructionMentionsTopic checks whether a spawn instruction references any
-// of the suppressed topics. Used for code-level enforcement in execute().
+// of the suppressed topics. Uses word-boundary-aware matching to prevent
+// false positives (e.g., "pr:219" should not match "#2190").
 func instructionMentionsTopic(instruction string, suppressed []string) string {
 	lower := strings.ToLower(instruction)
 	for _, topic := range suppressed {
@@ -96,27 +94,62 @@ func instructionMentionsTopic(instruction string, suppressed []string) string {
 		if len(parts) != 2 {
 			continue
 		}
-		entity := parts[1]
-		// Check for the entity value in the instruction.
-		// For PRs: match "#219" or "PR 219" or "PR #219"
-		// For branches: match the branch name directly
+		entity := parts[1] // already lowercased from extractTopics
+
 		switch parts[0] {
-		case "pr":
-			if strings.Contains(lower, "#"+entity) ||
-				strings.Contains(lower, "pr "+entity) ||
-				strings.Contains(lower, "pr #"+entity) ||
-				strings.Contains(lower, "pull request "+entity) {
+		case "pr", "issue":
+			// For numeric IDs, require a non-digit boundary after the number.
+			if containsWithBoundary(lower, "#"+entity) ||
+				containsWithBoundary(lower, "pr "+entity) ||
+				containsWithBoundary(lower, "pr #"+entity) ||
+				containsWithBoundary(lower, "pull request "+entity) ||
+				containsWithBoundary(lower, "issue #"+entity) ||
+				containsWithBoundary(lower, "issue "+entity) {
 				return topic
 			}
 		case "branch":
-			if strings.Contains(lower, entity) {
+			// Branch names are path-like; require word boundary (space/start/end).
+			if containsWithBoundary(lower, entity) {
 				return topic
 			}
 		default:
-			if strings.Contains(lower, entity) {
+			// task IDs, session IDs, cron names — require boundary.
+			if containsWithBoundary(lower, entity) {
 				return topic
 			}
 		}
 	}
 	return ""
+}
+
+// containsWithBoundary checks if needle exists in haystack with non-alphanumeric
+// boundaries (or string start/end) on both sides. Prevents "219" from matching "2190".
+func containsWithBoundary(haystack, needle string) bool {
+	idx := 0
+	for {
+		pos := strings.Index(haystack[idx:], needle)
+		if pos < 0 {
+			return false
+		}
+		absPos := idx + pos
+		endPos := absPos + len(needle)
+
+		// Check left boundary: start of string or non-alnum character.
+		leftOK := absPos == 0 || !isAlnum(rune(haystack[absPos-1]))
+		// Check right boundary: end of string or non-alnum character.
+		rightOK := endPos >= len(haystack) || !isAlnum(rune(haystack[endPos]))
+
+		if leftOK && rightOK {
+			return true
+		}
+		// Advance past this match to find the next occurrence.
+		idx = absPos + 1
+		if idx >= len(haystack) {
+			return false
+		}
+	}
+}
+
+func isAlnum(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r)
 }

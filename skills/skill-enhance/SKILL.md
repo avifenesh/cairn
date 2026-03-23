@@ -11,7 +11,7 @@ Run structural, quality, and security checks on SKILL.md files. Report issues by
 
 ## Arguments
 
-If a path is provided, check that single skill. Otherwise, scan all skills in `backend/.pub/skills/`.
+If a path is provided, check that single skill. Otherwise, scan all skills in `skills/`.
 
 ## Step 1: Find skill files
 
@@ -69,7 +69,7 @@ Read the file content and evaluate each check below. Collect findings as a list 
 Use `cairn.shell` to read each file and apply checks. Here's how to scan for secrets:
 
 ```bash
-grep -nE '(sk-[a-zA-Z0-9]{20}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AIza[a-zA-Z0-9_-]{35}|AKIA[A-Z0-9]{16}|-----BEGIN|Bearer\s+[A-Za-z0-9]{10})' backend/.pub/skills/*/SKILL.md
+grep -nE '(sk-[a-zA-Z0-9]{20}|ghp_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|AIza[a-zA-Z0-9_-]{35}|AKIA[A-Z0-9]{16}|-----BEGIN|Bearer\s+[A-Za-z0-9]{10})' skills/*/SKILL.md
 ```
 
 For frontmatter parsing, extract the YAML block between `---` markers:
@@ -79,7 +79,7 @@ sed -n '/^---$/,/^---$/p' <path-to-SKILL.md> | head -20
 
 For line count:
 ```bash
-wc -l backend/.pub/skills/*/SKILL.md | sort -rn
+wc -l skills/*/SKILL.md | sort -rn
 ```
 
 ## Step 4: Report findings

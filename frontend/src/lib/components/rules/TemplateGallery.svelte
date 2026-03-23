@@ -68,7 +68,7 @@
 
 	function handleClick(t: RuleTemplate) {
 		if (hasRequiredParams(t)) {
-			// Has required params - go to full builder.
+			previewing = null;
 			onselect?.(t);
 			return;
 		}

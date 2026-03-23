@@ -460,8 +460,14 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			}
 			publishSessionEvent(invCtx, "tool_result", resultPayload)
 
-			// Emit file_change for file-modifying tools.
+			// For file-modifying tools, append the diff to the persisted output
+			// so it survives session hydration and shows in the UI.
+			// The LLM context uses separately-truncated content (below), so this doesn't bloat prompts.
+			persistedOutput := output
 			if status != ToolFailed {
+				if diff := getFileChangeDiff(invCtx, tc.Name, tc.Input); diff != "" {
+					persistedOutput = output + "\n\n" + diff
+				}
 				emitFileChangeIfNeeded(invCtx, tc.Name, tc.Input, output)
 			}
 			roundToolCalls++
@@ -476,7 +482,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 					CallID:   tc.ID,
 					Status:   status,
 					Input:    tc.Input,
-					Output:   output,
+					Output:   persistedOutput,
 					Error:    errStr,
 					Duration: duration,
 				}},
@@ -641,6 +647,43 @@ var fileModifyingTools = map[string]string{
 	"cairn.undoEdit":   "path",
 }
 
+// getFileChangeDiff returns the git diff for a file-modifying tool, or "" if not applicable.
+func getFileChangeDiff(invCtx *InvocationContext, toolName string, input json.RawMessage) string {
+	pathKey, ok := fileModifyingTools[toolName]
+	if !ok {
+		return ""
+	}
+	var inp map[string]any
+	if err := json.Unmarshal(input, &inp); err != nil {
+		return ""
+	}
+	filePath, _ := inp[pathKey].(string)
+	if filePath == "" {
+		return ""
+	}
+
+	wd := workDir(invCtx)
+	ctx := invCtx.Context
+	diff := ""
+
+	// Try tracked file diff first, then untracked (new files).
+	if out, err := exec.CommandContext(ctx, "git", "-C", wd, "diff", "--", filePath).Output(); err == nil && len(out) > 0 {
+		diff = string(out)
+	} else if out, err := exec.CommandContext(ctx, "git", "-C", wd, "diff", "--no-index", "/dev/null", filePath).CombinedOutput(); err != nil && len(out) > 0 {
+		diff = string(out)
+	}
+
+	// Rune-safe truncation.
+	if len(diff) > 10000 {
+		runes := []rune(diff)
+		if len(runes) > 3000 {
+			runes = runes[:3000]
+		}
+		diff = string(runes) + "\n... (truncated)"
+	}
+	return diff
+}
+
 // emitFileChangeIfNeeded checks if the tool modifies files and emits a file_change SessionEvent.
 func emitFileChangeIfNeeded(invCtx *InvocationContext, toolName string, input json.RawMessage, output string) {
 	pathKey, ok := fileModifyingTools[toolName]
@@ -656,30 +699,9 @@ func emitFileChangeIfNeeded(invCtx *InvocationContext, toolName string, input js
 		return
 	}
 
-	op := "write"
-	diff := ""
-	wd := workDir(invCtx)
-	ctx := invCtx.Context
-
-	// Try tracked file diff first, then untracked (new files).
-	if out, err := exec.CommandContext(ctx, "git", "-C", wd, "diff", "--", filePath).Output(); err == nil && len(out) > 0 {
-		diff = string(out)
-	} else if out, err := exec.CommandContext(ctx, "git", "-C", wd, "diff", "--no-index", "/dev/null", filePath).CombinedOutput(); err != nil && len(out) > 0 {
-		// --no-index exits non-zero when files differ, but still produces diff output.
-		diff = string(out)
-	}
-
-	// Rune-safe truncation.
-	if len(diff) > 10000 {
-		runes := []rune(diff)
-		if len(runes) > 3000 {
-			runes = runes[:3000]
-		}
-		diff = string(runes) + "\n... (truncated)"
-	}
-
+	diff := getFileChangeDiff(invCtx, toolName, input)
 	publishSessionEvent(invCtx, "file_change", map[string]any{
-		"path": filePath, "operation": op, "diff": diff,
+		"path": filePath, "operation": "write", "diff": diff,
 	})
 }
 

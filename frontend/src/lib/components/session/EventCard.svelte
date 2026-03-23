@@ -118,8 +118,20 @@
 
 	const summary = $derived(toolInputSummary(p.toolName, p.input));
 	const fullInput = $derived(formatJSON(p.input));
-	const outputText = $derived(String(p.output ?? p.error ?? ''));
+	// Split tool output into summary text and embedded diff (if present).
+	const rawOutput = $derived(String(p.output ?? p.error ?? ''));
+	const diffSplit = $derived.by((): { text: string; diff: string } => {
+		const raw = rawOutput;
+		const idx = raw.indexOf('\ndiff --git ');
+		if (idx >= 0) return { text: raw.slice(0, idx).trim(), diff: raw.slice(idx + 1) };
+		const idx2 = raw.indexOf('\n--- ');
+		if (idx2 >= 0 && raw.indexOf('\n+++ ', idx2) > idx2) return { text: raw.slice(0, idx2).trim(), diff: raw.slice(idx2 + 1) };
+		return { text: raw, diff: '' };
+	});
+	const outputText = $derived(diffSplit.text);
 	const outputPreview = $derived(outputText.length > 200 ? outputText.slice(0, 200) + '...' : outputText);
+	const toolDiff = $derived(diffSplit.diff);
+	let expandedToolDiff = $state(false);
 </script>
 
 {#if event.eventType === 'tool_call'}
@@ -172,6 +184,15 @@
 						{#if expandedOutput}<ChevronUp size={10} />{:else}<ChevronDown size={10} />{/if}
 						<span>{expandedOutput ? 'less' : 'more'}</span>
 					</button>
+				{/if}
+			{/if}
+			{#if toolDiff}
+				<button class="expand-btn" onclick={() => (expandedToolDiff = !expandedToolDiff)}>
+					{#if expandedToolDiff}<ChevronUp size={10} />{:else}<ChevronDown size={10} />{/if}
+					<span>{expandedToolDiff ? 'hide diff' : 'show diff'}</span>
+				</button>
+				{#if expandedToolDiff}
+					<pre class="diff-block">{@html formatDiff(toolDiff)}</pre>
 				{/if}
 			{/if}
 		</div>

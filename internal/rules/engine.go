@@ -13,6 +13,7 @@ import (
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
 
+	cairncron "github.com/avifenesh/cairn/internal/cron"
 	"github.com/avifenesh/cairn/internal/eventbus"
 )
 
@@ -42,6 +43,7 @@ type compiledRule struct {
 }
 
 // Engine subscribes to bus events, evaluates rules, and dispatches actions.
+// It also runs a ticker for cron-triggered rules.
 type Engine struct {
 	store    *Store
 	bus      *eventbus.Bus
@@ -54,9 +56,16 @@ type Engine struct {
 
 	// Goroutine limiter: max concurrent rule executions.
 	sem chan struct{}
+
+	// Cron ticker lifecycle.
+	cronCancel context.CancelFunc
+	cronDone   chan struct{}
 }
 
-const maxConcurrentExecs = 10
+const (
+	maxConcurrentExecs = 10
+	cronTickInterval   = 60 * time.Second
+)
 
 // NewEngine creates a rules engine.
 func NewEngine(deps EngineDeps) *Engine {
@@ -117,11 +126,21 @@ func (e *Engine) Start() {
 		}),
 	)
 
+	// Start cron ticker for scheduled rules.
+	cronCtx, cronCancel := context.WithCancel(context.Background())
+	e.cronCancel = cronCancel
+	e.cronDone = make(chan struct{})
+	go e.cronLoop(cronCtx)
+
 	e.logger.Info("rules engine started", "rules", len(e.cache))
 }
 
-// Close unsubscribes from all bus events.
+// Close unsubscribes from all bus events and stops the cron ticker.
 func (e *Engine) Close() {
+	if e.cronCancel != nil {
+		e.cronCancel()
+		<-e.cronDone
+	}
 	for _, unsub := range e.unsubs {
 		unsub()
 	}
@@ -363,6 +382,81 @@ func expandTemplate(tmpl string, data map[string]any) string {
 		result = strings.ReplaceAll(result, "{{."+k+"}}", fmt.Sprint(v))
 	}
 	return result
+}
+
+// cronLoop ticks every 60s to evaluate cron-triggered rules.
+func (e *Engine) cronLoop(ctx context.Context) {
+	defer close(e.cronDone)
+	ticker := time.NewTicker(cronTickInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			e.cronTick()
+		}
+	}
+}
+
+// cronTick checks all cron-triggered rules and fires any that are due.
+func (e *Engine) cronTick() {
+	e.cacheMu.RLock()
+	rules := make([]compiledRule, len(e.cache))
+	copy(rules, e.cache)
+	e.cacheMu.RUnlock()
+
+	now := time.Now()
+	for _, rule := range rules {
+		if rule.Trigger.Type != TriggerCron {
+			continue
+		}
+		if rule.Trigger.Schedule == "" {
+			continue
+		}
+
+		// Determine the "after" time: last fired, or 1 tick ago as fallback.
+		after := now.Add(-cronTickInterval)
+		if rule.LastFiredAt != nil {
+			after = *rule.LastFiredAt
+		}
+
+		due, err := cairncron.IsDue(rule.Trigger.Schedule, after, now)
+		if err != nil {
+			e.logger.Warn("rules: invalid cron schedule", "rule", rule.Name, "schedule", rule.Trigger.Schedule, "error", err)
+			continue
+		}
+		if !due {
+			continue
+		}
+
+		// Throttle check (same as event-triggered rules).
+		if rule.ThrottleMs > 0 && rule.LastFiredAt != nil {
+			if time.Since(*rule.LastFiredAt).Milliseconds() < rule.ThrottleMs {
+				e.recordExec(rule.ID, rule.Name, nil, ExecThrottled, nil, 0)
+				continue
+			}
+		}
+
+		// Execute with "cron" as the data context.
+		data := map[string]any{
+			"trigger":  "cron",
+			"schedule": rule.Trigger.Schedule,
+			"time":     now.Format(time.RFC3339),
+		}
+		r := rule
+		select {
+		case e.sem <- struct{}{}:
+			go func() {
+				defer func() { <-e.sem }()
+				e.evaluateAndExecute(r, data)
+			}()
+		default:
+			e.logger.Warn("rules: execution semaphore full, skipping cron rule", "rule", rule.Name)
+			e.recordExec(rule.ID, rule.Name, data, ExecBackpressure, nil, 0)
+		}
+	}
 }
 
 // PruneExecutions removes old execution records. Call periodically.

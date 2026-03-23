@@ -799,6 +799,11 @@ func runServe(logger *slog.Logger) {
 		channelSessionStore := cairnchannel.NewSessionStore(database.DB)
 		sessionTimeout := time.Duration(cfg.ChannelSessionTimeout) * time.Minute
 
+		// Reply store: maps outgoing platform message IDs → content text,
+		// so replies to bot messages carry their original context.
+		replyStore := cairnchannel.NewReplyStore(0) // 24h TTL default
+		defer replyStore.Close()
+
 		// Channel message handler: look up/create session, run agent.
 		channelHandler := func(ctx context.Context, msg *cairnchannel.IncomingMessage) (*cairnchannel.OutgoingMessage, error) {
 			// Handle /new command — reset session.
@@ -929,6 +934,18 @@ func runServe(logger *slog.Logger) {
 				}
 			}
 
+			// If this is a reply to a bot message, inject the original context
+			// so the agent understands what the user is responding to.
+			if msg.ReplyToMessageID != "" {
+				replyCtx := replyStore.Lookup(msg.ChannelID, msg.ChatID, msg.ReplyToMessageID)
+				if replyCtx != "" {
+					if len(replyCtx) > 2000 {
+						replyCtx = replyCtx[:2000] + "..."
+					}
+					text = "[Replying to previous message:\n" + replyCtx + "]\n\n" + text
+				}
+			}
+
 			// Build invocation context.
 			invCtx := &agent.InvocationContext{
 				Context:        ctx,
@@ -1028,6 +1045,10 @@ func runServe(logger *slog.Logger) {
 		}
 
 		channelRouter := cairnchannel.NewRouter(channelHandler, logger)
+
+		// Wire reply store into the router so adapters save outgoing message IDs.
+		channelRouter.SetReplyStore(replyStore)
+
 		notifyCfg := &cairnchannel.NotifyConfig{
 			PreferredChannel: cfg.PreferredChannel,
 			QuietHoursStart:  cfg.QuietHoursStart,

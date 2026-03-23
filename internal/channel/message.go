@@ -13,6 +13,7 @@ type IncomingMessage struct {
 	Args          string            // command arguments after command name
 	Audio         []byte            // voice message audio data (nil = text only)
 	AudioFilename string            // original filename with extension (e.g. "voice.ogg")
+	ReplyToMessageID string            // platform message ID this message is replying to (e.g. Telegram reply_to_message_id)
 	Metadata      map[string]string // channel-specific extras
 }
 

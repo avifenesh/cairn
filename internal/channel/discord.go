@@ -17,11 +17,12 @@ type DiscordConfig struct {
 
 // DiscordAdapter implements Channel for Discord.
 type DiscordAdapter struct {
-	session   *discordgo.Session
-	channelID string
-	handler   MessageHandler
-	logger    *slog.Logger
-	done      chan struct{}
+	session    *discordgo.Session
+	channelID  string
+	handler    MessageHandler
+	logger     *slog.Logger
+	done       chan struct{}
+	replyStore *ReplyStore
 }
 
 // NewDiscord creates a Discord channel adapter.
@@ -180,6 +181,11 @@ func (d *DiscordAdapter) Close() error {
 	return nil
 }
 
+// SetReplyStore injects a ReplyStore for saving outgoing message IDs.
+func (d *DiscordAdapter) SetReplyStore(rs *ReplyStore) {
+	d.replyStore = rs
+}
+
 func (d *DiscordAdapter) sendResponse(channelID string, msg *OutgoingMessage) error {
 	text := Normalize(msg.Text, "discord")
 	if text == "" {
@@ -196,12 +202,26 @@ func (d *DiscordAdapter) sendResponse(channelID string, msg *OutgoingMessage) er
 		if i == len(chunks)-1 && len(components) > 0 {
 			send.Components = components
 		}
-		if _, err := d.session.ChannelMessageSendComplex(channelID, send); err != nil {
+		sentMsg, err := d.session.ChannelMessageSendComplex(channelID, send)
+		if err != nil {
 			d.logger.Error("discord: send failed", "error", err)
 			return err
 		}
+		// Save message ID for reply context.
+		d.saveReplyID(channelID, sentMsg.ID, msg.Text)
 	}
 	return nil
+}
+
+// saveReplyID saves an outgoing message ID to the ReplyStore.
+func (d *DiscordAdapter) saveReplyID(channelID, messageID, text string) {
+	if d.replyStore == nil || messageID == "" {
+		return
+	}
+	if len(text) > 2000 {
+		text = text[:2000] + "..."
+	}
+	d.replyStore.Save("discord", channelID, messageID, text)
 }
 
 func (d *DiscordAdapter) sendText(channelID, text string) {
@@ -222,6 +242,11 @@ func parseDiscordMessage(m *discordgo.MessageCreate) *IncomingMessage {
 	}
 
 	in.Metadata["username"] = m.Author.Username
+
+	// Extract reply-to reference for context injection.
+	if m.MessageReference != nil && m.MessageReference.MessageID != "" {
+		in.ReplyToMessageID = m.MessageReference.MessageID
+	}
 
 	// Parse commands: /command args
 	if strings.HasPrefix(m.Content, "/") {

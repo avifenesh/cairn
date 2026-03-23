@@ -20,12 +20,13 @@ type SlackConfig struct {
 
 // SlackAdapter implements Channel for Slack via Socket Mode.
 type SlackAdapter struct {
-	api       *slack.Client
-	sm        *socketmode.Client
-	channelID string
-	botUserID string // resolved during Start to filter self-messages
-	handler   MessageHandler
-	logger    *slog.Logger
+	api        *slack.Client
+	sm         *socketmode.Client
+	channelID  string
+	botUserID  string // resolved during Start to filter self-messages
+	handler    MessageHandler
+	logger     *slog.Logger
+	replyStore *ReplyStore
 }
 
 // NewSlack creates a Slack channel adapter using Socket Mode.
@@ -95,6 +96,11 @@ func (s *SlackAdapter) Send(ctx context.Context, msg *OutgoingMessage) error {
 
 func (s *SlackAdapter) Close() error {
 	return nil // Socket Mode stops when context is cancelled
+}
+
+// SetReplyStore injects a ReplyStore for saving outgoing message timestamps.
+func (s *SlackAdapter) SetReplyStore(rs *ReplyStore) {
+	s.replyStore = rs
 }
 
 func (s *SlackAdapter) handleEvent(ctx context.Context, evt socketmode.Event) {
@@ -214,13 +220,21 @@ func (s *SlackAdapter) sendResponse(ctx context.Context, channelID string, msg *
 
 	blocks := buildSlackBlocks(text, msg.Actions)
 
-	_, _, err := s.api.PostMessageContext(ctx, channelID,
+	_, ts, err := s.api.PostMessageContext(ctx, channelID,
 		slack.MsgOptionBlocks(blocks...),
 		slack.MsgOptionText(text, false), // fallback for notifications
 	)
 	if err != nil {
 		s.logger.Error("slack: send failed", "error", err)
 		return err
+	}
+	// Save timestamp for reply context tracking.
+	if s.replyStore != nil && ts != "" {
+		saveText := msg.Text
+		if len(saveText) > 2000 {
+			saveText = saveText[:2000] + "..."
+		}
+		s.replyStore.Save("slack", channelID, ts, saveText)
 	}
 	return nil
 }
@@ -238,6 +252,12 @@ func parseSlackMessage(ev *slackevents.MessageEvent) *IncomingMessage {
 
 	if ev.ThreadTimeStamp != "" {
 		in.Metadata["threadTs"] = ev.ThreadTimeStamp
+	}
+
+	// Extract reply-to reference for context injection.
+	// A message posted as a thread reply has ThreadTimeStamp != TimeStamp.
+	if ev.ThreadTimeStamp != "" && ev.ThreadTimeStamp != ev.TimeStamp {
+		in.ReplyToMessageID = ev.ThreadTimeStamp
 	}
 
 	// Parse commands: /command args

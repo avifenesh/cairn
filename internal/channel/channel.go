@@ -25,15 +25,23 @@ type Channel interface {
 // Set by the agent wiring layer — bridges channel messages to the agent loop.
 type MessageHandler func(ctx context.Context, msg *IncomingMessage) (*OutgoingMessage, error)
 
+// ReplyStorer is an optional interface channels can implement to receive
+// a ReplyStore for saving outgoing message IDs (enabling reply context
+// lookup when users reply to bot messages).
+type ReplyStorer interface {
+	SetReplyStore(rs *ReplyStore)
+}
+
 // Router dispatches incoming messages to the agent and routes responses
 // back to the originating channel. Manages channel lifecycle and
 // priority-based notification routing.
 type Router struct {
-	channels  map[string]Channel
-	handler   MessageHandler
-	logger    *slog.Logger
-	notifyCfg *NotifyConfig // notification routing config (nil = broadcast all)
-	digest    *digestQueue  // queued low-priority messages
+	channels   map[string]Channel
+	handler    MessageHandler
+	logger     *slog.Logger
+	notifyCfg  *NotifyConfig // notification routing config (nil = broadcast all)
+	digest     *digestQueue  // queued low-priority messages
+	replyStore *ReplyStore   // maps outgoing platform message IDs → content
 }
 
 // NewRouter creates a channel router with the given message handler.
@@ -49,9 +57,22 @@ func NewRouter(handler MessageHandler, logger *slog.Logger) *Router {
 	}
 }
 
+// SetReplyStore sets the reply context store. Channels that implement
+// ReplyStorer will receive it automatically during Register.
+func (r *Router) SetReplyStore(rs *ReplyStore) {
+	r.replyStore = rs
+}
+
 // Register adds a channel to the router.
+// If the router has a ReplyStore and the channel implements ReplyStorer,
+// the store is injected into the channel automatically.
 func (r *Router) Register(ch Channel) {
 	r.channels[ch.Name()] = ch
+	if r.replyStore != nil {
+		if storer, ok := ch.(ReplyStorer); ok {
+			storer.SetReplyStore(r.replyStore)
+		}
+	}
 	r.logger.Info("channel registered", "channel", ch.Name())
 }
 

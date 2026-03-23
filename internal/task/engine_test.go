@@ -394,6 +394,49 @@ func TestEngine_Reaper_Requeue(t *testing.T) {
 	}
 }
 
+// TestEngine_ClaimFromStore_AfterRestart simulates the post-restart scenario
+// where tasks exist in the DB but not in the in-memory queue. The engine's
+// Claim method must fall back to the store-level claim with empty type.
+func TestEngine_ClaimFromStore_AfterRestart(t *testing.T) {
+	e := newTestEngine(t)
+	ctx := context.Background()
+
+	// Submit a task normally (goes to both DB and queue).
+	task, err := e.Submit(ctx, &SubmitRequest{
+		Type:        "cron",
+		Priority:    PriorityNormal,
+		Input:       json.RawMessage(`{"instruction":"daily digest"}`),
+		Description: "generate daily digest",
+	})
+	if err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+
+	// Simulate restart: drain the in-memory queue so only DB has the task.
+	e.queue.Remove(task.ID)
+
+	// Verify queue is empty.
+	if e.queue.Len() != 0 {
+		t.Fatalf("Queue should be empty after remove, got %d", e.queue.Len())
+	}
+
+	// Claim with empty type (how the loop calls it). Before the fix, this
+	// would fail because Store.Claim used WHERE type = '' which matches nothing.
+	claimed, err := e.Claim(ctx, "")
+	if err != nil {
+		t.Fatalf("Claim after simulated restart: %v", err)
+	}
+	if claimed == nil {
+		t.Fatal("Claim returned nil - store fallback must handle empty type as 'any'")
+	}
+	if claimed.ID != task.ID {
+		t.Errorf("Claimed ID: got %q, want %q", claimed.ID, task.ID)
+	}
+	if claimed.Status != StatusClaimed {
+		t.Errorf("Claimed status: got %q, want %q", claimed.Status, StatusClaimed)
+	}
+}
+
 func TestEngine_List(t *testing.T) {
 	e := newTestEngine(t)
 	ctx := context.Background()

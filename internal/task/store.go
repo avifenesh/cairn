@@ -80,8 +80,8 @@ func (s *Store) Create(ctx context.Context, t *Task) error {
 		nullStr(t.Error),
 		int(t.Priority),
 		now,
-		nullStr(""),
-		nullStr(""),
+		nullStr(isoTime(t.StartedAt)),
+		nullStr(isoTime(t.CompletedAt)),
 		nullStr(t.LeaseOwner),
 		nullStr(isoTime(t.LeaseExpiry)),
 		metadata,
@@ -218,12 +218,27 @@ func (s *Store) Delete(ctx context.Context, id string) error {
 
 // Claim atomically picks the highest-priority queued task of the given type,
 // sets it to claimed status with a lease, and returns it.
+// If taskType is empty, any queued task is eligible (matches the Queue behavior).
 func (s *Store) Claim(ctx context.Context, taskType TaskType, owner string, leaseDuration time.Duration) (*Task, error) {
 	expiry := isoTime(time.Now().Add(leaseDuration))
 
-	// SQLite doesn't support UPDATE ... ORDER BY ... LIMIT ... RETURNING in all drivers,
-	// so we use a subquery to find the ID, then update it.
-	row := s.db.QueryRowContext(ctx, `
+	// Build query: if taskType is empty, match any type (same as Queue.Pop).
+	var query string
+	var args []any
+	if taskType == "" {
+		query = `
+		UPDATE tasks SET status = 'claimed', lease_owner = ?, lease_expires_at = ?
+		WHERE id = (
+			SELECT id FROM tasks
+			WHERE status = 'queued'
+			ORDER BY priority ASC, created_at ASC
+			LIMIT 1
+		)
+		RETURNING id, type, status, description, input, output, error, priority,
+			created_at, started_at, completed_at, lease_owner, lease_expires_at, metadata`
+		args = []any{owner, expiry}
+	} else {
+		query = `
 		UPDATE tasks SET status = 'claimed', lease_owner = ?, lease_expires_at = ?
 		WHERE id = (
 			SELECT id FROM tasks
@@ -232,14 +247,15 @@ func (s *Store) Claim(ctx context.Context, taskType TaskType, owner string, leas
 			LIMIT 1
 		)
 		RETURNING id, type, status, description, input, output, error, priority,
-			created_at, started_at, completed_at, lease_owner, lease_expires_at, metadata`,
-		owner, expiry, string(taskType),
-	)
+			created_at, started_at, completed_at, lease_owner, lease_expires_at, metadata`
+		args = []any{owner, expiry, string(taskType)}
+	}
 
+	row := s.db.QueryRowContext(ctx, query, args...)
 	t, err := scanTask(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil // no queued tasks of this type
+			return nil, nil // no queued tasks
 		}
 		return nil, fmt.Errorf("task store: claim: %w", err)
 	}

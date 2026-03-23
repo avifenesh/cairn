@@ -196,6 +196,110 @@ func TestStore_Claim(t *testing.T) {
 	}
 }
 
+func TestStore_ClaimAnyType(t *testing.T) {
+	d := openTestDB(t)
+	s := NewStore(d)
+	ctx := context.Background()
+
+	// Create tasks of different types.
+	cronTask := &Task{
+		ID:         newID(),
+		Type:       "cron",
+		Status:     StatusQueued,
+		Priority:   PriorityNormal,
+		MaxRetries: 2,
+		Input:      json.RawMessage(`{"instruction":"test cron"}`),
+		CreatedAt:  time.Now(),
+	}
+	generalTask := &Task{
+		ID:         newID(),
+		Type:       TypeGeneral,
+		Status:     StatusQueued,
+		Priority:   PriorityHigh,
+		MaxRetries: 2,
+		Input:      json.RawMessage(`{"description":"test general"}`),
+		CreatedAt:  time.Now(),
+	}
+	if err := s.Create(ctx, cronTask); err != nil {
+		t.Fatalf("Create cron: %v", err)
+	}
+	time.Sleep(5 * time.Millisecond)
+	if err := s.Create(ctx, generalTask); err != nil {
+		t.Fatalf("Create general: %v", err)
+	}
+
+	// Claim with empty type should pick the highest-priority task (general = PriorityHigh).
+	claimed, err := s.Claim(ctx, "", "worker-any", 5*time.Minute)
+	if err != nil {
+		t.Fatalf("Claim any type: %v", err)
+	}
+	if claimed == nil {
+		t.Fatal("Claim any type returned nil - empty type must match any queued task")
+	}
+	if claimed.ID != generalTask.ID {
+		t.Errorf("Claim any type: got %q, want %q (higher priority)", claimed.ID, generalTask.ID)
+	}
+
+	// Claim again should pick the cron task.
+	claimed2, err := s.Claim(ctx, "", "worker-any", 5*time.Minute)
+	if err != nil {
+		t.Fatalf("Second claim any type: %v", err)
+	}
+	if claimed2 == nil {
+		t.Fatal("Second claim any type returned nil")
+	}
+	if claimed2.ID != cronTask.ID {
+		t.Errorf("Second claim any type: got %q, want %q", claimed2.ID, cronTask.ID)
+	}
+
+	// Third claim should return nil (no more queued tasks).
+	claimed3, err := s.Claim(ctx, "", "worker-any", 5*time.Minute)
+	if err != nil {
+		t.Fatalf("Third claim any type: %v", err)
+	}
+	if claimed3 != nil {
+		t.Errorf("Third claim any type: expected nil, got task %q", claimed3.ID)
+	}
+}
+
+func TestStore_CreateWithStartedAt(t *testing.T) {
+	d := openTestDB(t)
+	s := NewStore(d)
+	ctx := context.Background()
+
+	now := time.Now()
+	claimedTask := &Task{
+		ID:          newID(),
+		Type:        TypeChat,
+		Status:      StatusRunning,
+		Priority:    PriorityHigh,
+		MaxRetries:  2,
+		Input:       json.RawMessage(`{}`),
+		StartedAt:   now,
+		LeaseOwner:  "http",
+		LeaseExpiry: now.Add(5 * time.Minute),
+		CreatedAt:   now,
+	}
+	if err := s.Create(ctx, claimedTask); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Verify StartedAt was persisted.
+	got, err := s.Get(ctx, claimedTask.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.StartedAt.IsZero() {
+		t.Error("StartedAt not persisted - should be set for pre-claimed tasks")
+	}
+	if got.LeaseOwner != "http" {
+		t.Errorf("LeaseOwner: got %q, want %q", got.LeaseOwner, "http")
+	}
+	if got.Status != StatusRunning {
+		t.Errorf("Status: got %q, want %q", got.Status, StatusRunning)
+	}
+}
+
 func TestStore_Heartbeat(t *testing.T) {
 	d := openTestDB(t)
 	s := NewStore(d)

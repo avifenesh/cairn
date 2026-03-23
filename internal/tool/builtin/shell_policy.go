@@ -45,25 +45,25 @@ func checkDenyPatterns(command string) string {
 
 // readOnlyDenyPatterns block write/mutate operations for agents that deny file writes.
 // These agents can still grep, find, cat, git log, gh pr view, go vet, etc.
+// Patterns match both direct invocation (git commit) and flag-prefixed (git -C /path commit).
 var readOnlyDenyPatterns = []denyPattern{
 	// Git mutations (but NOT git log, git diff, git status, git show, git blame, git worktree list).
-	{regexp.MustCompile(`\bgit\s+checkout\s+-b\b`), "git branch creation denied (read-only agent)"},
-	{regexp.MustCompile(`\bgit\s+commit\b`), "git commit denied (read-only agent)"},
-	{regexp.MustCompile(`\bgit\s+push\b`), "git push denied (read-only agent)"},
-	{regexp.MustCompile(`\bgit\s+merge\b`), "git merge denied (read-only agent)"},
-	{regexp.MustCompile(`\bgit\s+rebase\b`), "git rebase denied (read-only agent)"},
-	{regexp.MustCompile(`\bgit\s+reset\b`), "git reset denied (read-only agent)"},
-	{regexp.MustCompile(`\bgit\s+cherry-pick\b`), "git cherry-pick denied (read-only agent)"},
-	{regexp.MustCompile(`\bgit\s+stash\s+(pop|drop|clear)\b`), "git stash mutation denied (read-only agent)"},
-	{regexp.MustCompile(`\bgit\s+tag\b`), "git tag denied (read-only agent)"},
-	{regexp.MustCompile(`\bgit\s+branch\s+-[dDmM]\b`), "git branch delete/rename denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*checkout\s+-[bB]\b`), "git branch creation denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*checkout\s+--\s`), "git discard changes denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*commit\b`), "git commit denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*push\b`), "git push denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*merge\b`), "git merge denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*rebase\b`), "git rebase denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*reset\b`), "git reset denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*restore\b`), "git restore denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*clean\b`), "git clean denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*cherry-pick\b`), "git cherry-pick denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*stash\s+(pop|drop|clear)\b`), "git stash mutation denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*tag\b`), "git tag denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+(-\w+\s+)*branch\s+-[dDmM]\b`), "git branch delete/rename denied (read-only agent)"},
 	// GitHub CLI mutations (but NOT gh pr view, gh pr list, gh pr diff, gh pr checks).
-	{regexp.MustCompile(`\bgh\s+pr\s+create\b`), "PR creation denied (read-only agent)"},
-	{regexp.MustCompile(`\bgh\s+pr\s+close\b`), "PR close denied (read-only agent)"},
-	{regexp.MustCompile(`\bgh\s+pr\s+comment\b`), "PR comment denied (read-only agent)"},
-	{regexp.MustCompile(`\bgh\s+pr\s+edit\b`), "PR edit denied (read-only agent)"},
-	{regexp.MustCompile(`\bgh\s+pr\s+ready\b`), "PR ready denied (read-only agent)"},
-	{regexp.MustCompile(`\bgh\s+issue\s+(close|create|edit|comment)\b`), "issue mutation denied (read-only agent)"},
+	{regexp.MustCompile(`\bgh\s+pr\s+(create|close|comment|edit|ready|reopen|review)\b`), "PR mutation denied (read-only agent)"},
+	{regexp.MustCompile(`\bgh\s+issue\s+(close|create|edit|comment|reopen)\b`), "issue mutation denied (read-only agent)"},
 	// File writes through shell (but NOT grep, cat, find, etc.).
 	{regexp.MustCompile(`\bsed\s+-i\b`), "in-place file edit denied (read-only agent)"},
 	{regexp.MustCompile(`\btee\s`), "file write via tee denied (read-only agent)"},

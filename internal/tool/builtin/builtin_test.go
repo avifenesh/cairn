@@ -576,7 +576,9 @@ func TestShell_ReadOnlyBlocksSedInPlace(t *testing.T) {
 func TestShell_ReadOnlyAllowsGitLog(t *testing.T) {
 	ctx, dir := readOnlyCtx(t)
 	// Init a git repo so git log works.
-	exec.Command("git", "init", dir).Run()
+	if err := exec.Command("git", "init", dir).Run(); err != nil {
+		t.Skipf("git init failed: %v", err)
+	}
 	args := json.RawMessage(`{"command": "git log --oneline -1 2>/dev/null; echo ok"}`)
 	result, err := shell.Execute(ctx, args)
 	if err != nil {
@@ -589,7 +591,9 @@ func TestShell_ReadOnlyAllowsGitLog(t *testing.T) {
 
 func TestShell_ReadOnlyAllowsGrep(t *testing.T) {
 	ctx, dir := readOnlyCtx(t)
-	os.WriteFile(filepath.Join(dir, "test.txt"), []byte("hello world"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "test.txt"), []byte("hello world"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	args := json.RawMessage(`{"command": "grep hello test.txt"}`)
 	result, err := shell.Execute(ctx, args)
 	if err != nil {

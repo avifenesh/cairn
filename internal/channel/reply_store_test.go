@@ -3,6 +3,7 @@ package channel
 import (
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func TestReplyStore_SaveAndLookup(t *testing.T) {
@@ -58,11 +59,17 @@ func TestReplyStore_TTLExpiry(t *testing.T) {
 		t.Errorf("Lookup before expiry = %q, want %q", got, "expires soon")
 	}
 
-	// Wait for expiry.
-	time.Sleep(80 * time.Millisecond)
-	got = rs.Lookup("telegram", "1", "10")
-	if got != "" {
-		t.Errorf("Lookup after expiry = %q, want empty", got)
+	// Wait for expiry, polling to avoid flakiness on slow/contended runners.
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		got = rs.Lookup("telegram", "1", "10")
+		if got == "" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Lookup after expiry timeout = %q, want empty", got)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -116,5 +123,68 @@ func TestReplyStore_MultipleEntries(t *testing.T) {
 		if got != e.content {
 			t.Errorf("Lookup(%s, %s, %s) = %q, want %q", e.channel, e.chat, e.msg, got, e.content)
 		}
+	}
+}
+
+func TestTruncateRune(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		max    int
+		want   string
+	}{
+		{"short", "hello", 10, "hello"},
+		{"exact", "hello", 5, "hello"},
+		{"truncate", "hello world", 5, "hello..."},
+		{"multibyte ascii", "hello", 3, "hel..."},
+		{"multibyte emoji", "👋🌍🚀", 2, "👋🌍..."},
+		{"mixed", "abc你好世界", 5, "abc你好..."},
+		{"empty", "", 5, ""},
+		{"zero max", "hello", 0, "..."},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := TruncateRune(tt.input, tt.max)
+			if got != tt.want {
+				t.Errorf("TruncateRune(%q, %d) = %q, want %q", tt.input, tt.max, got, tt.want)
+			}
+			// Verify result is valid UTF-8.
+			if !utf8.ValidString(got) {
+				t.Errorf("TruncateRune(%q, %d) produced invalid UTF-8: %q", tt.input, tt.max, got)
+			}
+		})
+	}
+}
+
+func TestReplyStore_OpportunisticExpiry(t *testing.T) {
+	rs := NewReplyStore(50 * time.Millisecond)
+	defer rs.Close()
+
+	rs.Save("telegram", "1", "10", "expires soon")
+	got := rs.Lookup("telegram", "1", "10")
+	if got != "expires soon" {
+		t.Fatalf("Lookup before expiry = %q, want %q", got, "expires soon")
+	}
+
+	// Wait for expiry, then verify Lookup cleans up.
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		got = rs.Lookup("telegram", "1", "10")
+		if got == "" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Lookup after expiry timeout = %q, want empty", got)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Verify the entry was actually deleted from the map (not just skipped).
+	rs.mu.RLock()
+	_, exists := rs.store[key("telegram", "1", "10")]
+	rs.mu.RUnlock()
+	if exists {
+		t.Error("expired entry still exists in store after Lookup")
 	}
 }

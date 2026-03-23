@@ -165,7 +165,7 @@ var tgRawChunkLimit = (tgMaxMessageChars - tgChunkHeaderMaxLen) * 100 / 115
 // tgChunkHeaderMaxLen so that the per-part header fits within the total limit.
 // This is used for plain-text sends where the text is already in final form.
 // Returns the sent message IDs for reply context tracking.
-func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, text string, parseMode string, replyMarkup *telego.InlineKeyboardMarkup) (int, []int, error) {
+func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, text string, parseMode string, replyMarkup *telego.InlineKeyboardMarkup) (int, []int, []string, error) {
 	chunks := splitMessage(text, tgMaxMessageChars)
 
 	if len(chunks) == 1 {
@@ -178,17 +178,17 @@ func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, text str
 		}
 		sent, err := t.bot.SendMessage(ctx, params)
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, nil, err
 		}
-		return 1, []int{sent.MessageID}, nil
+		return 1, []int{sent.MessageID}, []string{chunks[0]}, nil
 	}
 
 	// Multiple chunks: reduce limit to account for per-part headers, re-split.
 	chunkLimit := tgMaxMessageChars - tgChunkHeaderMaxLen
 	chunks = splitMessage(text, chunkLimit)
 
-	n, ids, err := t.sendChunkedMessages(ctx, chatID, chunks, parseMode, replyMarkup)
-	return n, ids, err
+	n, ids, texts, err := t.sendChunkedMessages(ctx, chatID, chunks, parseMode, replyMarkup)
+	return n, ids, texts, err
 }
 
 // sendChunksMarkdownV2 splits raw (unescaped) text into chunks, escapes each chunk
@@ -201,7 +201,7 @@ func (t *TelegramAdapter) sendChunks(ctx context.Context, chatID int64, text str
 //
 // Returns (true, messageIDs, nil) if at least one chunk was delivered successfully, so callers
 // can avoid duplicate plain-text retries after partial sends.
-func (t *TelegramAdapter) sendChunksMarkdownV2(ctx context.Context, chatID int64, rawText string, replyMarkup *telego.InlineKeyboardMarkup) (sent bool, msgIDs []int, err error) {
+func (t *TelegramAdapter) sendChunksMarkdownV2(ctx context.Context, chatID int64, rawText string, replyMarkup *telego.InlineKeyboardMarkup) (sent bool, msgIDs []int, chunkTexts []string, err error) {
 	// Estimate chunk limit for raw text that won't exceed Telegram limit after escaping.
 	// Use a per-rune limit that accounts for escaping inflation and header overhead.
 	rawLimit := tgRawChunkLimit
@@ -218,9 +218,9 @@ func (t *TelegramAdapter) sendChunksMarkdownV2(ctx context.Context, chatID int64
 			}
 			sent, err := t.bot.SendMessage(ctx, params)
 			if err != nil {
-				return false, nil, err
+				return false, nil, nil, err
 			}
-			return true, []int{sent.MessageID}, nil
+			return true, []int{sent.MessageID}, []string{rawText}, nil
 		}
 		// Escaped text too large — fall through to chunking path.
 	}
@@ -237,25 +237,27 @@ func (t *TelegramAdapter) sendChunksMarkdownV2(ctx context.Context, chatID int64
 			}
 			sent, err := t.bot.SendMessage(ctx, params)
 			if err != nil {
-				return false, nil, err
+				return false, nil, nil, err
 			}
-			return true, []int{sent.MessageID}, nil
+			return true, []int{sent.MessageID}, []string{chunks[0]}, nil
 		}
 		// Even a single chunk escaped is too large — re-split with tighter limit.
 		retryLimit := tgRawChunkLimit - tgChunkHeaderMaxLen
 		chunks = splitMessage(rawText, retryLimit)
 	}
 
-	sentCount, ids, err := t.sendChunkedMessages(ctx, chatID, chunks, telego.ModeMarkdownV2, replyMarkup)
-	return sentCount > 0, ids, err
+	sentCount, ids, texts, err := t.sendChunkedMessages(ctx, chatID, chunks, telego.ModeMarkdownV2, replyMarkup)
+	return sentCount > 0, ids, texts, err
 }
 
 // sendChunkedMessages sends pre-split text chunks with per-part headers and rate-limit delays.
 // Each chunk is escaped for MarkdownV2 if parseMode is set; otherwise sent as-is (plain text).
-// Returns the number of chunks successfully delivered and their platform message IDs.
-func (t *TelegramAdapter) sendChunkedMessages(ctx context.Context, chatID int64, chunks []string, parseMode string, replyMarkup *telego.InlineKeyboardMarkup) (int, []int, error) {
+// Returns the number of chunks successfully delivered, their platform message IDs,
+// and the text content of each delivered chunk (for reply context storage).
+func (t *TelegramAdapter) sendChunkedMessages(ctx context.Context, chatID int64, chunks []string, parseMode string, replyMarkup *telego.InlineKeyboardMarkup) (int, []int, []string, error) {
 	sent := 0
 	var msgIDs []int
+	var chunkTexts []string
 	for i, chunk := range chunks {
 		header := fmt.Sprintf("─── Part %d/%d ───\n", i+1, len(chunks))
 
@@ -293,9 +295,10 @@ func (t *TelegramAdapter) sendChunkedMessages(ctx context.Context, chatID int64,
 			t.logger.Error("telegram: chunk send failed",
 				"chunk", i+1, "total", len(chunks),
 				"chars", len([]rune(full)), "error", err)
-			return sent, msgIDs, err
+			return sent, msgIDs, chunkTexts, err
 		}
 		msgIDs = append(msgIDs, sentMsg.MessageID)
+		chunkTexts = append(chunkTexts, full)
 		sent++
 
 		// Brief delay between chunks to avoid rate limiting.
@@ -305,12 +308,12 @@ func (t *TelegramAdapter) sendChunkedMessages(ctx context.Context, chatID int64,
 			case <-timer.C:
 			case <-ctx.Done():
 				timer.Stop()
-				return sent, msgIDs, ctx.Err()
+				return sent, msgIDs, chunkTexts, ctx.Err()
 			}
 		}
 	}
 
-	return sent, msgIDs, nil
+	return sent, msgIDs, chunkTexts, nil
 }
 
 func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *OutgoingMessage) error {
@@ -350,51 +353,55 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 	}
 
 	// Try MarkdownV2 first with per-chunk escaping to avoid mid-entity splits.
-	sent, ids, err := t.sendChunksMarkdownV2(ctx, chatID, msg.Text, replyMarkup)
+	sent, ids, texts, err := t.sendChunksMarkdownV2(ctx, chatID, msg.Text, replyMarkup)
 	if err != nil {
 		// Only fall back to plain text if nothing was delivered yet.
 		// If any chunk was sent, retrying from scratch would duplicate content in the chat.
 		if sent {
 			t.logger.Warn("telegram: markdown chunked send failed after partial delivery, skipping plain-text fallback",
 				"error", err)
-			t.saveReplyIDs(chatID, ids, msg.Text)
+			t.saveReplyIDs(chatID, ids, texts)
 			return err
 		}
 		// No chunks were delivered — safe to retry as plain text.
 		t.logger.Warn("telegram: markdown send failed, retrying plain", "error", err)
 		plain := stripMarkdown(msg.Text)
-		_, plainIDs, err2 := t.sendChunks(ctx, chatID, plain, "", replyMarkup)
+		_, plainIDs, plainTexts, err2 := t.sendChunks(ctx, chatID, plain, "", replyMarkup)
 		if err2 != nil {
 			t.logger.Error("telegram: send failed", "error", err2)
 			return err2
 		}
 		ids = plainIDs
 		// Save the actual delivered text (plain) so reply context matches what users saw.
-		t.saveReplyIDs(chatID, ids, plain)
+		t.saveReplyIDs(chatID, ids, plainTexts)
 		return nil
 	}
-	t.saveReplyIDs(chatID, ids, msg.Text)
+	t.saveReplyIDs(chatID, ids, texts)
 	return nil
 }
 
 // saveReplyIDs saves outgoing message IDs to the ReplyStore so users can
-// reply with context. Only saves if a ReplyStore is configured.
-func (t *TelegramAdapter) saveReplyIDs(chatID int64, msgIDs []int, text string) {
+// reply with context. Each text[i] corresponds to msgIDs[i], enabling
+// per-chunk reply context for chunked messages. Only saves if a ReplyStore
+// is configured. Uses rune-based truncation to preserve valid UTF-8.
+func (t *TelegramAdapter) saveReplyIDs(chatID int64, msgIDs []int, texts []string) {
 	if t.replyStore == nil || len(msgIDs) == 0 {
 		return
 	}
 	chatIDStr := fmt.Sprintf("%d", chatID)
-	// Truncate long text to avoid storing huge payloads.
-	if len(text) > 2000 {
-		text = text[:2000] + "..."
-	}
-	for _, id := range msgIDs {
-		t.replyStore.Save("telegram", chatIDStr, fmt.Sprintf("%d", id), text)
+	for i, id := range msgIDs {
+		text := ""
+		if i < len(texts) {
+			text = TruncateRune(texts[i], 2000)
+		}
+		if text != "" {
+			t.replyStore.Save("telegram", chatIDStr, fmt.Sprintf("%d", id), text)
+		}
 	}
 }
 
 func (t *TelegramAdapter) sendText(ctx context.Context, chatID int64, text string) {
-	if _, _, err := t.sendChunks(ctx, chatID, text, "", nil); err != nil {
+	if _, _, _, err := t.sendChunks(ctx, chatID, text, "", nil); err != nil {
 		t.logger.Error("telegram: send text failed", "error", err)
 	}
 }

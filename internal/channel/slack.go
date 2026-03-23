@@ -230,11 +230,7 @@ func (s *SlackAdapter) sendResponse(ctx context.Context, channelID string, msg *
 	}
 	// Save timestamp for reply context tracking.
 	if s.replyStore != nil && ts != "" {
-		saveText := msg.Text
-		if len(saveText) > 2000 {
-			saveText = saveText[:2000] + "..."
-		}
-		s.replyStore.Save("slack", channelID, ts, saveText)
+		s.replyStore.Save("slack", channelID, ts, TruncateRune(msg.Text, 2000))
 	}
 	return nil
 }

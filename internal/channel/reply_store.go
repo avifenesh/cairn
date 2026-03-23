@@ -5,6 +5,15 @@ import (
 	"time"
 )
 
+// TruncateRune limits text to maxRunes runes, appending "..." if truncated.
+func TruncateRune(text string, maxRunes int) string {
+	runes := []rune(text)
+	if len(runes) <= maxRunes {
+		return text
+	}
+	return string(runes[:maxRunes]) + "..."
+}
+
 // ReplyStore maps outgoing platform message IDs to their content text,
 // so when a user replies to a bot message the original context can be
 // looked up and injected. Entries expire after a configurable TTL.
@@ -31,7 +40,7 @@ func NewReplyStore(ttl time.Duration) *ReplyStore {
 	rs := &ReplyStore{
 		store:   make(map[string]replyEntry),
 		ttl:     ttl,
-		cleanup: 1 * time.Hour,
+		cleanup: min(1*time.Hour, ttl/2),
 		done:    make(chan struct{}),
 	}
 	go rs.cleanLoop()
@@ -57,12 +66,21 @@ func (rs *ReplyStore) Save(channel, chatID, messageID, content string) {
 }
 
 // Lookup retrieves the original message content for a reply-to reference.
-// Returns empty string if not found or expired.
+// Returns empty string if not found or expired. Expired entries are cleaned
+// opportunistically on lookup to prevent accumulation between cleanup cycles.
 func (rs *ReplyStore) Lookup(channel, chatID, messageID string) string {
+	k := key(channel, chatID, messageID)
 	rs.mu.RLock()
-	entry, ok := rs.store[key(channel, chatID, messageID)]
+	entry, ok := rs.store[k]
 	rs.mu.RUnlock()
-	if !ok || time.Since(entry.createdAt) > rs.ttl {
+	if !ok {
+		return ""
+	}
+	if time.Since(entry.createdAt) > rs.ttl {
+		// Opportunistically delete expired entry.
+		rs.mu.Lock()
+		delete(rs.store, k)
+		rs.mu.Unlock()
 		return ""
 	}
 	return entry.content

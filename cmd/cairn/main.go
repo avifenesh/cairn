@@ -939,9 +939,7 @@ func runServe(logger *slog.Logger) {
 			if msg.ReplyToMessageID != "" {
 				replyCtx := replyStore.Lookup(msg.ChannelID, msg.ChatID, msg.ReplyToMessageID)
 				if replyCtx != "" {
-					if len(replyCtx) > 2000 {
-						replyCtx = replyCtx[:2000] + "..."
-					}
+					replyCtx = cairnchannel.TruncateRune(replyCtx, 2000)
 					text = "[Replying to previous message:\n" + replyCtx + "]\n\n" + text
 				}
 			}

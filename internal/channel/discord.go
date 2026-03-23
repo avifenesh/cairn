@@ -207,21 +207,19 @@ func (d *DiscordAdapter) sendResponse(channelID string, msg *OutgoingMessage) er
 			d.logger.Error("discord: send failed", "error", err)
 			return err
 		}
-		// Save message ID for reply context.
-		d.saveReplyID(channelID, sentMsg.ID, msg.Text)
+		// Save this chunk's content (not full text) for accurate reply context.
+		d.saveReplyID(channelID, sentMsg.ID, chunk)
 	}
 	return nil
 }
 
 // saveReplyID saves an outgoing message ID to the ReplyStore.
+// Uses rune-based truncation to preserve valid UTF-8.
 func (d *DiscordAdapter) saveReplyID(channelID, messageID, text string) {
 	if d.replyStore == nil || messageID == "" {
 		return
 	}
-	if len(text) > 2000 {
-		text = text[:2000] + "..."
-	}
-	d.replyStore.Save("discord", channelID, messageID, text)
+	d.replyStore.Save("discord", channelID, messageID, TruncateRune(text, 2000))
 }
 
 func (d *DiscordAdapter) sendText(channelID, text string) {

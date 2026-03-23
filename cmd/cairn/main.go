@@ -223,11 +223,13 @@ func runServe(logger *slog.Logger) {
 	if err := agentsFile.Load(); err != nil {
 		logger.Warn("agents file load failed", "error", err)
 	}
+	agentsFile.LoadPendingPatch()
 
 	curatedMemory := memory.NewMarkdownFile(filepath.Join(cairnDir, "MEMORY.md"))
 	if err := curatedMemory.Load(); err != nil {
 		logger.Warn("curated memory load failed", "error", err)
 	}
+	curatedMemory.LoadPendingPatch()
 
 	// Initialize agent type service.
 	agentTypeSvc := agenttype.NewService(cfg.AgentDirs, logger)
@@ -521,6 +523,12 @@ func runServe(logger *slog.Logger) {
 	// Create cron, config, rules, and activity adapters (needed by both server and agent loop).
 	cronAdapt := &cronAdapter{store: cronStore}
 	cfgAdapt := &configAdapter{cfg: cfg}
+	identityAdapt := &identityAdapter{
+		soul:          soul,
+		userProfile:   userProfile,
+		agentsFile:    agentsFile,
+		curatedMemory: curatedMemory,
+	}
 	// Rules notifier wrapper — the inner notifier is set once channels are configured.
 	rulesNotify := &rulesNotifier{}
 	var rulesAdapt tool.RulesService
@@ -571,6 +579,7 @@ func runServe(logger *slog.Logger) {
 			ToolCrons:      cronAdapt,
 			ToolRules:      rulesAdapt,
 			ToolConfig:     cfgAdapt,
+			ToolIdentity:  identityAdapt,
 			AgentsFile:     agentsFile,
 			AgentTypes:     agentTypeSvc,
 			EnvContext:     envCtx,
@@ -651,6 +660,7 @@ func runServe(logger *slog.Logger) {
 			ToolCrons:       cronAdapt,
 			ToolRules:       rulesAdapt,
 			ToolConfig:      cfgAdapt,
+			ToolIdentity:   identityAdapt,
 			ContextBuilder:  ctxBuilder,
 			Plugins:         pluginMgr,
 			CronStore:       cronStore,
@@ -736,6 +746,7 @@ func runServe(logger *slog.Logger) {
 		ToolCrons:       cronAdapt,
 		ToolRules:       rulesAdapt,
 		ToolConfig:      cfgAdapt,
+		ToolIdentity:   identityAdapt,
 		SubagentRunner:  subagentRunner,
 		Voice:           voiceSvc,
 		CronStore:       cronStore,
@@ -947,6 +958,7 @@ func runServe(logger *slog.Logger) {
 				ToolCrons:      cronAdapt,
 				ToolRules:      rulesAdapt,
 				ToolConfig:     cfgAdapt,
+				ToolIdentity:  identityAdapt,
 				Config:         &agent.AgentConfig{Model: cfg.LLMModel, MaxRounds: cfg.MaxRoundsForMode(string(channelMode))},
 				CompactionConfig: agent.CompactionConfig{
 					TriggerTokens:   cfg.CompactionTriggerTokens,

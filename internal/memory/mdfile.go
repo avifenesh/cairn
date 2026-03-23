@@ -2,11 +2,24 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
+
+// PendingPatch represents a proposed change to a markdown file awaiting human review.
+type PendingPatch struct {
+	ID        string    `json:"id"`
+	Content   string    `json:"content"`   // the content to append
+	Source    string    `json:"source"`    // who proposed it (e.g. "orchestrator", "reflection")
+	CreatedAt time.Time `json:"createdAt"`
+	Preview   string    `json:"preview"`   // full file content after applying the patch
+}
 
 // MarkdownFile loads, watches, and atomically saves a single markdown file.
 // Thread-safe for concurrent reads. Used as the building block for
@@ -17,6 +30,7 @@ type MarkdownFile struct {
 	filePath string
 	modTime  time.Time
 	onChange func(content string)
+	pending  *PendingPatch
 }
 
 // NewMarkdownFile creates a MarkdownFile bound to the given path.
@@ -165,4 +179,128 @@ func (m *MarkdownFile) checkReload() {
 	if fn != nil {
 		fn(content)
 	}
+}
+
+// ProposePatch creates a pending patch for human review.
+// Only one patch can be pending at a time; new proposals replace old ones.
+// The patch is persisted to .<basename>_patch.json alongside the file.
+func (m *MarkdownFile) ProposePatch(content, source string) *PendingPatch {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	sep := "\n"
+	if m.content != "" && !strings.HasSuffix(m.content, "\n") {
+		sep = "\n\n"
+	}
+	preview := m.content + sep + content
+
+	patch := &PendingPatch{
+		ID:        fmt.Sprintf("mp_%d", time.Now().UnixMilli()),
+		Content:   content,
+		Source:    source,
+		CreatedAt: time.Now(),
+		Preview:   preview,
+	}
+	m.pending = patch
+	m.persistPatch()
+	slog.Info("mdfile: patch proposed", "file", filepath.Base(m.filePath), "id", patch.ID, "source", source)
+	return patch
+}
+
+// PendingPatch returns the current pending patch, or nil if none.
+func (m *MarkdownFile) PendingPatch() *PendingPatch {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.pending
+}
+
+// ApprovePatch applies the pending patch and clears it.
+func (m *MarkdownFile) ApprovePatch(id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.pending == nil {
+		return fmt.Errorf("no pending patch")
+	}
+	if m.pending.ID != id {
+		return fmt.Errorf("no pending patch with id %q", id)
+	}
+
+	// Rebase preview onto current content (file may have changed since proposal).
+	sep := "\n"
+	if m.content != "" && !strings.HasSuffix(m.content, "\n") {
+		sep = "\n\n"
+	}
+	newContent := m.content + sep + m.pending.Content
+
+	if err := os.MkdirAll(filepath.Dir(m.filePath), 0755); err != nil {
+		return fmt.Errorf("create dir: %w", err)
+	}
+	if err := os.WriteFile(m.filePath, []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("write patch: %w", err)
+	}
+
+	m.content = newContent
+	if info, err := os.Stat(m.filePath); err == nil {
+		m.modTime = info.ModTime()
+	}
+	m.pending = nil
+	m.clearPatchFile()
+	slog.Info("mdfile: patch approved", "file", filepath.Base(m.filePath), "id", id)
+	return nil
+}
+
+// DenyPatch discards the pending patch.
+func (m *MarkdownFile) DenyPatch(id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.pending == nil {
+		return fmt.Errorf("no pending patch")
+	}
+	if m.pending.ID != id {
+		return fmt.Errorf("no pending patch with id %q", id)
+	}
+
+	m.pending = nil
+	m.clearPatchFile()
+	slog.Info("mdfile: patch denied", "file", filepath.Base(m.filePath), "id", id)
+	return nil
+}
+
+// patchFilePath returns the path to the patch persistence file.
+func (m *MarkdownFile) patchFilePath() string {
+	base := strings.TrimSuffix(filepath.Base(m.filePath), filepath.Ext(m.filePath))
+	return filepath.Join(filepath.Dir(m.filePath), "."+base+"_patch.json")
+}
+
+func (m *MarkdownFile) persistPatch() {
+	if m.pending == nil {
+		m.clearPatchFile()
+		return
+	}
+	data, err := json.Marshal(m.pending)
+	if err != nil {
+		return
+	}
+	os.WriteFile(m.patchFilePath(), data, 0644)
+}
+
+func (m *MarkdownFile) clearPatchFile() {
+	os.Remove(m.patchFilePath())
+}
+
+// LoadPendingPatch restores a pending patch from disk (called once at startup).
+func (m *MarkdownFile) LoadPendingPatch() {
+	data, err := os.ReadFile(m.patchFilePath())
+	if err != nil {
+		return
+	}
+	var patch PendingPatch
+	if err := json.Unmarshal(data, &patch); err != nil {
+		return
+	}
+	m.mu.Lock()
+	m.pending = &patch
+	m.mu.Unlock()
 }

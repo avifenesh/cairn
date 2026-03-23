@@ -52,15 +52,15 @@ func TestVisionToolCount(t *testing.T) {
 	SetZaiConfig("test-key", "https://api.z.ai/api/mcp")
 	SetVisionConfig("", "")
 	tools := All()
-	if len(tools) != 43 {
-		t.Errorf("expected 43 tools (zai without vision), got %d", len(tools))
+	if len(tools) != 44 {
+		t.Errorf("expected 44 tools (zai without vision), got %d", len(tools))
 	}
 
 	// Z.ai enabled, vision enabled: 43 tools (30 base + 5 Z.ai HTTP + 8 vision).
 	SetVisionConfig("test-key", "/usr/bin/npx")
 	tools = All()
-	if len(tools) != 51 {
-		t.Errorf("expected 51 tools (zai with vision), got %d", len(tools))
+	if len(tools) != 52 {
+		t.Errorf("expected 52 tools (zai with vision), got %d", len(tools))
 	}
 }
 

@@ -84,6 +84,7 @@ type InvocationContext struct {
 	ToolCrons    tool.CronService
 	ToolRules    tool.RulesService
 	ToolConfig   tool.ConfigService
+	ToolIdentity tool.IdentityService
 }
 
 // SteeringMessage represents a user intervention injected into an active session.

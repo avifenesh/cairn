@@ -346,6 +346,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			Crons:     invCtx.ToolCrons,
 			Rules:     invCtx.ToolRules,
 			Config:    invCtx.ToolConfig,
+			Identity:  invCtx.ToolIdentity,
 			Subagents: invCtx.Subagents,
 			ActivateSkill: func(name, content string, allowedTools []string) {
 				if invCtx.Session != nil {

@@ -207,6 +207,17 @@ type ConfigService interface {
 	GetConfig(ctx context.Context) (map[string]any, error)
 }
 
+// IdentityService provides agent access to the 4-tier identity files.
+// Soul and Agents changes require human approval (patch system).
+// User and Memory changes are direct (low risk, user-reviewable).
+type IdentityService interface {
+	// UpdateIdentity proposes or applies a change to an identity file.
+	// target: "soul", "user", "agents", "memory"
+	// For soul/agents/memory: creates a pending patch for human approval.
+	// For user: appends directly.
+	UpdateIdentity(ctx context.Context, target, content, source string) (string, error)
+}
+
 // SkillService provides access to the skill system.
 type SkillService interface {
 	Get(name string) *SkillItem
@@ -269,8 +280,9 @@ type ToolContext struct {
 	Notifier NotifyService
 	Crons    CronService
 
-	Config ConfigService
-	Rules  RulesService
+	Config   ConfigService
+	Rules    RulesService
+	Identity IdentityService
 
 	// Subagents spawns child agents for delegated work. Nil = spawning not supported.
 	Subagents SubagentService

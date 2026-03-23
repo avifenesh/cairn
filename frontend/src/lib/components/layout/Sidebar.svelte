@@ -32,7 +32,7 @@
 		{ href: '/agents', label: 'Agents', icon: Bot, key: '7' },
 		{ href: '/skills', label: 'Skills', icon: Sparkles, key: '8' },
 		{ href: '/rules', label: 'Rules', icon: Zap, key: 'r' },
-		{ href: '/soul', label: 'Soul', icon: Heart, key: '9' },
+		{ href: '/soul', label: 'Identity', icon: Heart, key: '9' },
 	];
 
 	const bottomItems = [

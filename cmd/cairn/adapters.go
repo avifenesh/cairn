@@ -953,3 +953,57 @@ func handlePatchCommand(_ context.Context, args string, soul *memory.Soul) (*cai
 		return &cairnchannel.OutgoingMessage{Text: "Usage:\n`/patch` — show pending\n`/patch approve` — approve\n`/patch deny` — deny"}, nil
 	}
 }
+
+// --- Identity adapter ---
+
+// identityAdapter implements tool.IdentityService by dispatching to the 4 markdown files.
+type identityAdapter struct {
+	soul          *memory.Soul
+	userProfile   *memory.UserProfile
+	agentsFile    *memory.AgentsFile
+	curatedMemory *memory.MarkdownFile
+}
+
+func (a *identityAdapter) UpdateIdentity(_ context.Context, target, content, source string) (string, error) {
+	switch target {
+	case "soul":
+		if a.soul == nil {
+			return "", fmt.Errorf("soul not configured")
+		}
+		patch := a.soul.ProposePatch(content, source)
+		return fmt.Sprintf("Soul patch proposed (id: %s). Awaiting human approval.", patch.ID), nil
+
+	case "user":
+		if a.userProfile == nil {
+			return "", fmt.Errorf("user profile not configured")
+		}
+		current := a.userProfile.Content()
+		sep := "\n"
+		if current == "" {
+			sep = ""
+		} else if !strings.HasSuffix(current, "\n") {
+			sep = "\n\n"
+		}
+		if err := a.userProfile.Save(current + sep + content); err != nil {
+			return "", fmt.Errorf("save user profile: %w", err)
+		}
+		return "User profile updated directly.", nil
+
+	case "agents":
+		if a.agentsFile == nil {
+			return "", fmt.Errorf("agents file not configured")
+		}
+		patch := a.agentsFile.ProposePatch(content, source)
+		return fmt.Sprintf("Agents rule patch proposed (id: %s). Awaiting human approval.", patch.ID), nil
+
+	case "memory":
+		if a.curatedMemory == nil {
+			return "", fmt.Errorf("memory file not configured")
+		}
+		patch := a.curatedMemory.ProposePatch(content, source)
+		return fmt.Sprintf("Memory entry proposed (id: %s). Awaiting human approval.", patch.ID), nil
+
+	default:
+		return "", fmt.Errorf("unknown target %q", target)
+	}
+}

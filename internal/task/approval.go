@@ -46,7 +46,9 @@ func NewApprovalStore(db *sql.DB) *ApprovalStore {
 func (s *ApprovalStore) Create(ctx context.Context, a *Approval) error {
 	if a.ID == "" {
 		b := make([]byte, 12)
-		rand.Read(b)
+		if _, err := rand.Read(b); err != nil {
+			return fmt.Errorf("generate approval ID: %w", err)
+		}
 		a.ID = fmt.Sprintf("apr_%x", b)
 	}
 	if a.Status == "" {

@@ -388,8 +388,8 @@ func TestSearchFiles(t *testing.T) {
 
 func TestAll(t *testing.T) {
 	tools := All()
-	if len(tools) != 40 {
-		t.Fatalf("expected 40 built-in tools, got %d", len(tools))
+	if len(tools) != 41 {
+		t.Fatalf("expected 41 built-in tools, got %d", len(tools))
 	}
 
 	names := make(map[string]bool)

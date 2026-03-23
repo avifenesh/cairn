@@ -64,6 +64,7 @@ type Server struct {
 	toolCrons    tool.CronService
 	toolRules    tool.RulesService
 	toolConfig   tool.ConfigService
+	toolIdentity tool.IdentityService
 
 	// Subagent runner (optional: enables cairn.spawnSubagent tool).
 	subagentRunner tool.SubagentService
@@ -161,6 +162,7 @@ type ServerConfig struct {
 	ToolCrons    tool.CronService
 	ToolRules    tool.RulesService
 	ToolConfig   tool.ConfigService
+	ToolIdentity tool.IdentityService
 
 	// Subagent runner (optional: enables cairn.spawnSubagent tool).
 	SubagentRunner tool.SubagentService
@@ -248,6 +250,7 @@ func New(cfg ServerConfig) *Server {
 		toolCrons:       cfg.ToolCrons,
 		toolRules:       cfg.ToolRules,
 		toolConfig:      cfg.ToolConfig,
+		toolIdentity:    cfg.ToolIdentity,
 		subagentRunner:  cfg.SubagentRunner,
 		voice:           cfg.Voice,
 		cronStore:       cfg.CronStore,

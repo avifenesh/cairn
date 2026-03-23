@@ -53,12 +53,17 @@ func (e *Engine) Submit(ctx context.Context, req *SubmitRequest) (*Task, error) 
 		maxRetries = 2
 	}
 
+	status := StatusQueued
+	if req.ClaimOwner != "" {
+		status = StatusRunning
+	}
+
 	t := &Task{
 		ID:          newID(),
 		ParentID:    req.ParentID,
 		SessionID:   req.SessionID,
 		Type:        req.Type,
-		Status:      StatusQueued,
+		Status:      status,
 		Priority:    req.Priority,
 		Mode:        req.Mode,
 		Input:       req.Input,
@@ -68,11 +73,19 @@ func (e *Engine) Submit(ctx context.Context, req *SubmitRequest) (*Task, error) 
 		UpdatedAt:   now,
 	}
 
+	if req.ClaimOwner != "" {
+		t.LeaseOwner = req.ClaimOwner
+		t.LeaseExpiry = now.Add(defaultLeaseDuration)
+	}
+
 	if err := e.store.Create(ctx, t); err != nil {
 		return nil, fmt.Errorf("task engine: submit: %w", err)
 	}
 
-	e.queue.Push(t)
+	// Only queue unclaimed tasks — claimed tasks are already running.
+	if req.ClaimOwner == "" {
+		e.queue.Push(t)
+	}
 
 	eventbus.Publish(e.bus, eventbus.TaskCreated{
 		EventMeta:   eventbus.NewMeta("task-engine"),

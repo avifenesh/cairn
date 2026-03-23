@@ -150,6 +150,9 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 		"mode":      string(mode),
 	})
 
+	// Submit task pre-claimed so the agent loop won't also pick it up.
+	// This combines submit + mark-running into a single DB write,
+	// avoiding a second blocking DB call before the 202 response.
 	t, err := s.tasks.Submit(ctx, &task.SubmitRequest{
 		Type:        task.TypeChat,
 		Priority:    task.PriorityNormal,
@@ -157,6 +160,7 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 		SessionID:   session.ID,
 		Input:       taskInput,
 		Description: truncate(req.Message, 100),
+		ClaimOwner:  "http",
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, fmt.Sprintf("task submit: %v", err))
@@ -172,16 +176,6 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 			Parts:     []agent.Part{agent.TextPart{Text: req.Message}},
 		}
 		s.sessions.AppendEvent(ctx, session.ID, userEvent)
-	}
-
-	// Mark running immediately so the agent loop doesn't claim it.
-	// Chat tasks are handled by the HTTP handler goroutine, not the loop.
-	// If this fails, abort — running the agent without the DB update would
-	// let the loop also claim and execute the same task.
-	if err := s.tasks.MarkRunning(ctx, t.ID); err != nil {
-		s.logger.Error("mark running failed, aborting chat task", "task", t.ID, "error", err)
-		writeError(w, http.StatusInternalServerError, fmt.Sprintf("mark running: %v", err))
-		return
 	}
 
 	// Run the agent asynchronously.

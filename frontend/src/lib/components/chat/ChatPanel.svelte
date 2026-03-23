@@ -242,13 +242,18 @@
 					</div>
 					<div class="min-w-0 max-w-[85%] sm:max-w-[80%] rounded-lg bg-[var(--bg-1)] border border-border-subtle px-4 py-3">
 						{#if sm.toolCalls.length > 0}
+							{@const nonSubagent = sm.toolCalls.filter(tc => tc.toolName !== 'cairn.spawnSubagent')}
+							{@const maxVisible = 20}
+							{@const visible = nonSubagent.length > maxVisible ? nonSubagent.slice(-maxVisible) : nonSubagent}
+							{@const hidden = nonSubagent.length - visible.length}
 							<div class="mb-2 flex flex-wrap gap-1">
-								{#each sm.toolCalls as tc}
-									{#if tc.toolName === 'cairn.spawnSubagent'}
-										<!-- Subagent tool calls rendered as cards below -->
-									{:else}
-										<ToolCallChip toolName={tc.toolName} phase={tc.phase} args={tc.args} result={tc.result} error={tc.error} durationMs={tc.durationMs} isExternal={tc.isExternal} />
-									{/if}
+								{#if hidden > 0}
+									<span class="inline-flex items-center h-5 px-1.5 text-[10px] font-mono rounded-md border border-[var(--border-subtle)] text-[var(--text-tertiary)]">
+										+{hidden} tools
+									</span>
+								{/if}
+								{#each visible as tc}
+									<ToolCallChip toolName={tc.toolName} phase={tc.phase} args={tc.args} result={tc.result} error={tc.error} durationMs={tc.durationMs} isExternal={tc.isExternal} />
 								{/each}
 							</div>
 						{/if}

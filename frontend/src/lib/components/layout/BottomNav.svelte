@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { taskStore } from '$lib/stores/tasks.svelte';
-	import { Brain, Bot, Sparkles, Heart, Settings, LayoutDashboard, Inbox, MessageSquare, MoreHorizontal, Eye, MonitorPlay } from '@lucide/svelte';
+	import { Brain, Bot, Sparkles, Heart, Settings, LayoutDashboard, Inbox, MessageSquare, MoreHorizontal, Eye, MonitorPlay, Zap } from '@lucide/svelte';
 
 	let moreOpen = $state(false);
 
@@ -17,6 +17,7 @@
 		{ href: '/memory', label: 'Memory', icon: Brain },
 		{ href: '/agents', label: 'Agents', icon: Bot },
 		{ href: '/skills', label: 'Skills', icon: Sparkles },
+		{ href: '/rules', label: 'Rules', icon: Zap },
 		{ href: '/soul', label: 'Identity', icon: Heart },
 		{ href: '/settings', label: 'Settings', icon: Settings },
 	];

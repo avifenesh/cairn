@@ -128,10 +128,10 @@ func TestReplyStore_MultipleEntries(t *testing.T) {
 
 func TestTruncateRune(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  string
-		max    int
-		want   string
+		name  string
+		input string
+		max   int
+		want  string
 	}{
 		{"short", "hello", 10, "hello"},
 		{"exact", "hello", 5, "hello"},

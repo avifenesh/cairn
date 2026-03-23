@@ -50,7 +50,7 @@ internal/
   eventbus/                   Typed pub/sub (generics), sync + async + stream delivery
   llm/                        Provider interface, GLM + OpenAI providers, SSE parser, retry, budget
   tool/                       Tool interface, Define[P] generics, registry, permission engine
-  tool/builtin/               40+ built-in tools (56 with all integrations): file ops, shell, git, memory, feed, tasks, cron, rules, etc.
+  tool/builtin/               41+ built-in tools (57 with all integrations): file ops, shell, git, memory, feed, tasks, cron, rules, etc.
   task/                       Task store, priority queue, worktree manager, lease claiming, approvals
   memory/                     Memory store, RAG search + MMR, embedder, Soul loader, extraction
   agent/                      Always-on loop, orchestrator, ReAct agents, subagents, compaction, sessions
@@ -119,7 +119,7 @@ Cloudflare (DNS + proxy) → Caddy (:443, TLS) → Cairn (:8788)
 - Binary: `/home/ubuntu/cairn/cairn-prod`
 - Env: `/home/ubuntu/.cairn/.env.cairn`
 - DB: `/home/ubuntu/.cairn/data/cairn.db`
-- SOUL: `/home/ubuntu/.cairn/SOUL.md`
+- Identity files: `/home/ubuntu/.cairn/SOUL.md`, `USER.md`, `AGENTS.md`, `MEMORY.md`
 - Caddyfile: `/etc/caddy/Caddyfile` (proxies all to 8788, CouchDB on /obsidian-vault)
 - Certs: `/etc/caddy/certs/origin-cert.pem` + `origin-key.pem` (Cloudflare Origin CA)
 

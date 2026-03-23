@@ -1,6 +1,6 @@
 ---
 name: coding-session
-description: "Autonomous coding workflow: branch, code, test, draft PR with [cairn] prefix. Use when starting a coding task from the idle loop or continuing an incomplete session. Keywords: code, fix, PR, CI, review, test, implement"
+description: "Autonomous coding workflow: branch, code, test, draft PR with [cairn] prefix. Use when starting a coding task from the idle loop or continuing an incomplete session. Keywords: coding, implement, fix, bug, PR, CI, test, review, worktree, autonomous"
 inclusion: always
 context: "tick"
 allowed-tools: "cairn.shell,cairn.readFile,cairn.writeFile,cairn.editFile,cairn.deleteFile,cairn.listFiles,cairn.searchFiles,cairn.gitRun,cairn.notify,cairn.loadSkill,cairn.createCron,cairn.deleteCron"

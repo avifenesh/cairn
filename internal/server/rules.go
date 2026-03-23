@@ -134,6 +134,14 @@ func (s *Server) handleUpdateRule(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "at least one action is required")
 		return
 	}
+	if req.Name != nil && len(*req.Name) > 256 {
+		writeError(w, http.StatusBadRequest, "name too long (max 256 chars)")
+		return
+	}
+	if req.Description != nil && len(*req.Description) > 1024 {
+		writeError(w, http.StatusBadRequest, "description too long (max 1024 chars)")
+		return
+	}
 
 	opts := rules.UpdateOpts{
 		Enabled:     req.Enabled,

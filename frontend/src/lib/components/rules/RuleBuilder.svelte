@@ -127,7 +127,7 @@
 		const trigger: RuleTrigger = { type: 'event', eventType: eventTypeMap[triggerCategory] ?? 'EventIngested' };
 		const filter: Record<string, string> = {};
 		if (triggerCategory === 'signal' && selectedSource) filter['sourceType'] = selectedSource;
-		if (selectedKinds.length === 1) filter['kind'] = selectedKinds[0];
+		if (triggerCategory === 'signal' && selectedKinds.length === 1) filter['kind'] = selectedKinds[0];
 		for (const c of conditions) {
 			// Skip fields already set by source/kind selectors to prevent overwrite.
 			if (c.operator === 'equals' && c.value.trim() && !filter[c.field]) {
@@ -140,7 +140,7 @@
 
 	function buildCondition(): string {
 		const parts: string[] = [];
-		if (selectedKinds.length > 1) {
+		if (triggerCategory === 'signal' && selectedKinds.length > 1) {
 			parts.push(`(${selectedKinds.map(k => `kind == "${escapeExprString(k)}"`).join(' || ')})`);
 		}
 		for (const c of conditions) {

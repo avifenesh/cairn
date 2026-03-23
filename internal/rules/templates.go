@@ -150,6 +150,9 @@ var bundledTemplates = []Template{
 			if source == "" {
 				return nil, fmt.Errorf("source parameter is required")
 			}
+			if _, ok := signal.GetSourceInfo(source); !ok {
+				return nil, fmt.Errorf("unknown source %q", source)
+			}
 			return &Rule{
 				Name:        fmt.Sprintf("Notify on %s events", source),
 				Description: fmt.Sprintf("Fires when any event from %s is ingested.", source),

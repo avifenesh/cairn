@@ -128,7 +128,12 @@
 		const filter: Record<string, string> = {};
 		if (triggerCategory === 'signal' && selectedSource) filter['sourceType'] = selectedSource;
 		if (selectedKinds.length === 1) filter['kind'] = selectedKinds[0];
-		for (const c of conditions) { if (c.operator === 'equals' && c.value.trim()) filter[c.field] = c.value.trim(); }
+		for (const c of conditions) {
+			// Skip fields already set by source/kind selectors to prevent overwrite.
+			if (c.operator === 'equals' && c.value.trim() && !filter[c.field]) {
+				filter[c.field] = c.value.trim();
+			}
+		}
 		if (Object.keys(filter).length > 0) trigger.filter = filter;
 		return trigger;
 	}
@@ -272,7 +277,7 @@
 		{/each}
 
 		<div class="flex-1"></div>
-		<button onclick={() => onclose?.()} class="p-1 rounded-md transition-colors hover:bg-[var(--bg-2)]" style="color: var(--text-tertiary)">
+		<button onclick={() => onclose?.()} class="p-1 rounded-md transition-colors hover:bg-[var(--bg-2)]" style="color: var(--text-tertiary)" aria-label="Close builder">
 			<X class="h-4 w-4" />
 		</button>
 	</div>
@@ -293,6 +298,8 @@
 						{@const isSelected = triggerCategory === opt.key}
 						<button
 							onclick={() => triggerCategory = opt.key as TriggerCategory}
+							aria-pressed={isSelected}
+							aria-label={opt.label}
 							class="relative rounded-lg border p-3 text-left transition-all animate-in"
 							style="
 								border-color: {isSelected ? opt.color : 'var(--border-subtle)'};

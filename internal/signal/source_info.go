@@ -10,8 +10,11 @@ type SourceInfo struct {
 	Fields []string `json:"fields"` // filterable fields in the EventIngested data map
 }
 
-// defaultFields are the data map keys available on every EventIngested event.
-var defaultFields = []string{"sourceType", "kind", "title", "url", "actor", "repo"}
+// defaultFields returns the data map keys available on every EventIngested event.
+// Returns a fresh copy each time to prevent callers from mutating shared state.
+func defaultFields() []string {
+	return []string{"sourceType", "kind", "title", "url", "actor", "repo"}
+}
 
 // sourceRegistry maps source name → metadata. Every Source* constant should have an entry.
 var sourceRegistry = map[string]SourceInfo{
@@ -19,73 +22,73 @@ var sourceRegistry = map[string]SourceInfo{
 		Name:   SourceGitHub,
 		Label:  "GitHub",
 		Kinds:  []string{KindPR, KindIssue, KindRelease, KindDiscussion, KindCommit, KindPush, KindBranch, KindFork, KindStar},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 	SourceGitHubSignal: {
 		Name:   SourceGitHubSignal,
 		Label:  "GitHub Signal",
 		Kinds:  []string{KindMetrics, KindFollow, KindStar, KindNewRepo},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 	SourceHN: {
 		Name:   SourceHN,
 		Label:  "Hacker News",
 		Kinds:  []string{KindStory},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 	SourceReddit: {
 		Name:   SourceReddit,
 		Label:  "Reddit",
 		Kinds:  []string{KindPost},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 	SourceNPM: {
 		Name:   SourceNPM,
 		Label:  "npm",
 		Kinds:  []string{KindMetrics, KindPackage},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 	SourceCrates: {
 		Name:   SourceCrates,
 		Label:  "crates.io",
 		Kinds:  []string{KindMetrics, KindPackage},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 	SourceGmail: {
 		Name:   SourceGmail,
 		Label:  "Gmail",
 		Kinds:  []string{KindEmail},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 	SourceCalendar: {
 		Name:   SourceCalendar,
 		Label:  "Calendar",
 		Kinds:  []string{KindEvent, KindInvitation},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 	SourceRSS: {
 		Name:   SourceRSS,
 		Label:  "RSS",
 		Kinds:  []string{KindStory, KindPost, KindRelease},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 	SourceStackOverflow: {
 		Name:   SourceStackOverflow,
 		Label:  "Stack Overflow",
 		Kinds:  []string{KindPost},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 	SourceDevTo: {
 		Name:   SourceDevTo,
 		Label:  "Dev.to",
 		Kinds:  []string{KindPost},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 	SourceWebhook: {
 		Name:   SourceWebhook,
 		Label:  "Webhook",
 		Kinds:  []string{KindWebhook},
-		Fields: defaultFields,
+		Fields: defaultFields(),
 	},
 }
 
@@ -122,7 +125,7 @@ func (s *Scheduler) RegisteredSources() []SourceInfo {
 			result = append(result, SourceInfo{
 				Name:   name,
 				Label:  name,
-				Fields: defaultFields,
+				Fields: defaultFields(),
 			})
 		}
 	}

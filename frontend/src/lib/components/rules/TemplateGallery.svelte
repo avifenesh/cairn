@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import type { RuleTemplate, SourceInfo, Rule } from '$lib/types';
 	import { instantiateRuleTemplate } from '$lib/api/client';
 	import { ruleStore } from '$lib/stores/rules.svelte';
@@ -19,6 +20,8 @@
 	// Confirmation preview: show what a zero-param template will create before enabling.
 	let previewing = $state<string | null>(null);
 	let justCreated = $state<string | null>(null);
+	let justCreatedTimer: ReturnType<typeof setTimeout> | null = null;
+	onDestroy(() => { if (justCreatedTimer) clearTimeout(justCreatedTimer); });
 
 	const categories = [
 		{ key: 'signal', label: 'Signals', icon: Antenna, desc: 'React to incoming events' },
@@ -88,7 +91,7 @@
 			justCreated = t.id;
 			previewing = null;
 			// Flash success briefly, then clear.
-			setTimeout(() => { justCreated = null; }, 2500);
+			justCreatedTimer = setTimeout(() => { justCreated = null; }, 2500);
 		} catch (e) {
 			instantiateError = e instanceof Error ? e.message : 'Failed to create rule';
 		} finally {

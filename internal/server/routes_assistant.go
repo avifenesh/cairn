@@ -150,9 +150,9 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 		"mode":      string(mode),
 	})
 
-	// Submit task pre-claimed so the agent loop won't also pick it up.
-	// This combines submit + mark-running into a single DB write,
-	// avoiding a second blocking DB call before the 202 response.
+	// Submit task directly in Running status so the agent loop can't claim it.
+	// Creates the task with an HTTP lease in a single DB write, avoiding the
+	// separate MarkRunning call that could block on DB contention.
 	t, err := s.tasks.Submit(ctx, &task.SubmitRequest{
 		Type:        task.TypeChat,
 		Priority:    task.PriorityNormal,

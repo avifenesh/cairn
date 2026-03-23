@@ -53,17 +53,12 @@ func (e *Engine) Submit(ctx context.Context, req *SubmitRequest) (*Task, error) 
 		maxRetries = 2
 	}
 
-	status := StatusQueued
-	if req.ClaimOwner != "" {
-		status = StatusRunning
-	}
-
 	t := &Task{
 		ID:          newID(),
 		ParentID:    req.ParentID,
 		SessionID:   req.SessionID,
 		Type:        req.Type,
-		Status:      status,
+		Status:      StatusQueued,
 		Priority:    req.Priority,
 		Mode:        req.Mode,
 		Input:       req.Input,
@@ -74,6 +69,8 @@ func (e *Engine) Submit(ctx context.Context, req *SubmitRequest) (*Task, error) 
 	}
 
 	if req.ClaimOwner != "" {
+		t.Status = StatusRunning
+		t.StartedAt = now
 		t.LeaseOwner = req.ClaimOwner
 		t.LeaseExpiry = now.Add(defaultLeaseDuration)
 	}
@@ -183,30 +180,6 @@ func (e *Engine) Claim(ctx context.Context, taskType TaskType) (*Task, error) {
 		return nil, fmt.Errorf("task engine: claim: %w", err)
 	}
 	return t, nil
-}
-
-// MarkRunning sets a task to running status so the agent loop won't claim it.
-// Used by the HTTP handler for chat tasks that are handled inline.
-// Only removes from the queue after the DB update succeeds - if the update
-// fails, the task stays in the queue so it can still be claimed.
-func (e *Engine) MarkRunning(ctx context.Context, taskID string) error {
-	t, err := e.store.Get(ctx, taskID)
-	if err != nil {
-		return fmt.Errorf("task engine: mark running: %w", err)
-	}
-	if t == nil {
-		return fmt.Errorf("task engine: mark running: task %s not found", taskID)
-	}
-	t.Status = StatusRunning
-	t.LeaseOwner = "http"
-	t.LeaseExpiry = time.Now().Add(defaultLeaseDuration)
-	t.UpdatedAt = time.Now()
-	if err := e.store.Update(ctx, t); err != nil {
-		return fmt.Errorf("task engine: mark running update: %w", err)
-	}
-	// Only remove from queue after successful persistence.
-	e.queue.Remove(taskID)
-	return nil
 }
 
 // Complete marks a task as completed with the given output.

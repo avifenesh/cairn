@@ -193,7 +193,7 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, mode tool.Mode) {
 	ctx := context.Background()
 
-	// Mark task as running.
+	// Notify SSE subscribers that the task is running.
 	eventbus.Publish(s.bus, eventbus.TaskRunning{
 		EventMeta: eventbus.NewMeta("server"),
 		TaskID:    t.ID,

@@ -152,6 +152,7 @@ type OrchestratorState struct {
 	CompletedCodingTasks []codingTaskInfo     `json:"completedCodingTasks,omitempty"`
 	PendingApprovals     []approvalInfo       `json:"pendingApprovals,omitempty"`
 	RecentActions        []ActivityEntry      `json:"recentActions,omitempty"`
+	SuppressedTopics     []string             `json:"-"` // topics mentioned 3+ times — blocked from spawning
 }
 
 type proposedMemoryInfo struct {
@@ -248,8 +249,8 @@ func (o *Orchestrator) Evaluate(ctx context.Context, gatherFn func(context.Conte
 		decision.Actions = decision.Actions[:maxOrchestratorActions]
 	}
 
-	// Execute decisions.
-	summaries := o.execute(ctx, decision)
+	// Execute decisions (pass suppressed topics for code-level enforcement).
+	summaries := o.execute(ctx, decision, state.SuppressedTopics)
 
 	o.logger.Info("orchestrator: evaluated",
 		"actions", len(decision.Actions),
@@ -324,10 +325,17 @@ func (o *Orchestrator) gatherState(ctx context.Context, obs *Observations, tickC
 	}
 
 	// Recent orchestrator actions (to prevent repetition).
+	// Use a wider window (10 actions, 4h) for topic suppression detection.
 	if o.activityStore != nil {
-		actions, err := o.activityStore.RecentIdleActions(ctx, 5, 2*time.Hour)
+		actions, err := o.activityStore.RecentIdleActions(ctx, 10, 4*time.Hour)
 		if err == nil {
 			state.RecentActions = actions
+			state.SuppressedTopics = detectSuppressedTopics(actions)
+			if len(state.SuppressedTopics) > 0 {
+				o.logger.Info("orchestrator: topics suppressed",
+					"topics", state.SuppressedTopics,
+					"actions_scanned", len(actions))
+			}
 		}
 	}
 
@@ -485,6 +493,15 @@ func (o *Orchestrator) formatStateSnapshot(state *OrchestratorState) string {
 		sb.WriteString("\n")
 	}
 
+	// Suppressed topics — hard block, code-enforced.
+	if len(state.SuppressedTopics) > 0 {
+		sb.WriteString("### SUPPRESSED TOPICS (DO NOT SPAWN about these — you already tried 3+ times)\n")
+		for _, t := range state.SuppressedTopics {
+			sb.WriteString(fmt.Sprintf("- %s — BLOCKED. Move on to other work.\n", t))
+		}
+		sb.WriteString("Any spawn action referencing these topics will be rejected by the system.\n\n")
+	}
+
 	sb.WriteString(fmt.Sprintf("### System: tick %d, time %s\n", state.TicksSinceStart, state.CurrentTime))
 
 	return sb.String()
@@ -492,7 +509,7 @@ func (o *Orchestrator) formatStateSnapshot(state *OrchestratorState) string {
 
 // --- Decision execution ---
 
-func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecision) []string {
+func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecision, suppressedTopics []string) []string {
 	var summaries []string
 	activeSpawns := 0
 
@@ -517,6 +534,15 @@ func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecisi
 			}
 
 		case "spawn":
+			// Topic suppression: reject spawns about topics the orchestrator already obsessed over.
+			if blockedTopic := instructionMentionsTopic(action.Instruction, suppressedTopics); blockedTopic != "" {
+				o.logger.Warn("orchestrator: spawn suppressed (topic loop)",
+					"topic", blockedTopic, "type", action.SpawnType,
+					"instruction", truncateStr(action.Instruction, 80))
+				summaries = append(summaries, fmt.Sprintf("Suppressed spawn about %s (topic loop)", blockedTopic))
+				continue
+			}
+
 			// Validate spawn type dynamically against AGENT.md definitions.
 			validType := false
 			if o.agentTypes != nil && o.agentTypes.Get(action.SpawnType) != nil {
@@ -824,6 +850,7 @@ If you see a gap, fill it. If you see a way to be more helpful, build it.
 - Verify coding sessions before notifying. Always.
 - Escalate only: merge PRs, deploy, send external messages.
 - Loop breaker: If the same problem has failed 2+ times in Recent Actions, STOP retrying it. Wait or escalate instead. Do not rephrase and re-spawn — the underlying issue needs a different approach or human intervention.
+- Topic suppression: If a topic (PR, branch, task) appears in SUPPRESSED TOPICS, do NOT spawn about it. The system will reject the spawn. Find different work or wait.
 
 ## Output
 JSON only. No markdown fences. No commentary.

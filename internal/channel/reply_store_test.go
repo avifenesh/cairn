@@ -47,7 +47,8 @@ func TestReplyStore_EmptyMessageID(t *testing.T) {
 }
 
 func TestReplyStore_TTLExpiry(t *testing.T) {
-	// Use a very short TTL to test expiry.
+	// Use a very short TTL to test expiry (actual sleep required since we
+	// don't inject a clock — acceptable for a store-level unit test).
 	rs := NewReplyStore(50 * time.Millisecond)
 	defer rs.Close()
 

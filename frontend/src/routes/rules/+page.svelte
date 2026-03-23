@@ -15,6 +15,7 @@
 	let tab = $state<'templates' | 'rules' | 'history'>('templates');
 	let showBuilder = $state(false);
 	let builderPrefill = $state<RuleTemplate | undefined>(undefined);
+	let justCreatedCount = $state(0);
 
 	function onRuleExecuted(e: Event) {
 		const detail = (e as CustomEvent).detail;
@@ -120,7 +121,7 @@
 		<div class="flex gap-4 border-b" style="border-color: var(--border-subtle)">
 			{#each [
 				{ key: 'templates', label: 'Templates' },
-				{ key: 'rules', label: `Active (${ruleStore.rules.length})` },
+				{ key: 'rules', label: justCreatedCount > 0 ? `Active (${ruleStore.rules.length}) +${justCreatedCount}` : `Active (${ruleStore.rules.length})` },
 				{ key: 'history', label: 'Log' },
 			] as t}
 				<button
@@ -144,7 +145,11 @@
 				sources={ruleStore.sources}
 				prefill={builderPrefill}
 				onclose={() => { showBuilder = false; builderPrefill = undefined; }}
-				oncreated={() => { showBuilder = false; builderPrefill = undefined; tab = 'rules'; }}
+				oncreated={() => {
+					showBuilder = false; builderPrefill = undefined; tab = 'rules';
+					justCreatedCount++;
+					setTimeout(() => justCreatedCount = Math.max(0, justCreatedCount - 1), 3000);
+				}}
 			/>
 		</div>
 	{/if}

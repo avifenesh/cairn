@@ -1,6 +1,6 @@
 ---
 name: github
-description: "GitHub operations via gh CLI — shell-first, permissions-aware"
+description: "Use when performing GitHub operations: PRs, issues, CI, releases, or any gh CLI task. Keywords: github, gh, PR, pull request, issue, CI, actions, release, merge, review, repo"
 inclusion: always
 allowed-tools: "cairn.shell,cairn.gitRun,cairn.readFile,cairn.webFetch"
 ---

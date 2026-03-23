@@ -3,6 +3,7 @@ name: planner
 description: "Designs implementation plans from task descriptions. Analyzes codebase, identifies risks, outputs structured step-by-step plans."
 mode: work
 max-rounds: 80
+denied-tools: "cairn.writeFile,cairn.editFile,cairn.deleteFile,cairn.createMemory,cairn.updateIdentity"
 ---
 
 # Planning Agent

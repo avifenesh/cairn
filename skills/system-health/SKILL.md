@@ -1,6 +1,6 @@
 ---
 name: system-health
-description: "Use when asked about system health, server resources, infrastructure status, or 'how is the server doing'. Comprehensive host-level health report: CPU, memory, disk, database, Node.js process, TLS cert, SSE clients, poller health. For provider-specific checks use /provider-status instead. Keywords: system health, server, cpu, memory, disk, database, db size, wal, node heap, process, sse clients, poller, infrastructure, resources, uptime"
+description: "Use when asked about system health, server resources, infrastructure status, or 'how is the server doing'. Comprehensive host-level health report: CPU, memory, disk, database, Go process, TLS cert, SSE clients, poller health. For provider-specific checks use /provider-status instead. Keywords: system health, server, cpu, memory, disk, database, db size, wal, process memory, process, sse clients, poller, infrastructure, resources, uptime"
 argument-hint: "[--verbose]"
 allowed-tools: "cairn.shell,cairn.getStatus"
 inclusion: always
@@ -77,9 +77,9 @@ echo "cairn: $(systemctl is-active cairn 2>/dev/null || echo unknown)"
 echo "caddy: $(systemctl is-active caddy 2>/dev/null || echo unknown)"
 ```
 
-**Node.js process info:**
+**Process info:**
 ```
-if [ -z "$READ_API_TOKEN" ]; then echo "status auth required — READ_API_TOKEN not set"; else TMPF=$(mktemp --mode=0600) && CFG=$(mktemp --mode=0600) && trap 'rm -f "$TMPF" "$CFG"' EXIT && echo "header = \"Authorization: Bearer $READ_API_TOKEN\"" > "$CFG" && HTTP_CODE=$(curl -s -o "$TMPF" -w '%{http_code}' --connect-timeout 3 --max-time 5 --config "$CFG" http://localhost:8788/v1/status 2>/dev/null); if [ "$HTTP_CODE" = "200" ]; then jq -r '"uptime_sec: \(.system.uptime // "unknown"), version: \(.system.version // "unknown"), node: \(.system.node // "unknown")"' "$TMPF" 2>/dev/null || echo "invalid JSON response"; elif [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then echo "status auth failed (HTTP $HTTP_CODE)"; else echo "status unavailable (HTTP $HTTP_CODE)"; fi; fi
+if [ -z "$READ_API_TOKEN" ]; then echo "status auth required — READ_API_TOKEN not set"; else TMPF=$(mktemp --mode=0600) && CFG=$(mktemp --mode=0600) && trap 'rm -f "$TMPF" "$CFG"' EXIT && echo "header = \"Authorization: Bearer $READ_API_TOKEN\"" > "$CFG" && HTTP_CODE=$(curl -s -o "$TMPF" -w '%{http_code}' --connect-timeout 3 --max-time 5 --config "$CFG" http://localhost:8788/v1/status 2>/dev/null); if [ "$HTTP_CODE" = "200" ]; then jq -r '"uptime_sec: \(.system.uptime // "unknown"), version: \(.system.version // "unknown"), go: \(.system.go // "unknown")"' "$TMPF" 2>/dev/null || echo "invalid JSON response"; elif [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then echo "status auth failed (HTTP $HTTP_CODE)"; else echo "status unavailable (HTTP $HTTP_CODE)"; fi; fi
 ```
 
 If `$ARGUMENTS` contains `--verbose`, also run:
@@ -132,7 +132,7 @@ Present results as a structured health report. Use these indicators:
 | Metric | Value | Status |
 |--------|-------|--------|
 | Version | abc1234 | — |
-| Node.js | vX.Y.Z | — |
+| Go | vX.Y.Z | — |
 | SSE Clients | N connected | — |
 | Poller | N cycles, M failures | OK |
 | Task Queue | N queued, M running | — |
@@ -154,7 +154,7 @@ Present results as a structured health report. Use these indicators:
 > For provider-specific checks (GitHub, GLM, SearXNG, feed sources), run `/provider-status`.
 ```
 
-If `--verbose` was passed, include all rows. Otherwise, omit rows that are purely informational (like version, node version) and focus on rows with status indicators.
+If `--verbose` was passed, include all rows. Otherwise, omit rows that are purely informational (like version, runtime version) and focus on rows with status indicators.
 
 ## Notes
 

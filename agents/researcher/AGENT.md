@@ -3,7 +3,7 @@ name: researcher
 description: "Investigates topics, explores codebases, gathers information from web and files. Read-only — cannot modify anything."
 mode: work
 max-rounds: 80
-denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory"
+denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory,cairn.updateIdentity"
 skills: web-search
 ---
 

@@ -12,7 +12,7 @@ Guide for creating skills that extend your own capabilities. Skills are prompt i
 ## Where Skills Live
 
 ```
-backend/.pub/skills/{skill-name}/
+skills/{skill-name}/
 ├── SKILL.md          # Required — YAML frontmatter + instructions
 └── reference.md      # Optional — overflow content (>300 lines)
 ```
@@ -80,8 +80,8 @@ Present as markdown table or structured text.
 Use `cairn.shell` to create the directory and write the file:
 
 ```bash
-mkdir -p backend/.pub/skills/my-skill
-cat > backend/.pub/skills/my-skill/SKILL.md << 'SKILL_EOF'
+mkdir -p skills/my-skill
+cat > skills/my-skill/SKILL.md << 'SKILL_EOF'
 ---
 name: my-skill
 description: "Use when..."
@@ -98,7 +98,7 @@ SKILL_EOF
 
 Run the skill-enhance skill to check for issues:
 
-> "enhance skill backend/.pub/skills/my-skill/SKILL.md"
+> "enhance skill skills/my-skill/SKILL.md"
 
 Fix all reported issues before considering the skill complete.
 

@@ -48,6 +48,13 @@ var shell = tool.Define("cairn.shell",
 				Error: fmt.Sprintf("command denied: %s", reason),
 			}, nil
 		}
+		if ctx.ReadOnly {
+			if reason := checkReadOnlyDenyPatterns(p.Command); reason != "" {
+				return &tool.ToolResult{
+					Error: fmt.Sprintf("command denied: %s", reason),
+				}, nil
+			}
+		}
 
 		// Determine working directory.
 		// Shell commands can cd anywhere, so workDir is just the initial cwd.

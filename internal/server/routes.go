@@ -123,10 +123,10 @@ func (s *Server) registerRoutes() {
 	if s.rulesStore != nil {
 		s.mux.HandleFunc("GET /v1/rules/executions/recent", s.handleRecentRuleExecutions)
 		s.mux.HandleFunc("GET /v1/rules", s.handleListRules)
-		s.mux.HandleFunc("POST /v1/rules", s.handleCreateRule)
+		s.mux.HandleFunc("POST /v1/rules", s.requireWrite(s.handleCreateRule))
 		s.mux.HandleFunc("GET /v1/rules/{id}", s.handleGetRule)
-		s.mux.HandleFunc("PATCH /v1/rules/{id}", s.handleUpdateRule)
-		s.mux.HandleFunc("DELETE /v1/rules/{id}", s.handleDeleteRule)
+		s.mux.HandleFunc("PATCH /v1/rules/{id}", s.requireWrite(s.handleUpdateRule))
+		s.mux.HandleFunc("DELETE /v1/rules/{id}", s.requireWrite(s.handleDeleteRule))
 		s.mux.HandleFunc("GET /v1/rules/{id}/executions", s.handleListRuleExecutions)
 		s.mux.HandleFunc("GET /v1/rule-templates", s.handleListRuleTemplates)
 		s.mux.HandleFunc("POST /v1/rule-templates/{id}/instantiate", s.requireWrite(s.handleInstantiateRuleTemplate))

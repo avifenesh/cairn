@@ -35,6 +35,7 @@ func (s *Server) handleListRules(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateRule(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	var req struct {
 		Name        string         `json:"name"`
 		Description string         `json:"description"`
@@ -49,6 +50,14 @@ func (s *Server) handleCreateRule(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Name == "" {
 		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	if len(req.Name) > 256 {
+		writeError(w, http.StatusBadRequest, "name too long (max 256 chars)")
+		return
+	}
+	if len(req.Description) > 1024 {
+		writeError(w, http.StatusBadRequest, "description too long (max 1024 chars)")
 		return
 	}
 	if req.Trigger.Type == "" {
@@ -105,6 +114,7 @@ func (s *Server) handleGetRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUpdateRule(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	id := r.PathValue("id")
 	var req struct {
 		Enabled     *bool          `json:"enabled"`
@@ -233,6 +243,7 @@ func (s *Server) handleListRuleTemplates(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleInstantiateRuleTemplate(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	id := r.PathValue("id")
 
 	var req struct {

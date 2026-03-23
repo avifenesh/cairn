@@ -16,6 +16,7 @@
 	let showBuilder = $state(false);
 	let builderPrefill = $state<RuleTemplate | undefined>(undefined);
 	let justCreatedCount = $state(0);
+	let createdTimers: ReturnType<typeof setTimeout>[] = [];
 
 	function onRuleExecuted(e: Event) {
 		const detail = (e as CustomEvent).detail;
@@ -42,7 +43,10 @@
 			loading = false;
 		}
 	});
-	onDestroy(() => window.removeEventListener('cairn:rule-executed', onRuleExecuted));
+	onDestroy(() => {
+		window.removeEventListener('cairn:rule-executed', onRuleExecuted);
+		createdTimers.forEach(t => clearTimeout(t));
+	});
 
 	function openBuilder(prefill?: RuleTemplate) {
 		builderPrefill = prefill;
@@ -148,7 +152,7 @@
 				oncreated={() => {
 					showBuilder = false; builderPrefill = undefined; tab = 'rules';
 					justCreatedCount++;
-					setTimeout(() => justCreatedCount = Math.max(0, justCreatedCount - 1), 3000);
+					createdTimers.push(setTimeout(() => justCreatedCount = Math.max(0, justCreatedCount - 1), 3000));
 				}}
 			/>
 		</div>

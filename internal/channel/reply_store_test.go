@@ -141,6 +141,9 @@ func TestTruncateRune(t *testing.T) {
 		{"mixed", "abc你好世界", 5, "abc你好..."},
 		{"empty", "", 5, ""},
 		{"zero max", "hello", 0, "..."},
+		{"negative max", "hello", -1, "..."},
+		{"zero max empty", "", 0, ""},
+		{"negative max empty", "", -3, ""},
 	}
 
 	for _, tt := range tests {

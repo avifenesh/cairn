@@ -298,7 +298,9 @@ func (t *TelegramAdapter) sendChunkedMessages(ctx context.Context, chatID int64,
 			return sent, msgIDs, chunkTexts, err
 		}
 		msgIDs = append(msgIDs, sentMsg.MessageID)
-		chunkTexts = append(chunkTexts, full)
+		// Store unescaped content (header + original chunk) for reply context,
+		// not the MarkdownV2-escaped version that includes backslashes.
+		chunkTexts = append(chunkTexts, header+chunk)
 		sent++
 
 		// Brief delay between chunks to avoid rate limiting.

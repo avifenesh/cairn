@@ -6,7 +6,14 @@ import (
 )
 
 // TruncateRune limits text to maxRunes runes, appending "..." if truncated.
+// Returns "..." for non-empty text with maxRunes <= 0, or "" for empty text.
 func TruncateRune(text string, maxRunes int) string {
+	if maxRunes <= 0 {
+		if text == "" {
+			return ""
+		}
+		return "..."
+	}
 	runes := []rune(text)
 	if len(runes) <= maxRunes {
 		return text

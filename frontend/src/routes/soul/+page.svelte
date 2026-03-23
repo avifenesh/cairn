@@ -21,6 +21,7 @@
 	let tab = $state(page.url.searchParams.get('tab') || 'soul');
 
 	$effect(() => {
+		if (typeof window === 'undefined') return;
 		const url = new URL(window.location.href);
 		if (tab !== 'soul') {
 			url.searchParams.set('tab', tab);
@@ -313,7 +314,7 @@
 				{#if denyMode}
 					<div class="space-y-2">
 						<p class="text-xs text-[var(--text-secondary)]">Why are you denying this patch?</p>
-						<textarea bind:value={denyReason} placeholder="Your reason will be saved to memory..." class="w-full rounded-md border border-border-subtle bg-[var(--bg-0)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]/50 focus:border-[var(--cairn-accent)] focus:outline-none resize-none h-20"></textarea>
+						<textarea bind:value={denyReason} placeholder="Your reason will be recorded." class="w-full rounded-md border border-border-subtle bg-[var(--bg-0)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]/50 focus:border-[var(--cairn-accent)] focus:outline-none resize-none h-20"></textarea>
 						<div class="flex gap-2 justify-end">
 							<Button variant="outline" size="sm" class="h-7 text-xs" onclick={() => { denyMode = false; denyReason = ''; }}>Cancel</Button>
 							<Button size="sm" class="h-7 text-xs gap-1 bg-[var(--color-error)] hover:bg-[var(--color-error)]/90" onclick={() => handleDenyPatch(target)} disabled={patchActing || !denyReason.trim()}>

@@ -208,8 +208,7 @@ type ConfigService interface {
 }
 
 // IdentityService provides agent access to the 4-tier identity files.
-// Soul and Agents changes require human approval (patch system).
-// User and Memory changes are direct (low risk, user-reviewable).
+// User changes are direct. Soul/Agents/Memory changes require human approval (patch system).
 type IdentityService interface {
 	// UpdateIdentity proposes or applies a change to an identity file.
 	// target: "soul", "user", "agents", "memory"

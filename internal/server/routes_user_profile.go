@@ -168,7 +168,8 @@ func denyPatch(w http.ResponseWriter, r *http.Request, mf patchable) {
 		return
 	}
 	var req struct {
-		ID string `json:"id"`
+		ID     string `json:"id"`
+		Reason string `json:"reason"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())

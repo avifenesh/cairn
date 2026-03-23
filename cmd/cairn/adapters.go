@@ -979,7 +979,9 @@ func (a *identityAdapter) UpdateIdentity(_ context.Context, target, content, sou
 		}
 		current := a.userProfile.Content()
 		sep := "\n"
-		if current != "" && !strings.HasSuffix(current, "\n") {
+		if current == "" {
+			sep = ""
+		} else if !strings.HasSuffix(current, "\n") {
 			sep = "\n\n"
 		}
 		if err := a.userProfile.Save(current + sep + content); err != nil {

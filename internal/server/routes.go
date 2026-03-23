@@ -78,13 +78,13 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /v1/agents-config", s.handleGetAgentsConfig)
 	s.mux.HandleFunc("PUT /v1/agents-config", s.handlePutAgentsConfig)
 	s.mux.HandleFunc("GET /v1/agents-config/patch", s.handleGetAgentsPatch)
-	s.mux.HandleFunc("POST /v1/agents-config/patch/approve", s.handleApproveAgentsPatch)
-	s.mux.HandleFunc("POST /v1/agents-config/patch/deny", s.handleDenyAgentsPatch)
+	s.mux.HandleFunc("POST /v1/agents-config/patch/approve", s.requireWrite(s.handleApproveAgentsPatch))
+	s.mux.HandleFunc("POST /v1/agents-config/patch/deny", s.requireWrite(s.handleDenyAgentsPatch))
 	s.mux.HandleFunc("GET /v1/memory-file", s.handleGetMemoryFile)
-	s.mux.HandleFunc("PUT /v1/memory-file", s.handlePutMemoryFile)
+	s.mux.HandleFunc("PUT /v1/memory-file", s.requireWrite(s.handlePutMemoryFile))
 	s.mux.HandleFunc("GET /v1/memory-file/patch", s.handleGetMemoryPatch)
-	s.mux.HandleFunc("POST /v1/memory-file/patch/approve", s.handleApproveMemoryPatch)
-	s.mux.HandleFunc("POST /v1/memory-file/patch/deny", s.handleDenyMemoryPatch)
+	s.mux.HandleFunc("POST /v1/memory-file/patch/approve", s.requireWrite(s.handleApproveMemoryPatch))
+	s.mux.HandleFunc("POST /v1/memory-file/patch/deny", s.requireWrite(s.handleDenyMemoryPatch))
 
 	// Marketplace (ClawHub).
 	if s.marketplace != nil {

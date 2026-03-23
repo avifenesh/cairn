@@ -189,7 +189,9 @@ func (m *MarkdownFile) ProposePatch(content, source string) *PendingPatch {
 	defer m.mu.Unlock()
 
 	sep := "\n"
-	if m.content != "" && !strings.HasSuffix(m.content, "\n") {
+	if m.content == "" {
+		sep = ""
+	} else if !strings.HasSuffix(m.content, "\n") {
 		sep = "\n\n"
 	}
 	preview := m.content + sep + content
@@ -228,22 +230,21 @@ func (m *MarkdownFile) ApprovePatch(id string) error {
 
 	// Rebase preview onto current content (file may have changed since proposal).
 	sep := "\n"
-	if m.content != "" && !strings.HasSuffix(m.content, "\n") {
+	if m.content == "" {
+		sep = ""
+	} else if !strings.HasSuffix(m.content, "\n") {
 		sep = "\n\n"
 	}
 	newContent := m.content + sep + m.pending.Content
 
-	if err := os.MkdirAll(filepath.Dir(m.filePath), 0755); err != nil {
-		return fmt.Errorf("create dir: %w", err)
-	}
-	if err := os.WriteFile(m.filePath, []byte(newContent), 0644); err != nil {
+	// Unlock before Save (which takes its own lock), then re-lock.
+	m.mu.Unlock()
+	if err := m.Save(newContent); err != nil {
+		m.mu.Lock()
 		return fmt.Errorf("write patch: %w", err)
 	}
+	m.mu.Lock()
 
-	m.content = newContent
-	if info, err := os.Stat(m.filePath); err == nil {
-		m.modTime = info.ModTime()
-	}
 	m.pending = nil
 	m.clearPatchFile()
 	slog.Info("mdfile: patch approved", "file", filepath.Base(m.filePath), "id", id)
@@ -281,9 +282,12 @@ func (m *MarkdownFile) persistPatch() {
 	}
 	data, err := json.Marshal(m.pending)
 	if err != nil {
+		slog.Warn("mdfile: marshal pending patch", "file", filepath.Base(m.filePath), "err", err)
 		return
 	}
-	os.WriteFile(m.patchFilePath(), data, 0644)
+	if err := os.WriteFile(m.patchFilePath(), data, 0644); err != nil {
+		slog.Warn("mdfile: persist patch file", "file", filepath.Base(m.filePath), "err", err)
+	}
 }
 
 func (m *MarkdownFile) clearPatchFile() {
@@ -301,6 +305,14 @@ func (m *MarkdownFile) LoadPendingPatch() {
 		return
 	}
 	m.mu.Lock()
+	// Rebase preview onto current content (file may have changed since proposal).
+	sep := "\n"
+	if m.content == "" {
+		sep = ""
+	} else if !strings.HasSuffix(m.content, "\n") {
+		sep = "\n\n"
+	}
+	patch.Preview = m.content + sep + patch.Content
 	m.pending = &patch
 	m.mu.Unlock()
 }

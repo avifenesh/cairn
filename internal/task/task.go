@@ -80,6 +80,7 @@ type SubmitRequest struct {
 	Input       json.RawMessage
 	Description string
 	MaxRetries  int
+	ClaimOwner  string // If non-empty, task is created in Running status with this lease owner (skips queue).
 }
 
 // ListOpts filters task listings.

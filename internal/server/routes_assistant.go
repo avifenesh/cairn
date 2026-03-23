@@ -150,6 +150,9 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 		"mode":      string(mode),
 	})
 
+	// Submit task directly in Running status so the agent loop can't claim it.
+	// Creates the task with an HTTP lease in a single DB write, avoiding the
+	// separate MarkRunning call that could block on DB contention.
 	t, err := s.tasks.Submit(ctx, &task.SubmitRequest{
 		Type:        task.TypeChat,
 		Priority:    task.PriorityNormal,
@@ -157,6 +160,7 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 		SessionID:   session.ID,
 		Input:       taskInput,
 		Description: truncate(req.Message, 100),
+		ClaimOwner:  "http",
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, fmt.Sprintf("task submit: %v", err))
@@ -174,16 +178,6 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 		s.sessions.AppendEvent(ctx, session.ID, userEvent)
 	}
 
-	// Mark running immediately so the agent loop doesn't claim it.
-	// Chat tasks are handled by the HTTP handler goroutine, not the loop.
-	// If this fails, abort — running the agent without the DB update would
-	// let the loop also claim and execute the same task.
-	if err := s.tasks.MarkRunning(ctx, t.ID); err != nil {
-		s.logger.Error("mark running failed, aborting chat task", "task", t.ID, "error", err)
-		writeError(w, http.StatusInternalServerError, fmt.Sprintf("mark running: %v", err))
-		return
-	}
-
 	// Run the agent asynchronously.
 	go s.runAgent(session, t, req.Message, mode)
 
@@ -199,7 +193,7 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, mode tool.Mode) {
 	ctx := context.Background()
 
-	// Mark task as running.
+	// Notify SSE subscribers that the task is running.
 	eventbus.Publish(s.bus, eventbus.TaskRunning{
 		EventMeta: eventbus.NewMeta("server"),
 		TaskID:    t.ID,

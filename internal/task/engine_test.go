@@ -78,7 +78,7 @@ func TestEngine_SubmitAndClaim(t *testing.T) {
 	}
 }
 
-func TestEngine_MarkRunning(t *testing.T) {
+func TestEngine_SubmitPreClaimed(t *testing.T) {
 	e := newTestEngine(t)
 	ctx := context.Background()
 
@@ -86,15 +86,19 @@ func TestEngine_MarkRunning(t *testing.T) {
 		Type:        TypeChat,
 		Priority:    PriorityNormal,
 		Input:       json.RawMessage(`{"message":"hi"}`),
-		Description: "test mark running",
+		Description: "test pre-claimed submit",
+		ClaimOwner:  "http",
 	})
 	if err != nil {
 		t.Fatalf("Submit: %v", err)
 	}
 
-	// Mark running should succeed and update the DB.
-	if err := e.MarkRunning(ctx, task.ID); err != nil {
-		t.Fatalf("MarkRunning: %v", err)
+	// Task should be created directly in running status.
+	if task.Status != StatusRunning {
+		t.Errorf("expected status 'running', got %q", task.Status)
+	}
+	if task.LeaseOwner != "http" {
+		t.Errorf("expected lease owner 'http', got %q", task.LeaseOwner)
 	}
 
 	// Verify status is running in the DB.
@@ -105,25 +109,14 @@ func TestEngine_MarkRunning(t *testing.T) {
 	if got.Status != StatusRunning {
 		t.Errorf("expected status 'running', got %q", got.Status)
 	}
-	if got.LeaseOwner != "http" {
-		t.Errorf("expected lease owner 'http', got %q", got.LeaseOwner)
-	}
 
-	// Trying to claim should return nil (task removed from queue).
+	// Trying to claim should return nil (task was never queued).
 	claimed, err := e.Claim(ctx, TypeChat)
 	if err != nil {
 		t.Fatalf("Claim: %v", err)
 	}
 	if claimed != nil {
 		t.Errorf("expected nil claim (task already running), got %s", claimed.ID)
-	}
-}
-
-func TestEngine_MarkRunning_NotFound(t *testing.T) {
-	e := newTestEngine(t)
-	err := e.MarkRunning(context.Background(), "nonexistent")
-	if err == nil {
-		t.Error("expected error for nonexistent task")
 	}
 }
 

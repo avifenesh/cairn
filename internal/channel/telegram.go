@@ -369,6 +369,9 @@ func (t *TelegramAdapter) sendResponse(ctx context.Context, chatID int64, msg *O
 			return err2
 		}
 		ids = plainIDs
+		// Save the actual delivered text (plain) so reply context matches what users saw.
+		t.saveReplyIDs(chatID, ids, plain)
+		return nil
 	}
 	t.saveReplyIDs(chatID, ids, msg.Text)
 	return nil

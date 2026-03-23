@@ -2,19 +2,19 @@ package channel
 
 // IncomingMessage is the canonical representation of a message from any channel.
 type IncomingMessage struct {
-	ID            string            // globally unique message ID
-	ChannelID     string            // "telegram", "discord", "slack", "matrix"
-	UserID        string            // channel-scoped user identifier
-	ChatID        string            // channel-scoped conversation ID
-	SessionID     string            // Cairn session ID (set by router from channel_sessions)
-	Text          string            // normalized plain text
-	IsCommand     bool              // starts with /
-	Command       string            // command name without /
-	Args          string            // command arguments after command name
-	Audio         []byte            // voice message audio data (nil = text only)
-	AudioFilename string            // original filename with extension (e.g. "voice.ogg")
+	ID               string            // globally unique message ID
+	ChannelID        string            // "telegram", "discord", "slack", "matrix"
+	UserID           string            // channel-scoped user identifier
+	ChatID           string            // channel-scoped conversation ID
+	SessionID        string            // Cairn session ID (set by router from channel_sessions)
+	Text             string            // normalized plain text
+	IsCommand        bool              // starts with /
+	Command          string            // command name without /
+	Args             string            // command arguments after command name
+	Audio            []byte            // voice message audio data (nil = text only)
+	AudioFilename    string            // original filename with extension (e.g. "voice.ogg")
 	ReplyToMessageID string            // platform message ID this message is replying to (e.g. Telegram reply_to_message_id)
-	Metadata      map[string]string // channel-specific extras
+	Metadata         map[string]string // channel-specific extras
 }
 
 // OutgoingMessage is the canonical representation of a response to send.

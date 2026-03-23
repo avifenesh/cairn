@@ -238,7 +238,7 @@ func New(cfg ServerConfig) *Server {
 		toolCrons:       cfg.ToolCrons,
 		toolRules:       cfg.ToolRules,
 		toolConfig:      cfg.ToolConfig,
-		toolIdentity:   cfg.ToolIdentity,
+		toolIdentity:    cfg.ToolIdentity,
 		subagentRunner:  cfg.SubagentRunner,
 		voice:           cfg.Voice,
 		cronStore:       cfg.CronStore,

@@ -124,7 +124,7 @@ func NewSubagentRunner(deps SubagentRunnerDeps) *SubagentRunner {
 		toolCrons:      deps.ToolCrons,
 		toolRules:      deps.ToolRules,
 		toolConfig:     deps.ToolConfig,
-		toolIdentity:  deps.ToolIdentity,
+		toolIdentity:   deps.ToolIdentity,
 		agentsFile:     deps.AgentsFile,
 		agentTypes:     deps.AgentTypes,
 		envContext:     deps.EnvContext,
@@ -421,7 +421,7 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		ToolCrons:     r.toolCrons,
 		ToolRules:     r.toolRules,
 		ToolConfig:    r.toolConfig,
-		ToolIdentity: r.toolIdentity,
+		ToolIdentity:  r.toolIdentity,
 		Config: &AgentConfig{
 			Model:              r.model,
 			MaxRounds:          maxRounds,

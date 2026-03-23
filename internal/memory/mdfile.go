@@ -15,10 +15,10 @@ import (
 // PendingPatch represents a proposed change to a markdown file awaiting human review.
 type PendingPatch struct {
 	ID        string    `json:"id"`
-	Content   string    `json:"content"`   // the content to append
-	Source    string    `json:"source"`    // who proposed it (e.g. "orchestrator", "reflection")
+	Content   string    `json:"content"` // the content to append
+	Source    string    `json:"source"`  // who proposed it (e.g. "orchestrator", "reflection")
 	CreatedAt time.Time `json:"createdAt"`
-	Preview   string    `json:"preview"`   // full file content after applying the patch
+	Preview   string    `json:"preview"` // full file content after applying the patch
 }
 
 // MarkdownFile loads, watches, and atomically saves a single markdown file.

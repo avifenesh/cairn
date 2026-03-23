@@ -90,16 +90,16 @@
 		}).join(' + ');
 	}
 
-	const statusIcon = (status: string) => {
+	function statusIcon(status: string) {
 		if (status === 'success') return CheckCircle2;
 		if (status === 'error') return XCircle;
 		return AlertCircle;
-	};
-	const statusColor = (status: string) => {
+	}
+	function statusColor(status: string): string {
 		if (status === 'success') return 'var(--color-success)';
 		if (status === 'error') return 'var(--color-error)';
 		return 'var(--text-tertiary)';
-	};
+	}
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-4 sm:p-6">

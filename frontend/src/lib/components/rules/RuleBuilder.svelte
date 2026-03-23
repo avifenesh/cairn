@@ -73,8 +73,6 @@
 		return eventMap[triggerCategory] ?? [];
 	});
 
-	const variableChips = $derived(() => availableFields());
-
 	const availableKinds = $derived(() => {
 		if (triggerCategory !== 'signal' || !selectedSource) return [];
 		return sources.find(s => s.name === selectedSource)?.kinds ?? [];
@@ -225,7 +223,7 @@
 	}
 
 	const canProceed = $derived(() => {
-		if (step === 1) { if (triggerCategory === 'cron') return cronSchedule.trim().length > 0; return true; }
+		if (step === 1 && triggerCategory === 'cron') return cronSchedule.trim().length > 0;
 		if (step === 3) return actions.some(a => a.message.trim().length > 0);
 		return true;
 	});
@@ -475,10 +473,10 @@
 						></textarea>
 
 						<!-- Variable chips -->
-						{#if variableChips().length > 0}
+						{#if availableFields().length > 0}
 							<div class="flex items-center gap-1 flex-wrap">
 								<span class="text-[9px] uppercase tracking-wider" style="color: var(--text-tertiary)">vars</span>
-								{#each variableChips() as v}
+								{#each availableFields() as v}
 									<button
 										onclick={() => insertVariable(i, v)}
 										class="rounded border px-1.5 py-0.5 text-[10px] font-mono transition-all hover:scale-105"

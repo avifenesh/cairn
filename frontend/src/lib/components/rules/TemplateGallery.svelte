@@ -58,6 +58,12 @@
 		return t.params.some(p => p.required);
 	}
 
+	function cardBorderColor(isPreviewing: boolean, wasJustCreated: boolean, accentColor: string): string {
+		if (isPreviewing) return accentColor;
+		if (wasJustCreated) return 'var(--color-success)';
+		return 'var(--border-subtle)';
+	}
+
 	function handleClick(t: RuleTemplate) {
 		if (hasRequiredParams(t)) {
 			// Has required params - go to full builder.
@@ -153,7 +159,7 @@
 				<div
 					class="rounded-lg border transition-all animate-in"
 					style="
-						border-color: {isPreviewing ? color : wasJustCreated ? 'var(--color-success)' : 'var(--border-subtle)'};
+						border-color: {cardBorderColor(isPreviewing, wasJustCreated, color)};
 						background: {wasJustCreated ? 'color-mix(in srgb, var(--color-success) 5%, var(--bg-1))' : 'var(--bg-1)'};
 						border-left: 3px solid {wasJustCreated ? 'var(--color-success)' : color};
 						animation-delay: {i * 40}ms;

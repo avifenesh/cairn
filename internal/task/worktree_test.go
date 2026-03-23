@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -149,7 +150,9 @@ func TestWorktree_CreateDefaultRepo(t *testing.T) {
 	if _, err := os.Stat(wtPath); os.IsNotExist(err) {
 		t.Fatalf("worktree path %q does not exist", wtPath)
 	}
-	m.Remove("default-test")
+	if err := m.Remove("default-test"); err != nil {
+		t.Errorf("Remove default-test: %v", err)
+	}
 }
 
 func TestWorktree_CreateSpecificRepo(t *testing.T) {
@@ -174,8 +177,15 @@ func TestWorktree_CreateSpecificRepo(t *testing.T) {
 		t.Fatalf("worktree %q missing .git file", wtPath)
 	}
 
-	// Cleanup — remove needs to work from any repo's worktree dir.
-	m.Remove("cross-repo-test")
+	// Remove must succeed — uses tracked repo, not defaultRepo.
+	if err := m.Remove("cross-repo-test"); err != nil {
+		t.Fatalf("Remove cross-repo-test: %v", err)
+	}
+
+	// Verify the worktree directory is gone.
+	if _, err := os.Stat(wtPath); !os.IsNotExist(err) {
+		t.Errorf("worktree path %q still exists after removal", wtPath)
+	}
 }
 
 func TestWorktree_CreateInvalidRepo(t *testing.T) {
@@ -189,7 +199,7 @@ func TestWorktree_CreateInvalidRepo(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid repo, got nil")
 	}
-	if want := "not in allowed repos"; !contains(err.Error(), want) {
+	if want := "not in allowed repos"; !strings.Contains(err.Error(), want) {
 		t.Errorf("error = %q, want containing %q", err.Error(), want)
 	}
 }
@@ -221,15 +231,16 @@ func TestWorktree_RepoDirs(t *testing.T) {
 	}
 }
 
-func contains(s, sub string) bool {
-	return len(s) >= len(sub) && (s == sub || len(s) > 0 && containsHelper(s, sub))
-}
+func TestWorktree_WhitespaceInAllowedRepos(t *testing.T) {
+	repoDir := initTestRepo(t)
+	wtDir := filepath.Join(t.TempDir(), "worktrees")
 
-func containsHelper(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
+	// Empty and whitespace-only entries should be filtered out.
+	m := NewWorktreeManager(repoDir, wtDir, []string{"", "  ", repoDir})
+
+	dirs := m.RepoDirs()
+	// Should only contain the default repo (deduplicated).
+	if len(dirs) != 1 {
+		t.Errorf("RepoDirs: got %d, want 1 (empty/whitespace should be filtered)", len(dirs))
 	}
-	return false
 }

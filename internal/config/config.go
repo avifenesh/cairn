@@ -718,9 +718,11 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 				if rp == "" {
 					continue
 				}
-				if abs, err := filepath.Abs(rp); err == nil {
-					rp = filepath.Clean(abs)
+				// Reject relative paths — they resolve against cwd which is unpredictable.
+				if !filepath.IsAbs(rp) {
+					continue
 				}
+				rp = filepath.Clean(rp)
 				result = append(result, rp)
 			}
 			c.CodingAllowedRepos = result
@@ -777,12 +779,13 @@ func (c *Config) GetPatchable() PatchableConfig {
 			return &s
 		}(),
 		CodingAllowedRepos:     strPtr(strings.Join(c.CodingAllowedRepos, ", ")),
-		MaxConcurrentSubagents: &c.MaxConcurrentSubagents,
-		MaxSpawnDepth:          &c.MaxSpawnDepth,
+		MaxConcurrentSubagents: intPtr(c.MaxConcurrentSubagents),
+		MaxSpawnDepth:          intPtr(c.MaxSpawnDepth),
 	}
 }
 
 func strPtr(s string) *string { return &s }
+func intPtr(i int) *int       { return &i }
 
 // MaxRoundsForMode returns the configured tool round limit for the given mode string.
 func (c *Config) MaxRoundsForMode(mode string) int {

@@ -122,6 +122,13 @@ func NewSubagentRunner(deps SubagentRunnerDeps) *SubagentRunner {
 	if maxDepth > AbsoluteMaxSpawnDepth {
 		maxDepth = AbsoluteMaxSpawnDepth
 	}
+	currentDepth := deps.CurrentDepth
+	if currentDepth < 0 {
+		currentDepth = 0
+	}
+	if currentDepth > maxDepth {
+		currentDepth = maxDepth
+	}
 	return &SubagentRunner{
 		tasks:          deps.Tasks,
 		tools:          deps.Tools,
@@ -130,7 +137,7 @@ func NewSubagentRunner(deps SubagentRunnerDeps) *SubagentRunner {
 		worktrees:      deps.Worktrees,
 		logger:         logger,
 		maxSpawnDepth:  maxDepth,
-		currentDepth:   deps.CurrentDepth,
+		currentDepth:   currentDepth,
 		memories:       deps.Memories,
 		soul:           deps.Soul,
 		contextBuilder: deps.ContextBuilder,
@@ -343,8 +350,6 @@ func (r *SubagentRunner) runBackground(ctx context.Context, parentTaskID string,
 			r.logger.Info("background subagent completed", "id", childID, "status", result.Status)
 		}
 	}()
-
-	_ = bgCancel // suppress unused warning — cancel is deferred in goroutine
 
 	return &tool.SubagentSpawnResult{
 		TaskID:    childID,
@@ -577,8 +582,11 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 
 // childRunner creates a SubagentRunner for the next depth level.
 // The child inherits all dependencies but has an incremented depth.
+// Safe: all shared fields are pointer types (worktrees *WorktreeManager, tools *Registry, etc.)
+// so the copy shares the pointer, not the value — no mutex-copy hazard. WorktreeManager
+// serializes its own operations via its internal mutex.
 func (r *SubagentRunner) childRunner() *SubagentRunner {
-	child := *r // shallow copy — all pointer fields are shared (intentional)
+	child := *r // shallow copy — pointer fields shared intentionally
 	child.currentDepth = r.currentDepth + 1
 	return &child
 }

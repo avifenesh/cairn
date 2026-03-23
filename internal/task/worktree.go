@@ -25,7 +25,8 @@ type WorktreeInfo struct {
 // All git operations are serialized via a mutex.
 type WorktreeManager struct {
 	defaultRepo string
-	repos       map[string]bool // normalized absolute paths of allowed repos
+	repos       map[string]bool   // normalized absolute paths of allowed repos
+	taskRepos   map[string]string // taskID -> repoDir used at creation (for Remove)
 	worktreeDir string
 	mu          sync.Mutex
 }
@@ -34,6 +35,11 @@ type WorktreeManager struct {
 // allowedRepos lists additional repo paths beyond defaultRepo. If empty, only
 // defaultRepo is available. defaultRepo is always included in the allowed set.
 func NewWorktreeManager(defaultRepo, worktreeDir string, allowedRepos []string) *WorktreeManager {
+	// Normalize defaultRepo the same way as allowedRepos.
+	if abs, err := filepath.Abs(defaultRepo); err == nil {
+		defaultRepo = filepath.Clean(abs)
+	}
+
 	repos := make(map[string]bool)
 	repos[defaultRepo] = true
 	for _, r := range allowedRepos {
@@ -48,6 +54,7 @@ func NewWorktreeManager(defaultRepo, worktreeDir string, allowedRepos []string) 
 	return &WorktreeManager{
 		defaultRepo: defaultRepo,
 		repos:       repos,
+		taskRepos:   make(map[string]string),
 		worktreeDir: worktreeDir,
 	}
 }
@@ -100,48 +107,71 @@ func (m *WorktreeManager) Create(taskID, baseBranch, repoDir string) (worktreePa
 		return "", "", fmt.Errorf("worktree: create %s: %w\n%s", taskID, err, string(out))
 	}
 
+	// Track which repo this worktree was created from (needed for Remove).
+	m.taskRepos[taskID] = selectedRepo
+
 	slog.Info("worktree created", "taskID", taskID, "path", worktreePath, "branch", branchName, "repo", selectedRepo)
 	return worktreePath, branchName, nil
 }
 
 // Remove deletes a worktree for the given task and prunes its branch.
+// Uses the repo that the worktree was created from (tracked internally).
 func (m *WorktreeManager) Remove(taskID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Use the repo that created this worktree; fall back to default.
+	repoDir := m.defaultRepo
+	if tracked, ok := m.taskRepos[taskID]; ok {
+		repoDir = tracked
+		delete(m.taskRepos, taskID)
+	}
+
 	worktreePath := filepath.Join(m.worktreeDir, taskID)
 
 	cmd := exec.Command("git", "worktree", "remove", worktreePath, "--force")
-	cmd.Dir = m.defaultRepo
+	cmd.Dir = repoDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("worktree: remove %s: %w\n%s", taskID, err, string(out))
 	}
 
-	// Also delete the branch.
+	// Also delete the branch from the correct repo.
 	branchName := "cairn/" + taskID
 	cmd = exec.Command("git", "branch", "-D", branchName)
-	cmd.Dir = m.defaultRepo
+	cmd.Dir = repoDir
 	_ = cmd.Run() // best-effort; branch may already be gone
 
-	slog.Info("worktree removed", "taskID", taskID, "path", worktreePath)
+	slog.Info("worktree removed", "taskID", taskID, "path", worktreePath, "repo", repoDir)
 	return nil
 }
 
 // List returns all worktrees managed under the worktreeDir by parsing
-// `git worktree list --porcelain`.
+// `git worktree list --porcelain` from each registered repo.
 func (m *WorktreeManager) List() ([]WorktreeInfo, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	cmd := exec.Command("git", "worktree", "list", "--porcelain")
-	cmd.Dir = m.defaultRepo
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("worktree: list: %w", err)
+	seen := make(map[string]bool) // dedup by path
+	var results []WorktreeInfo
+
+	for repo := range m.repos {
+		cmd := exec.Command("git", "worktree", "list", "--porcelain")
+		cmd.Dir = repo
+		out, err := cmd.Output()
+		if err != nil {
+			continue // skip repos that fail (e.g. missing)
+		}
+		for _, info := range parseWorktreeList(out, m.worktreeDir) {
+			if !seen[info.Path] {
+				info.RepoDir = repo
+				seen[info.Path] = true
+				results = append(results, info)
+			}
+		}
 	}
 
-	return parseWorktreeList(out, m.worktreeDir), nil
+	return results, nil
 }
 
 // parseWorktreeList parses the porcelain output of `git worktree list`.

@@ -932,12 +932,12 @@
 				</div>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Max Concurrent</p>
-						<Input type="number" bind:value={editMaxSubagents} min={1} max={10} class="h-7 text-xs font-mono" />
+						<label for="max-subagents" class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1 block">Max Concurrent (1-10)</label>
+						<Input id="max-subagents" type="number" bind:value={editMaxSubagents} min={1} max={10} class="h-7 text-xs font-mono" />
 					</div>
 					<div>
-						<p class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Max Spawn Depth</p>
-						<Input type="number" bind:value={editMaxDepth} min={1} max={5} class="h-7 text-xs font-mono" />
+						<label for="max-depth" class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1 block">Max Spawn Depth (1-5)</label>
+						<Input id="max-depth" type="number" bind:value={editMaxDepth} min={1} max={5} class="h-7 text-xs font-mono" />
 					</div>
 				</div>
 			</div>
@@ -945,7 +945,7 @@
 			<div class="flex justify-end">
 				<Button
 					size="sm" class="h-7 text-xs gap-1 px-3"
-					onclick={() => saveConfig('coding', { codingAllowedRepos: editCodingRepos, maxConcurrentSubagents: editMaxSubagents, maxSpawnDepth: editMaxDepth })}
+					onclick={() => saveConfig('coding', { codingAllowedRepos: editCodingRepos, maxConcurrentSubagents: Number(editMaxSubagents) || 5, maxSpawnDepth: Number(editMaxDepth) || 3 })}
 					disabled={saving === 'coding'}
 				>
 					{#if saving === 'coding'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}

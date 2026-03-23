@@ -18,7 +18,10 @@ import (
 	"github.com/avifenesh/cairn/internal/tool"
 )
 
-const maxOrchestratorActions = 5
+const (
+	maxOrchestratorActions        = 5
+	defaultMaxConcurrentSubagents = 5
+)
 
 // Orchestrator is a thin management layer that scans system state and produces
 // structured decisions. It delegates ALL work through narrow interfaces:
@@ -89,28 +92,33 @@ func NewOrchestrator(deps OrchestratorDeps) *Orchestrator {
 		logger = slog.Default()
 	}
 	return &Orchestrator{
-		memories:               deps.Memories,
-		tasks:                  deps.Tasks,
-		events:                 deps.Events,
-		soul:                   deps.Soul,
-		approvals:              deps.Approvals,
-		subagentRunner:         deps.SubagentRunner,
-		notifier:               deps.Notifier,
-		bus:                    deps.Bus,
-		provider:               deps.Provider,
-		model:                  deps.Model,
-		briefingModel:          deps.BriefingModel,
-		activityStore:          deps.ActivityStore,
-		reflector:              deps.Reflector,
-		skillSuggestor:         deps.SkillSuggestor,
-		marketplace:            deps.Marketplace,
-		toolSkills:             deps.ToolSkills,
-		journaler:              deps.Journaler,
-		agentTypes:             deps.AgentTypes,
-		logger:                 logger,
-		codingEnabled:          deps.CodingEnabled,
-		envContext:             deps.EnvContext,
-		maxConcurrentSubagents: deps.MaxConcurrentSubagents,
+		memories:       deps.Memories,
+		tasks:          deps.Tasks,
+		events:         deps.Events,
+		soul:           deps.Soul,
+		approvals:      deps.Approvals,
+		subagentRunner: deps.SubagentRunner,
+		notifier:       deps.Notifier,
+		bus:            deps.Bus,
+		provider:       deps.Provider,
+		model:          deps.Model,
+		briefingModel:  deps.BriefingModel,
+		activityStore:  deps.ActivityStore,
+		reflector:      deps.Reflector,
+		skillSuggestor: deps.SkillSuggestor,
+		marketplace:    deps.Marketplace,
+		toolSkills:     deps.ToolSkills,
+		journaler:      deps.Journaler,
+		agentTypes:     deps.AgentTypes,
+		logger:         logger,
+		codingEnabled:  deps.CodingEnabled,
+		envContext:     deps.EnvContext,
+		maxConcurrentSubagents: func() int {
+			if deps.MaxConcurrentSubagents > 0 {
+				return deps.MaxConcurrentSubagents
+			}
+			return defaultMaxConcurrentSubagents
+		}(),
 	}
 }
 
@@ -368,13 +376,9 @@ func (o *Orchestrator) buildDecisionPrompt(state *OrchestratorState) string {
 	}
 
 	// System prompt — inject configurable concurrent cap.
-	maxSubs := o.maxConcurrentSubagents
-	if maxSubs <= 0 {
-		maxSubs = 5
-	}
 	systemPrompt := strings.Replace(orchestratorSystemPrompt,
 		"Max 3 concurrent subagents",
-		fmt.Sprintf("Max %d concurrent subagents", maxSubs), 1)
+		fmt.Sprintf("Max %d concurrent subagents", o.maxConcurrentSubagents), 1)
 	parts = append(parts, systemPrompt)
 
 	// Environment ground truth (prevents hallucinated paths/repos).
@@ -518,11 +522,7 @@ func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecisi
 			if o.agentTypes != nil && o.agentTypes.Get(action.SpawnType) != nil {
 				validType = true
 			}
-			maxSpawns := o.maxConcurrentSubagents
-			if maxSpawns <= 0 {
-				maxSpawns = 5
-			}
-			if o.subagentRunner != nil && validType && action.Instruction != "" && activeSpawns < maxSpawns {
+			if o.subagentRunner != nil && validType && action.Instruction != "" && activeSpawns < o.maxConcurrentSubagents {
 				_, err := o.subagentRunner.Spawn(ctx, "orchestrator", &tool.SubagentSpawnRequest{
 					Type:        action.SpawnType,
 					Instruction: action.Instruction,

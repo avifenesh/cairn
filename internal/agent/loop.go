@@ -538,10 +538,12 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 
 	// Create isolated worktree for coding tasks.
 	if mode == tool.ModeCoding && l.worktreeManager != nil {
+		inputRepo := extractRepoFromInput(t.Input)
+
 		// If allowlist is configured, verify the repo is permitted.
 		if len(l.config.CodingAllowedRepos) > 0 {
 			targetRepo := l.worktreeManager.RepoDir()
-			if inputRepo := extractRepoFromInput(t.Input); inputRepo != "" {
+			if inputRepo != "" {
 				targetRepo = inputRepo
 			}
 			if !l.isRepoAllowed(targetRepo) {
@@ -552,7 +554,7 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 			}
 		}
 
-		wtPath, _, wtErr := l.worktreeManager.Create(t.ID, "HEAD", extractRepoFromInput(t.Input))
+		wtPath, _, wtErr := l.worktreeManager.Create(t.ID, "HEAD", inputRepo)
 		if wtErr != nil {
 			l.logger.Error("agent loop: worktree creation failed, failing task", "task", t.ID, "error", wtErr)
 			l.tasks.Fail(ctx, t.ID, fmt.Errorf("worktree creation failed: %w", wtErr))

@@ -66,9 +66,9 @@ timeout 5 sqlite3 /home/ubuntu/.cairn/data/cairn.db "SELECT 'tables: ' || COUNT(
 if [ -z "$READ_API_TOKEN" ]; then echo "metrics auth required — READ_API_TOKEN not set"; else TMPF=$(mktemp --mode=0600) && CFG=$(mktemp --mode=0600) && trap 'rm -f "$TMPF" "$CFG"' EXIT && echo "header = \"Authorization: Bearer $READ_API_TOKEN\"" > "$CFG" && HTTP_CODE=$(curl -s -o "$TMPF" -w '%{http_code}' --connect-timeout 3 --max-time 5 --config "$CFG" http://localhost:8788/v1/metrics 2>/dev/null); if [ "$HTTP_CODE" = "200" ]; then jq -r '"sse_clients: \(.sse.connectedClients // 0), poller_cycles: \(.poller.cycles // 0), poller_failures: \(.poller.failures // 0), poller_inserted: \(.poller.inserted // 0), req_total: \(.requests.total // 0), req_p50: \(.requests.p50LatencyMs // 0), req_p99: \(.requests.p99LatencyMs // 0)"' "$TMPF" 2>/dev/null || echo "invalid JSON response"; elif [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then echo "metrics auth failed (HTTP $HTTP_CODE)"; else echo "metrics unavailable (HTTP $HTTP_CODE)"; fi; fi
 ```
 
-**TLS cert expiry:**
+**TLS cert expiry (with days remaining and status):**
 ```
-DOMAIN=${FRONTEND_DOMAIN:-agntic.garden}; timeout 5 bash -c "set -o pipefail; echo | openssl s_client -connect $DOMAIN:443 -servername $DOMAIN 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2" || echo "UNKNOWN"
+DOMAIN=${FRONTEND_DOMAIN:-agntic.garden}; END_DATE=$(timeout 5 bash -c 'set -o pipefail; echo | openssl s_client -connect "$1:443" -servername "$1" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2' _ "$DOMAIN" 2>/dev/null); if [ -z "$END_DATE" ]; then echo "expiry: UNKNOWN, days_remaining: UNKNOWN, status: UNKNOWN"; else END_EPOCH=$(date -d "$END_DATE" +%s 2>/dev/null || echo ""); NOW_EPOCH=$(date +%s); case $END_EPOCH in ""|*[!0-9]*) echo "expiry: UNKNOWN, days_remaining: UNKNOWN, status: UNKNOWN";; *) DAYS=$(( ( END_EPOCH - NOW_EPOCH ) / 86400 )); if [ "$DAYS" -lt 3 ]; then STATUS="CRIT"; elif [ "$DAYS" -lt 14 ]; then STATUS="WARN"; else STATUS="OK"; fi; printf "expiry: %s, days_remaining: %d, status: %s\n" "$END_DATE" "$DAYS" "$STATUS";; esac; fi
 ```
 
 **Systemd services:**

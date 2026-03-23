@@ -31,6 +31,31 @@ type TemplateParam struct {
 	Options  []string `json:"options,omitempty"` // for "select" type
 }
 
+// signalNotifyFactory returns a factory that creates a simple signal notification rule.
+func signalNotifyFactory(name, description, source, kind, message, priority string, throttleMs int64) func(map[string]string) (*Rule, error) {
+	return func(_ map[string]string) (*Rule, error) {
+		filter := map[string]string{"sourceType": source}
+		if kind != "" {
+			filter["kind"] = kind
+		}
+		return &Rule{
+			Name:        name,
+			Description: description,
+			Enabled:     true,
+			Trigger: Trigger{
+				Type:      TriggerEvent,
+				EventType: "EventIngested",
+				Filter:    filter,
+			},
+			Actions: []Action{{
+				Type:   ActionNotify,
+				Params: map[string]string{"message": message, "priority": priority},
+			}},
+			ThrottleMs: throttleMs,
+		}, nil
+	}
+}
+
 // bundledTemplates is the authoritative list of rule templates.
 var bundledTemplates = []Template{
 	// --- Signal Monitoring ---
@@ -40,23 +65,7 @@ var bundledTemplates = []Template{
 		Description: "Send a notification when a new GitHub pull request is detected.",
 		Category:    "signal",
 		Source:      "github",
-		factory: func(_ map[string]string) (*Rule, error) {
-			return &Rule{
-				Name:        "Notify on GitHub PRs",
-				Description: "Fires when a GitHub PR event is ingested.",
-				Enabled:     true,
-				Trigger: Trigger{
-					Type:      TriggerEvent,
-					EventType: "EventIngested",
-					Filter:    map[string]string{"sourceType": "github", "kind": "pr"},
-				},
-				Actions: []Action{{
-					Type:   ActionNotify,
-					Params: map[string]string{"message": "New PR: {{.title}} — {{.url}}", "priority": "2"},
-				}},
-				ThrottleMs: 60000,
-			}, nil
-		},
+		factory:     signalNotifyFactory("Notify on GitHub PRs", "Fires when a GitHub PR event is ingested.", "github", "pr", "New PR: {{.title}} — {{.url}}", "2", 60000),
 	},
 	{
 		ID:          "notify-github-issue",
@@ -64,23 +73,7 @@ var bundledTemplates = []Template{
 		Description: "Send a notification when a new GitHub issue is detected.",
 		Category:    "signal",
 		Source:      "github",
-		factory: func(_ map[string]string) (*Rule, error) {
-			return &Rule{
-				Name:        "Notify on GitHub Issues",
-				Description: "Fires when a GitHub issue event is ingested.",
-				Enabled:     true,
-				Trigger: Trigger{
-					Type:      TriggerEvent,
-					EventType: "EventIngested",
-					Filter:    map[string]string{"sourceType": "github", "kind": "issue"},
-				},
-				Actions: []Action{{
-					Type:   ActionNotify,
-					Params: map[string]string{"message": "New issue: {{.title}} — {{.url}}", "priority": "1"},
-				}},
-				ThrottleMs: 60000,
-			}, nil
-		},
+		factory:     signalNotifyFactory("Notify on GitHub Issues", "Fires when a GitHub issue event is ingested.", "github", "issue", "New issue: {{.title}} — {{.url}}", "1", 60000),
 	},
 	{
 		ID:          "notify-github-release",
@@ -88,23 +81,7 @@ var bundledTemplates = []Template{
 		Description: "Send a notification when a new GitHub release is published.",
 		Category:    "signal",
 		Source:      "github",
-		factory: func(_ map[string]string) (*Rule, error) {
-			return &Rule{
-				Name:        "Notify on New Releases",
-				Description: "Fires when a GitHub release event is ingested.",
-				Enabled:     true,
-				Trigger: Trigger{
-					Type:      TriggerEvent,
-					EventType: "EventIngested",
-					Filter:    map[string]string{"sourceType": "github", "kind": "release"},
-				},
-				Actions: []Action{{
-					Type:   ActionNotify,
-					Params: map[string]string{"message": "New release: {{.title}} — {{.url}}", "priority": "2"},
-				}},
-				ThrottleMs: 300000,
-			}, nil
-		},
+		factory:     signalNotifyFactory("Notify on New Releases", "Fires when a GitHub release event is ingested.", "github", "release", "New release: {{.title}} — {{.url}}", "2", 300000),
 	},
 	{
 		ID:          "notify-hn-mentions",
@@ -146,23 +123,7 @@ var bundledTemplates = []Template{
 		Description: "Send a notification when a new Reddit post is detected.",
 		Category:    "signal",
 		Source:      "reddit",
-		factory: func(_ map[string]string) (*Rule, error) {
-			return &Rule{
-				Name:        "Notify on Reddit Posts",
-				Description: "Fires when a Reddit post is ingested.",
-				Enabled:     true,
-				Trigger: Trigger{
-					Type:      TriggerEvent,
-					EventType: "EventIngested",
-					Filter:    map[string]string{"sourceType": "reddit"},
-				},
-				Actions: []Action{{
-					Type:   ActionNotify,
-					Params: map[string]string{"message": "Reddit: {{.title}} — {{.url}}", "priority": "1"},
-				}},
-				ThrottleMs: 60000,
-			}, nil
-		},
+		factory:     signalNotifyFactory("Notify on Reddit Posts", "Fires when a Reddit post is ingested.", "reddit", "", "Reddit: {{.title}} — {{.url}}", "1", 60000),
 	},
 	{
 		ID:          "notify-email",
@@ -170,23 +131,7 @@ var bundledTemplates = []Template{
 		Description: "Send a notification when a new email is received via Gmail.",
 		Category:    "signal",
 		Source:      "gmail",
-		factory: func(_ map[string]string) (*Rule, error) {
-			return &Rule{
-				Name:        "Notify on New Emails",
-				Description: "Fires when a Gmail email event is ingested.",
-				Enabled:     true,
-				Trigger: Trigger{
-					Type:      TriggerEvent,
-					EventType: "EventIngested",
-					Filter:    map[string]string{"sourceType": "gmail"},
-				},
-				Actions: []Action{{
-					Type:   ActionNotify,
-					Params: map[string]string{"message": "New email: {{.title}}", "priority": "2"},
-				}},
-				ThrottleMs: 30000,
-			}, nil
-		},
+		factory:     signalNotifyFactory("Notify on New Emails", "Fires when a Gmail email event is ingested.", "gmail", "", "New email: {{.title}}", "2", 30000),
 	},
 	{
 		ID:          "notify-any-signal",
@@ -204,6 +149,9 @@ var bundledTemplates = []Template{
 			source := strings.TrimSpace(params["source"])
 			if source == "" {
 				return nil, fmt.Errorf("source parameter is required")
+			}
+			if _, ok := signal.GetSourceInfo(source); !ok {
+				return nil, fmt.Errorf("unknown source %q", source)
 			}
 			return &Rule{
 				Name:        fmt.Sprintf("Notify on %s events", source),
@@ -377,17 +325,22 @@ func ensureIndex() {
 	})
 }
 
+// sortTemplates sorts templates by category then name (in-place).
+func sortTemplates(ts []Template) {
+	sort.Slice(ts, func(i, j int) bool {
+		if ts[i].Category != ts[j].Category {
+			return ts[i].Category < ts[j].Category
+		}
+		return ts[i].Name < ts[j].Name
+	})
+}
+
 // ListTemplates returns all bundled templates sorted by category then name.
 func ListTemplates() []Template {
 	ensureIndex()
 	result := make([]Template, len(bundledTemplates))
 	copy(result, bundledTemplates)
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].Category != result[j].Category {
-			return result[i].Category < result[j].Category
-		}
-		return result[i].Name < result[j].Name
-	})
+	sortTemplates(result)
 	return result
 }
 
@@ -400,12 +353,7 @@ func ListTemplatesForSource(source string) []Template {
 			result = append(result, t)
 		}
 	}
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].Category != result[j].Category {
-			return result[i].Category < result[j].Category
-		}
-		return result[i].Name < result[j].Name
-	})
+	sortTemplates(result)
 	return result
 }
 
@@ -424,31 +372,18 @@ func Instantiate(id string, params map[string]string) (*Rule, error) {
 		return nil, fmt.Errorf("template %q not found", id)
 	}
 
-	// Validate required params.
-	for _, p := range tmpl.Params {
-		if p.Required {
-			v := strings.TrimSpace(params[p.Key])
-			if v == "" {
-				// Try default.
-				if p.Default != "" {
-					if params == nil {
-						params = make(map[string]string)
-					}
-					params[p.Key] = p.Default
-				} else {
-					return nil, fmt.Errorf("required parameter %q is missing", p.Key)
-				}
-			}
-		}
-	}
-
-	// Apply defaults for non-required params.
+	// Ensure params map exists before validation.
 	if params == nil {
 		params = make(map[string]string)
 	}
+
+	// Validate required params and apply defaults.
 	for _, p := range tmpl.Params {
-		if _, ok := params[p.Key]; !ok && p.Default != "" {
+		v := strings.TrimSpace(params[p.Key])
+		if v == "" && p.Default != "" {
 			params[p.Key] = p.Default
+		} else if v == "" && p.Required {
+			return nil, fmt.Errorf("required parameter %q is missing", p.Key)
 		}
 	}
 

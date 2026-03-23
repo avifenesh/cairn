@@ -49,6 +49,7 @@ Map these to Tailwind's `@theme` in CSS. Support dark (default) and light via `[
 | `/memory` | Memory | Memory browser, search, accept/reject/edit |
 | `/agents` | Agents | Fleet status, agent cards, session viewer |
 | `/skills` | Skills | Skill catalog, activation status |
+| `/rules` | Rules | Automation rules browser, template gallery, rule builder |
 | `/soul` | Soul | SOUL.md editor with git history, patches |
 | `/settings` | Settings | Theme, density, mood, notifications |
 
@@ -134,6 +135,9 @@ Default: `http://localhost:8788`. Production: `https://agntic.garden` (Caddy pro
 | GET | `/v1/subagents` | List subagent tasks (filter: ?status=, ?parentTaskId=) |
 | GET | `/v1/subagents/{id}` | Get single subagent task |
 | POST | `/v1/subagents/{id}/cancel` | Cancel running subagent |
+| GET | `/v1/sources` | List registered signal sources with metadata |
+| GET | `/v1/rule-templates` | List bundled rule templates |
+| POST | `/v1/rule-templates/{id}/instantiate` | Instantiate a rule from a template |
 
 ### SSE Events (`GET /v1/stream`)
 

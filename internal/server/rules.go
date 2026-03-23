@@ -8,13 +8,14 @@ import (
 	"time"
 
 	"github.com/avifenesh/cairn/internal/rules"
+	signalplane "github.com/avifenesh/cairn/internal/signal"
 )
 
 // --- Signal source handlers ---
 
 func (s *Server) handleListSources(w http.ResponseWriter, r *http.Request) {
 	if s.sourceRegistry == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
+		writeJSON(w, http.StatusOK, map[string]any{"items": []signalplane.SourceInfo{}})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": s.sourceRegistry.RegisteredSources()})
@@ -35,6 +36,7 @@ func (s *Server) handleListRules(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateRule(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	var req struct {
 		Name        string         `json:"name"`
 		Description string         `json:"description"`
@@ -49,6 +51,14 @@ func (s *Server) handleCreateRule(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Name == "" {
 		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	if len(req.Name) > 256 {
+		writeError(w, http.StatusBadRequest, "name too long (max 256 chars)")
+		return
+	}
+	if len(req.Description) > 1024 {
+		writeError(w, http.StatusBadRequest, "description too long (max 1024 chars)")
 		return
 	}
 	if req.Trigger.Type == "" {
@@ -105,6 +115,7 @@ func (s *Server) handleGetRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUpdateRule(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	id := r.PathValue("id")
 	var req struct {
 		Enabled     *bool          `json:"enabled"`
@@ -121,6 +132,14 @@ func (s *Server) handleUpdateRule(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Actions != nil && len(req.Actions) == 0 {
 		writeError(w, http.StatusBadRequest, "at least one action is required")
+		return
+	}
+	if req.Name != nil && len(*req.Name) > 256 {
+		writeError(w, http.StatusBadRequest, "name too long (max 256 chars)")
+		return
+	}
+	if req.Description != nil && len(*req.Description) > 1024 {
+		writeError(w, http.StatusBadRequest, "description too long (max 1024 chars)")
 		return
 	}
 
@@ -233,6 +252,7 @@ func (s *Server) handleListRuleTemplates(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *Server) handleInstantiateRuleTemplate(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	id := r.PathValue("id")
 
 	var req struct {

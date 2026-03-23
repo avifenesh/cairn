@@ -5,16 +5,17 @@
 	import { relativeTime } from '$lib/utils/time';
 	import type { Rule, RuleTemplate } from '$lib/types';
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import TemplateGallery from '$lib/components/rules/TemplateGallery.svelte';
 	import RuleBuilder from '$lib/components/rules/RuleBuilder.svelte';
-	import { Zap, Plus, Trash2, ToggleLeft, ToggleRight, Clock, AlertCircle, CheckCircle2, XCircle, Wrench, BookOpen, History } from '@lucide/svelte';
+	import { Zap, Plus, Trash2, ToggleLeft, ToggleRight, Clock, AlertCircle, CheckCircle2, XCircle } from '@lucide/svelte';
 
 	let loading = $state(true);
 	let tab = $state<'templates' | 'rules' | 'history'>('templates');
 	let showBuilder = $state(false);
 	let builderPrefill = $state<RuleTemplate | undefined>(undefined);
+	let justCreatedCount = $state(0);
+	let createdTimers: ReturnType<typeof setTimeout>[] = [];
 
 	function onRuleExecuted(e: Event) {
 		const detail = (e as CustomEvent).detail;
@@ -34,7 +35,6 @@
 			ruleStore.setExecutions(execsRes.items ?? []);
 			ruleStore.setSources(sourcesRes.items ?? []);
 			ruleStore.setTemplates(templatesRes.items ?? []);
-			// If user already has rules, default to rules tab.
 			if ((rulesRes.items ?? []).length > 0) tab = 'rules';
 		} catch (e) {
 			console.error('Failed to load rules:', e);
@@ -42,7 +42,10 @@
 			loading = false;
 		}
 	});
-	onDestroy(() => window.removeEventListener('cairn:rule-executed', onRuleExecuted));
+	onDestroy(() => {
+		window.removeEventListener('cairn:rule-executed', onRuleExecuted);
+		createdTimers.forEach(t => clearTimeout(t));
+	});
 
 	function openBuilder(prefill?: RuleTemplate) {
 		builderPrefill = prefill;
@@ -59,7 +62,7 @@
 	}
 
 	async function handleDelete(id: string, name: string) {
-		if (!confirm(`Delete rule "${name}"? This cannot be undone.`)) return;
+		if (!confirm(`Delete rule "${name}"?`)) return;
 		try {
 			await deleteRule(id);
 			ruleStore.removeRule(id);
@@ -69,171 +72,212 @@
 	}
 
 	function triggerSummary(rule: Rule): string {
-		if (rule.trigger.type === 'cron') return `Schedule: ${rule.trigger.schedule}`;
-		// Use source registry for human-readable labels.
+		if (rule.trigger.type === 'cron') return rule.trigger.schedule ?? 'scheduled';
 		const src = ruleStore.sources.find(s => s.name === rule.trigger.filter?.sourceType);
 		const srcLabel = src?.label ?? rule.trigger.filter?.sourceType;
 		const kind = rule.trigger.filter?.kind;
-		if (srcLabel && kind) return `${srcLabel} ${kind}`;
-		if (srcLabel) return `${srcLabel} events`;
+		if (srcLabel && kind) return `${srcLabel} / ${kind}`;
+		if (srcLabel) return srcLabel;
 		const eventLabels: Record<string, string> = {
-			EventIngested: 'Signal event',
-			TaskCreated: 'Task created',
-			TaskCompleted: 'Task completed',
-			TaskFailed: 'Task failed',
-			MemoryProposed: 'Memory proposed',
+			EventIngested: 'Signal', TaskCreated: 'Task created', TaskCompleted: 'Task completed',
+			TaskFailed: 'Task failed', MemoryProposed: 'Memory',
 		};
-		return eventLabels[rule.trigger.eventType ?? ''] ?? rule.trigger.eventType ?? 'Unknown';
+		return eventLabels[rule.trigger.eventType ?? ''] ?? 'event';
 	}
 
 	function actionSummary(rule: Rule): string {
 		return rule.actions.map(a => {
-			if (a.type === 'notify') return `Notify: ${a.params.message?.slice(0, 50) ?? ''}`;
-			if (a.type === 'task') return `Task: ${a.params.description?.slice(0, 50) ?? ''}`;
+			if (a.type === 'notify') return a.params.message?.slice(0, 60) ?? 'notify';
+			if (a.type === 'task') return a.params.description?.slice(0, 60) ?? 'task';
 			return a.type;
-		}).join(', ');
+		}).join(' + ');
 	}
 
-	const statusIcon = (status: string) => {
+	function statusIcon(status: string) {
 		if (status === 'success') return CheckCircle2;
 		if (status === 'error') return XCircle;
 		return AlertCircle;
-	};
-	const statusColor = (status: string) => {
-		if (status === 'success') return 'text-[var(--color-success)]';
-		if (status === 'error') return 'text-[var(--color-error)]';
-		return 'text-[var(--text-tertiary)]';
-	};
+	}
+	function statusColor(status: string): string {
+		if (status === 'success') return 'var(--color-success)';
+		if (status === 'error') return 'var(--color-error)';
+		return 'var(--text-tertiary)';
+	}
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-4 sm:p-6">
 	<!-- Header -->
-	<div class="mb-6 flex items-center justify-between">
-		<div>
-			<h1 class="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Rules</h1>
-			<p class="mt-1 text-xs text-[var(--text-tertiary)]">Automation rules — when X happens, do Y</p>
+	<div class="mb-6">
+		<div class="flex items-center justify-between mb-4">
+			<div>
+				<h1 class="text-lg font-semibold tracking-tight" style="color: var(--text-primary)">Rules</h1>
+				<p class="text-xs mt-0.5" style="color: var(--text-tertiary)">When X happens, do Y</p>
+			</div>
+			{#if !showBuilder}
+				<Button size="sm" class="h-8 text-xs gap-1.5" onclick={() => openBuilder()}>
+					<Plus class="h-3.5 w-3.5" /> New
+				</Button>
+			{/if}
 		</div>
-		<div class="flex gap-1.5">
-			<Button variant={tab === 'templates' ? 'default' : 'outline'} size="sm" class="h-8 text-xs gap-1" onclick={() => tab = 'templates'}>
-				<BookOpen class="h-3.5 w-3.5" /> Templates
-			</Button>
-			<Button variant={tab === 'rules' ? 'default' : 'outline'} size="sm" class="h-8 text-xs gap-1" onclick={() => tab = 'rules'}>
-				<Wrench class="h-3.5 w-3.5" /> My Rules ({ruleStore.rules.length})
-			</Button>
-			<Button variant={tab === 'history' ? 'default' : 'outline'} size="sm" class="h-8 text-xs gap-1" onclick={() => tab = 'history'}>
-				<History class="h-3.5 w-3.5" /> History
-			</Button>
+
+		<!-- Tab bar (underline style matching app convention) -->
+		<div class="flex gap-4 border-b" style="border-color: var(--border-subtle)">
+			{#each [
+				{ key: 'templates', label: 'Templates' },
+				{ key: 'rules', label: justCreatedCount > 0 ? `Active (${ruleStore.rules.length}) +${justCreatedCount}` : `Active (${ruleStore.rules.length})` },
+				{ key: 'history', label: 'Log' },
+			] as t}
+				<button
+					onclick={() => tab = t.key as typeof tab}
+					class="relative pb-2 text-xs font-medium transition-colors"
+					style="color: {tab === t.key ? 'var(--text-primary)' : 'var(--text-tertiary)'}"
+				>
+					{t.label}
+					{#if tab === t.key}
+						<div class="absolute bottom-0 left-0 right-0 h-[2px] rounded-full" style="background: var(--cairn-accent)"></div>
+					{/if}
+				</button>
+			{/each}
 		</div>
 	</div>
 
-	<!-- Builder overlay -->
+	<!-- Builder (overlays content when open) -->
 	{#if showBuilder}
 		<div class="mb-6">
 			<RuleBuilder
 				sources={ruleStore.sources}
 				prefill={builderPrefill}
 				onclose={() => { showBuilder = false; builderPrefill = undefined; }}
-				oncreated={() => { showBuilder = false; builderPrefill = undefined; tab = 'rules'; }}
+				oncreated={() => {
+					showBuilder = false; builderPrefill = undefined; tab = 'rules';
+					justCreatedCount++;
+					createdTimers.push(setTimeout(() => justCreatedCount = Math.max(0, justCreatedCount - 1), 3000));
+				}}
 			/>
 		</div>
 	{/if}
 
+	<!-- Content -->
 	{#if loading}
-		<div class="space-y-3">
-			<Skeleton class="h-16 w-full" />
-			<Skeleton class="h-16 w-full" />
-			<Skeleton class="h-16 w-full" />
+		<div class="space-y-2 mt-4">
+			<Skeleton class="h-12 w-full rounded-lg" />
+			<Skeleton class="h-12 w-full rounded-lg" />
+			<Skeleton class="h-12 w-full rounded-lg" />
 		</div>
+
 	{:else if tab === 'templates'}
-		<!-- Templates Gallery -->
-		<div class="space-y-4">
+		<div class="mt-4">
 			<TemplateGallery
 				templates={ruleStore.templates}
 				sources={ruleStore.sources}
 				onselect={(t) => openBuilder(t)}
 			/>
-			{#if !showBuilder}
-				<div class="flex justify-center">
-					<Button variant="outline" size="sm" class="h-8 text-xs gap-1.5" onclick={() => openBuilder()}>
-						<Plus class="h-3.5 w-3.5" /> Build custom rule
-					</Button>
+		</div>
+
+	{:else if tab === 'rules'}
+		<div class="mt-4">
+			{#if ruleStore.rules.length === 0}
+				<div class="rounded-xl border border-dashed p-10 text-center" style="border-color: var(--border-subtle)">
+					<Zap class="mx-auto h-5 w-5 mb-2" style="color: var(--text-tertiary); opacity: 0.3" />
+					<p class="text-xs" style="color: var(--text-tertiary)">No rules yet</p>
+					<button onclick={() => tab = 'templates'} class="text-xs mt-1 font-medium" style="color: var(--cairn-accent)">
+						Browse templates
+					</button>
+				</div>
+			{:else}
+				<div class="space-y-1">
+					{#each ruleStore.rules as rule, i (rule.id)}
+						<div
+							class="group flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all animate-in"
+							style="
+								background: var(--bg-1);
+								border: 1px solid var(--border-subtle);
+								animation-delay: {i * 30}ms;
+							"
+						>
+							<!-- Toggle -->
+							<button onclick={() => handleToggle(rule)} class="flex-shrink-0" aria-label={rule.enabled ? `Disable ${rule.name}` : `Enable ${rule.name}`}>
+								{#if rule.enabled}
+									<ToggleRight class="h-5 w-5" style="color: var(--cairn-accent)" />
+								{:else}
+									<ToggleLeft class="h-5 w-5" style="color: var(--text-tertiary); opacity: 0.5" />
+								{/if}
+							</button>
+
+							<!-- Content -->
+							<div class="flex-1 min-w-0" style="opacity: {rule.enabled ? 1 : 0.5}">
+								<div class="flex items-center gap-2">
+									<span class="text-sm font-medium truncate" style="color: var(--text-primary)">{rule.name}</span>
+									<span class="text-[10px] font-mono rounded px-1.5 py-0.5" style="background: var(--bg-2); color: var(--text-tertiary)">
+										{triggerSummary(rule)}
+									</span>
+									{#if rule.throttleMs > 0}
+										<span class="text-[10px] font-mono" style="color: var(--text-tertiary)">
+											{rule.throttleMs / 1000}s
+										</span>
+									{/if}
+								</div>
+								<p class="text-xs mt-0.5 truncate font-mono" style="color: var(--text-tertiary)">
+									{actionSummary(rule)}
+								</p>
+							</div>
+
+							<!-- Last fired -->
+							{#if rule.lastFiredAt}
+								<span class="text-[10px] font-mono flex-shrink-0 hidden sm:inline" style="color: var(--text-tertiary)">
+									{relativeTime(rule.lastFiredAt)}
+								</span>
+							{/if}
+
+							<!-- Delete -->
+							<button
+								onclick={() => handleDelete(rule.id, rule.name)}
+								class="flex-shrink-0 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+								aria-label={`Delete ${rule.name}`}
+							>
+								<Trash2 class="h-3.5 w-3.5" style="color: var(--text-tertiary)" />
+							</button>
+						</div>
+					{/each}
 				</div>
 			{/if}
 		</div>
-	{:else if tab === 'rules'}
-		<!-- Rules List -->
-		{#if !showBuilder}
-			<div class="mb-4 flex justify-end">
-				<Button size="sm" class="h-8 text-xs gap-1.5" onclick={() => openBuilder()}>
-					<Plus class="h-3.5 w-3.5" /> New Rule
-				</Button>
-			</div>
-		{/if}
-		{#if ruleStore.rules.length === 0}
-			<div class="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-1)] p-8 text-center">
-				<Zap class="mx-auto h-8 w-8 text-[var(--text-tertiary)]/40 mb-2" />
-				<p class="text-sm text-[var(--text-tertiary)]">No automation rules yet</p>
-				<p class="text-xs text-[var(--text-tertiary)]/60 mt-1">Use a template or build a custom rule</p>
-			</div>
-		{:else}
-			<div class="space-y-2">
-				{#each ruleStore.rules as rule (rule.id)}
-					<div class="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-1)] p-4 flex items-start gap-3 hover:border-[var(--cairn-accent)]/30 transition-colors">
-						<button onclick={() => handleToggle(rule)} class="mt-0.5 flex-shrink-0" aria-label={rule.enabled ? `Disable rule ${rule.name}` : `Enable rule ${rule.name}`}>
-							{#if rule.enabled}
-								<ToggleRight class="h-5 w-5 text-[var(--cairn-accent)]" />
-							{:else}
-								<ToggleLeft class="h-5 w-5 text-[var(--text-tertiary)]" />
-							{/if}
-						</button>
-						<div class="flex-1 min-w-0">
-							<div class="flex items-center gap-2">
-								<span class="text-sm font-medium text-[var(--text-primary)] {rule.enabled ? '' : 'opacity-50'}">{rule.name}</span>
-								{#if rule.condition}
-									<Badge variant="outline" class="text-[10px]">expr</Badge>
-								{/if}
-								{#if rule.throttleMs > 0}
-									<Badge variant="outline" class="text-[10px] gap-0.5"><Clock class="h-2.5 w-2.5" />{rule.throttleMs / 1000}s</Badge>
-								{/if}
-							</div>
-							<p class="text-xs text-[var(--text-tertiary)] mt-0.5">{triggerSummary(rule)}</p>
-							<p class="text-xs text-[var(--text-secondary)] mt-0.5">{actionSummary(rule)}</p>
-							{#if rule.lastFiredAt}
-								<p class="text-[10px] text-[var(--text-tertiary)]/60 mt-1">Last fired {relativeTime(rule.lastFiredAt)}</p>
-							{/if}
-						</div>
-						<button onclick={() => handleDelete(rule.id, rule.name)} class="flex-shrink-0 p-1 rounded hover:bg-[var(--color-error)]/10 transition-colors" aria-label={`Delete rule ${rule.name}`}>
-							<Trash2 class="h-3.5 w-3.5 text-[var(--text-tertiary)] hover:text-[var(--color-error)]" />
-						</button>
-					</div>
-				{/each}
-			</div>
-		{/if}
+
 	{:else}
-		<!-- Execution History -->
-		{#if ruleStore.executions.length === 0}
-			<div class="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-1)] p-8 text-center">
-				<Clock class="mx-auto h-8 w-8 text-[var(--text-tertiary)]/40 mb-2" />
-				<p class="text-sm text-[var(--text-tertiary)]">No rule executions yet</p>
-			</div>
-		{:else}
-			<div class="space-y-1">
-				{#each ruleStore.executions as exec (exec.id)}
-					{@const Icon = statusIcon(exec.status)}
-					<div class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-[var(--bg-1)] transition-colors">
-						<Icon class="h-3.5 w-3.5 flex-shrink-0 {statusColor(exec.status)}" />
-						<code class="text-[11px] font-mono text-[var(--text-tertiary)]">{ruleStore.rules.find(r => r.id === exec.ruleId)?.name ?? exec.ruleId.slice(0, 12)}</code>
-						<Badge variant="outline" class="text-[10px] {statusColor(exec.status)}">{exec.status}</Badge>
-						{#if exec.error}
-							<span class="text-xs text-[var(--color-error)] truncate flex-1">{exec.error}</span>
-						{:else}
-							<span class="flex-1"></span>
-						{/if}
-						<span class="text-[10px] text-[var(--text-tertiary)] tabular-nums">{exec.durationMs}ms</span>
-						<time class="text-[10px] text-[var(--text-tertiary)] tabular-nums font-mono">{relativeTime(exec.createdAt)}</time>
-					</div>
-				{/each}
-			</div>
-		{/if}
+		<!-- Execution Log -->
+		<div class="mt-4">
+			{#if ruleStore.executions.length === 0}
+				<div class="rounded-xl border border-dashed p-10 text-center" style="border-color: var(--border-subtle)">
+					<Clock class="mx-auto h-5 w-5 mb-2" style="color: var(--text-tertiary); opacity: 0.3" />
+					<p class="text-xs" style="color: var(--text-tertiary)">No executions yet</p>
+				</div>
+			{:else}
+				<div class="space-y-px">
+					{#each ruleStore.executions as exec, i (exec.id)}
+						{@const Icon = statusIcon(exec.status)}
+						{@const color = statusColor(exec.status)}
+						<div
+							class="flex items-center gap-3 rounded-md px-3 py-2 transition-colors animate-in"
+							style="animation-delay: {i * 20}ms"
+						>
+							<Icon class="h-3 w-3 flex-shrink-0" style="color: {color}" />
+							<span class="text-[11px] font-mono truncate" style="color: var(--text-secondary)">
+								{ruleStore.rules.find(r => r.id === exec.ruleId)?.name ?? exec.ruleId.slice(0, 10)}
+							</span>
+							<span class="text-[10px] font-mono rounded px-1 py-0.5" style="background: color-mix(in srgb, {color} 10%, transparent); color: {color}">
+								{exec.status}
+							</span>
+							{#if exec.error}
+								<span class="text-[10px] truncate flex-1" style="color: var(--color-error)">{exec.error}</span>
+							{:else}
+								<span class="flex-1"></span>
+							{/if}
+							<span class="text-[10px] font-mono tabular-nums flex-shrink-0" style="color: var(--text-tertiary)">{exec.durationMs}ms</span>
+							<time class="text-[10px] font-mono tabular-nums flex-shrink-0" style="color: var(--text-tertiary)">{relativeTime(exec.createdAt)}</time>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
 	{/if}
 </div>

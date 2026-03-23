@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { RuleTemplate, SourceInfo, Rule } from '$lib/types';
+	import { onDestroy } from 'svelte';
+	import type { RuleTemplate, SourceInfo } from '$lib/types';
 	import { instantiateRuleTemplate } from '$lib/api/client';
 	import { ruleStore } from '$lib/stores/rules.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Zap, Loader2, ListTodo, Brain, Clock, Antenna } from '@lucide/svelte';
+	import { Zap, Loader2, ListTodo, Brain, Clock, Antenna, ChevronRight, Check, X } from '@lucide/svelte';
 
 	interface Props {
 		templates: RuleTemplate[];
@@ -16,23 +16,39 @@
 	let sourceFilter = $state('');
 	let instantiating = $state<string | null>(null);
 	let instantiateError = $state('');
+	// Confirmation preview: show what a zero-param template will create before enabling.
+	let previewing = $state<string | null>(null);
+	let justCreated = $state<string | null>(null);
+	let justCreatedTimer: ReturnType<typeof setTimeout> | null = null;
+	onDestroy(() => { if (justCreatedTimer) clearTimeout(justCreatedTimer); });
 
 	const categories = [
-		{ key: 'signal', label: 'Signal', icon: Antenna },
-		{ key: 'task', label: 'Tasks', icon: ListTodo },
-		{ key: 'memory', label: 'Memory', icon: Brain },
-		{ key: 'scheduled', label: 'Scheduled', icon: Clock },
+		{ key: 'signal', label: 'Signals', icon: Antenna, desc: 'React to incoming events' },
+		{ key: 'task', label: 'Tasks', icon: ListTodo, desc: 'Monitor task lifecycle' },
+		{ key: 'memory', label: 'Memory', icon: Brain, desc: 'Memory extraction flow' },
+		{ key: 'scheduled', label: 'Scheduled', icon: Clock, desc: 'Time-based triggers' },
 	];
 	let activeCategory = $state('signal');
 
+	const sourceColorMap: Record<string, string> = {
+		github: 'var(--src-github)', hn: 'var(--src-hackernews)', reddit: 'var(--src-reddit)',
+		npm: 'var(--src-npm)', crates: 'var(--src-crates)', gmail: 'var(--src-gmail)',
+		stackoverflow: 'var(--src-stackoverflow)',
+	};
+	const categoryColor: Record<string, string> = {
+		signal: 'var(--cairn-accent)', task: 'var(--color-warning)',
+		memory: 'var(--src-github)', scheduled: 'var(--src-x)',
+	};
+
+	function getAccentColor(tmpl: RuleTemplate): string {
+		if (tmpl.source && sourceColorMap[tmpl.source]) return sourceColorMap[tmpl.source];
+		return categoryColor[tmpl.category] ?? 'var(--cairn-accent)';
+	}
+
 	const filtered = $derived(() => {
 		let items = templates;
-		if (activeCategory) {
-			items = items.filter(t => t.category === activeCategory);
-		}
-		if (sourceFilter) {
-			items = items.filter(t => !t.source || t.source === sourceFilter);
-		}
+		if (activeCategory) items = items.filter(t => t.category === activeCategory);
+		if (sourceFilter) items = items.filter(t => !t.source || t.source === sourceFilter);
 		return items;
 	});
 
@@ -44,17 +60,38 @@
 		return t.params.some(p => p.required);
 	}
 
-	async function handleUse(t: RuleTemplate) {
+	function cardBorderColor(isPreviewing: boolean, wasJustCreated: boolean, accentColor: string): string {
+		if (isPreviewing) return accentColor;
+		if (wasJustCreated) return 'var(--color-success)';
+		return 'var(--border-subtle)';
+	}
+
+	function handleClick(t: RuleTemplate) {
 		if (hasRequiredParams(t)) {
+			// Has required params - go to full builder.
 			onselect?.(t);
 			return;
 		}
-		// Zero required params — instantiate directly.
+		// No required params - show confirmation preview first.
+		if (previewing === t.id) {
+			// Already previewing, user clicked again - actually enable.
+			handleConfirmEnable(t);
+		} else {
+			previewing = t.id;
+		}
+	}
+
+	async function handleConfirmEnable(t: RuleTemplate) {
 		instantiating = t.id;
 		instantiateError = '';
 		try {
 			const res = await instantiateRuleTemplate(t.id, {});
 			ruleStore.addRule(res.rule);
+			justCreated = t.id;
+			previewing = null;
+			// Flash success briefly, then clear.
+			if (justCreatedTimer) clearTimeout(justCreatedTimer);
+			justCreatedTimer = setTimeout(() => { justCreated = null; }, 2500);
 		} catch (e) {
 			instantiateError = e instanceof Error ? e.message : 'Failed to create rule';
 		} finally {
@@ -63,86 +100,148 @@
 	}
 </script>
 
-<div class="space-y-4">
-	<!-- Category tabs -->
-	<div class="flex gap-1.5 flex-wrap">
-		{#each categories as cat}
+<div class="space-y-5">
+	<!-- Category selector -->
+	<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+		{#each categories as cat, i}
 			{@const Icon = cat.icon}
+			{@const isActive = activeCategory === cat.key}
+			{@const color = categoryColor[cat.key]}
 			<button
-				onclick={() => activeCategory = cat.key}
-				class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors {activeCategory === cat.key
-					? 'bg-[var(--cairn-accent)] text-white'
-					: 'bg-[var(--bg-1)] text-[var(--text-secondary)] hover:bg-[var(--bg-2)]'}"
+				onclick={() => { activeCategory = cat.key; previewing = null; }}
+				class="group relative rounded-xl border p-3 text-left transition-all animate-in"
+				style="
+					border-color: {isActive ? color : 'var(--border-subtle)'};
+					background: {isActive ? `color-mix(in srgb, ${color} 8%, var(--bg-1))` : 'var(--bg-1)'};
+					animation-delay: {i * 50}ms;
+				"
 			>
-				<Icon class="h-3.5 w-3.5" />
-				{cat.label}
+				<div class="flex items-center gap-2 mb-1">
+					<Icon class="h-4 w-4 transition-colors" style="color: {isActive ? color : 'var(--text-tertiary)'}" />
+					<span class="text-xs font-medium" style="color: {isActive ? 'var(--text-primary)' : 'var(--text-secondary)'}">{cat.label}</span>
+				</div>
+				<p class="text-[10px] leading-tight" style="color: var(--text-tertiary)">{cat.desc}</p>
+				{#if isActive}
+					<div class="absolute bottom-0 left-3 right-3 h-[2px] rounded-full" style="background: {color}"></div>
+				{/if}
 			</button>
 		{/each}
 	</div>
 
-	<!-- Source filter (only for signal category) -->
+	<!-- Source filter (signal only) -->
 	{#if activeCategory === 'signal' && sources.length > 0}
-		<div class="flex items-center gap-2">
-			<span class="text-xs text-[var(--text-tertiary)]">Source:</span>
-			<select
-				bind:value={sourceFilter}
-				class="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-0)] px-2 py-1 text-xs text-[var(--text-primary)]"
-			>
-				<option value="">All sources</option>
-				{#each sources as src}
-					<option value={src.name}>{src.label}</option>
-				{/each}
+		<div class="flex items-center gap-2 px-1">
+			<span class="text-[10px] uppercase tracking-wider font-medium" style="color: var(--text-tertiary)">Source</span>
+			<div class="h-px flex-1" style="background: var(--border-subtle)"></div>
+			<select bind:value={sourceFilter} class="rounded-md border px-2 py-1 text-xs" style="border-color: var(--border-subtle); background: var(--bg-0); color: var(--text-secondary)">
+				<option value="">All</option>
+				{#each sources as src}<option value={src.name}>{src.label}</option>{/each}
 			</select>
 		</div>
 	{/if}
 
-	<!-- Template cards -->
 	{#if instantiateError}
-		<p class="text-xs text-[var(--color-error)] bg-[var(--color-error)]/10 rounded-md px-3 py-2">{instantiateError}</p>
+		<div class="rounded-lg border px-3 py-2 text-xs" style="border-color: var(--color-error); background: color-mix(in srgb, var(--color-error) 8%, var(--bg-1)); color: var(--color-error)">
+			{instantiateError}
+		</div>
 	{/if}
 
+	<!-- Template list -->
 	{#if filtered().length === 0}
-		<div class="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-1)] p-6 text-center">
-			<Zap class="mx-auto h-6 w-6 text-[var(--text-tertiary)]/40 mb-2" />
-			<p class="text-sm text-[var(--text-tertiary)]">No templates match this filter</p>
+		<div class="rounded-xl border p-8 text-center" style="border-color: var(--border-subtle); background: var(--bg-1)">
+			<Zap class="mx-auto h-5 w-5 mb-2" style="color: var(--text-tertiary); opacity: 0.4" />
+			<p class="text-xs" style="color: var(--text-tertiary)">No templates match this filter</p>
 		</div>
 	{:else}
-		<div class="grid gap-2 sm:grid-cols-2">
-			{#each filtered() as tmpl (tmpl.id)}
-				<div class="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-1)] p-3 flex flex-col gap-2 hover:border-[var(--cairn-accent)]/30 transition-colors">
-					<div class="flex items-start justify-between gap-2">
-						<div class="min-w-0">
-							<p class="text-sm font-medium text-[var(--text-primary)] truncate">{tmpl.name}</p>
-							<p class="text-xs text-[var(--text-tertiary)] mt-0.5 line-clamp-2">{tmpl.description}</p>
+		<div class="space-y-1.5">
+			{#each filtered() as tmpl, i (tmpl.id)}
+				{@const color = getAccentColor(tmpl)}
+				{@const isPreviewing = previewing === tmpl.id}
+				{@const wasJustCreated = justCreated === tmpl.id}
+
+				<div
+					class="rounded-lg border transition-all animate-in"
+					style="
+						border-color: {cardBorderColor(isPreviewing, wasJustCreated, color)};
+						background: {wasJustCreated ? 'color-mix(in srgb, var(--color-success) 5%, var(--bg-1))' : 'var(--bg-1)'};
+						border-left: 3px solid {wasJustCreated ? 'var(--color-success)' : color};
+						animation-delay: {i * 40}ms;
+					"
+				>
+					<!-- Main row -->
+					<button
+						onclick={() => handleClick(tmpl)}
+						disabled={instantiating === tmpl.id || wasJustCreated}
+						class="group w-full text-left flex items-center gap-3 px-3 py-2.5"
+					>
+						<div class="flex-1 min-w-0">
+							<div class="flex items-center gap-2">
+								<span class="text-sm font-medium truncate" style="color: var(--text-primary)">{tmpl.name}</span>
+								{#if tmpl.source}
+									<span class="rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider"
+										style="background: color-mix(in srgb, {color} 15%, transparent); color: {color}">
+										{sourceLabel(tmpl.source)}
+									</span>
+								{/if}
+								{#if wasJustCreated}
+									<span class="flex items-center gap-1 text-[10px] font-medium" style="color: var(--color-success)">
+										<Check class="h-3 w-3" /> Enabled
+									</span>
+								{/if}
+							</div>
+							<p class="text-xs mt-0.5 truncate" style="color: var(--text-tertiary)">{tmpl.description}</p>
 						</div>
-						{#if tmpl.source}
-							<Badge variant="outline" class="text-[10px] flex-shrink-0">{sourceLabel(tmpl.source)}</Badge>
+
+						{#if tmpl.params.length > 0}
+							<div class="flex gap-1 flex-shrink-0">
+								{#each tmpl.params as p}
+									<span class="rounded px-1.5 py-0.5 text-[9px] font-mono" style="background: var(--bg-2); color: var(--text-tertiary)">
+										{p.key}{#if p.required}<span style="color: {color}">*</span>{/if}
+									</span>
+								{/each}
+							</div>
 						{/if}
-					</div>
-					{#if tmpl.params.length > 0}
-						<div class="flex gap-1 flex-wrap">
-							{#each tmpl.params as p}
-								<Badge variant="outline" class="text-[10px] {p.required ? 'border-[var(--cairn-accent)]/40' : ''}">
-									{p.label}{#if p.required}*{/if}
-								</Badge>
-							{/each}
+
+						<div class="flex-shrink-0 flex items-center gap-1 text-xs font-medium transition-colors" style="color: {color}">
+							{#if instantiating === tmpl.id}
+								<Loader2 class="h-3.5 w-3.5 animate-spin" />
+							{:else if !wasJustCreated}
+								<span class="hidden sm:inline opacity-0 group-hover:opacity-100 transition-opacity">
+									{hasRequiredParams(tmpl) ? 'Configure' : 'Enable'}
+								</span>
+								<ChevronRight class="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+							{/if}
+						</div>
+					</button>
+
+					<!-- Confirmation preview (zero-param templates) -->
+					{#if isPreviewing}
+						<div class="px-3 pb-2.5 pt-0 space-y-2 animate-in" style="border-top: 1px solid var(--border-subtle)">
+							<p class="text-xs pt-2" style="color: var(--text-secondary)">{tmpl.description}</p>
+							<div class="flex items-center justify-end gap-2">
+								<button
+									onclick={(e) => { e.stopPropagation(); previewing = null; }}
+									class="text-[11px] font-medium px-2 py-1 rounded transition-colors"
+									style="color: var(--text-tertiary)"
+								>
+									Cancel
+								</button>
+								<Button
+									size="sm"
+									class="h-7 text-xs gap-1"
+									onclick={(e) => { e.stopPropagation(); handleConfirmEnable(tmpl); }}
+									disabled={instantiating === tmpl.id}
+								>
+									{#if instantiating === tmpl.id}
+										<Loader2 class="h-3 w-3 animate-spin" />
+									{:else}
+										<Zap class="h-3 w-3" />
+									{/if}
+									Enable rule
+								</Button>
+							</div>
 						</div>
 					{/if}
-					<div class="flex justify-end">
-						<Button
-							size="sm"
-							class="h-7 text-xs gap-1"
-							onclick={() => handleUse(tmpl)}
-							disabled={instantiating === tmpl.id}
-						>
-							{#if instantiating === tmpl.id}
-								<Loader2 class="h-3 w-3 animate-spin" />
-							{:else}
-								<Zap class="h-3 w-3" />
-							{/if}
-							{hasRequiredParams(tmpl) ? 'Customize' : 'Enable'}
-						</Button>
-					</div>
 				</div>
 			{/each}
 		</div>

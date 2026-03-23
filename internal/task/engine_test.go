@@ -101,13 +101,16 @@ func TestEngine_SubmitPreClaimed(t *testing.T) {
 		t.Errorf("expected lease owner 'http', got %q", task.LeaseOwner)
 	}
 
-	// Verify status is running in the DB.
+	// Verify status and StartedAt are persisted in the DB.
 	got, err := e.Get(ctx, task.ID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
 	if got.Status != StatusRunning {
 		t.Errorf("expected status 'running', got %q", got.Status)
+	}
+	if got.StartedAt.IsZero() {
+		t.Error("StartedAt should be set for pre-claimed running task")
 	}
 
 	// Trying to claim should return nil (task was never queued).

@@ -70,6 +70,12 @@ func TestStore_CreateAndGet(t *testing.T) {
 	if got.CreatedAt.IsZero() {
 		t.Error("CreatedAt should not be zero")
 	}
+	if !got.StartedAt.IsZero() {
+		t.Error("StartedAt should be zero for a freshly queued task")
+	}
+	if !got.CompletedAt.IsZero() {
+		t.Error("CompletedAt should be zero for a freshly queued task")
+	}
 }
 
 func TestStore_List(t *testing.T) {
@@ -201,7 +207,7 @@ func TestStore_ClaimAnyType(t *testing.T) {
 	s := NewStore(d)
 	ctx := context.Background()
 
-	// Create tasks of different types.
+	// Create tasks of different types (CreatedAt is set by store, not the struct).
 	cronTask := &Task{
 		ID:         newID(),
 		Type:       "cron",
@@ -209,7 +215,6 @@ func TestStore_ClaimAnyType(t *testing.T) {
 		Priority:   PriorityNormal,
 		MaxRetries: 2,
 		Input:      json.RawMessage(`{"instruction":"test cron"}`),
-		CreatedAt:  time.Now(),
 	}
 	generalTask := &Task{
 		ID:         newID(),
@@ -218,7 +223,6 @@ func TestStore_ClaimAnyType(t *testing.T) {
 		Priority:   PriorityHigh,
 		MaxRetries: 2,
 		Input:      json.RawMessage(`{"description":"test general"}`),
-		CreatedAt:  time.Now(),
 	}
 	if err := s.Create(ctx, cronTask); err != nil {
 		t.Fatalf("Create cron: %v", err)
@@ -239,6 +243,12 @@ func TestStore_ClaimAnyType(t *testing.T) {
 	if claimed.ID != generalTask.ID {
 		t.Errorf("Claim any type: got %q, want %q (higher priority)", claimed.ID, generalTask.ID)
 	}
+	if claimed.Type != TypeGeneral {
+		t.Errorf("Claimed type: got %q, want %q", claimed.Type, TypeGeneral)
+	}
+	if claimed.Status != StatusClaimed {
+		t.Errorf("Claimed status: got %q, want %q", claimed.Status, StatusClaimed)
+	}
 
 	// Claim again should pick the cron task.
 	claimed2, err := s.Claim(ctx, "", "worker-any", 5*time.Minute)
@@ -250,6 +260,9 @@ func TestStore_ClaimAnyType(t *testing.T) {
 	}
 	if claimed2.ID != cronTask.ID {
 		t.Errorf("Second claim any type: got %q, want %q", claimed2.ID, cronTask.ID)
+	}
+	if claimed2.Type != "cron" {
+		t.Errorf("Second claimed type: got %q, want %q", claimed2.Type, "cron")
 	}
 
 	// Third claim should return nil (no more queued tasks).
@@ -276,22 +289,35 @@ func TestStore_CreateWithStartedAt(t *testing.T) {
 		MaxRetries:  2,
 		Input:       json.RawMessage(`{}`),
 		StartedAt:   now,
+		CompletedAt: now.Add(10 * time.Second),
 		LeaseOwner:  "http",
 		LeaseExpiry: now.Add(5 * time.Minute),
-		CreatedAt:   now,
 	}
 	if err := s.Create(ctx, claimedTask); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	// Verify StartedAt was persisted.
 	got, err := s.Get(ctx, claimedTask.ID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
+
+	// Verify StartedAt was persisted with correct value (isoTime truncates to ms).
 	if got.StartedAt.IsZero() {
 		t.Error("StartedAt not persisted - should be set for pre-claimed tasks")
 	}
+	if got.StartedAt.Sub(claimedTask.StartedAt).Abs() > time.Millisecond {
+		t.Errorf("StartedAt value mismatch: got %v, want ~%v", got.StartedAt, claimedTask.StartedAt)
+	}
+
+	// Verify CompletedAt was also persisted.
+	if got.CompletedAt.IsZero() {
+		t.Error("CompletedAt not persisted")
+	}
+	if got.CompletedAt.Sub(claimedTask.CompletedAt).Abs() > time.Millisecond {
+		t.Errorf("CompletedAt value mismatch: got %v, want ~%v", got.CompletedAt, claimedTask.CompletedAt)
+	}
+
 	if got.LeaseOwner != "http" {
 		t.Errorf("LeaseOwner: got %q, want %q", got.LeaseOwner, "http")
 	}

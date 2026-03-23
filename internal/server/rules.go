@@ -8,13 +8,14 @@ import (
 	"time"
 
 	"github.com/avifenesh/cairn/internal/rules"
+	signalplane "github.com/avifenesh/cairn/internal/signal"
 )
 
 // --- Signal source handlers ---
 
 func (s *Server) handleListSources(w http.ResponseWriter, r *http.Request) {
 	if s.sourceRegistry == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
+		writeJSON(w, http.StatusOK, map[string]any{"items": []signalplane.SourceInfo{}})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": s.sourceRegistry.RegisteredSources()})

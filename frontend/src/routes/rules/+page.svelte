@@ -5,7 +5,6 @@
 	import { relativeTime } from '$lib/utils/time';
 	import type { Rule, RuleTemplate } from '$lib/types';
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import TemplateGallery from '$lib/components/rules/TemplateGallery.svelte';
 	import RuleBuilder from '$lib/components/rules/RuleBuilder.svelte';

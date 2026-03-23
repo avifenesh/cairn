@@ -27,7 +27,7 @@ var sourceRegistry = map[string]SourceInfo{
 	SourceGitHubSignal: {
 		Name:   SourceGitHubSignal,
 		Label:  "GitHub Signal",
-		Kinds:  []string{KindMetrics, KindFollow, KindStar, KindNewRepo},
+		Kinds:  []string{KindPR, KindIssue, KindComment, KindMetrics, KindStar, KindFollow, KindNewRepo},
 		Fields: defaultFields(),
 	},
 	SourceHN: {
@@ -69,7 +69,7 @@ var sourceRegistry = map[string]SourceInfo{
 	SourceRSS: {
 		Name:   SourceRSS,
 		Label:  "RSS",
-		Kinds:  []string{KindStory, KindPost, KindRelease},
+		Kinds:  []string{KindPost, KindRelease},
 		Fields: defaultFields(),
 	},
 	SourceStackOverflow: {

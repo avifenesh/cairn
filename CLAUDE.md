@@ -50,7 +50,7 @@ internal/
   eventbus/                   Typed pub/sub (generics), sync + async + stream delivery
   llm/                        Provider interface, GLM + OpenAI providers, SSE parser, retry, budget
   tool/                       Tool interface, Define[P] generics, registry, permission engine
-  tool/builtin/               41+ built-in tools (57 with all integrations): file ops, shell, git, memory, feed, tasks, cron, rules, etc.
+  tool/builtin/               43+ built-in tools (60 with all integrations): file ops, shell, git, memory, feed, tasks, cron, rules, sources, templates, etc.
   task/                       Task store, priority queue, worktree manager, lease claiming, approvals
   memory/                     Memory store, RAG search + MMR, embedder, Soul loader, extraction
   agent/                      Always-on loop, orchestrator, ReAct agents, subagents, compaction, sessions

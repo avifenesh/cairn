@@ -20,6 +20,16 @@ type PendingSoulPatch struct {
 	Preview   string    `json:"preview"` // full SOUL.md content after applying
 }
 
+// DeniedPatch records a soul patch that was rejected by the user.
+type DeniedPatch struct {
+	Content  string    `json:"content"`
+	Reason   string    `json:"reason,omitempty"`
+	DeniedAt time.Time `json:"deniedAt"`
+}
+
+// maxDeniedPatches limits how many denied patches are retained.
+const maxDeniedPatches = 20
+
 // Soul loads and hot-reloads a SOUL.md file that defines the agent's
 // procedural memory — identity, rules, and behavioral guidelines.
 type Soul struct {
@@ -29,6 +39,7 @@ type Soul struct {
 	modTime  time.Time
 	onChange func(content string)
 	pending  *PendingSoulPatch
+	denied   []DeniedPatch
 }
 
 // NewSoul creates a Soul bound to the given file path.
@@ -40,6 +51,11 @@ func NewSoul(filePath string) *Soul {
 // patchFilePath returns the path for the persisted pending patch file.
 func (s *Soul) patchFilePath() string {
 	return filepath.Join(filepath.Dir(s.filePath), ".soul_patch.json")
+}
+
+// deniedFilePath returns the path for the persisted denied patches file.
+func (s *Soul) deniedFilePath() string {
+	return filepath.Join(filepath.Dir(s.filePath), ".soul_denied.json")
 }
 
 // Load reads the file into memory and restores any pending patch. Safe to call multiple times.
@@ -70,6 +86,14 @@ func (s *Soul) Load() error {
 				Preview:   s.content + "\n" + pp.Content,
 			}
 			slog.Info("soul: restored pending patch from disk", "id", pp.ID)
+		}
+	}
+
+	// Restore denied patches from disk.
+	if deniedData, err := os.ReadFile(s.deniedFilePath()); err == nil {
+		var denied []DeniedPatch
+		if json.Unmarshal(deniedData, &denied) == nil {
+			s.denied = denied
 		}
 	}
 	s.mu.Unlock()
@@ -245,8 +269,14 @@ func (s *Soul) ApprovePatch(id string) error {
 	return nil
 }
 
-// DenyPatch clears the pending patch without applying it.
+// DenyPatch clears the pending patch without applying it and records the
+// denied content so future reflection cycles avoid re-proposing it.
 func (s *Soul) DenyPatch(id string) error {
+	return s.DenyPatchWithReason(id, "")
+}
+
+// DenyPatchWithReason denies the patch and records the reason.
+func (s *Soul) DenyPatchWithReason(id, reason string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -257,8 +287,52 @@ func (s *Soul) DenyPatch(id string) error {
 		return fmt.Errorf("soul: no pending patch with id %q", id)
 	}
 
+	// Record denied patch content for future reflection cycles.
+	s.denied = append(s.denied, DeniedPatch{
+		Content:  s.pending.Content,
+		Reason:   reason,
+		DeniedAt: time.Now(),
+	})
+	// Keep only recent denials.
+	if len(s.denied) > maxDeniedPatches {
+		s.denied = s.denied[len(s.denied)-maxDeniedPatches:]
+	}
+	s.persistDenied()
+
 	s.pending = nil
 	s.persistPatch() // removes the file
-	slog.Info("soul: patch denied", "id", id)
+	slog.Info("soul: patch denied", "id", id, "reason", reason)
 	return nil
+}
+
+// DeniedPatches returns a copy of recently denied patches (thread-safe).
+func (s *Soul) DeniedPatches() []DeniedPatch {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]DeniedPatch, len(s.denied))
+	copy(out, s.denied)
+	return out
+}
+
+// persistDenied writes the denied patches list to disk. Must be called with s.mu held.
+func (s *Soul) persistDenied() {
+	path := s.deniedFilePath()
+	if len(s.denied) == 0 {
+		os.Remove(path)
+		return
+	}
+	data, err := json.Marshal(s.denied)
+	if err != nil {
+		slog.Warn("soul: failed to persist denied patches", "error", err)
+		return
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
+		slog.Warn("soul: failed to write denied patches file", "error", err)
+		return
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		slog.Warn("soul: failed to rename denied patches file", "error", err)
+		os.Remove(tmp)
+	}
 }

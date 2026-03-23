@@ -88,11 +88,14 @@ func (r *ReflectionEngine) Reflect(ctx context.Context) (*ReflectionResult, erro
 	// 3. Get current SOUL.md content.
 	soulContent := r.soul.Content()
 
-	// 4. Gather recent code changes (merged PRs, commits) for ground truth.
+	// 4. Get denied soul patches so the LLM avoids re-proposing them.
+	deniedPatches := r.soul.DeniedPatches()
+
+	// 5. Gather recent code changes (merged PRs, commits) for ground truth.
 	recentChanges := r.gatherRecentChanges()
 
-	// 5. Build prompt.
-	prompt := r.buildPrompt(entries, existingMemories, soulContent, recentChanges)
+	// 6. Build prompt.
+	prompt := r.buildPrompt(entries, existingMemories, soulContent, recentChanges, deniedPatches)
 
 	// 5. Call LLM.
 	result, err := r.callLLM(ctx, prompt)
@@ -150,7 +153,7 @@ func (r *ReflectionEngine) Apply(ctx context.Context, result *ReflectionResult) 
 	return nil
 }
 
-func (r *ReflectionEngine) buildPrompt(entries []*JournalEntry, memories []*memory.Memory, soulContent, recentChanges string) string {
+func (r *ReflectionEngine) buildPrompt(entries []*JournalEntry, memories []*memory.Memory, soulContent, recentChanges string, deniedPatches []memory.DeniedPatch) string {
 	var b strings.Builder
 
 	b.WriteString(`You are a reflection engine analyzing an agent's recent activity.
@@ -183,6 +186,8 @@ Rules:
 - staleMemoryIds: list IDs of existing memories that recent sessions OR code changes CONTRADICT
   (e.g., "shell has 50% failure rate" when a PR fixed shell reliability)
 - Be aggressive about staleness: merged PRs are ground truth, not just evidence
+- NEVER re-propose a soul patch that was previously denied by the user (see Denied Patches below)
+- If a denied patch section exists, respect the user's decision completely
 
 `)
 
@@ -223,6 +228,18 @@ Rules:
 			b.WriteString("\n... (truncated)\n")
 		} else {
 			b.WriteString(soulContent)
+		}
+	}
+
+	// Denied patches — the user explicitly rejected these. Do not re-propose.
+	if len(deniedPatches) > 0 {
+		b.WriteString("\n## Denied Soul Patches (DO NOT re-propose these or similar changes)\n\n")
+		for _, dp := range deniedPatches {
+			fmt.Fprintf(&b, "- Denied on %s: %q", dp.DeniedAt.Format("2006-01-02"), dp.Content)
+			if dp.Reason != "" {
+				fmt.Fprintf(&b, " (reason: %s)", dp.Reason)
+			}
+			b.WriteString("\n")
 		}
 	}
 

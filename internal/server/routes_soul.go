@@ -111,18 +111,18 @@ func (s *Server) handleDenySoulPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.soul.DenyPatch(req.ID); err != nil {
+	if err := s.soul.DenyPatchWithReason(req.ID, req.Reason); err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
 
-	// Save denial reason + patch to memory.
+	// Save denial as accepted memory so reflection engine sees it immediately.
 	if s.memories != nil && req.Reason != "" {
 		m := &memory.Memory{
 			Content:    fmt.Sprintf("Soul patch denied. Reason: %s", req.Reason),
 			Category:   memory.CatDecision,
 			Scope:      memory.ScopeGlobal,
-			Status:     memory.StatusProposed,
+			Status:     memory.StatusAccepted,
 			Confidence: 0.9,
 			Source:     "soul-review",
 		}

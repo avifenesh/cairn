@@ -49,35 +49,37 @@ type Orchestrator struct {
 	logger         *slog.Logger
 	codingEnabled  bool
 
-	envContext      *EnvContext // injected environment facts (paths, repo, worktrees)
-	briefing        string
-	briefingBuiltAt time.Time
-	lastEvaluation  time.Time
+	envContext             *EnvContext // injected environment facts (paths, repo, worktrees)
+	maxConcurrentSubagents int         // configurable cap (default 5)
+	briefing               string
+	briefingBuiltAt        time.Time
+	lastEvaluation         time.Time
 }
 
 // OrchestratorDeps carries dependencies for constructing an Orchestrator.
 type OrchestratorDeps struct {
-	Memories       *memory.Service
-	Tasks          *task.Engine
-	Events         *signal.EventStore
-	Soul           *memory.Soul
-	Approvals      *task.ApprovalStore
-	SubagentRunner tool.SubagentService
-	Notifier       tool.NotifyService
-	Bus            *eventbus.Bus
-	Provider       llm.Provider
-	Model          string
-	BriefingModel  string
-	ActivityStore  *ActivityStore
-	Reflector      *ReflectionEngine
-	SkillSuggestor *SkillSuggestor
-	Marketplace    *skill.MarketplaceClient
-	ToolSkills     tool.SkillService
-	Journaler      *Journaler
-	AgentTypes     *agenttype.Service
-	Logger         *slog.Logger
-	CodingEnabled  bool
-	EnvContext     *EnvContext // ground truth about the runtime environment
+	Memories               *memory.Service
+	Tasks                  *task.Engine
+	Events                 *signal.EventStore
+	Soul                   *memory.Soul
+	Approvals              *task.ApprovalStore
+	SubagentRunner         tool.SubagentService
+	Notifier               tool.NotifyService
+	Bus                    *eventbus.Bus
+	Provider               llm.Provider
+	Model                  string
+	BriefingModel          string
+	ActivityStore          *ActivityStore
+	Reflector              *ReflectionEngine
+	SkillSuggestor         *SkillSuggestor
+	Marketplace            *skill.MarketplaceClient
+	ToolSkills             tool.SkillService
+	Journaler              *Journaler
+	AgentTypes             *agenttype.Service
+	Logger                 *slog.Logger
+	CodingEnabled          bool
+	EnvContext             *EnvContext // ground truth about the runtime environment
+	MaxConcurrentSubagents int         // configurable spawn cap (0 = default 5)
 }
 
 // NewOrchestrator creates an Orchestrator from the given dependencies.
@@ -87,27 +89,28 @@ func NewOrchestrator(deps OrchestratorDeps) *Orchestrator {
 		logger = slog.Default()
 	}
 	return &Orchestrator{
-		memories:       deps.Memories,
-		tasks:          deps.Tasks,
-		events:         deps.Events,
-		soul:           deps.Soul,
-		approvals:      deps.Approvals,
-		subagentRunner: deps.SubagentRunner,
-		notifier:       deps.Notifier,
-		bus:            deps.Bus,
-		provider:       deps.Provider,
-		model:          deps.Model,
-		briefingModel:  deps.BriefingModel,
-		activityStore:  deps.ActivityStore,
-		reflector:      deps.Reflector,
-		skillSuggestor: deps.SkillSuggestor,
-		marketplace:    deps.Marketplace,
-		toolSkills:     deps.ToolSkills,
-		journaler:      deps.Journaler,
-		agentTypes:     deps.AgentTypes,
-		logger:         logger,
-		codingEnabled:  deps.CodingEnabled,
-		envContext:     deps.EnvContext,
+		memories:               deps.Memories,
+		tasks:                  deps.Tasks,
+		events:                 deps.Events,
+		soul:                   deps.Soul,
+		approvals:              deps.Approvals,
+		subagentRunner:         deps.SubagentRunner,
+		notifier:               deps.Notifier,
+		bus:                    deps.Bus,
+		provider:               deps.Provider,
+		model:                  deps.Model,
+		briefingModel:          deps.BriefingModel,
+		activityStore:          deps.ActivityStore,
+		reflector:              deps.Reflector,
+		skillSuggestor:         deps.SkillSuggestor,
+		marketplace:            deps.Marketplace,
+		toolSkills:             deps.ToolSkills,
+		journaler:              deps.Journaler,
+		agentTypes:             deps.AgentTypes,
+		logger:                 logger,
+		codingEnabled:          deps.CodingEnabled,
+		envContext:             deps.EnvContext,
+		maxConcurrentSubagents: deps.MaxConcurrentSubagents,
 	}
 }
 
@@ -364,8 +367,15 @@ func (o *Orchestrator) buildDecisionPrompt(state *OrchestratorState) string {
 		}
 	}
 
-	// System prompt.
-	parts = append(parts, orchestratorSystemPrompt)
+	// System prompt — inject configurable concurrent cap.
+	maxSubs := o.maxConcurrentSubagents
+	if maxSubs <= 0 {
+		maxSubs = 5
+	}
+	systemPrompt := strings.Replace(orchestratorSystemPrompt,
+		"Max 3 concurrent subagents",
+		fmt.Sprintf("Max %d concurrent subagents", maxSubs), 1)
+	parts = append(parts, systemPrompt)
 
 	// Environment ground truth (prevents hallucinated paths/repos).
 	if envStr := o.envContext.Format(); envStr != "" {
@@ -508,7 +518,11 @@ func (o *Orchestrator) execute(ctx context.Context, decision *OrchestratorDecisi
 			if o.agentTypes != nil && o.agentTypes.Get(action.SpawnType) != nil {
 				validType = true
 			}
-			if o.subagentRunner != nil && validType && action.Instruction != "" && activeSpawns < 3 {
+			maxSpawns := o.maxConcurrentSubagents
+			if maxSpawns <= 0 {
+				maxSpawns = 5
+			}
+			if o.subagentRunner != nil && validType && action.Instruction != "" && activeSpawns < maxSpawns {
 				_, err := o.subagentRunner.Spawn(ctx, "orchestrator", &tool.SubagentSpawnRequest{
 					Type:        action.SpawnType,
 					Instruction: action.Instruction,

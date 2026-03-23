@@ -19,7 +19,7 @@ Signal Plane → Event Bus ← Agent System → Tool System
 **Agent system (three layers):**
 - **Loop** (60s tick) — checks crons → executes pending tasks → runs orchestrator if idle
 - **Orchestrator** — LLM-powered management brain. Gathers system state (feeds, errors, memories, subagents), calls LLM to decide actions: approve/reject memories, spawn subagents, submit tasks, notify, escalate to human. Runs every 5min when idle. Max 5 actions per tick.
-- **ReAct agents** — execute work. Main agent (talk/work/coding modes) + 4 subagent types (researcher/coder/reviewer/executor). Two-level max nesting. Session streaming via channels.
+- **ReAct agents** — execute work. Main agent (talk/work/coding modes) + 4 subagent types (researcher/coder/reviewer/executor). Multi-level nesting (configurable depth, default 3). Cross-repo worktree isolation. Session streaming via channels.
 
 **Subagent types:**
 - `researcher` (15 rounds, read-only tools) — investigation, data gathering
@@ -223,6 +223,8 @@ Full list from `internal/config/config.go`. 108 distinct var names (including al
 - `WORK_MAX_ROUNDS` (80) — max tool rounds in work mode
 - `CODING_MAX_ROUNDS` (400) — max tool rounds in coding mode
 - `CODING_ALLOWED_REPOS` — comma-separated absolute repo paths where coding is allowed (empty = cwd only)
+- `MAX_CONCURRENT_SUBAGENTS` (5) — max concurrent subagents the orchestrator can run (1-10)
+- `MAX_SPAWN_DEPTH` (3) — max subagent nesting depth, e.g. parent->child->grandchild (1-5)
 
 **Channels:**
 - `TELEGRAM_BOT_TOKEN` — Telegram bot token

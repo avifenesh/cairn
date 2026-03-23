@@ -432,6 +432,9 @@ export interface EditableConfig {
 	mutedSources?: string;
 	notifMinPriority?: string;
 	channelRouting?: string;
+	codingAllowedRepos?: string;
+	maxConcurrentSubagents?: number;
+	maxSpawnDepth?: number;
 }
 export const getEditableConfig = () => get<EditableConfig>('/v1/config');
 export const patchConfig = (cfg: Partial<EditableConfig>) =>

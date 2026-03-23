@@ -30,6 +30,14 @@ type subagentTypeConfig struct {
 	SystemPrompt string
 }
 
+const (
+	// DefaultMaxSpawnDepth is the default maximum nesting depth for subagents.
+	// parent(0) -> child(1) -> grandchild(2). Depth 3 means 3 levels allowed.
+	DefaultMaxSpawnDepth = 3
+	// AbsoluteMaxSpawnDepth is the hard cap - not configurable beyond this.
+	AbsoluteMaxSpawnDepth = 5
+)
+
 // SubagentRunner implements tool.SubagentService. It spawns child agents
 // with isolated context and returns condensed results to the parent.
 type SubagentRunner struct {
@@ -39,6 +47,10 @@ type SubagentRunner struct {
 	bus       *eventbus.Bus
 	worktrees *task.WorktreeManager
 	logger    *slog.Logger
+
+	// Depth tracking for multi-level spawning.
+	maxSpawnDepth int // configurable limit (default DefaultMaxSpawnDepth)
+	currentDepth  int // this runner's depth (0 = top-level)
 
 	// Dependencies forwarded to child InvocationContexts.
 	memories       *memory.Service
@@ -93,6 +105,8 @@ type SubagentRunnerDeps struct {
 	AgentTypes     *agenttype.Service // optional: AGENT.md type definitions
 	EnvContext     *EnvContext        // optional: runtime environment context
 	Model          string
+	MaxSpawnDepth  int // 0 = DefaultMaxSpawnDepth
+	CurrentDepth   int // depth of this runner (0 = top-level)
 }
 
 // NewSubagentRunner creates a SubagentRunner from the given dependencies.
@@ -101,6 +115,13 @@ func NewSubagentRunner(deps SubagentRunnerDeps) *SubagentRunner {
 	if logger == nil {
 		logger = slog.Default()
 	}
+	maxDepth := deps.MaxSpawnDepth
+	if maxDepth <= 0 {
+		maxDepth = DefaultMaxSpawnDepth
+	}
+	if maxDepth > AbsoluteMaxSpawnDepth {
+		maxDepth = AbsoluteMaxSpawnDepth
+	}
 	return &SubagentRunner{
 		tasks:          deps.Tasks,
 		tools:          deps.Tools,
@@ -108,6 +129,8 @@ func NewSubagentRunner(deps SubagentRunnerDeps) *SubagentRunner {
 		bus:            deps.Bus,
 		worktrees:      deps.Worktrees,
 		logger:         logger,
+		maxSpawnDepth:  maxDepth,
+		currentDepth:   deps.CurrentDepth,
 		memories:       deps.Memories,
 		soul:           deps.Soul,
 		contextBuilder: deps.ContextBuilder,
@@ -179,6 +202,11 @@ func (r *SubagentRunner) buildSubagentHint(typePrompt string) string {
 func (r *SubagentRunner) Spawn(ctx context.Context, parentTaskID string, req *tool.SubagentSpawnRequest) (*tool.SubagentSpawnResult, error) {
 	if req.Instruction == "" {
 		return nil, fmt.Errorf("instruction is required")
+	}
+
+	// Depth check: prevent spawning beyond the configured limit.
+	if r.currentDepth >= r.maxSpawnDepth {
+		return nil, fmt.Errorf("max subagent nesting depth (%d) reached at depth %d", r.maxSpawnDepth, r.currentDepth)
 	}
 
 	typeCfg, resolveErr := r.resolveType(req.Type)
@@ -349,6 +377,7 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		State: map[string]any{
 			"parentTaskId": parentTaskID,
 			"subagentType": req.Type,
+			"spawnDepth":   r.currentDepth + 1,
 		},
 	}
 
@@ -368,7 +397,7 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 
 	// Create worktree for coder type (already validated in Spawn that worktrees != nil).
 	if cfg.Worktree {
-		wtPath, _, err := r.worktrees.Create(childID, "HEAD")
+		wtPath, _, err := r.worktrees.Create(childID, "HEAD", req.Repo)
 		if err != nil {
 			return nil, fmt.Errorf("worktree creation failed: %w", err)
 		}
@@ -390,7 +419,7 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		}
 	}
 
-	// Build scoped tool registry - never includes spawnSubagent (two-level enforcement).
+	// Build scoped tool registry — spawn tool conditionally included based on depth.
 	childTools := r.scopeTools(cfg)
 
 	// Build user message with type-specific system prompt prefix.
@@ -402,7 +431,13 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 	// Build the subagent system hint combining type prompt, env context, AGENTS.md, and identity.
 	systemHint := r.buildSystemHint(ctx, r.buildSubagentHint(cfg.SystemPrompt))
 
-	// Build invocation context (child gets no Subagents field - cannot spawn grandchildren).
+	// Create child runner if depth budget allows further nesting.
+	var childSubagents tool.SubagentService
+	if r.currentDepth+1 < r.maxSpawnDepth {
+		childSubagents = r.childRunner()
+	}
+
+	// Build invocation context. Child gets a SubagentRunner if depth allows.
 	// AgentsFile is forwarded (operating manual applies to all agents) but NOT UserProfile or CuratedMemory.
 	invCtx := &InvocationContext{
 		Context:       ctx,
@@ -418,7 +453,7 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		Bus:           r.bus,
 		Plugins:       r.plugins,
 		ActivityStore: r.activityStore,
-		Subagents:     nil, // two-level enforcement: child cannot spawn
+		Subagents:     childSubagents,
 		ToolMemories:  r.toolMemories,
 		ToolEvents:    r.toolEvents,
 		ToolDigest:    r.toolDigest,
@@ -540,15 +575,26 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 	}, nil
 }
 
+// childRunner creates a SubagentRunner for the next depth level.
+// The child inherits all dependencies but has an incremented depth.
+func (r *SubagentRunner) childRunner() *SubagentRunner {
+	child := *r // shallow copy — all pointer fields are shared (intentional)
+	child.currentDepth = r.currentDepth + 1
+	return &child
+}
+
 // scopeTools creates a child tool.Registry with appropriate tool access.
 // Priority: AllowedTools (allowlist) > DeniedTools (denylist) > all tools.
-// The spawnSubagent tool is always excluded to enforce two-level max.
+// The spawnSubagent tool is denied when the child would be at the depth limit.
 func (r *SubagentRunner) scopeTools(cfg subagentTypeConfig) *tool.Registry {
 	child := tool.NewRegistry()
 	parent := r.tools.All()
 
-	// Build deny set (always includes spawnSubagent for two-level enforcement).
-	denied := map[string]bool{"cairn.spawnSubagent": true}
+	// Deny spawn tool only when the child is at the depth limit.
+	denied := make(map[string]bool)
+	if r.currentDepth+1 >= r.maxSpawnDepth {
+		denied["cairn.spawnSubagent"] = true
+	}
 	for _, name := range cfg.DeniedTools {
 		denied[name] = true
 	}

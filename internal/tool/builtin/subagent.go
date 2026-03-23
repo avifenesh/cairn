@@ -12,17 +12,19 @@ type spawnSubagentParams struct {
 	Context     *string `json:"context"     desc:"Optional summary of parent context to pass to the child agent"`
 	ExecMode    *string `json:"execMode"    desc:"foreground (default, blocks until done) or background (returns immediately, check via cairn.listTasks)"`
 	MaxRounds   *int    `json:"maxRounds"   desc:"Max reasoning rounds. 0 or omitted = type default from AGENT.md"`
+	Repo        *string `json:"repo"        desc:"Target repo for cross-repo coding work. Must be in CODING_ALLOWED_REPOS. Omit for default repo."`
 }
 
 var spawnSubagent = tool.Define("cairn.spawnSubagent",
 	"Spawn a child agent to handle a sub-task independently. The child runs in its own context "+
 		"and returns a condensed summary. Built-in types: researcher (read-only search), "+
 		"coder (worktree-isolated coding), reviewer (code quality), executor (shell commands). "+
-		"Custom types can be defined via AGENT.md files. Children cannot spawn their own children.",
+		"Custom types can be defined via AGENT.md files. Children can spawn sub-children up to "+
+		"the configured depth limit (default 3 levels).",
 	[]tool.Mode{tool.ModeWork, tool.ModeCoding},
 	func(ctx *tool.ToolContext, p spawnSubagentParams) (*tool.ToolResult, error) {
 		if ctx.Subagents == nil {
-			return &tool.ToolResult{Error: "subagent spawning not available in this context"}, nil
+			return &tool.ToolResult{Error: "subagent spawning not available in this context (depth limit reached or spawning disabled)"}, nil
 		}
 		if p.Instruction == "" {
 			return &tool.ToolResult{Error: "instruction is required"}, nil
@@ -47,6 +49,9 @@ var spawnSubagent = tool.Define("cairn.spawnSubagent",
 		}
 		if p.MaxRounds != nil {
 			req.MaxRounds = *p.MaxRounds
+		}
+		if p.Repo != nil {
+			req.Repo = *p.Repo
 		}
 
 		result, err := ctx.Subagents.Spawn(ctx.Cancel, parentID, req)
@@ -76,6 +81,9 @@ var spawnSubagent = tool.Define("cairn.spawnSubagent",
 		}
 		if p.ExecMode != nil {
 			metadata["execMode"] = *p.ExecMode
+		}
+		if p.Repo != nil {
+			metadata["repo"] = *p.Repo
 		}
 
 		return &tool.ToolResult{

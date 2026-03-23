@@ -176,6 +176,54 @@
 		} finally { saving = false; }
 	}
 
+	// Auto-generate a default message when entering step 3 with empty actions.
+	function ensureDefaultMessage() {
+		if (actions[0]?.message) return;
+		const vars = availableFields();
+		if (triggerCategory === 'signal') {
+			const src = sources.find(s => s.name === selectedSource)?.label ?? 'Signal';
+			actions[0].message = vars.includes('title') ? `[${src}] {{.title}}` : `New ${src} event`;
+			if (vars.includes('url')) actions[0].message += ` — {{.url}}`;
+		} else if (triggerCategory === 'task-failed') {
+			actions[0].message = 'Task failed: {{.error}}';
+			actions[0].priority = '3';
+		} else if (triggerCategory === 'task-completed') {
+			actions[0].message = 'Task completed: {{.taskId}}';
+		} else if (triggerCategory === 'task-created') {
+			actions[0].message = 'New task: {{.description}}';
+		} else if (triggerCategory === 'memory') {
+			actions[0].message = 'Memory proposed: {{.content}}';
+		}
+	}
+
+	function goNext() {
+		if (step === 1) {
+			// Auto-skip filter step for non-signal triggers (they rarely need conditions).
+			if (triggerCategory !== 'signal') {
+				step = 3;
+				ensureDefaultMessage();
+				return;
+			}
+			step = 2;
+		} else if (step === 2) {
+			step = 3;
+			ensureDefaultMessage();
+		} else if (step < 4) {
+			step++;
+		}
+	}
+
+	function goBack() {
+		if (step === 3 && triggerCategory !== 'signal') {
+			// Skip back over the filter step we auto-skipped.
+			step = 1;
+		} else if (step > 1) {
+			step--;
+		} else {
+			onclose?.();
+		}
+	}
+
 	const canProceed = $derived(() => {
 		if (step === 1) { if (triggerCategory === 'cron') return cronSchedule.trim().length > 0; return true; }
 		if (step === 3) return actions.some(a => a.message.trim().length > 0);
@@ -499,7 +547,7 @@
 			variant="ghost"
 			size="sm"
 			class="h-8 text-xs gap-1"
-			onclick={() => { if (step > 1) step--; else onclose?.(); }}
+			onclick={goBack}
 		>
 			<ArrowLeft class="h-3 w-3" />
 			{step > 1 ? 'Back' : 'Cancel'}
@@ -509,7 +557,7 @@
 			<Button
 				size="sm"
 				class="h-8 text-xs gap-1.5"
-				onclick={() => step++}
+				onclick={goNext}
 				disabled={!canProceed()}
 			>
 				Next <ArrowRight class="h-3 w-3" />

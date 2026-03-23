@@ -1,6 +1,6 @@
 ---
 name: push-notify
-description: "Send push notifications via Telegram (primary) or Gotify (fallback). Use when: notify, push notification, alert me, send notification, ping me, push alert, telegram, gotify, browser closed, user offline, task complete, approval needed, critical error, digest ready."
+description: "Send push notifications via Telegram (primary) or Gotify (fallback). Use when: notify, push notification, alert me, send notification, ping me, push alert, telegram, gotify, browser closed, user offline, task complete, approval needed, critical error, digest ready. Keywords: notify, push, alert, telegram, gotify, notification"
 allowed-tools: "cairn.shell"
 inclusion: always
 context: "chat,tick"

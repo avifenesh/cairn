@@ -34,13 +34,19 @@ type replyEntry struct {
 // Entries older than TTL are automatically cleaned up. Pass 0 for
 // default (24h TTL, 1h cleanup interval).
 func NewReplyStore(ttl time.Duration) *ReplyStore {
-	if ttl == 0 {
+	// Normalize TTL: treat non-positive values as "use default".
+	if ttl <= 0 {
 		ttl = 24 * time.Hour
+	}
+	// Clamp cleanup interval to avoid panics from time.NewTicker(0).
+	cleanup := min(1*time.Hour, ttl/2)
+	if cleanup <= 0 {
+		cleanup = 1 * time.Hour
 	}
 	rs := &ReplyStore{
 		store:   make(map[string]replyEntry),
 		ttl:     ttl,
-		cleanup: min(1*time.Hour, ttl/2),
+		cleanup: cleanup,
 		done:    make(chan struct{}),
 	}
 	go rs.cleanLoop()
@@ -77,9 +83,12 @@ func (rs *ReplyStore) Lookup(channel, chatID, messageID string) string {
 		return ""
 	}
 	if time.Since(entry.createdAt) > rs.ttl {
-		// Opportunistically delete expired entry.
+		// Opportunistically delete expired entry, but re-check under
+		// write lock to avoid losing a concurrent Save for the same key.
 		rs.mu.Lock()
-		delete(rs.store, k)
+		if current, ok := rs.store[k]; ok && time.Since(current.createdAt) > rs.ttl {
+			delete(rs.store, k)
+		}
 		rs.mu.Unlock()
 		return ""
 	}

@@ -229,8 +229,10 @@ func (s *SlackAdapter) sendResponse(ctx context.Context, channelID string, msg *
 		return err
 	}
 	// Save timestamp for reply context tracking.
+	// Store the normalized text (what was actually posted) instead of raw msg.Text
+	// so reply context matches what users saw/replied to.
 	if s.replyStore != nil && ts != "" {
-		s.replyStore.Save("slack", channelID, ts, TruncateRune(msg.Text, 2000))
+		s.replyStore.Save("slack", channelID, ts, TruncateRune(text, 2000))
 	}
 	return nil
 }

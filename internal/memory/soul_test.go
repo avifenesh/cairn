@@ -101,6 +101,87 @@ func TestSoul_Watch(t *testing.T) {
 	}
 }
 
+func TestSoul_PatchLifecycle(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "SOUL.md")
+	if err := os.WriteFile(path, []byte("# Soul\n"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	soul := NewSoul(path)
+	if err := soul.Load(); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Propose a patch.
+	patch := soul.ProposePatch("Be concise.", "reflection")
+	if patch == nil {
+		t.Fatal("ProposePatch returned nil")
+	}
+	if soul.PendingPatch() == nil {
+		t.Fatal("PendingPatch should be non-nil after proposal")
+	}
+
+	// Deny the patch with a reason.
+	if err := soul.DenyPatchWithReason(patch.ID, "too vague"); err != nil {
+		t.Fatalf("DenyPatchWithReason: %v", err)
+	}
+	if soul.PendingPatch() != nil {
+		t.Error("PendingPatch should be nil after denial")
+	}
+
+	// Denied patches list should contain the denied content.
+	denied := soul.DeniedPatches()
+	if len(denied) != 1 {
+		t.Fatalf("DeniedPatches: got %d, want 1", len(denied))
+	}
+	if denied[0].Content != "Be concise." {
+		t.Errorf("Denied content: got %q, want %q", denied[0].Content, "Be concise.")
+	}
+	if denied[0].Reason != "too vague" {
+		t.Errorf("Denied reason: got %q, want %q", denied[0].Reason, "too vague")
+	}
+
+	// Verify denied patches persist across Load.
+	soul2 := NewSoul(path)
+	if err := soul2.Load(); err != nil {
+		t.Fatalf("Load soul2: %v", err)
+	}
+	denied2 := soul2.DeniedPatches()
+	if len(denied2) != 1 {
+		t.Fatalf("DeniedPatches after reload: got %d, want 1", len(denied2))
+	}
+	if denied2[0].Content != "Be concise." {
+		t.Errorf("Denied content after reload: got %q", denied2[0].Content)
+	}
+}
+
+func TestSoul_DeniedPatchesCapped(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "SOUL.md")
+	if err := os.WriteFile(path, []byte("# Soul\n"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	soul := NewSoul(path)
+	if err := soul.Load(); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Deny more than maxDeniedPatches patches.
+	for i := 0; i < maxDeniedPatches+5; i++ {
+		patch := soul.ProposePatch("patch content", "reflection")
+		if err := soul.DenyPatch(patch.ID); err != nil {
+			t.Fatalf("DenyPatch %d: %v", i, err)
+		}
+	}
+
+	denied := soul.DeniedPatches()
+	if len(denied) != maxDeniedPatches {
+		t.Errorf("DeniedPatches: got %d, want %d (capped)", len(denied), maxDeniedPatches)
+	}
+}
+
 func TestSoul_ThreadSafe(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "SOUL.md")

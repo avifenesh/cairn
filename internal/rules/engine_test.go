@@ -595,3 +595,64 @@ func TestExpandTemplate_EdgeCases(t *testing.T) {
 		t.Errorf("multiple occurrences: expected 'hello and hello', got %q", got)
 	}
 }
+
+func TestEngine_CronTick(t *testing.T) {
+	engine, notifier, _, _ := setupEngine(t)
+	ctx := context.Background()
+
+	// Create a cron rule that fires every minute ("* * * * *").
+	rule := &Rule{
+		Name:    "every-minute",
+		Enabled: true,
+		Trigger: Trigger{
+			Type:     TriggerCron,
+			Schedule: "* * * * *",
+		},
+		Actions: []Action{
+			{Type: ActionNotify, Params: map[string]string{"message": "cron fired"}},
+		},
+	}
+	engine.store.Create(ctx, rule)
+	engine.Start()
+	defer engine.Close()
+
+	// Directly invoke cronTick - should fire the rule.
+	engine.cronTick()
+	time.Sleep(200 * time.Millisecond)
+
+	msgs := notifier.Messages()
+	if len(msgs) == 0 {
+		t.Fatal("cron rule should have fired on cronTick")
+	}
+	if msgs[0] != "cron fired" {
+		t.Errorf("message = %q, want 'cron fired'", msgs[0])
+	}
+}
+
+func TestEngine_CronTickNotDue(t *testing.T) {
+	engine, notifier, _, _ := setupEngine(t)
+	ctx := context.Background()
+
+	// Create a rule that fires at a specific time far in the future.
+	rule := &Rule{
+		Name:    "future-rule",
+		Enabled: true,
+		Trigger: Trigger{
+			Type:     TriggerCron,
+			Schedule: "0 0 1 1 *", // Jan 1 at midnight
+		},
+		Actions: []Action{
+			{Type: ActionNotify, Params: map[string]string{"message": "should not fire"}},
+		},
+	}
+	engine.store.Create(ctx, rule)
+	engine.Start()
+	defer engine.Close()
+
+	engine.cronTick()
+	time.Sleep(200 * time.Millisecond)
+
+	if len(notifier.Messages()) != 0 {
+		t.Error("future cron rule should not have fired")
+	}
+}

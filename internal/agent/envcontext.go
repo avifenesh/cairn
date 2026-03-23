@@ -53,13 +53,16 @@ func (e *EnvContext) Format() string {
 		b.WriteString("- Git user: " + e.GitUser + "\n")
 	}
 	if e.GHRepo != "" {
-		fmt.Fprintf(&b, "- GitHub repo: %s (this is the ONLY repo)\n", e.GHRepo)
+		fmt.Fprintf(&b, "- Primary GitHub repo: %s\n", e.GHRepo)
 	}
 	if e.DataDir != "" {
 		b.WriteString("- Data dir: " + e.DataDir + "\n")
 	}
-	if len(e.CodingRepos) > 0 {
-		b.WriteString("- Coding repos: " + strings.Join(e.CodingRepos, ", ") + "\n")
+	if len(e.CodingRepos) > 1 {
+		b.WriteString("- All coding repos: " + strings.Join(e.CodingRepos, ", ") + "\n")
+		b.WriteString("  Subagents can work in any of these repos via the `repo` parameter on cairn.spawnSubagent.\n")
+	} else if len(e.CodingRepos) == 1 {
+		b.WriteString("- Coding repo: " + e.CodingRepos[0] + "\n")
 	}
 	if len(e.Worktrees) > 0 {
 		b.WriteString("\n### Git Worktrees\n")

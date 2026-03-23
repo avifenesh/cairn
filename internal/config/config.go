@@ -104,6 +104,10 @@ type Config struct {
 	// Paths are normalized to absolute+clean on load.
 	CodingAllowedRepos []string // CODING_ALLOWED_REPOS (comma-separated)
 
+	// Agent concurrency and nesting
+	MaxConcurrentSubagents int // MAX_CONCURRENT_SUBAGENTS (default: 5)
+	MaxSpawnDepth          int // MAX_SPAWN_DEPTH (default: 3)
+
 	// Memory auto-extraction
 	MemoryAutoExtract bool // MEMORY_AUTO_EXTRACT (default: true)
 
@@ -271,6 +275,8 @@ func Load() (*Config, error) {
 		WorkMaxRounds:           envInt("WORK_MAX_ROUNDS", 80),
 		CodingMaxRounds:         envInt("CODING_MAX_ROUNDS", 400),
 		CodingAllowedRepos:      envCSV("CODING_ALLOWED_REPOS"),
+		MaxConcurrentSubagents:  envInt("MAX_CONCURRENT_SUBAGENTS", 5),
+		MaxSpawnDepth:           envInt("MAX_SPAWN_DEPTH", 3),
 		MemoryAutoExtract:       envBool("MEMORY_AUTO_EXTRACT", true),
 		CompactionTriggerTokens: envInt("COMPACTION_TRIGGER_TOKENS", 150000),
 		CompactionKeepRecent:    envInt("COMPACTION_KEEP_RECENT", 10),
@@ -555,9 +561,12 @@ type PatchableConfig struct {
 	DevToEnabled            *bool    `json:"devtoEnabled,omitempty"`
 	DevToTags               *string  `json:"devtoTags,omitempty"` // comma-sep
 	DevToUsername           *string  `json:"devtoUsername,omitempty"`
-	NPMPackages             *string  `json:"npmPackages,omitempty"`      // comma-sep
-	CratesPackages          *string  `json:"cratesPackages,omitempty"`   // comma-sep
-	MCPClientServers        *string  `json:"mcpClientServers,omitempty"` // JSON array of server configs
+	NPMPackages             *string  `json:"npmPackages,omitempty"`            // comma-sep
+	CratesPackages          *string  `json:"cratesPackages,omitempty"`         // comma-sep
+	MCPClientServers        *string  `json:"mcpClientServers,omitempty"`       // JSON array of server configs
+	CodingAllowedRepos      *string  `json:"codingAllowedRepos,omitempty"`     // comma-separated paths
+	MaxConcurrentSubagents  *int     `json:"maxConcurrentSubagents,omitempty"` // 1-10
+	MaxSpawnDepth           *int     `json:"maxSpawnDepth,omitempty"`          // 1-5
 }
 
 var configMu sync.RWMutex
@@ -698,6 +707,33 @@ func (c *Config) ApplyPatch(p PatchableConfig) {
 			c.MCPClientServers = json.RawMessage(*p.MCPClientServers)
 		}
 	}
+	if p.CodingAllowedRepos != nil {
+		if *p.CodingAllowedRepos == "" {
+			c.CodingAllowedRepos = nil
+		} else {
+			parts := strings.Split(*p.CodingAllowedRepos, ",")
+			result := make([]string, 0, len(parts))
+			for _, rp := range parts {
+				rp = strings.TrimSpace(rp)
+				if rp == "" {
+					continue
+				}
+				// Reject relative paths — they resolve against cwd which is unpredictable.
+				if !filepath.IsAbs(rp) {
+					continue
+				}
+				rp = filepath.Clean(rp)
+				result = append(result, rp)
+			}
+			c.CodingAllowedRepos = result
+		}
+	}
+	if p.MaxConcurrentSubagents != nil && *p.MaxConcurrentSubagents >= 1 && *p.MaxConcurrentSubagents <= 10 {
+		c.MaxConcurrentSubagents = *p.MaxConcurrentSubagents
+	}
+	if p.MaxSpawnDepth != nil && *p.MaxSpawnDepth >= 1 && *p.MaxSpawnDepth <= 5 {
+		c.MaxSpawnDepth = *p.MaxSpawnDepth
+	}
 }
 
 // GetPatchable returns the current runtime-editable config values.
@@ -742,10 +778,14 @@ func (c *Config) GetPatchable() PatchableConfig {
 			s := string(c.MCPClientServers)
 			return &s
 		}(),
+		CodingAllowedRepos:     strPtr(strings.Join(c.CodingAllowedRepos, ", ")),
+		MaxConcurrentSubagents: intPtr(c.MaxConcurrentSubagents),
+		MaxSpawnDepth:          intPtr(c.MaxSpawnDepth),
 	}
 }
 
 func strPtr(s string) *string { return &s }
+func intPtr(i int) *int       { return &i }
 
 // MaxRoundsForMode returns the configured tool round limit for the given mode string.
 func (c *Config) MaxRoundsForMode(mode string) int {

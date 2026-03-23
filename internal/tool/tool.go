@@ -265,6 +265,7 @@ type ToolContext struct {
 	WorkDir     string // Worktree path for coding tasks
 	Confined    bool   // When true, shell initial workDir is validated against WorkDir boundary
 	ReadOnly    bool   // When true, shell blocks write/mutate commands (git commit, sed -i, etc.)
+	SpawnDepth  int    // Subagent nesting depth (0 = top-level agent)
 	Permissions *PermissionSet
 	Bus         *eventbus.Bus
 	Cancel      context.Context
@@ -299,11 +300,12 @@ type SubagentService interface {
 
 // SubagentSpawnRequest describes a subagent to spawn.
 type SubagentSpawnRequest struct {
-	Type        string // "researcher", "coder", "reviewer", "executor"
+	Type        string // "researcher", "coder", "reviewer", "executor", or custom AGENT.md type
 	Instruction string // task description with file paths and success criteria
 	Context     string // optional parent context summary
 	ExecMode    string // "foreground" (default) or "background"
 	MaxRounds   int    // 0 = type default
+	Repo        string // target repo for cross-repo coding (empty = default repo)
 }
 
 // SubagentSpawnResult is returned after a subagent completes or is submitted.

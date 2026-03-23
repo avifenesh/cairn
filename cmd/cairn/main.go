@@ -308,7 +308,7 @@ func runServe(logger *slog.Logger) {
 			logger.Error("worktree manager: failed to get working directory", "error", err)
 		} else {
 			worktreeDir := filepath.Join(os.TempDir(), "cairn-worktrees")
-			worktreeMgr = task.NewWorktreeManager(repoDir, worktreeDir)
+			worktreeMgr = task.NewWorktreeManager(repoDir, worktreeDir, cfg.CodingAllowedRepos)
 			logger.Info("worktree manager initialized", "repoDir", repoDir, "worktreeDir", worktreeDir,
 				"allowedRepos", len(cfg.CodingAllowedRepos))
 		}
@@ -584,6 +584,7 @@ func runServe(logger *slog.Logger) {
 			AgentTypes:     agentTypeSvc,
 			EnvContext:     envCtx,
 			Model:          cfg.LLMModel,
+			MaxSpawnDepth:  cfg.MaxSpawnDepth,
 		})
 		logger.Info("subagent runner initialized")
 	}
@@ -626,17 +627,19 @@ func runServe(logger *slog.Logger) {
 		loopState, _ := agent.RecoverLoopState(context.Background(), database.DB, logger)
 
 		agentLoop = agent.NewLoop(agent.LoopConfig{
-			TickInterval:       time.Duration(cfg.AgentTickInterval) * time.Second,
-			ReflectionInterval: time.Duration(cfg.ReflectionInterval) * time.Second,
-			Model:              cfg.LLMModel,
-			IdleEnabled:        true,
-			TalkMaxRounds:      cfg.TalkMaxRounds,
-			WorkMaxRounds:      cfg.WorkMaxRounds,
-			CodingMaxRounds:    cfg.CodingMaxRounds,
-			CodingEnabled:      cfg.CodingEnabled,
-			CodingAllowedRepos: cfg.CodingAllowedRepos,
-			BriefingModel:      cfg.LLMFallbackModel,
-			EnvContext:         envCtx,
+			TickInterval:           time.Duration(cfg.AgentTickInterval) * time.Second,
+			ReflectionInterval:     time.Duration(cfg.ReflectionInterval) * time.Second,
+			Model:                  cfg.LLMModel,
+			IdleEnabled:            true,
+			TalkMaxRounds:          cfg.TalkMaxRounds,
+			WorkMaxRounds:          cfg.WorkMaxRounds,
+			CodingMaxRounds:        cfg.CodingMaxRounds,
+			CodingEnabled:          cfg.CodingEnabled,
+			CodingAllowedRepos:     cfg.CodingAllowedRepos,
+			MaxConcurrentSubagents: cfg.MaxConcurrentSubagents,
+			MaxSpawnDepth:          cfg.MaxSpawnDepth,
+			BriefingModel:          cfg.LLMFallbackModel,
+			EnvContext:             envCtx,
 		}, agent.LoopDeps{
 			Agent:           reactAgent,
 			Tasks:           taskEngine,

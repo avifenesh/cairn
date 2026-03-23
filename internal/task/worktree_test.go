@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -51,10 +52,10 @@ func TestWorktree_CreateAndRemove(t *testing.T) {
 	repoDir := initTestRepo(t)
 	wtDir := filepath.Join(t.TempDir(), "worktrees")
 
-	m := NewWorktreeManager(repoDir, wtDir)
+	m := NewWorktreeManager(repoDir, wtDir, nil)
 
 	taskID := "test-task-001"
-	wtPath, branchName, err := m.Create(taskID, "main")
+	wtPath, branchName, err := m.Create(taskID, "main", "")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -91,12 +92,12 @@ func TestWorktree_List(t *testing.T) {
 	repoDir := initTestRepo(t)
 	wtDir := filepath.Join(t.TempDir(), "worktrees")
 
-	m := NewWorktreeManager(repoDir, wtDir)
+	m := NewWorktreeManager(repoDir, wtDir, nil)
 
 	// Create two worktrees.
 	ids := []string{"task-a", "task-b"}
 	for _, id := range ids {
-		if _, _, err := m.Create(id, "main"); err != nil {
+		if _, _, err := m.Create(id, "main", ""); err != nil {
 			t.Fatalf("Create %s: %v", id, err)
 		}
 	}
@@ -132,5 +133,114 @@ func TestWorktree_List(t *testing.T) {
 	// Cleanup.
 	for _, id := range ids {
 		m.Remove(id)
+	}
+}
+
+func TestWorktree_CreateDefaultRepo(t *testing.T) {
+	repoDir := initTestRepo(t)
+	wtDir := filepath.Join(t.TempDir(), "worktrees")
+
+	m := NewWorktreeManager(repoDir, wtDir, nil)
+
+	// Empty repoDir should use the default.
+	wtPath, _, err := m.Create("default-test", "main", "")
+	if err != nil {
+		t.Fatalf("Create with empty repoDir: %v", err)
+	}
+	if _, err := os.Stat(wtPath); os.IsNotExist(err) {
+		t.Fatalf("worktree path %q does not exist", wtPath)
+	}
+	if err := m.Remove("default-test"); err != nil {
+		t.Errorf("Remove default-test: %v", err)
+	}
+}
+
+func TestWorktree_CreateSpecificRepo(t *testing.T) {
+	repo1 := initTestRepo(t)
+	repo2 := initTestRepo(t)
+	wtDir := filepath.Join(t.TempDir(), "worktrees")
+
+	m := NewWorktreeManager(repo1, wtDir, []string{repo2})
+
+	// Create in the second repo explicitly.
+	wtPath, _, err := m.Create("cross-repo-test", "main", repo2)
+	if err != nil {
+		t.Fatalf("Create in repo2: %v", err)
+	}
+	if _, err := os.Stat(wtPath); os.IsNotExist(err) {
+		t.Fatalf("worktree path %q does not exist", wtPath)
+	}
+
+	// The worktree should be a git dir with content from repo2.
+	gitFile := filepath.Join(wtPath, ".git")
+	if _, err := os.Stat(gitFile); os.IsNotExist(err) {
+		t.Fatalf("worktree %q missing .git file", wtPath)
+	}
+
+	// Remove must succeed — uses tracked repo, not defaultRepo.
+	if err := m.Remove("cross-repo-test"); err != nil {
+		t.Fatalf("Remove cross-repo-test: %v", err)
+	}
+
+	// Verify the worktree directory is gone.
+	if _, err := os.Stat(wtPath); !os.IsNotExist(err) {
+		t.Errorf("worktree path %q still exists after removal", wtPath)
+	}
+}
+
+func TestWorktree_CreateInvalidRepo(t *testing.T) {
+	repoDir := initTestRepo(t)
+	wtDir := filepath.Join(t.TempDir(), "worktrees")
+
+	m := NewWorktreeManager(repoDir, wtDir, nil)
+
+	// Try to create in a repo not in the allowed list.
+	_, _, err := m.Create("bad-repo-test", "main", "/tmp/not-allowed")
+	if err == nil {
+		t.Fatal("expected error for invalid repo, got nil")
+	}
+	if want := "not in allowed repos"; !strings.Contains(err.Error(), want) {
+		t.Errorf("error = %q, want containing %q", err.Error(), want)
+	}
+}
+
+func TestWorktree_RepoDirs(t *testing.T) {
+	repo1 := initTestRepo(t)
+	repo2 := initTestRepo(t)
+	wtDir := filepath.Join(t.TempDir(), "worktrees")
+
+	m := NewWorktreeManager(repo1, wtDir, []string{repo2})
+
+	dirs := m.RepoDirs()
+	if len(dirs) != 2 {
+		t.Fatalf("RepoDirs: got %d, want 2", len(dirs))
+	}
+
+	found := make(map[string]bool)
+	for _, d := range dirs {
+		found[d] = true
+	}
+
+	absRepo1, _ := filepath.Abs(repo1)
+	absRepo2, _ := filepath.Abs(repo2)
+	if !found[absRepo1] && !found[repo1] {
+		t.Errorf("RepoDirs missing repo1 %q", repo1)
+	}
+	if !found[absRepo2] && !found[repo2] {
+		t.Errorf("RepoDirs missing repo2 %q", repo2)
+	}
+}
+
+func TestWorktree_WhitespaceInAllowedRepos(t *testing.T) {
+	repoDir := initTestRepo(t)
+	wtDir := filepath.Join(t.TempDir(), "worktrees")
+
+	// Empty and whitespace-only entries should be filtered out.
+	m := NewWorktreeManager(repoDir, wtDir, []string{"", "  ", repoDir})
+
+	dirs := m.RepoDirs()
+	// Should only contain the default repo (deduplicated).
+	if len(dirs) != 1 {
+		t.Errorf("RepoDirs: got %d, want 1 (empty/whitespace should be filtered)", len(dirs))
 	}
 }

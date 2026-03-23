@@ -328,27 +328,28 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 
 		// 5. Execute tools.
 		toolCtx := &tool.ToolContext{
-			SessionID: invCtx.SessionID,
-			TaskID:    taskIDFromSession(invCtx),
-			AgentMode: mode,
-			WorkDir:   workDir(invCtx),
-			Confined:  isConfined(invCtx),
-			ReadOnly:  isReadOnly(invCtx),
-			Bus:       invCtx.Bus,
-			Cancel:    invCtx.Context,
-			Memories:  invCtx.ToolMemories,
-			Events:    invCtx.ToolEvents,
-			Digest:    invCtx.ToolDigest,
-			Journal:   invCtx.ToolJournal,
-			Tasks:     invCtx.ToolTasks,
-			Status:    invCtx.ToolStatus,
-			Skills:    invCtx.ToolSkills,
-			Notifier:  invCtx.ToolNotifier,
-			Crons:     invCtx.ToolCrons,
-			Rules:     invCtx.ToolRules,
-			Config:    invCtx.ToolConfig,
-			Identity:  invCtx.ToolIdentity,
-			Subagents: invCtx.Subagents,
+			SessionID:  invCtx.SessionID,
+			TaskID:     taskIDFromSession(invCtx),
+			AgentMode:  mode,
+			WorkDir:    workDir(invCtx),
+			Confined:   isConfined(invCtx),
+			ReadOnly:   isReadOnly(invCtx),
+			SpawnDepth: spawnDepthFromSession(invCtx),
+			Bus:        invCtx.Bus,
+			Cancel:     invCtx.Context,
+			Memories:   invCtx.ToolMemories,
+			Events:     invCtx.ToolEvents,
+			Digest:     invCtx.ToolDigest,
+			Journal:    invCtx.ToolJournal,
+			Tasks:      invCtx.ToolTasks,
+			Status:     invCtx.ToolStatus,
+			Skills:     invCtx.ToolSkills,
+			Notifier:   invCtx.ToolNotifier,
+			Crons:      invCtx.ToolCrons,
+			Rules:      invCtx.ToolRules,
+			Config:     invCtx.ToolConfig,
+			Identity:   invCtx.ToolIdentity,
+			Subagents:  invCtx.Subagents,
 			ActivateSkill: func(name, content string, allowedTools []string) {
 				if invCtx.Session != nil {
 					invCtx.Session.ActiveSkills = append(invCtx.Session.ActiveSkills, ActiveSkill{
@@ -629,6 +630,22 @@ func isReadOnly(ctx *InvocationContext) bool {
 	}
 	ro, _ := ctx.Session.State["readOnly"].(bool)
 	return ro
+}
+
+// spawnDepthFromSession returns the subagent nesting depth from session state.
+// Returns 0 for top-level agents (no depth recorded).
+func spawnDepthFromSession(ctx *InvocationContext) int {
+	if ctx.Session == nil || ctx.Session.State == nil {
+		return 0
+	}
+	// Session state stores values as any; depth may be int or float64 (from JSON roundtrip).
+	switch d := ctx.Session.State["spawnDepth"].(type) {
+	case int:
+		return d
+	case float64:
+		return int(d)
+	}
+	return 0
 }
 
 // emit sends a RunEvent to the channel, respecting context cancellation.

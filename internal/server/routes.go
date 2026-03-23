@@ -55,7 +55,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /v1/sessions/{id}/steer", s.handleSessionSteer)
 	s.mux.HandleFunc("POST /v1/upload", s.handleUpload)
 	s.mux.HandleFunc("GET /v1/config", s.handleGetConfig)
-	s.mux.HandleFunc("PATCH /v1/config", s.handlePatchConfig)
+	s.mux.HandleFunc("PATCH /v1/config", s.requireWrite(s.handlePatchConfig))
 
 	// Skills.
 	s.mux.HandleFunc("GET /v1/skills", s.handleListSkills)

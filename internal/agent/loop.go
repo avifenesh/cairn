@@ -91,17 +91,19 @@ type Loop struct {
 
 // LoopConfig configures the always-on agent loop.
 type LoopConfig struct {
-	TickInterval       time.Duration // Default: 60s
-	ReflectionInterval time.Duration // Default: 30min
-	Model              string
-	IdleEnabled        bool
-	TalkMaxRounds      int         // Default: 40
-	WorkMaxRounds      int         // Default: 80
-	CodingMaxRounds    int         // Default: 400
-	CodingEnabled      bool        // Whether coding tasks can be submitted from idle loop
-	CodingAllowedRepos []string    // Repo paths where coding is allowed (empty = cwd only)
-	BriefingModel      string      // Cheap model for context summarization (default: fallback model)
-	EnvContext         *EnvContext // Ground-truth environment context for orchestrator
+	TickInterval           time.Duration // Default: 60s
+	ReflectionInterval     time.Duration // Default: 30min
+	Model                  string
+	IdleEnabled            bool
+	TalkMaxRounds          int         // Default: 40
+	WorkMaxRounds          int         // Default: 80
+	CodingMaxRounds        int         // Default: 400
+	CodingEnabled          bool        // Whether coding tasks can be submitted from idle loop
+	CodingAllowedRepos     []string    // Repo paths where coding is allowed (empty = cwd only)
+	MaxConcurrentSubagents int         // Max concurrent subagents (default 5)
+	MaxSpawnDepth          int         // Max subagent nesting depth (default 3)
+	BriefingModel          string      // Cheap model for context summarization (default: fallback model)
+	EnvContext             *EnvContext // Ground-truth environment context for orchestrator
 }
 
 func (c LoopConfig) maxRoundsForMode(mode tool.Mode) int {
@@ -183,26 +185,27 @@ func NewLoop(cfg LoopConfig, deps LoopDeps) *Loop {
 		agentTypes:      deps.AgentTypes,
 		skillSuggestor:  NewSkillSuggestor(logger),
 		orchestrator: NewOrchestrator(OrchestratorDeps{
-			Memories:       deps.Memories,
-			Tasks:          deps.Tasks,
-			Events:         deps.Events,
-			Soul:           deps.Soul,
-			Approvals:      deps.Approvals,
-			SubagentRunner: deps.SubagentRunner,
-			Bus:            deps.Bus,
-			Provider:       deps.Provider,
-			Model:          cfg.Model,
-			BriefingModel:  cfg.BriefingModel,
-			ActivityStore:  deps.ActivityStore,
-			Reflector:      deps.Reflector,
-			SkillSuggestor: NewSkillSuggestor(logger),
-			Marketplace:    deps.Marketplace,
-			ToolSkills:     deps.ToolSkills,
-			Journaler:      deps.Journaler,
-			AgentTypes:     deps.AgentTypes,
-			Logger:         logger,
-			CodingEnabled:  cfg.CodingEnabled,
-			EnvContext:     cfg.EnvContext,
+			Memories:               deps.Memories,
+			Tasks:                  deps.Tasks,
+			Events:                 deps.Events,
+			Soul:                   deps.Soul,
+			Approvals:              deps.Approvals,
+			SubagentRunner:         deps.SubagentRunner,
+			Bus:                    deps.Bus,
+			Provider:               deps.Provider,
+			Model:                  cfg.Model,
+			BriefingModel:          cfg.BriefingModel,
+			ActivityStore:          deps.ActivityStore,
+			Reflector:              deps.Reflector,
+			SkillSuggestor:         NewSkillSuggestor(logger),
+			Marketplace:            deps.Marketplace,
+			ToolSkills:             deps.ToolSkills,
+			Journaler:              deps.Journaler,
+			AgentTypes:             deps.AgentTypes,
+			Logger:                 logger,
+			CodingEnabled:          cfg.CodingEnabled,
+			EnvContext:             cfg.EnvContext,
+			MaxConcurrentSubagents: cfg.MaxConcurrentSubagents,
 		}),
 	}
 }
@@ -535,10 +538,12 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 
 	// Create isolated worktree for coding tasks.
 	if mode == tool.ModeCoding && l.worktreeManager != nil {
+		inputRepo := extractRepoFromInput(t.Input)
+
 		// If allowlist is configured, verify the repo is permitted.
 		if len(l.config.CodingAllowedRepos) > 0 {
 			targetRepo := l.worktreeManager.RepoDir()
-			if inputRepo := extractRepoFromInput(t.Input); inputRepo != "" {
+			if inputRepo != "" {
 				targetRepo = inputRepo
 			}
 			if !l.isRepoAllowed(targetRepo) {
@@ -549,7 +554,7 @@ func (l *Loop) executePendingTask(ctx context.Context) (executed bool, summary, 
 			}
 		}
 
-		wtPath, _, wtErr := l.worktreeManager.Create(t.ID, "HEAD")
+		wtPath, _, wtErr := l.worktreeManager.Create(t.ID, "HEAD", inputRepo)
 		if wtErr != nil {
 			l.logger.Error("agent loop: worktree creation failed, failing task", "task", t.ID, "error", wtErr)
 			l.tasks.Fail(ctx, t.ID, fmt.Errorf("worktree creation failed: %w", wtErr))

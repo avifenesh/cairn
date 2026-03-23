@@ -7,7 +7,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar, Rss, Code, BookOpen, Package, Bell, BellOff, Clock, Route, Fingerprint, Shield, Trash2 } from '@lucide/svelte';
+	import { Sun, Moon, Wifi, WifiOff, DollarSign, Server, Plug, Send, MessageSquare, Hash, Database, Layers, Save, Loader2, Github, Mail, Calendar, Rss, Code, BookOpen, Package, Bell, BellOff, Clock, Route, Fingerprint, Shield, Trash2, GitBranch, Users } from '@lucide/svelte';
 	import CronManager from '$lib/components/cron/CronManager.svelte';
 
 	let costs = $state<Record<string, number> | null>(null);
@@ -55,6 +55,9 @@
 	let editMutedSources = $state('');
 	let editNotifPriority = $state('low');
 	let editChannelRouting = $state('');
+	let editCodingRepos = $state('');
+	let editMaxSubagents = $state(5);
+	let editMaxDepth = $state(3);
 	let saving = $state('');
 
 	const ALL_SOURCES = ['github', 'github_signal', 'gmail', 'calendar', 'hn', 'reddit', 'npm', 'crates', 'rss', 'stackoverflow', 'devto'];
@@ -110,6 +113,9 @@
 				editMutedSources = cfg.mutedSources ?? '';
 				editNotifPriority = cfg.notifMinPriority ?? 'low';
 				editChannelRouting = cfg.channelRouting ?? '';
+				editCodingRepos = cfg.codingAllowedRepos ?? '';
+				editMaxSubagents = cfg.maxConcurrentSubagents ?? 5;
+				editMaxDepth = cfg.maxSpawnDepth ?? 3;
 			}
 		} catch {
 			// handled
@@ -882,6 +888,69 @@
 						Save
 					</Button>
 				</div>
+			</div>
+		</div>
+	</section>
+
+	<Separator class="mb-8" />
+
+	<!-- Coding & Agents -->
+	<section class="mb-8">
+		<h2 class="mb-1 text-sm font-medium text-[var(--text-primary)]">Coding & Agents</h2>
+		<p class="mb-4 text-xs text-[var(--text-tertiary)]">Cross-repo coding and subagent concurrency</p>
+
+		<div class="space-y-3">
+			<!-- Coding Repos -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center gap-3 mb-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--cairn-accent)]/10">
+						<GitBranch class="h-4 w-4 text-[var(--cairn-accent)]" />
+					</div>
+					<div>
+						<p class="text-sm font-medium text-[var(--text-primary)]">Coding Repos</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Absolute paths where agents can create worktrees (empty = current dir only)</p>
+					</div>
+				</div>
+				<Input
+					type="text"
+					bind:value={editCodingRepos}
+					placeholder="/home/ubuntu/cairn, /home/ubuntu/agent-sh"
+					class="h-8 text-xs font-mono"
+				/>
+			</div>
+
+			<!-- Agent Concurrency -->
+			<div class="rounded-lg border border-border-subtle bg-[var(--bg-1)] p-4">
+				<div class="flex items-center gap-3 mb-3">
+					<div class="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--cairn-accent)]/10">
+						<Users class="h-4 w-4 text-[var(--cairn-accent)]" />
+					</div>
+					<div>
+						<p class="text-sm font-medium text-[var(--text-primary)]">Agent Concurrency</p>
+						<p class="text-[10px] text-[var(--text-tertiary)]">Controls how many subagents run in parallel and how deep they can nest</p>
+					</div>
+				</div>
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label for="max-subagents" class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1 block">Max Concurrent (1-10)</label>
+						<Input id="max-subagents" type="number" bind:value={editMaxSubagents} min={1} max={10} class="h-7 text-xs font-mono" />
+					</div>
+					<div>
+						<label for="max-depth" class="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1 block">Max Spawn Depth (1-5)</label>
+						<Input id="max-depth" type="number" bind:value={editMaxDepth} min={1} max={5} class="h-7 text-xs font-mono" />
+					</div>
+				</div>
+			</div>
+
+			<div class="flex justify-end">
+				<Button
+					size="sm" class="h-7 text-xs gap-1 px-3"
+					onclick={() => saveConfig('coding', { codingAllowedRepos: editCodingRepos, maxConcurrentSubagents: Number(editMaxSubagents) || 5, maxSpawnDepth: Number(editMaxDepth) || 3 })}
+					disabled={saving === 'coding'}
+				>
+					{#if saving === 'coding'}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Save class="h-3 w-3" />{/if}
+					Save
+				</Button>
 			</div>
 		</div>
 	</section>

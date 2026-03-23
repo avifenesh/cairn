@@ -68,7 +68,7 @@ if [ -z "$READ_API_TOKEN" ]; then echo "metrics auth required — READ_API_TOKEN
 
 **TLS cert expiry (with days remaining and status):**
 ```
-DOMAIN=${FRONTEND_DOMAIN:-agntic.garden}; END_DATE=$(timeout 5 bash -c "set -o pipefail; echo | openssl s_client -connect $DOMAIN:443 -servername $DOMAIN 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2" 2>/dev/null); if [ -z "$END_DATE" ]; then echo "expiry: UNKNOWN, days_remaining: UNKNOWN, status: UNKNOWN"; else DAYS=$(( ( $(date -d "$END_DATE" +%s) - $(date +%s) ) / 86400 )); if [ "$DAYS" -lt 3 ]; then STATUS="CRIT"; elif [ "$DAYS" -lt 14 ]; then STATUS="WARN"; else STATUS="OK"; fi; printf "expiry: %s, days_remaining: %d, status: %s\n" "$END_DATE" "$DAYS" "$STATUS"; fi || echo "UNKNOWN"
+DOMAIN=${FRONTEND_DOMAIN:-agntic.garden}; END_DATE=$(timeout 5 bash -c 'set -o pipefail; echo | openssl s_client -connect "$1:443" -servername "$1" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2' _ "$DOMAIN" 2>/dev/null); if [ -z "$END_DATE" ]; then echo "expiry: UNKNOWN, days_remaining: UNKNOWN, status: UNKNOWN"; else END_EPOCH=$(date -d "$END_DATE" +%s 2>/dev/null || echo ""); NOW_EPOCH=$(date +%s); case $END_EPOCH in ""|*[!0-9]*) echo "expiry: UNKNOWN, days_remaining: UNKNOWN, status: UNKNOWN";; *) DAYS=$(( ( END_EPOCH - NOW_EPOCH ) / 86400 )); if [ "$DAYS" -lt 3 ]; then STATUS="CRIT"; elif [ "$DAYS" -lt 14 ]; then STATUS="WARN"; else STATUS="OK"; fi; printf "expiry: %s, days_remaining: %d, status: %s\n" "$END_DATE" "$DAYS" "$STATUS";; esac; fi
 ```
 
 **Systemd services:**

@@ -34,6 +34,30 @@
 		if (text.length <= max) return text;
 		return text.slice(0, max) + '...';
 	}
+
+	// Split result into summary and diff if present.
+	const resultParts = $derived.by((): { text: string; diff: string } => {
+		if (!result) return { text: '', diff: '' };
+		const idx = result.indexOf('\ndiff --git ');
+		if (idx >= 0) return { text: result.slice(0, idx).trim(), diff: result.slice(idx + 1) };
+		const idx2 = result.indexOf('\n--- ');
+		if (idx2 >= 0 && result.indexOf('\n+++ ', idx2) > idx2) return { text: result.slice(0, idx2).trim(), diff: result.slice(idx2 + 1) };
+		return { text: result, diff: '' };
+	});
+
+	let showDiff = $state(false);
+
+	function formatDiffLine(line: string): string {
+		const esc = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+		if (line.startsWith('+') && !line.startsWith('+++')) return `<span style="color: var(--color-success)">${esc}</span>`;
+		if (line.startsWith('-') && !line.startsWith('---')) return `<span style="color: var(--color-error)">${esc}</span>`;
+		if (line.startsWith('@@')) return `<span style="color: var(--src-github)">${esc}</span>`;
+		return esc;
+	}
+
+	function formatDiff(diff: string): string {
+		return diff.split('\n').map(formatDiffLine).join('\n');
+	}
 </script>
 
 <div class="inline-flex flex-col">
@@ -85,7 +109,19 @@
 			{:else if result}
 				<div>
 					<span class="text-[var(--text-tertiary)] text-[9px] uppercase tracking-wider">Result</span>
-					<pre class="mt-0.5 whitespace-pre-wrap break-all text-[var(--text-secondary)] max-h-32 overflow-y-auto">{truncate(result, 1000)}</pre>
+					<pre class="mt-0.5 whitespace-pre-wrap break-all text-[var(--text-secondary)] max-h-32 overflow-y-auto">{truncate(resultParts.text, 1000)}</pre>
+					{#if resultParts.diff}
+						<button
+							class="mt-1 text-[9px] font-sans text-[var(--cairn-accent)] hover:underline"
+							onclick={() => showDiff = !showDiff}
+							type="button"
+						>
+							{showDiff ? 'hide diff' : 'show diff'}
+						</button>
+						{#if showDiff}
+							<pre class="mt-1 whitespace-pre-wrap text-[10px] max-h-48 overflow-y-auto leading-tight" style="color: var(--text-secondary)">{@html formatDiff(resultParts.diff)}</pre>
+						{/if}
+					{/if}
 				</div>
 			{/if}
 		</div>

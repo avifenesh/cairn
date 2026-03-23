@@ -217,11 +217,7 @@
 					<!-- Confirmation preview (zero-param templates) -->
 					{#if isPreviewing}
 						<div class="px-3 pb-2.5 pt-0 space-y-2 animate-in" style="border-top: 1px solid var(--border-subtle)">
-							<p class="text-[10px] uppercase tracking-wider font-medium pt-2" style="color: var(--text-tertiary)">This will create a rule that:</p>
-							<div class="rounded-md p-2 font-mono text-[11px] space-y-0.5" style="background: var(--bg-0)">
-								<p><span style="color: var(--cairn-accent)">trigger</span> <span style="color: var(--text-secondary)">{tmpl.source ? `${sourceLabel(tmpl.source)} events` : tmpl.category} event</span></p>
-								<p><span style="color: var(--src-github)">action</span> <span style="color: var(--text-secondary)">send notification</span></p>
-							</div>
+							<p class="text-xs pt-2" style="color: var(--text-secondary)">{tmpl.description}</p>
 							<div class="flex items-center justify-end gap-2">
 								<button
 									onclick={(e) => { e.stopPropagation(); previewing = null; }}

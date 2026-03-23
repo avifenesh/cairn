@@ -193,6 +193,17 @@ func (s *Server) handleAssistantMessage(w http.ResponseWriter, r *http.Request) 
 func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, mode tool.Mode) {
 	ctx := context.Background()
 
+	// Panic recovery: if the agent goroutine crashes, mark the task as terminally
+	// failed so it doesn't stay stuck in Running forever.
+	defer func() {
+		if p := recover(); p != nil {
+			s.logger.Error("runAgent panicked", "task", t.ID, "panic", p)
+			if err := s.tasks.FailTerminal(ctx, t.ID, fmt.Errorf("agent panic: %v", p)); err != nil {
+				s.logger.Error("failed to mark panicked task as terminal", "task", t.ID, "error", err)
+			}
+		}
+	}()
+
 	// Notify SSE subscribers that the task is running.
 	eventbus.Publish(s.bus, eventbus.TaskRunning{
 		EventMeta: eventbus.NewMeta("server"),
@@ -281,7 +292,11 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 	for ev := range s.agent.Run(invCtx) {
 		if ev.Err != nil {
 			slog.Error("agent run error", "task", t.ID, "error", ev.Err)
-			s.tasks.Fail(ctx, t.ID, ev.Err)
+			// Use FailTerminal: chat tasks should never be retried — the HTTP
+			// connection is gone and session state is mid-stream.
+			if fErr := s.tasks.FailTerminal(ctx, t.ID, ev.Err); fErr != nil {
+				slog.Error("failed to mark task as terminal", "task", t.ID, "error", fErr)
+			}
 			return
 		}
 		if ev.Event == nil {

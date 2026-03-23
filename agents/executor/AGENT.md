@@ -3,6 +3,7 @@ name: executor
 description: "Runs shell commands, validates system state, executes operational tasks. Shell + file access."
 mode: work
 max-rounds: 80
+denied-tools: "cairn.updateIdentity"
 skills: deploy,system-health
 ---
 

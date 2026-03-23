@@ -3,6 +3,7 @@ name: database
 description: "Database specialist. SQLite schema design, migrations, query optimization, data integrity. Read + shell access."
 mode: work
 max-rounds: 80
+denied-tools: "cairn.updateIdentity"
 ---
 
 # Database Agent

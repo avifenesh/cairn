@@ -511,3 +511,121 @@ func TestShell_UnconfinedAllowsAnywhere(t *testing.T) {
 		t.Fatalf("expected 'free', got: %q", result.Output)
 	}
 }
+
+// --- Read-only shell policy tests ---
+
+func readOnlyCtx(t *testing.T) (*tool.ToolContext, string) {
+	t.Helper()
+	dir := t.TempDir()
+	return &tool.ToolContext{
+		SessionID: "test-readonly",
+		WorkDir:   dir,
+		ReadOnly:  true,
+		Cancel:    context.Background(),
+	}, dir
+}
+
+func TestShell_ReadOnlyBlocksGitCommit(t *testing.T) {
+	ctx, _ := readOnlyCtx(t)
+	args := json.RawMessage(`{"command": "git commit -m 'test'"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error == "" || !strings.Contains(result.Error, "read-only") {
+		t.Fatalf("expected read-only denial for git commit, got: %q", result.Error)
+	}
+}
+
+func TestShell_ReadOnlyBlocksGitPush(t *testing.T) {
+	ctx, _ := readOnlyCtx(t)
+	args := json.RawMessage(`{"command": "git push origin main"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error == "" || !strings.Contains(result.Error, "read-only") {
+		t.Fatalf("expected read-only denial for git push, got: %q", result.Error)
+	}
+}
+
+func TestShell_ReadOnlyBlocksGhPrCreate(t *testing.T) {
+	ctx, _ := readOnlyCtx(t)
+	args := json.RawMessage(`{"command": "gh pr create --title test"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error == "" || !strings.Contains(result.Error, "read-only") {
+		t.Fatalf("expected read-only denial for gh pr create, got: %q", result.Error)
+	}
+}
+
+func TestShell_ReadOnlyBlocksSedInPlace(t *testing.T) {
+	ctx, _ := readOnlyCtx(t)
+	args := json.RawMessage(`{"command": "sed -i 's/old/new/' file.txt"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error == "" || !strings.Contains(result.Error, "read-only") {
+		t.Fatalf("expected read-only denial for sed -i, got: %q", result.Error)
+	}
+}
+
+func TestShell_ReadOnlyAllowsGitLog(t *testing.T) {
+	ctx, dir := readOnlyCtx(t)
+	// Init a git repo so git log works.
+	exec.Command("git", "init", dir).Run()
+	args := json.RawMessage(`{"command": "git log --oneline -1 2>/dev/null; echo ok"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("git log should be allowed in read-only mode, got error: %s", result.Error)
+	}
+}
+
+func TestShell_ReadOnlyAllowsGrep(t *testing.T) {
+	ctx, dir := readOnlyCtx(t)
+	os.WriteFile(filepath.Join(dir, "test.txt"), []byte("hello world"), 0644)
+	args := json.RawMessage(`{"command": "grep hello test.txt"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != "" {
+		t.Fatalf("grep should be allowed in read-only mode, got error: %s", result.Error)
+	}
+	if !strings.Contains(result.Output, "hello") {
+		t.Fatalf("expected grep output, got: %s", result.Output)
+	}
+}
+
+func TestShell_ReadOnlyAllowsGhPrView(t *testing.T) {
+	ctx, _ := readOnlyCtx(t)
+	// gh pr view will fail (no repo) but should NOT be blocked by policy.
+	args := json.RawMessage(`{"command": "gh pr view 1 2>&1; echo policy-passed"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// The command should run (policy allows it), even if gh fails.
+	if strings.Contains(result.Error, "read-only") {
+		t.Fatalf("gh pr view should be allowed in read-only mode, got: %s", result.Error)
+	}
+}
+
+func TestShell_NonReadOnlyAllowsGitCommit(t *testing.T) {
+	ctx, _ := testCtx(t)
+	// Non-read-only should allow git commit (it will fail without a repo, but not be policy-blocked).
+	args := json.RawMessage(`{"command": "git commit -m test 2>&1; echo policy-passed"}`)
+	result, err := shell.Execute(ctx, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(result.Error, "read-only") {
+		t.Fatalf("non-read-only context should allow git commit, got: %s", result.Error)
+	}
+}

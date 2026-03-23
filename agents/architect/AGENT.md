@@ -3,7 +3,7 @@ name: architect
 description: "Architecture reviewer. Analyzes system design, package boundaries, dependency flow, API contracts. Does not modify code."
 mode: work
 max-rounds: 80
-denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory"
+denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory,cairn.updateIdentity"
 ---
 
 # Architect Agent

@@ -3,7 +3,7 @@ name: observer
 description: "System health monitor. Checks logs, services, CI status, feed pollers, error rates. Reports issues for action."
 mode: work
 max-rounds: 40
-denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory"
+denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory,cairn.updateIdentity"
 skills: system-health
 ---
 

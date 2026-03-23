@@ -333,6 +333,7 @@ func (a *ReActAgent) run(invCtx *InvocationContext, ch chan<- RunEvent) {
 			AgentMode: mode,
 			WorkDir:   workDir(invCtx),
 			Confined:  isConfined(invCtx),
+			ReadOnly:  isReadOnly(invCtx),
 			Bus:       invCtx.Bus,
 			Cancel:    invCtx.Context,
 			Memories:  invCtx.ToolMemories,
@@ -611,6 +612,17 @@ func isConfined(ctx *InvocationContext) bool {
 	}
 	confined, _ := ctx.Session.State["confined"].(bool)
 	return confined
+}
+
+// isReadOnly returns true when the session has file-write tools denied.
+// Read-only sessions get shell policy tier 2 (blocks git commit, sed -i, etc.)
+// while still allowing grep, find, git log, gh pr view, and other read commands.
+func isReadOnly(ctx *InvocationContext) bool {
+	if ctx.Session == nil || ctx.Session.State == nil {
+		return false
+	}
+	ro, _ := ctx.Session.State["readOnly"].(bool)
+	return ro
 }
 
 // emit sends a RunEvent to the channel, respecting context cancellation.

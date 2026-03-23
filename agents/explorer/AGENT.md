@@ -3,7 +3,7 @@ name: explorer
 description: "Fast codebase exploration. Finds files, traces dependencies, maps architecture. Read-only, optimized for speed."
 mode: work
 max-rounds: 40
-denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory"
+denied-tools: "cairn.writeFile,cairn.editFile,cairn.createMemory,cairn.updateIdentity"
 skills: web-search
 ---
 

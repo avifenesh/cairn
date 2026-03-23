@@ -3,6 +3,7 @@ name: reviewer
 description: "Analyzes code for quality, security, correctness, and test coverage. Read + shell access for running checks."
 mode: work
 max-rounds: 80
+denied-tools: "cairn.writeFile,cairn.editFile,cairn.deleteFile,cairn.createMemory,cairn.updateIdentity"
 skills: code-review,secrets-scanner
 ---
 

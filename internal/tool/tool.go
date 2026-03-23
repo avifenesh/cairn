@@ -264,6 +264,7 @@ type ToolContext struct {
 	AgentMode   Mode
 	WorkDir     string // Worktree path for coding tasks
 	Confined    bool   // When true, shell initial workDir is validated against WorkDir boundary
+	ReadOnly    bool   // When true, shell blocks write/mutate commands (git commit, sed -i, etc.)
 	Permissions *PermissionSet
 	Bus         *eventbus.Bus
 	Cancel      context.Context

@@ -381,6 +381,15 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		}()
 	}
 
+	// Mark read-only when file-write tools are denied.
+	// This activates shell policy tier 2 (blocks git commit, sed -i, etc.)
+	for _, d := range cfg.DeniedTools {
+		if d == "cairn.writeFile" {
+			session.State["readOnly"] = true
+			break
+		}
+	}
+
 	// Build scoped tool registry - never includes spawnSubagent (two-level enforcement).
 	childTools := r.scopeTools(cfg)
 

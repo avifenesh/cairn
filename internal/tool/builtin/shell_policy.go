@@ -43,6 +43,42 @@ func checkDenyPatterns(command string) string {
 	return ""
 }
 
+// readOnlyDenyPatterns block write/mutate operations for agents that deny file writes.
+// These agents can still grep, find, cat, git log, gh pr view, go vet, etc.
+var readOnlyDenyPatterns = []denyPattern{
+	// Git mutations (but NOT git log, git diff, git status, git show, git blame, git worktree list).
+	{regexp.MustCompile(`\bgit\s+checkout\s+-b\b`), "git branch creation denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+commit\b`), "git commit denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+push\b`), "git push denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+merge\b`), "git merge denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+rebase\b`), "git rebase denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+reset\b`), "git reset denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+cherry-pick\b`), "git cherry-pick denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+stash\s+(pop|drop|clear)\b`), "git stash mutation denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+tag\b`), "git tag denied (read-only agent)"},
+	{regexp.MustCompile(`\bgit\s+branch\s+-[dDmM]\b`), "git branch delete/rename denied (read-only agent)"},
+	// GitHub CLI mutations (but NOT gh pr view, gh pr list, gh pr diff, gh pr checks).
+	{regexp.MustCompile(`\bgh\s+pr\s+create\b`), "PR creation denied (read-only agent)"},
+	{regexp.MustCompile(`\bgh\s+pr\s+close\b`), "PR close denied (read-only agent)"},
+	{regexp.MustCompile(`\bgh\s+pr\s+comment\b`), "PR comment denied (read-only agent)"},
+	{regexp.MustCompile(`\bgh\s+pr\s+edit\b`), "PR edit denied (read-only agent)"},
+	{regexp.MustCompile(`\bgh\s+pr\s+ready\b`), "PR ready denied (read-only agent)"},
+	{regexp.MustCompile(`\bgh\s+issue\s+(close|create|edit|comment)\b`), "issue mutation denied (read-only agent)"},
+	// File writes through shell (but NOT grep, cat, find, etc.).
+	{regexp.MustCompile(`\bsed\s+-i\b`), "in-place file edit denied (read-only agent)"},
+	{regexp.MustCompile(`\btee\s`), "file write via tee denied (read-only agent)"},
+}
+
+// checkReadOnlyDenyPatterns returns a reason if the command matches a read-only deny pattern.
+func checkReadOnlyDenyPatterns(command string) string {
+	for _, dp := range readOnlyDenyPatterns {
+		if dp.re.MatchString(command) {
+			return dp.reason
+		}
+	}
+	return ""
+}
+
 // envAllowlist is the set of exact environment variable names safe for child processes.
 var envAllowlist = map[string]bool{
 	"PATH": true, "HOME": true, "USER": true, "SHELL": true,

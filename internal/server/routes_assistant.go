@@ -198,7 +198,9 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 	defer func() {
 		if p := recover(); p != nil {
 			s.logger.Error("runAgent panicked", "task", t.ID, "panic", p)
-			s.tasks.FailTerminal(ctx, t.ID, fmt.Errorf("agent panic: %v", p))
+			if err := s.tasks.FailTerminal(ctx, t.ID, fmt.Errorf("agent panic: %v", p)); err != nil {
+				s.logger.Error("failed to mark panicked task as terminal", "task", t.ID, "error", err)
+			}
 		}
 	}()
 
@@ -292,7 +294,9 @@ func (s *Server) runAgent(session *agent.Session, t *task.Task, message string, 
 			slog.Error("agent run error", "task", t.ID, "error", ev.Err)
 			// Use FailTerminal: chat tasks should never be retried — the HTTP
 			// connection is gone and session state is mid-stream.
-			s.tasks.FailTerminal(ctx, t.ID, ev.Err)
+			if fErr := s.tasks.FailTerminal(ctx, t.ID, ev.Err); fErr != nil {
+				slog.Error("failed to mark task as terminal", "task", t.ID, "error", fErr)
+			}
 			return
 		}
 		if ev.Event == nil {

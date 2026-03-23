@@ -80,8 +80,8 @@ func (s *Store) Create(ctx context.Context, t *Task) error {
 		nullStr(t.Error),
 		int(t.Priority),
 		now,
-		nullStr(""),
-		nullStr(""),
+		nullStr(isoTime(t.StartedAt)),
+		nullStr(isoTime(t.CompletedAt)),
 		nullStr(t.LeaseOwner),
 		nullStr(isoTime(t.LeaseExpiry)),
 		metadata,
@@ -213,33 +213,43 @@ func (s *Store) Update(ctx context.Context, t *Task) error {
 // Delete removes a task from the store.
 func (s *Store) Delete(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM tasks WHERE id = ?", id)
-	return err
+	if err != nil {
+		return fmt.Errorf("task store: delete %s: %w", id, err)
+	}
+	return nil
 }
 
 // Claim atomically picks the highest-priority queued task of the given type,
 // sets it to claimed status with a lease, and returns it.
+// If taskType is empty, any queued task is eligible (matches the Queue behavior).
+// The UPDATE...WHERE id=(SELECT...) pattern is atomic in SQLite's single-writer model.
 func (s *Store) Claim(ctx context.Context, taskType TaskType, owner string, leaseDuration time.Duration) (*Task, error) {
 	expiry := isoTime(time.Now().Add(leaseDuration))
 
-	// SQLite doesn't support UPDATE ... ORDER BY ... LIMIT ... RETURNING in all drivers,
-	// so we use a subquery to find the ID, then update it.
-	row := s.db.QueryRowContext(ctx, `
+	// Build subquery filter: omit type clause when empty (match any type).
+	typeFilter := ""
+	args := []any{owner, expiry}
+	if taskType != "" {
+		typeFilter = " AND type = ?"
+		args = append(args, string(taskType))
+	}
+
+	query := `
 		UPDATE tasks SET status = 'claimed', lease_owner = ?, lease_expires_at = ?
 		WHERE id = (
 			SELECT id FROM tasks
-			WHERE status = 'queued' AND type = ?
+			WHERE status = 'queued'` + typeFilter + `
 			ORDER BY priority ASC, created_at ASC
 			LIMIT 1
 		)
 		RETURNING id, type, status, description, input, output, error, priority,
-			created_at, started_at, completed_at, lease_owner, lease_expires_at, metadata`,
-		owner, expiry, string(taskType),
-	)
+			created_at, started_at, completed_at, lease_owner, lease_expires_at, metadata`
 
+	row := s.db.QueryRowContext(ctx, query, args...)
 	t, err := scanTask(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil // no queued tasks of this type
+			return nil, nil // no queued tasks
 		}
 		return nil, fmt.Errorf("task store: claim: %w", err)
 	}
@@ -284,7 +294,7 @@ func (s *Store) FindExpiredLeases(ctx context.Context) ([]*Task, error) {
 	for rows.Next() {
 		t, err := scanTaskRows(rows)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("task store: scan expired lease row: %w", err)
 		}
 		tasks = append(tasks, t)
 	}
@@ -308,7 +318,7 @@ func (s *Store) FindInFlight(ctx context.Context) ([]*Task, error) {
 	for rows.Next() {
 		t, err := scanTaskRows(rows)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("task store: scan in-flight row: %w", err)
 		}
 		tasks = append(tasks, t)
 	}

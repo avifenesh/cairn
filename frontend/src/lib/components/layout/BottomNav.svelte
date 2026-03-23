@@ -17,7 +17,7 @@
 		{ href: '/memory', label: 'Memory', icon: Brain },
 		{ href: '/agents', label: 'Agents', icon: Bot },
 		{ href: '/skills', label: 'Skills', icon: Sparkles },
-		{ href: '/soul', label: 'Soul', icon: Heart },
+		{ href: '/soul', label: 'Identity', icon: Heart },
 		{ href: '/settings', label: 'Settings', icon: Settings },
 	];
 

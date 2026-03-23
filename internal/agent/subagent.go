@@ -57,6 +57,7 @@ type SubagentRunner struct {
 	toolCrons      tool.CronService
 	toolRules      tool.RulesService
 	toolConfig     tool.ConfigService
+	toolIdentity   tool.IdentityService
 	agentsFile     *memory.AgentsFile // operating manual for subagents
 	agentTypes     *agenttype.Service // AGENT.md type definitions (nil = fallback)
 	envContext     *EnvContext        // runtime environment context (nil = omit)
@@ -87,6 +88,7 @@ type SubagentRunnerDeps struct {
 	ToolCrons      tool.CronService
 	ToolRules      tool.RulesService
 	ToolConfig     tool.ConfigService
+	ToolIdentity   tool.IdentityService
 	AgentsFile     *memory.AgentsFile // optional: operating manual for subagents
 	AgentTypes     *agenttype.Service // optional: AGENT.md type definitions
 	EnvContext     *EnvContext        // optional: runtime environment context
@@ -122,6 +124,7 @@ func NewSubagentRunner(deps SubagentRunnerDeps) *SubagentRunner {
 		toolCrons:      deps.ToolCrons,
 		toolRules:      deps.ToolRules,
 		toolConfig:     deps.ToolConfig,
+		toolIdentity:   deps.ToolIdentity,
 		agentsFile:     deps.AgentsFile,
 		agentTypes:     deps.AgentTypes,
 		envContext:     deps.EnvContext,
@@ -418,6 +421,7 @@ func (r *SubagentRunner) executeSubagent(ctx context.Context, childID, parentTas
 		ToolCrons:     r.toolCrons,
 		ToolRules:     r.toolRules,
 		ToolConfig:    r.toolConfig,
+		ToolIdentity:  r.toolIdentity,
 		Config: &AgentConfig{
 			Model:              r.model,
 			MaxRounds:          maxRounds,

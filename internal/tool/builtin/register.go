@@ -62,6 +62,8 @@ func All() []tool.Tool {
 		installSkillMarketplace,
 		// Subagent tool.
 		spawnSubagent,
+		// Identity tool (propose changes to soul/user/agents/memory files).
+		updateIdentity,
 	}
 
 	// Web tools: Z.ai (GLM) or SearXNG/direct.

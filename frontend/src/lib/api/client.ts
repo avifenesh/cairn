@@ -589,8 +589,16 @@ export const runAgentType = (name: string, data: { instruction: string; context?
 export const deleteAgentType = (name: string) =>
 	del<{ ok: boolean }>(`/v1/agent-types/${encodeURIComponent(name)}`);
 
-// --- User Profile & Agents Config ---
+// --- User Profile, Agents Config, Memory File ---
 export const getUserProfile = () => get<{ content: string }>('/v1/user-profile');
 export const updateUserProfile = (content: string) => put<{ ok: boolean }>('/v1/user-profile', { content });
 export const getAgentsConfig = () => get<{ content: string }>('/v1/agents-config');
 export const updateAgentsConfig = (content: string) => put<{ ok: boolean }>('/v1/agents-config', { content });
+export const getAgentsPatch = () => get<{ patch: import('$lib/types').SoulPatch | null }>('/v1/agents-config/patch');
+export const approveAgentsPatch = (id: string) => post<{ ok: boolean }>('/v1/agents-config/patch/approve', { id });
+export const denyAgentsPatch = (id: string, reason?: string) => post<{ ok: boolean }>('/v1/agents-config/patch/deny', { id, reason });
+export const getMemoryFile = () => get<{ content: string }>('/v1/memory-file');
+export const updateMemoryFile = (content: string) => put<{ ok: boolean }>('/v1/memory-file', { content });
+export const getMemoryPatch = () => get<{ patch: import('$lib/types').SoulPatch | null }>('/v1/memory-file/patch');
+export const approveMemoryPatch = (id: string) => post<{ ok: boolean }>('/v1/memory-file/patch/approve', { id });
+export const denyMemoryPatch = (id: string, reason?: string) => post<{ ok: boolean }>('/v1/memory-file/patch/deny', { id, reason });
